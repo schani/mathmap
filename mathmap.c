@@ -250,10 +250,9 @@ MAIN()
 
 /*****/
 
-static FILE*
-open_rc_file (const char *name)
+static char*
+get_rc_file_name (const char *name)
 {
-    FILE *file;
     gchar *mathmap_name = g_strconcat("mathmap", G_DIR_SEPARATOR_S, name, NULL);
     gchar *filename;
 
@@ -261,18 +260,39 @@ open_rc_file (const char *name)
 
     filename = gimp_personal_rc_file(mathmap_name);
     assert(filename != 0);
-    file = fopen(filename, "r");
-    g_free(filename);
 
-    if (file == 0)
+#ifdef GIMP2
+    if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+#else
+    if (access(filename, R_OK) == -1)
+#endif
     {
 	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, mathmap_name, NULL);
-	assert(filename != 0);
-	file = fopen(filename, "r");
-	g_free(filename);
+
+#ifdef GIMP2
+	if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+#else
+	if (access(filename, R_OK) == -1)
+#endif
+	{
+	    g_free(filename);
+	    filename = 0;
+	}
     }
 
     g_free(mathmap_name);
+
+    return filename;
+}
+
+static FILE*
+open_rc_file (const char *name)
+{
+    FILE *file;
+    gchar *filename = get_rc_file_name(name);
+
+    file = fopen(filename, "r");
+    g_free(filename);
 
     return file;
 }
@@ -747,7 +767,15 @@ generate_code (int current_frame, float current_t)
 	}
 	else
 	{
-	    new_mathmap = compile_mathmap(mmvals.expression, template);
+	    char *opmacros_name = get_rc_file_name("opmacros.h");
+
+	    if (opmacros_name == 0)
+	    {
+		sprintf(error_string, "Support file opmacros.h does not exist");
+		new_mathmap = 0;
+	    }
+	    else
+		new_mathmap = compile_mathmap(mmvals.expression, template, opmacros_name);
 
 	    fclose(template);
 	}

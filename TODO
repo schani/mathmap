@@ -1,5 +1,6 @@
 parameter t is disregarded in constant optimized compiler (xy and y vars must be initialized for each frame)
 supersampling does not work in constant optimized compiler (row length is changed for each second line computed)
+make matrix operations pure (i.e. no memory allocation or think of something else)
 
 
 short circuit execution for && in compiler

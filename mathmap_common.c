@@ -177,7 +177,7 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, FILE *template)
+compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     static int try_compiler = 1;
@@ -223,7 +223,7 @@ compile_mathmap (char *expression, FILE *template)
 	}
 
 	if (try_compiler)
-	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template);
+	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template, opmacros_filename);
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{

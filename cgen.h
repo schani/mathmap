@@ -36,7 +36,7 @@ typedef mathfunc_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
 void init_compiler (void);
 
-initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info, FILE *template);
+initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename);
 void unload_c_code (void *module_info);
 
 #endif

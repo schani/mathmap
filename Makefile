@@ -119,9 +119,9 @@ scanner.c : scanner.fl parser.h
 	flex scanner.fl
 	mv lex.yy.c scanner.c
 
-compiler.o : new_builtins.c
+compiler.o : new_builtins.c opdefs.h
 
-new_builtins.c : builtins.lisp
+new_builtins.c opdefs.h : builtins.lisp
 	clisp builtins.lisp
 
 install : mathmap
@@ -130,6 +130,7 @@ ifneq ($(CMDLINE),YES)
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap ] ; then mkdir $(HOME)/$(GIMPDIR)/mathmap ; fi
 	if [ ! -f $(HOME)/$(GIMPDIR)/mathmap/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/mathmap/ ; fi
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
+	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
 endif
 
 install-mos : $(MOS)
@@ -146,7 +147,7 @@ realclean : clean
 dist : new_builtins.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README ANNOUNCEMENT COPYING INSTALL HACKING *.[ch] builtins.lisp parser.y scanner.fl mathmaprc *.po mathmap-$(VERSION)
+	cp Makefile README ANNOUNCEMENT COPYING INSTALL HACKING *.[ch] *.lisp parser.y scanner.fl mathmaprc *.po mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/graygradient.png html/clown.jpg html/sinegraph.png html/sineclown.jpg html/polar.png html/clownpond.jpg html/target.png html/rmod.jpg html/clownhole.jpg html/redgreengradient.png html/noise.jpg mathmap-$(VERSION)/doc
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)

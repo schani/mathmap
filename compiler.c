@@ -119,94 +119,14 @@ typedef struct
     } v;
 } primary_t;
 
-#define OP_NOP 0
-#define OP_ADD 1
-#define OP_SUB 2
-#define OP_NEG 3
-#define OP_MUL 4
-#define OP_DIV 5
-#define OP_MOD 6
-#define OP_ABS 7
-#define OP_MIN 8
-#define OP_MAX 9
-#define OP_SQRT 10
-#define OP_HYPOT 11
-#define OP_SIN 12
-#define OP_COS 13
-#define OP_TAN 14
-#define OP_ASIN 15
-#define OP_ACOS 16
-#define OP_ATAN 17
-#define OP_ATAN2 18
-#define OP_POW 19
-#define OP_EXP 20
-#define OP_LOG 21
-#define OP_SINH 22
-#define OP_COSH 23
-#define OP_TANH 24
-#define OP_ASINH 25
-#define OP_ACOSH 26
-#define OP_ATANH 27
-#define OP_GAMMA 28
-#define OP_FLOOR 29
-#define OP_EQ 30
-#define OP_LESS 31
-#define OP_LEQ 32
-#define OP_NOT 33
-#define OP_PRINT 34
-#define OP_NEWLINE 35
-#define OP_ORIG_VAL 36
-#define OP_RED 37
-#define OP_GREEN 38
-#define OP_BLUE 39
-#define OP_ALPHA 40
-#define OP_COMPLEX 41
-#define OP_C_REAL 42
-#define OP_C_IMAG 43
-#define OP_C_SQRT 44
-#define OP_C_SIN 45
-#define OP_C_COS 46
-#define OP_C_TAN 47
-#define OP_C_ASIN 48
-#define OP_C_ACOS 49
-#define OP_C_ATAN 50
-#define OP_C_POW 51
-#define OP_C_EXP 52
-#define OP_C_LOG 53
-#define OP_C_ARG 54
-#define OP_C_SINH 55
-#define OP_C_COSH 56
-#define OP_C_TANH 57
-#define OP_C_ASINH 58
-#define OP_C_ACOSH 59
-#define OP_C_ATANH 60
-#define OP_C_GAMMA 61
-#define OP_MAKE_M2X2 62
-#define OP_MAKE_M3X3 63
-#define OP_FREE_MATRIX 64
-#define OP_MAKE_V2 65
-#define OP_MAKE_V3 66
-#define OP_FREE_VECTOR 67
-#define OP_VECTOR_NTH 68
-#define OP_SOLVE_LINEAR_2 69
-#define OP_SOLVE_LINEAR_3 70
-#define OP_NOISE 71
-#define OP_RAND 72
-#define OP_USERVAL_INT 73
-#define OP_USERVAL_FLOAT 74
-#define OP_USERVAL_BOOL 75
-#define OP_USERVAL_CURVE 76
-#define OP_USERVAL_COLOR 77
-#define OP_USERVAL_GRADIENT 78
-#define OP_MAKE_COLOR 79
-#define OP_OUTPUT_COLOR 80
-
-#define NUM_OPS             81
-
 #define TYPE_PROP_CONST      1
 #define TYPE_PROP_MAX        2
 
 typedef int type_prop_t;
+
+static void init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure);
+
+#include "opdefs.h"
 
 typedef struct _operation_t
 {
@@ -1215,21 +1135,6 @@ end_while_loop (void)
     emit_loc = &stmt->next;
 }
 
-#define GAMMA(a)              (((a) > 171.0) ? 0.0 : gsl_sf_gamma((a)))
-#define PRINT(a)              (printf("%f ", (float)(a)), 0)
-#define NEWLINE()             (printf("\n"))
-#define MAKE_M2X2(a,b,c,d)           ({ gsl_matrix *m = gsl_matrix_alloc(2,2); \
-                                        gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,1,0,(c)); gsl_matrix_set(m,1,1,(d)); m; })
-#define MAKE_M3X3(a,b,c,d,e,f,g,h,i) ({ gsl_matrix *m = gsl_matrix_alloc(3,3); \
-                                        gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,0,2,(c)); \
-                                        gsl_matrix_set(m,1,0,(d)); gsl_matrix_set(m,1,1,(e)); gsl_matrix_set(m,1,2,(f)); \
-                                        gsl_matrix_set(m,2,0,(g)); gsl_matrix_set(m,2,1,(h)); gsl_matrix_set(m,2,2,(i)); m; })
-#define MAKE_V2(a,b)          ({ gsl_vector *v = gsl_vector_alloc(2); gsl_vector_set(v,0,(a)); gsl_vector_set(v,1,(b)); v; })
-#define MAKE_V3(a,b,c)        ({ gsl_vector *v = gsl_vector_alloc(3); gsl_vector_set(v,0,(a)); gsl_vector_set(v,1,(b)); gsl_vector_set(v,2,(c)); v; })
-#define SOLVE_LINEAR_2(m,v)   ({ gsl_vector *r = gsl_vector_alloc(2); gsl_linalg_HH_solve(m,v,r); r; })
-#define SOLVE_LINEAR_3(m,v)   ({ gsl_vector *r = gsl_vector_alloc(3); gsl_linalg_HH_solve(m,v,r); r; })
-#define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
-
 #define STK                   invocation->stack
 #define STKP                  invocation->stackp
 
@@ -1243,6 +1148,9 @@ end_while_loop (void)
 #include "builtins.h"
 #include "noise.h"
 
+#define INTERPRETER
+#include "opmacros.h"
+#undef INTERPRETER
 #include "new_builtins.c"
 
 /*** debug printing ***/
@@ -3144,7 +3052,7 @@ has_altivec (void)
 #define is_word_character(c)          (isalnum((c)) || (c) == '_')
 
 initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename)
 {
     static int last_mathfunc = 0;
 
@@ -3313,6 +3221,10 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 		    output_permanent_const_code(out, CONST_COL);
 #endif
 		}
+		else if (strcmp(name, "opmacros_h") == 0)
+		{
+		    fputs(opmacros_filename, out);
+		}
 		else
 		    assert(0);
 	    }
@@ -3430,97 +3342,8 @@ init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t cons
     ops[index].is_pure = is_pure;
 }
 
-#define PURE          1
-#define NONPURE       0
-
 void
 init_compiler (void)
 {
-    init_op(OP_NOP, "NOP", 0, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_ADD, "ADD", 2, TYPE_PROP_MAX, 0, PURE);
-    init_op(OP_SUB, "SUB", 2, TYPE_PROP_MAX, 0, PURE);
-    init_op(OP_NEG, "NEG", 1, TYPE_PROP_MAX, 0, PURE);
-    init_op(OP_MUL, "MUL", 2, TYPE_PROP_MAX, 0, PURE);
-    init_op(OP_DIV, "DIV", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_MOD, "MOD", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ABS, "fabs", 1, TYPE_PROP_MAX, 0, PURE);
-    init_op(OP_MIN, "MIN", 2, TYPE_PROP_MAX, 0, PURE);
-    init_op(OP_MAX, "MAX", 2, TYPE_PROP_MAX, 0, PURE);
-
-    init_op(OP_SQRT, "sqrt", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_HYPOT, "hypot", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_SIN, "sin", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_COS, "cos", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_TAN, "tan", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ASIN, "asin", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ACOS, "acos", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ATAN, "atan", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ATAN2, "atan2", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_POW, "pow", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_EXP, "exp", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_LOG, "log", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_SINH, "sinh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_COSH, "cosh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_TANH, "tanh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ASINH, "asinh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ACOSH, "acosh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ATANH, "atanh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_GAMMA, "GAMMA", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-
-    init_op(OP_FLOOR, "floor", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_EQ, "EQ", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_LESS, "LESS", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_LEQ, "LEQ", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_NOT, "NOT", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
-
-    init_op(OP_PRINT, "PRINT", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
-    init_op(OP_NEWLINE, "NEWLINE", 0, TYPE_PROP_CONST, TYPE_INT, NONPURE);
-
-    init_op(OP_ORIG_VAL, "ORIG_VAL", 4, TYPE_PROP_CONST, TYPE_COLOR, PURE);
-    init_op(OP_RED, "RED_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_GREEN, "GREEN_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_BLUE, "BLUE_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ALPHA, "ALPHA_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-
-    init_op(OP_COMPLEX, "COMPLEX", 2, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_REAL, "crealf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_C_IMAG, "cimagf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_C_SQRT, "csqrtf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_SIN, "csinf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_COS, "ccosf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_TAN, "ctanf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ASIN, "casinf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ACOS, "cacosf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ATAN, "catanf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_POW, "cpowf", 2, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_EXP, "cexpf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_LOG, "clogf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ARG, "cargf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_C_SINH, "csinhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_COSH, "ccoshf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_TANH, "ctanhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ASINH, "casinhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ACOSH, "cacoshf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ATANH, "catanhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_GAMMA, "cgamma", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-
-    init_op(OP_MAKE_M2X2, "MAKE_M2X2", 4, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
-    init_op(OP_MAKE_M3X3, "MAKE_M3X3", 9, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
-    init_op(OP_FREE_MATRIX, "FREE_MATRIX", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
-    init_op(OP_MAKE_V2, "MAKE_V2", 2, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
-    init_op(OP_MAKE_V3, "MAKE_V3", 3, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
-    init_op(OP_FREE_VECTOR, "FREE_VECTOR", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
-    init_op(OP_VECTOR_NTH, "VECTOR_NTH", 2, TYPE_PROP_CONST, TYPE_FLOAT, NONPURE);
-    init_op(OP_SOLVE_LINEAR_2, "SOLVE_LINEAR_2", 2, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
-    init_op(OP_SOLVE_LINEAR_3, "SOLVE_LINEAR_3", 2, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
-    init_op(OP_NOISE, "noise", 3, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_RAND, "RAND", 2, TYPE_PROP_CONST, TYPE_FLOAT, NONPURE);
-    init_op(OP_USERVAL_INT, "USERVAL_INT", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_USERVAL_FLOAT, "USERVAL_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_USERVAL_BOOL, "USERVAL_BOOL", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
-    init_op(OP_USERVAL_CURVE, "USERVAL_CURVE", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_USERVAL_COLOR, "USERVAL_COLOR", 1, TYPE_PROP_CONST, TYPE_COLOR, PURE);
-    init_op(OP_USERVAL_GRADIENT, "USERVAL_GRADIENT", 2, TYPE_PROP_CONST, TYPE_COLOR, PURE);
-    init_op(OP_MAKE_COLOR, "MAKE_COLOR", 4, TYPE_PROP_CONST, TYPE_COLOR, PURE);
-    init_op(OP_OUTPUT_COLOR, "OUTPUT_COLOR", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
+    init_ops();
 }
