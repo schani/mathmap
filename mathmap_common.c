@@ -87,6 +87,43 @@ init_internals (mathmap_t *mathmap)
     register_internal(&mathmap->internals, "frame", make_tuple_info(nil_tag_number, 1), 1);
 }
 
+int
+check_mathmap (char *expression)
+{
+    static mathmap_t mathmap;
+
+    the_mathmap = &mathmap;
+
+    DO_JUMP_CODE {
+	scanFromString(expression);
+	mmparse();
+	endScanningFromString();
+
+	the_mathmap = 0;
+
+	assert(mathmap.exprtree != 0);
+
+	if (mathmap.exprtree->result.number != rgba_tag_number
+	    || mathmap.exprtree->result.length != 4)
+	{
+	    free_exprtree(mathmap.exprtree);
+	    mathmap.exprtree = 0;
+
+	    sprintf(error_string, "The expression must have the result type rgba:4.");
+	    JUMP(1);
+	}
+    } WITH_JUMP_HANDLER {
+	the_mathmap = 0;
+    } END_JUMP_HANDLER;
+
+    if (mathmap.exprtree != 0)
+    {
+	free_exprtree(mathmap.exprtree);
+	return 1;
+    }
+    return 0;
+}
+
 mathmap_t*
 compile_mathmap (char *expression)
 {
@@ -116,6 +153,9 @@ compile_mathmap (char *expression)
 	if (mathmap->exprtree->result.number != rgba_tag_number
 	    || mathmap->exprtree->result.length != 4)
 	{
+	    free_mathmap(mathmap);
+	    mathmap = 0;
+
 	    sprintf(error_string, "The expression must have the result type rgba:4.");
 	    JUMP(1);
 	}
@@ -285,27 +325,9 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 
     for (info = invocation->mathmap->userval_infos; info != 0; info = info->next)
     {
-	userval_info_t *template_info = lookup_userval(template->mathmap->userval_infos, info->name, info->type);
+	userval_info_t *template_info = lookup_matching_userval(template->mathmap->userval_infos, info);
 
 	if (template_info != 0)
-	{
-	    switch (info->type)
-	    {
-		case USERVAL_INT_CONST :
-		    if (info->v.int_const.min != template_info->v.int_const.min
-			|| info->v.int_const.max != template_info->v.int_const.max)
-			template_info = 0;
-		    break;
-
-		case USERVAL_FLOAT_CONST :
-		    if (info->v.float_const.min != template_info->v.float_const.min
-			|| info->v.float_const.max != template_info->v.float_const.max)
-			template_info = 0;
-		    break;
-	    }
-
-	    if (template_info != 0)
-		copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);
-	}
+	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);
     }
 }

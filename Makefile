@@ -1,6 +1,6 @@
 # if you do not want to use the c code generator, comment the
 # following line
-CGEN = YES
+#CGEN = YES
 
 # if you don't have GNU libc, uncomment the following line
 #ONLY_ANSI = YES

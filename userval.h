@@ -76,7 +76,9 @@ typedef struct _userval_t
 
 	struct
 	{
+#ifndef OPENSTEP
 	    guchar button_value[4];
+#endif
 	    tuple_t value;
 	} color;
 
@@ -92,6 +94,9 @@ typedef struct _userval_t
 
 	struct
 	{
+#ifdef OPENSTEP
+	    void *image_rep;
+#endif
 	    int index;
 	} image;
     } v;
@@ -102,6 +107,7 @@ typedef struct _userval_t
 } userval_t;
 
 userval_info_t* lookup_userval (userval_info_t *infos, const char *name, int type);
+userval_info_t* lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info);
 
 userval_info_t* register_int_const (userval_info_t **infos, const char *name, int min, int max);
 userval_info_t* register_float_const (userval_info_t **infos, const char *name, float min, float max);
@@ -110,11 +116,15 @@ userval_info_t* register_color (userval_info_t **infos, const char *name);
 userval_info_t* register_curve (userval_info_t **infos, const char *name);
 userval_info_t* register_image (userval_info_t **infos, const char *name);
 
+void set_userval_to_default (userval_t *val, userval_info_t *info);
+void instantiate_userval (userval_t *val, userval_info_t *info);
 userval_t* instantiate_uservals (userval_info_t *infos);
 void free_uservals (userval_t *uservals, userval_info_t *infos);
 void free_userval_infos (userval_info_t *infos);
 
 void copy_userval (userval_t *dst, userval_t *src, int type);
+
+void set_userval_to_default (userval_t *dst, userval_info_t *info);
 
 #ifdef GIMP
 GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);

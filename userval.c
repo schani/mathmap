@@ -69,6 +69,30 @@ lookup_userval (userval_info_t *infos, const char *name, int type)
 }
 
 userval_info_t*
+lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info)
+{
+    userval_info_t *info = lookup_userval(infos, test_info->name, test_info->type);
+
+    if (info != 0)
+	switch (info->type)
+	{
+	    case USERVAL_INT_CONST :
+		if (info->v.int_const.min != test_info->v.int_const.min
+		    || info->v.int_const.max != test_info->v.int_const.max)
+		    info = 0;
+		break;
+
+	    case USERVAL_FLOAT_CONST :
+		if (info->v.float_const.min != test_info->v.float_const.min
+		    || info->v.float_const.max != test_info->v.float_const.max)
+		    info = 0;
+		break;
+	}
+
+    return info;
+}
+
+userval_info_t*
 register_int_const (userval_info_t **infos, const char *name, int min, int max)
 {
     userval_info_t *info;
@@ -168,6 +192,74 @@ register_image (userval_info_t **infos, const char *name)
     return info;
 }
 
+void
+set_userval_to_default (userval_t *val, userval_info_t *info)
+{
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	    val->v.int_const = info->v.int_const.min;
+	    break;
+
+	case USERVAL_FLOAT_CONST :
+	    val->v.float_const = info->v.float_const.min;
+	    break;
+
+	case USERVAL_BOOL_CONST :
+	    val->v.bool_const = 0.0;
+	    break;
+
+	case USERVAL_CURVE :
+	    {
+		int i;
+
+		for (i = 0; i < USER_CURVE_POINTS; ++i)
+		    val->v.curve.values[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
+	    }
+	    break;
+
+	case USERVAL_GRADIENT :
+	    /* FIXME */
+	    break;
+
+	case USERVAL_COLOR :
+	    val->v.color.value.number = rgba_tag_number;
+	    val->v.color.value.length = 4;
+
+	    val->v.color.button_value[0] =
+		val->v.color.button_value[1] =
+		val->v.color.button_value[2] = 0;
+	    val->v.color.button_value[3] = 255;
+
+	    val->v.color.value.data[0] =
+		val->v.color.value.data[1] =
+		val->v.color.value.data[2] = 0.0;
+	    val->v.color.value.data[3] = 1.0;
+	    break;
+
+	case USERVAL_IMAGE :
+	    val->v.image.index = -1;
+	    break;
+    }
+}
+
+void
+instantiate_userval (userval_t *val, userval_info_t *info)
+{
+    switch (info->type)
+    {
+	case USERVAL_CURVE :
+	    val->v.curve.values = (float*)malloc(USER_CURVE_POINTS * sizeof(float));
+	    break;
+
+	case USERVAL_GRADIENT :
+	    val->v.gradient.values = (float(*)[4])malloc(USER_GRADIENT_POINTS * 4 * sizeof(float));
+	    break;
+    }
+
+    set_userval_to_default(val, info);
+}
+
 userval_t*
 instantiate_uservals (userval_info_t *infos)
 {
@@ -182,54 +274,7 @@ instantiate_uservals (userval_info_t *infos)
     uservals = (userval_t*)malloc(n * sizeof(userval_t));
 
     for (info = infos; info != 0; info = info->next)
-	switch (info->type)
-	{
-	    case USERVAL_INT_CONST :
-		uservals[info->index].v.int_const = info->v.int_const.min;
-		break;
-
-	    case USERVAL_FLOAT_CONST :
-		uservals[info->index].v.float_const = info->v.float_const.min;
-		break;
-
-	    case USERVAL_BOOL_CONST :
-		uservals[info->index].v.bool_const = 0.0;
-		break;
-
-	    case USERVAL_CURVE :
-		{
-		    int i;
-
-		    uservals[info->index].v.curve.values = (float*)malloc(USER_CURVE_POINTS * sizeof(float));
-
-		    for (i = 0; i < USER_CURVE_POINTS; ++i)
-			uservals[info->index].v.curve.values[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
-		}
-		break;
-
-	    case USERVAL_GRADIENT :
-		uservals[info->index].v.gradient.values = (float(*)[4])malloc(USER_GRADIENT_POINTS * 4 * sizeof(float));
-		break;
-
-	    case USERVAL_COLOR :
-		uservals[info->index].v.color.value.number = rgba_tag_number;
-		uservals[info->index].v.color.value.length = 4;
-
-		uservals[info->index].v.color.button_value[0] =
-		    uservals[info->index].v.color.button_value[1] =
-		    uservals[info->index].v.color.button_value[2] = 0;
-		uservals[info->index].v.color.button_value[3] = 255;
-
-		uservals[info->index].v.color.value.data[0] =
-		    uservals[info->index].v.color.value.data[1] =
-		    uservals[info->index].v.color.value.data[2] = 0.0;
-		uservals[info->index].v.color.value.data[3] = 1.0;
-		break;
-
-	    case USERVAL_IMAGE :
-		uservals[info->index].v.image.index = -1;
-		break;
-	}
+	instantiate_userval(&uservals[info->index], info);
 
     return uservals;
 }

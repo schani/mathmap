@@ -113,6 +113,7 @@ void unload_mathmap (mathmap_t *mathmap);
 void free_mathmap (mathmap_t *mathmap);
 void free_invocation (mathmap_invocation_t *invocation);
 
+int check_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_invocation (mathmap_invocation_t *invocation);
