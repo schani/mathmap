@@ -12,10 +12,11 @@
     <blockquote>
       <p>Every value in MathMap is a tagged tuple. This means it
 	consists of one or more numbers (currently stupidly limited to
-	9) and a symbolic tag. Colors, for example are represented by
-	tuples of length 4 with the tag <tt>rgba</tt> (for red, green,
-	blue, alpha). The value <tt>rgba:[1,0,0,1]</tt> for example,
-	represents the fully opaque color red.
+	9 in the interpreter) and a symbolic tag. RGBA colors, for
+	example are represented by tuples of length 4 with the tag
+	<tt>rgba</tt> (for red, green, blue, alpha). The value
+	<tt>rgba:[1,0,0,1]</tt> for example, represents the fully
+	opaque color red.
 
       <p>Single numbers are represented by tuples of length 1 with
 	the tag <tt>nil</tt> (which is the default tag). For sake of
@@ -27,9 +28,10 @@
 	MathMap:
 
       <table>
-	<tr><td><b>Symbol</b><td><b>Purpose</b></tr>
+	<tr><td><b>Symbol</b> <td><b>Purpose</b></tr>
 	<tr><td><tt>nil</tt>  <td>Default tag</tr>
-	<tr><td><tt>rgba</tt> <td>Color</tr>
+	<tr><td><tt>rgba</tt> <td>RGBA Color</tr>
+	<tr><td><tt>hsva</tt> <td>HSVA Color</tr>
 	<tr><td><tt>ri</tt>   <td>Complex number</tr>
 	<tr><td><tt>xy</tt>   <td>Cartesian coordinate</tr>
 	<tr><td><tt>ra</tt>   <td>Polar coordinate</tr>
@@ -120,6 +122,25 @@
 	  If animation is disabled, the value of <tt>t</tt> can be chosen
 	  in the Settings tab. If you want to make animations loop, make sure that the
 	  images at <tt>t == 0</tt> and <tt>t == 1</tt> are the same.
+      </dl>
+
+    </blockquote>
+
+    <h2>Constants</h2>
+
+    <blockquote>
+
+      MathMap defines a few constants to make your life easier:
+
+      <dl>
+        <dt><tt>pi</tt> (<tt>nil:1</tt>)
+        <dd>3.1418925635...</dd>
+
+        <dt><tt>e</tt> (<tt>nil:1</tt>)
+        <dd>Euler's constant 2.7182818284...</dd>
+
+        <dt><tt>I</tt> (<tt>ri:2</tt>)
+        <dd>The imaginary unit <tt>ri:[0,1]</tt>
       </dl>
 
     </blockquote>
@@ -322,8 +343,40 @@
 	  the signs of <tt>x</tt> and <tt>y</tt> are used to
 	  determine the quadrant of the result.
 
+	<dt><tt>sinh(x)</tt>
+	<dd>Returns the hyperbolic sine of <tt>x</tt>.
+
+	<dt><tt>cosh(x)</tt>
+	<dd>Returns the hyperbolic cosine of <tt>x</tt>.
+
+	<dt><tt>tanh(x)</tt>
+	<dd>Returns the hyperbolic tangent of <tt>x</tt>.
+
+	<dt><tt>asinh(x)</tt>
+	<dd>Returns the hyperbolic arc-sine of <tt>x</tt>.
+
+	<dt><tt>acosh(x)</tt>
+	<dd>Returns the hyperbolic arc-cosine of <tt>x</tt>.
+
+	<dt><tt>atanh(x)</tt>
+	<dd>Returns the hyperbolic arc-tangent of <tt>x</tt>.
+
+	<dt><tt>exp(x)</tt>
+	<dd>Returns <tt>e^x</tt>.
+
+	<dt><tt>gamma(x)</tt>
+        <dd>Returns the value of the gamma function for <tt>x</tt>.
+
 	<dt><tt>abs(x)</tt>
 	<dd>Returns the absolute value of <tt>x</tt>.
+
+	<dt><tt>arg(x)</tt>
+        <dd>Returns the argument of the complex value
+          <tt>x == ri:[re,im]</tt>, which is <tt>atan(im/re)</tt>.
+
+	<dt><tt>conj(x)</tt>
+	<dd>Returns the conjugate complex of </tt>x == ri:[re,im]</tt>,
+	  which is <tt>ri:[re,-im]</tt>.
 
 	<dt><tt>sign(x)</tt>
 	<dd>Returns <tt>-1</tt> if <tt>x &lt; 0</tt>, 0 if <tt>x = 0</tt>
@@ -350,6 +403,9 @@
 	<dt><tt>lerp(t,a,b)</tt>
         <dd>Returns <tt>a*(1-t)+b*t</tt>. <tt>t</tt> must have length 1. <tt>a</tt>
 	  and <tt>b</tt> must have the same tag and the same arbitrary length.
+
+	<dt><tt>scale(x,fl,fu,tl,tu)</tt>
+	<dd>Returns <tt>((x-fl)/(fu-fl))*(tu-tl)</tt>.
 
 	<dt><tt>sum(t)</tt>
 	<dd>Returns the sum of all elements of the tuple <tt>t</tt>.
@@ -385,6 +441,14 @@
 	<dt><tt>gray(p)</tt>
 	<dd>Returns the luminance of <tt>p</tt>, which is
 	  <tt>0 &lt;= gray(p) &lt;= 1</tt>.
+
+	<dt><tt>toRGBA(c)</tt>
+	<dd>Transforms the color <tt>c</tt> to RGBA. Returns an
+	  <tt>rgba:4</tt> tuple.
+
+	<dt><tt>toHSVA(c)</tt>
+	<dd>Transforms the color <tt>c</tt> to HSVA. Returns an
+	  <tt>hsva:4</tt> tuple.
 
 	<dt><tt>origVal(coord)</tt>
 	<dd>Returns the <tt>rgba</tt> value of the pixel at coordinate

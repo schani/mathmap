@@ -20,7 +20,7 @@
       <p>If you have any suggestions, bugs to report, expressions
       which generate cool effects, or if you just happen to like or
       dislike this plug-in, in other words, under any circumstances,
-      please <a href="mailto:schani@unix.cslab.tuwien.ac.at">drop me a
+      please <a href="mailto:schani@complang.tuwien.ac.at">drop me a
       mail</a>.
     </blockquote>
 
@@ -37,6 +37,10 @@
     <h2>News</h2>
 
     <blockquote>
+      <p><b>09-26-2000</b> Released version 0.12.
+
+      <p><b>04-21-2000</b> Released version 0.11.
+
       <p><b>07-13-1999</b> Released version 0.10.
 
       <p><b>05-09-1999</b> Released version 0.9.
@@ -54,6 +58,41 @@
       <p><b>01-12-1998</b> Released version 0.4.
 
       <p><b>11-21-1997</b> Released version 0.3.
+
+      <h3>Changes since 0.11</h3>
+
+      <ul>
+        <li>Requires at least GIMP 1.1.26.
+
+	<li>MathMap now has a GIMP-independant command line version.
+
+	<li>Much improved complex arithmetic (thanks to Hans
+	  Lundmark).
+
+	<li>New/improved functions: scale, toRGBA, toHSVA, gamma,
+          sinh, cosh, tanh, asinh, acosh, atanh, arg, conj, exp (most
+          of them contributed by Hans Lundmark).
+
+	<li>Some bug fixes.
+      </ul>
+
+      <h3>Changes since 0.10</h3>
+
+      <ul>
+        <li>Requires at least GIMP 1.1.
+
+        <li>More than one input image can be specified!!!
+
+        <li>MathMap now registers all examples in the PDB.
+
+        <li>Several new/improved examples.
+
+        <li>New/improved functions: lerp, clamp, noise.
+
+        <li>Some internal changes.
+
+        <li>Fixes some bugs.
+      </ul>
 
       <h3>Changes since 0.9</h3>
 
@@ -210,14 +249,7 @@
       <li>I will make it possible for the user to modify the Examples
 	tree from within the plug-in in a user-friendly fashion.
 	
-      <li>I'll add the possibility of specifying more than one source image,
-	allowing for cool composition effects.
-
       <li>I will add a few optimizations to the code generator.
-
-      <li>I will write a code generator for the PowerPC or the Alpha,
-	as a standalone program. This should allow the generation of
-	animations based on mathematical expressions in real-time.
     </ul>
 
     <h2>How you can contribute</h2>
@@ -247,11 +279,11 @@
     <h2>Where to get it</h2>
 
     <blockquote>
-      Get the source of version 0.10 <a href="mathmap-0.10.tar.gz">here</a>. 
+      Get the source of version 0.12 <a href="mathmap-0.12.tar.gz">here</a>. 
       You'll need <tt>bison</tt> and <tt>flex</tt> in order to compile it
-      (both are included in any sane operating system distribution). MathMap
-      also requires <tt>libPropList</tt> which I have included in the
-      tarball.
+      (both are included in any sane operating system distribution).
+      <b>Note:</b> Version 0.11 requires GIMP 1.1! The last version that
+      runs under GIMP 1.0 is <a href="mathmap-0.10.tar.gz">version 0.10</a>.
     </blockquote>
 
     <h2><a name="mailinglist">Mailing List</a></h2>

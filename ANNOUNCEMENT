@@ -1,4 +1,4 @@
-MathMap 0.11
+MathMap 0.12
 ------------
 
 MathMap is a GIMP plug-in which allows distortion of images specified
@@ -13,6 +13,16 @@ The MathMap homepage can be found at
     http://www.complang.tuwien.ac.at/~schani/mathmap/
 
 It includes a user's manual as well as screenshots and examples.
+
+Changes since 0.11:
+
+  * Requires at least GIMP 1.1.26.
+  * MathMap now has a GIMP-independant command line version.
+  * Much improved complex arithmetic (thanks to Hans Lundmark).
+  * New/improved functions: scale, toRGBA, toHSVA, gamma, sinh, cosh,
+    tanh, asinh, acosh, atanh, arg, conj, exp (most of them
+    contributed by Hans Lundmark).
+  * Some bug fixes.
 
 Changed since 0.10:
 
