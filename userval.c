@@ -1,9 +1,11 @@
-#include <gtk/gtk.h>
-
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <math.h>
+
+#include <gtk/gtk.h>
+#include <libgimp/gimp.h>
+#include <libgimp/gimpui.h>
 
 #include "mathmap.h"
 #include "userval.h"
@@ -58,6 +60,9 @@ clear_untagged_uservals (void)
 
 	    *userval = (*userval)->next;
 
+	    if (p->type == USERVAL_IMAGE && p->v.image.index != -1)
+		free_input_drawable(p->v.image.index);
+
 	    free(p);
 	}
 	else
@@ -73,7 +78,6 @@ lookup_userval (const char *name, int type)
     for (userval = first; userval != 0; userval = userval->next)
 	if (userval->type == type && strcmp(name, userval->name) == 0)
 	    return userval;
-
 
     return 0;
 }
@@ -174,6 +178,26 @@ register_curve (const char *name)
     return userval;
 }
 
+userval_t*
+register_image (const char *name)
+{
+    userval_t *userval;
+
+    userval = lookup_userval(name, USERVAL_IMAGE);
+    if (userval != 0)
+    {
+	userval->tag = 1;
+
+	return userval;
+    }
+
+    userval = alloc_and_register_userval(name, USERVAL_IMAGE);
+
+    userval->v.image.index = -1;
+
+    return userval;
+}
+
 static void
 userval_slider_update (GtkAdjustment *adjustment, userval_t *userval)
 {
@@ -207,6 +231,27 @@ userval_color_update (ColorWell *color_well, userval_t *userval)
 
     if (auto_preview)
 	dialog_update_preview();
+}
+
+static gint
+user_image_constrain (gint32 image_id, gint32 drawable_id, gpointer data)
+{
+    if (drawable_id == -1)
+	return TRUE;
+
+    if (gimp_drawable_width(drawable_id) == img_width
+	&& gimp_drawable_height(drawable_id) == img_height)
+	return TRUE;
+    else
+	return FALSE;
+}
+
+static void
+user_image_update (gint32 id, userval_t *userval)
+{
+    if (userval->v.image.index != -1)
+	free_input_drawable(userval->v.image.index);
+    userval->v.image.index = alloc_input_drawable(gimp_drawable_get(id));
 }
 
 GtkWidget*
@@ -311,6 +356,25 @@ make_userval_table (void)
 	    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve), 0, 1, 0, 1);
 
 	    yoptions = GTK_FILL | GTK_EXPAND;
+	}
+	else if (userval->type == USERVAL_IMAGE)
+	{
+	    GtkWidget *menu;
+	    gint32 drawable_id = -1;
+
+	    if (userval->v.image.index != -1)
+	    {
+		GDrawable *drawable = get_input_drawable(userval->v.image.index);
+
+		if (drawable != 0)
+		    drawable_id = drawable->id;
+	    }
+
+	    widget = gtk_option_menu_new();
+	    menu = gimp_drawable_menu_new(user_image_constrain, (GimpMenuCallback)user_image_update,
+					  userval, drawable_id);
+	    gtk_option_menu_set_menu(GTK_OPTION_MENU(widget), menu);
+	    gtk_widget_show(widget);
 	}
 	else
 	    assert(0);

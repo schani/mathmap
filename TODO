@@ -6,66 +6,7 @@ abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
 
 
 
-xspread = 50.0;
-yspread = 50.0;
-xshift = (1-t)*(xspread*curve(rand(0, 1)) - xspread/2);
-yshift = (1-t)*(yspread*curve(rand(0, 1)) - yspread/2);
-origValXY(x+xshift, y+yshift)
 
-
-
-
-
-
-
-# curve bend
-origVal(xy/xy:[1,(curve((x+X)/W)-0.5)*4])
-
-
-
-
-# curve displace
-origVal(xy+xy:[0,(curve((x+X)/W)-0.5)*2*t*H])
-
-
-
-
-p = origVal(xy);
-if gray(p) > user_slider("cutoff",0,1) then
-    p
-else
-    user_color("color")
-end
-
-
-
-
-
-
-
-
-dist=if x == 0 then Y else if y == 0 then X else abs(ri:[min(abs(tan(a)*X),Y),min(abs(1/tan(a)*Y),X)]) end end;
-weight=1-curve(r/dist);
-#origVal(xy)*weight
-origVal(xy+xy:[X,Y])*(1-weight)
-#grayColor(weight)
-
-
-
-
-
-
-
-
-
-# make seamless
-ax=abs(x)/X;ay=abs(y)/Y;
-x1=max(0,ax-ay);
-y1=max(0,ay-ax);
-x2=min(1,ax+(1-ay));
-y2=min(1,ay+(1-ax));
-weight=1-(ax-x1)/(x2-x1);
-origVal(xy)*weight+origVal(xy+xy:[X,Y])*weight
 
 
 
@@ -111,12 +52,6 @@ grayColor(n)*0.5+0.5
 
 
 
-g = user_slider("granularity",0,50);
-nxy = xy/R*g;
-rz = user_slider("rz",0,10);
-gz = user_slider("gz",0,10);
-bz = user_slider("bz",0,10);
-rgba:[noise3([nxy[0,1],rz]),noise3([nxy[0,1],gz]),noise3([nxy[0,1],bz]),1]*0.5+0.5
 
 
 

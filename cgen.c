@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <gmodule.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "cgen.h"
 #include "tags.h"
@@ -181,19 +183,6 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 				tree->val.select.tuple->result.length,
 				tree->tmpvarnum, i,
 				tree->tmpvarnum, i, tree->val.select.tuple->tmpvarnum);
-
-			/*
-			for (j = 1; j < tree->val.select.tuple->result.length; ++j)
-			    fprintf(out,
-				    "if (tmpvar_%d[0] < %d)\n"
-				    "    tmpvar_%d[%d] = tmpvar_%d[%d];\n"
-				    "else ",
-				    elem->tmpvarnum, j,
-				    tree->tmpvarnum, i, tree->val.select.tuple->tmpvarnum, j - 1);
-			fprintf(out, "tmpvar_%d[%d] = tmpvar_%d[%d];\n",
-				tree->tmpvarnum, i,
-				tree->val.select.tuple->tmpvarnum, tree->val.select.tuple->result.length - 1);
-			*/
 		    }
 
 		    elem = elem->next;
@@ -284,6 +273,10 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 			"    tmpvar_%d[i] = ((float*)%p)[i];\n"
 			"}\n",
 			tree->tmpvarnum, tree->val.userval.userval->v.color.value.data);
+	    else if (tree->val.userval.userval->type == USERVAL_IMAGE)
+		fprintf(out,
+			"tmpvar_%d[0] = *(int*)%p;\n",
+			tree->tmpvarnum, &tree->val.userval.userval->v.image.index);
 	    else
 		assert(0);
 	    break;
@@ -340,19 +333,6 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 				elem->tmpvarnum,
 				tree->val.sub_assignment.var->type.length,
 				tree->val.sub_assignment.var->name, tree->val.sub_assignment.value->tmpvarnum, i);
-
-			/*
-			for (j = 1; j < tree->val.sub_assignment.var->type.length; ++j)
-			    fprintf(out,
-				    "if (tmpvar_%d[0] < %d)\n"
-				    "    uservar_%s[%d] = tmpvar_%d[%d];\n"
-				    "else ",
-				    elem->tmpvarnum, j,
-				    tree->val.sub_assignment.var->name, j - 1, tree->val.sub_assignment.value->tmpvarnum, i);
-			fprintf(out, "uservar_%s[%d] = tmpvar_%d[%d];\n",
-				tree->val.sub_assignment.var->name, tree->val.sub_assignment.var->type.length - 1,
-				tree->val.sub_assignment.value->tmpvarnum, i);
-			*/
 		    }
 
 		    elem = elem->next;
@@ -437,6 +417,8 @@ gen_and_load_c_code (exprtree *tree)
     FILE *out;
     int numtmpvars = 0, i;
     variable_t *var;
+    char *buf;
+    int pid = getpid();
 
     if (module != 0)
     {
@@ -444,13 +426,16 @@ gen_and_load_c_code (exprtree *tree)
 	module = 0;
     }
 
-    out = fopen("/tmp/mathfunc.c", "w");
+    buf = (char*)malloc(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
+
+    sprintf(buf, "/tmp/mathfunc%d.c", pid);
+    out = fopen(buf, "w");
     assert(out != 0);
 
     fprintf(out,
 	    "#include <math.h>\n"
-	    "void getOrigValIntersamplePixel(float,float,unsigned char*);\n"
-	    "void getOrigValPixel(float,float,unsigned char*);\n"
+	    "void getOrigValIntersamplePixel(float,float,unsigned char*,int);\n"
+	    "void getOrigValPixel(float,float,unsigned char*,int);\n"
 	    "float scnoise(float,float,float);\n"
 	    "float noise1(float);\n"
 	    "float noise3(float,float,float);\n"
@@ -491,10 +476,14 @@ gen_and_load_c_code (exprtree *tree)
 
     fclose(out);
 
-    system("gcc -O -g -c -fPIC -o /tmp/mathfunc.o /tmp/mathfunc.c");
-    system("gcc -shared -o /tmp/mathfunc.so /tmp/mathfunc.o");
+    sprintf(buf, "%s /tmp/mathfunc%d.o /tmp/mathfunc%d.c", CGEN_CC, pid, pid);
+    system(buf);
 
-    module = g_module_open("/tmp/mathfunc.so", 0);
+    sprintf(buf, "%s /tmp/mathfunc%d.so /tmp/mathfunc%d.o", CGEN_LD, pid, pid);
+    system(buf);
+
+    sprintf(buf, "/tmp/mathfunc%d.so", pid);
+    module = g_module_open(buf, 0);
     if (module == 0)
     {
 	fprintf(stderr, "could not load module: %s\n", g_module_error());
@@ -502,6 +491,16 @@ gen_and_load_c_code (exprtree *tree)
     }
 
     assert(g_module_symbol(module, "mathmapfunc", (void**)&eval_c_code));
+
+    unlink(buf);
+
+    sprintf(buf, "/tmp/mathfunc%d.o", pid);
+    unlink(buf);
+
+    sprintf(buf, "/tmp/mathfunc%d.c", pid);
+    unlink(buf);
+
+    free(buf);
 
     return TRUE;
 }

@@ -186,6 +186,15 @@ stack_userval_curve (postfix_arg *arg)
 }
 
 void
+stack_userval_image (postfix_arg *arg)
+{
+    stack[stackp].data[0] = arg->userval->v.image.index;
+    stack[stackp].length = 1;
+    stack[stackp].number = image_tag_number;
+    ++stackp;
+}
+
+void
 make_postfix_recursive (exprtree *tree)
 {
     switch (tree->type)
@@ -266,6 +275,8 @@ make_postfix_recursive (exprtree *tree)
 		make_postfix_recursive(tree->val.userval.args);
 		expression[exprp].func = stack_userval_curve;
 	    }
+	    else if (tree->val.userval.userval->type == USERVAL_IMAGE)
+		expression[exprp].func = stack_userval_image;
 	    else
 		assert(0);
 	    expression[exprp].arg.userval = tree->val.userval.userval;

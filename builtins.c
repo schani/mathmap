@@ -10,6 +10,7 @@
 #include "postfix.h"
 #include "tags.h"
 #include "overload.h"
+#include "mathmap.h"
 
 extern gint preview_width, preview_height;
 extern guchar *fast_image_source;
@@ -33,37 +34,32 @@ extern unsigned char edge_color[4];
 
 builtin *firstBuiltin = 0;
 
-void mathmap_get_pixel (int x, int y, unsigned char *pixel);
-
-extern int originX,
-    originY,
-    wholeImageWidth,
-    wholeImageHeight;
+void mathmap_get_pixel (int drawable_index, int x, int y, unsigned char *pixel);
 
 static void
-get_pixel (int x, int y, guchar *pixel)
+get_pixel (int x, int y, guchar *pixel, int drawable_index)
 { 
     if (edge_behaviour_mode == edge_behaviour_wrap)
     {
 	if (x < 0)
-	    x = x % wholeImageWidth + wholeImageWidth;
-	else if (x >= wholeImageWidth)
-	    x %= wholeImageWidth;
+	    x = x % img_width + img_width;
+	else if (x >= img_width)
+	    x %= img_width;
 	if (y < 0)
-	    y = y % wholeImageHeight + wholeImageHeight;
-	else if (y >= wholeImageHeight)
-	    y %= wholeImageHeight;
+	    y = y % img_height + img_height;
+	else if (y >= img_height)
+	    y %= img_height;
     }
     else if (edge_behaviour_mode == edge_behaviour_reflect)
     {
 	if (x < 0)
-	    x = -x % wholeImageWidth;
-	else if (x >= wholeImageWidth)
-	    x = (wholeImageWidth - 1) - (x % wholeImageWidth);
+	    x = -x % img_width;
+	else if (x >= img_width)
+	    x = (img_width - 1) - (x % img_width);
 	if (y < 0)
-	    y = -y % wholeImageHeight;
-	else if (y >= wholeImageHeight)
-	    y = (wholeImageHeight - 1) - (y % wholeImageHeight);
+	    y = -y % img_height;
+	else if (y >= img_height)
+	    y = (img_height - 1) - (y % img_height);
     }
 
     if (previewing)
@@ -71,17 +67,14 @@ get_pixel (int x, int y, guchar *pixel)
 	x = (x - sel_x1) * preview_width / sel_width;
 	y = (y - sel_y1) * preview_height / sel_height;
 
-	if (x < 0 || x > preview_width || y < 0 || y >= preview_height)
-	    memcpy(pixel, edge_color, 4);
-	else
-	    memcpy(pixel, fast_image_source + (x + y * preview_width) * 4, 4);
+	mathmap_get_fast_pixel(drawable_index, x, y, pixel);
     }
     else
-	mathmap_get_pixel(x, y, pixel);
+	mathmap_get_pixel(drawable_index, x, y, pixel);
 }
 
 void
-getOrigValPixel (float x, float y, unsigned char *pixel)
+getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index)
 {
     x += originX + middleX;
     y = -y + originY + middleY;
@@ -92,11 +85,11 @@ getOrigValPixel (float x, float y, unsigned char *pixel)
 	y += 0.5;
     }
 
-    get_pixel(floor(x), floor(y), pixel);
+    get_pixel(floor(x), floor(y), pixel, drawable_index);
 }
 
 void
-getOrigValIntersamplePixel (float x, float y, unsigned char *pixel)
+getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable_index)
 {
     int x1,
 	x2,
@@ -136,10 +129,10 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel)
     p3fact = x2fact * y1fact;
     p4fact = x2fact * y2fact;
 
-    get_pixel(x1, y1, pixel1);
-    get_pixel(x1, y2, pixel2);
-    get_pixel(x2, y1, pixel3);
-    get_pixel(x2, y2, pixel4);
+    get_pixel(x1, y1, pixel1, drawable_index);
+    get_pixel(x1, y2, pixel2, drawable_index);
+    get_pixel(x2, y1, pixel3, drawable_index);
+    get_pixel(x2, y2, pixel4, drawable_index);
 
     for (i = 0; i < 4; ++i)
 	pixel[i] = pixel1[i] * p1fact

@@ -10,7 +10,8 @@ int nil_tag_number,
     xy_tag_number,
     ra_tag_number,
     rgba_tag_number,
-    ri_tag_number;
+    ri_tag_number,
+    image_tag_number;
 
 typedef struct _tag_entry
 {
@@ -31,6 +32,7 @@ init_tags (void)
     ra_tag_number = tag_number_for_name("ra");
     rgba_tag_number = tag_number_for_name("rgba");
     ri_tag_number = tag_number_for_name("ri");
+    image_tag_number = tag_number_for_name("image");
 }
 
 int

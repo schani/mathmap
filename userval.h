@@ -12,6 +12,7 @@
 #define USERVAL_BOOL        2
 #define USERVAL_COLOR       3
 #define USERVAL_CURVE       4
+#define USERVAL_IMAGE       5
 
 typedef struct _userval_t
 {
@@ -42,6 +43,11 @@ typedef struct _userval_t
 	{
 	    float values[USER_CURVE_POINTS];
 	} curve;
+
+	struct
+	{
+	    int index;
+	} image;
     } v;
     struct _userval_t *next;
 } userval_t;
@@ -55,6 +61,7 @@ userval_t* register_slider (const char *name, float min, float max);
 userval_t* register_bool (const char *name);
 userval_t* register_color (const char *name);
 userval_t* register_curve (const char *name);
+userval_t* register_image (const char *name);
 
 GtkWidget* make_userval_table (void);
 

@@ -390,6 +390,25 @@ make_userval (const char *type, const char *name, exprtree *args)
 	tree->result.number = nil_tag_number;
 	tree->result.length = 1;
     }
+    else if (strcmp(type, "user_image") == 0)
+    {
+	if (exprlist_length(args) != 0)
+	{
+	    sprintf(error_string, "user_image takes no arguments.");
+	    JUMP(0);
+	}
+
+	userval = register_image(name);
+
+	if (userval == 0)
+	{
+	    sprintf(error_string, "user_image %s has a mismatch.", name);
+	    JUMP(0);
+	}
+
+	tree->result.number = image_tag_number;
+	tree->result.length = 1;
+    }
     else
     {
 	sprintf(error_string, "Unknown userval function %s.", type);

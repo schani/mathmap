@@ -13,5 +13,6 @@ extern int xy_tag_number;
 extern int ra_tag_number;
 extern int rgba_tag_number;
 extern int ri_tag_number;
+extern int image_tag_number;
 
 #endif
