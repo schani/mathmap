@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
+#include <ctype.h>
+#include <glib.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
 #else
@@ -44,15 +46,9 @@
 #include "internals.h"
 #include "jump.h"
 #include "scanner.h"
+#include "bitvector.h"
 
-/* #define TEST */
-
-#ifdef TEST
-void
-mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel)
-{
-}
-#endif
+//#define NO_CONSTANTS_ANALYSIS
 
 struct _value_t;
 
@@ -69,6 +65,10 @@ typedef struct
 #define TYPE_MATRIX          5
 #define TYPE_VECTOR          6
 
+#define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
+
+#define CONST_MAX            (CONST_ROW | CONST_COL)
+
 typedef int type_t;
 
 typedef struct _compvar_t
@@ -78,7 +78,6 @@ typedef struct _compvar_t
     int n;			/* n/a if compvar is a temporary */
     type_t type;
     struct _value_t *current;
-    int flag;
     struct _value_t *values;
 } compvar_t;
 
@@ -88,10 +87,14 @@ struct _statement_t;
 typedef struct _value_t
 {
     compvar_t *compvar;
+    int global_index;
     int index;			/* SSA index */
     struct _statement_t *def;
     struct _statement_list_t *uses;
-    int const_type;		/* defined in internals.h */
+    unsigned int const_type : 2; /* defined in internals.h */
+    unsigned int least_const_type_directly_used_in : 2;
+    unsigned int least_const_type_multiply_used_in : 2;
+    unsigned int have_defined : 1; /* used in c code output */
     struct _value_t *next;	/* next value for same compvar */
 } value_t;
 
@@ -241,10 +244,14 @@ typedef struct
 #define STMT_IF_COND         3
 #define STMT_WHILE_LOOP      4
 
+#define SLICE_XY_CONST       1
+#define SLICE_X_CONST        2
+#define SLICE_Y_CONST        4
+#define SLICE_NO_CONST       8
+
 typedef struct _statement_t
 {
     int type;
-    int index;
     union
     {
 	struct
@@ -259,6 +266,7 @@ typedef struct _statement_t
 	    rhs_t *condition;
 	    struct _statement_t *consequent;
 	    struct _statement_t *alternative;
+	    struct _statement_t *exit;
 	} if_cond;
 	struct
 	{
@@ -267,6 +275,8 @@ typedef struct _statement_t
 	    struct _statement_t *body;
 	} while_loop;
     } v;
+    struct _statement_t *parent;
+    unsigned int slice_flags;
     struct _statement_t *next;
 } statement_t;
 
@@ -278,17 +288,76 @@ typedef struct _statement_list_t
 
 static operation_t ops[NUM_OPS];
 
-static int next_stmt_index = 0;
 static int next_temp_number = 1;
 
 static statement_t *first_stmt = 0;
 static statement_t **emit_loc = &first_stmt;
-static statement_t dummy_stmt = { STMT_NIL, -1 };
+static statement_t dummy_stmt = { STMT_NIL };
 
 #define STMT_STACK_SIZE            64
 
 static statement_t *stmt_stack[STMT_STACK_SIZE];
 static int stmt_stackp = 0;
+
+#define CURRENT_STACK_TOP       ((stmt_stackp > 0) ? stmt_stack[stmt_stackp - 1] : 0)
+#define UNSAFE_EMIT_STMT(s,l) \
+    ({ (s)->parent = CURRENT_STACK_TOP; \
+       (s)->next = (l); (l) = (s); })
+
+/*** hash tables ***/
+
+static GHashTable*
+direct_hash_table_copy (GHashTable *table)
+{
+    GHashTable *copy = g_hash_table_new(&g_direct_hash, &g_direct_equal);
+
+    void copy_entry (gpointer key, gpointer value, gpointer user_data)
+	{ g_hash_table_insert(copy, key, value); }
+
+    g_hash_table_foreach(table, &copy_entry, 0);
+
+    return copy;
+}
+
+/*** value sets ***/
+
+typedef bit_vector_t value_set_t;
+
+/* This is updated by new_value.  We assume that no new values are generated
+ * at the time value sets are used.  */
+static int next_value_global_index = 0;
+
+static value_set_t*
+new_value_set (void)
+{
+    return new_bit_vector(next_value_global_index, 0);
+}
+
+static void
+value_set_add (value_set_t *set, value_t *val)
+{
+    bit_vector_set(set, val->global_index);
+}
+
+static int
+value_set_contains (value_set_t *set, value_t *val)
+{
+    return bit_vector_bit(set, val->global_index);
+}
+
+static value_set_t*
+value_set_copy (value_set_t *set)
+{
+    return copy_bit_vector(set);
+}
+
+static void
+free_value_set (value_set_t *set)
+{
+    free_bit_vector(set);
+}
+
+/*** pools ***/
 
 #define GRANULARITY                sizeof(long)
 #define FIRST_POOL_SIZE            2048
@@ -322,6 +391,8 @@ pool_alloc (int size)
 	active_pool = 0;
 	pools[0] = (long*)malloc(GRANULARITY * FIRST_POOL_SIZE);
 	fill_ptr = 0;
+
+	memset(pools[0], 0, GRANULARITY * FIRST_POOL_SIZE);
     }
 
     pool_size = FIRST_POOL_SIZE << active_pool;
@@ -330,8 +401,11 @@ pool_alloc (int size)
     if (fill_ptr + size >= pool_size)
     {
 	++active_pool;
+	assert(active_pool < NUM_POOLS);
 	pools[active_pool] = (long*)malloc(GRANULARITY * (FIRST_POOL_SIZE << active_pool));
 	fill_ptr = 0;
+
+	memset(pools[active_pool], 0, GRANULARITY * (FIRST_POOL_SIZE << active_pool));
     }
 
     assert(fill_ptr + size < pool_size);
@@ -353,12 +427,31 @@ op_index (operation_t *op)
 #define alloc_rhs()                ((rhs_t*)pool_alloc(sizeof(rhs_t)))
 #define alloc_compvar()            (compvar_t*)pool_alloc(sizeof(compvar_t))
 
+static value_t*
+new_value (compvar_t *compvar)
+{
+    value_t *val = alloc_value();
+
+    val->compvar = compvar;	/* dummy value */
+    val->global_index = next_value_global_index++;
+    val->index = -1;
+    val->def = &dummy_stmt;
+    val->uses = 0;
+    val->const_type = CONST_NONE;
+    val->least_const_type_directly_used_in = CONST_MAX;
+    val->least_const_type_multiply_used_in = CONST_MAX;
+    val->have_defined = 0;
+    val->next = 0;
+
+    return val;
+}
+
 compvar_t*
 make_temporary (void)
 {
     temporary_t *temp = (temporary_t*)pool_alloc(sizeof(temporary_t));
     compvar_t *compvar = alloc_compvar();
-    value_t *val = alloc_value();
+    value_t *val = new_value(compvar);
 
     temp->number = next_temp_number++;
     temp->last_index = 0;
@@ -367,15 +460,7 @@ make_temporary (void)
     compvar->temp = temp;
     compvar->type = TYPE_INT;
     compvar->current = val;
-    compvar->flag = 0;
     compvar->values = val;
-
-    val->compvar = compvar;	/* dummy value */
-    val->index = -1;
-    val->const_type = CONST_NONE;
-    val->def = &dummy_stmt;
-    val->uses = 0;
-    val->next = 0;
 
     return compvar;
 }
@@ -384,22 +469,14 @@ compvar_t*
 make_variable (variable_t *var, int n)
 {
     compvar_t *compvar = alloc_compvar();
-    value_t *val = alloc_value();
+    value_t *val = new_value(compvar);
 
     compvar->var = var;
     compvar->temp = 0;
     compvar->n = n;
     compvar->type = TYPE_INT;
     compvar->current = val;
-    compvar->flag = 0;
     compvar->values = val;
-
-    val->compvar = compvar;
-    val->index = -1;
-    val->const_type = CONST_NONE;
-    val->def = &dummy_stmt;
-    val->uses = 0;
-    val->next = 0;
 
     return compvar;
 }
@@ -407,13 +484,7 @@ make_variable (variable_t *var, int n)
 value_t*
 make_lhs (compvar_t *compvar)
 {
-    value_t *val = alloc_value();
-
-    val->compvar = compvar;
-    val->index = -1;
-    val->const_type = CONST_NONE;
-    val->def = &dummy_stmt;
-    val->uses = 0;
+    value_t *val = new_value(compvar);
 
     val->next = compvar->values;
     compvar->values = val;
@@ -589,6 +660,10 @@ find_phi_assign (statement_t *stmts, compvar_t *compvar)
 {
     for (; stmts != 0; stmts = stmts->next)
     {
+	/* we assert this because this function is called before any
+	   optimization takes place, hence no statements are changed to
+	   nils */
+
 	assert(stmts->type == STMT_PHI_ASSIGN);
 
 	if (stmts->v.assign.lhs->compvar == compvar)
@@ -630,12 +705,122 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
     return 0;
 }
 
-void
-rewrite_uses (value_t *old, value_t *new, int start_index)
+static void
+for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
+{
+    if (rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_VALUE)
+	func(rhs->v.primary.v.value);
+    else if (rhs->type == RHS_OP)
+    {
+	int i;
+
+	for (i = 0; i < rhs->v.op.op->num_args; ++i)
+	{
+	    primary_t *arg = &rhs->v.op.args[i];
+
+	    if (arg->type == PRIMARY_VALUE)
+		func(arg->v.value);
+	}
+    }
+}
+
+static void
+for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
+{
+    while (stmts != 0)
+    {
+	switch (stmts->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN :
+	    case STMT_PHI_ASSIGN :
+		func(stmts);
+		break;
+
+	    case STMT_IF_COND :
+		for_each_assign_statement(stmts->v.if_cond.consequent, func);
+		for_each_assign_statement(stmts->v.if_cond.alternative, func);
+		for_each_assign_statement(stmts->v.if_cond.exit, func);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		for_each_assign_statement(stmts->v.while_loop.entry, func);
+		for_each_assign_statement(stmts->v.while_loop.body, func);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmts = stmts->next;
+    }
+}
+
+static void
+for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value))
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		for_each_value_in_rhs(stmt->v.assign.rhs2, func);
+	    case STMT_ASSIGN :
+		for_each_value_in_rhs(stmt->v.assign.rhs, func);
+		func(stmt->v.assign.lhs);
+		break;
+
+	    case STMT_IF_COND :
+		for_each_value_in_rhs(stmt->v.if_cond.condition, func);
+		for_each_value_in_statements(stmt->v.if_cond.consequent, func);
+		for_each_value_in_statements(stmt->v.if_cond.alternative, func);
+		for_each_value_in_statements(stmt->v.if_cond.exit, func);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		for_each_value_in_rhs(stmt->v.while_loop.invariant, func);
+		for_each_value_in_statements(stmt->v.while_loop.entry, func);
+		for_each_value_in_statements(stmt->v.while_loop.body, func);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+/* checks whether stmt is a direct or indirect child of limit.  if stmt ==
+ * limit, it does not count as a child */
+static int
+stmt_is_within_limit (statement_t *stmt, statement_t *limit)
+{
+    if (limit == 0)
+	return 1;
+
+    do
+    {
+	stmt = stmt->parent;
+    } while (stmt != 0 && stmt != limit);
+
+    if (stmt == 0)
+	return 0;
+    return 1;
+}
+
+static void
+rewrite_uses (value_t *old, primary_t new, statement_t *limit)
 {
     statement_list_t **lst;
 
-    assert(old != new);
+    if (new.type == PRIMARY_VALUE)
+	assert(old != new.v.value);
 
     lst = &old->uses;
     while (*lst != 0)
@@ -644,7 +829,9 @@ rewrite_uses (value_t *old, value_t *new, int start_index)
 	statement_t *stmt = elem->stmt;
 	primary_t *primary;
 
-	if (stmt->index >= start_index)
+	/* we do not rewrite phis in the loop we're currently working on */
+	if (stmt_is_within_limit(stmt, limit)
+	    && !(stmt->type == STMT_PHI_ASSIGN && stmt->parent == limit))
 	{
 	    switch (stmt->type)
 	    {
@@ -672,14 +859,29 @@ rewrite_uses (value_t *old, value_t *new, int start_index)
 
 	    assert(primary != 0 && primary->v.value == old);
 
-	    primary->v.value = new;
-	    add_use(new, stmt);
+	    *primary = new;
+	    if (new.type == PRIMARY_VALUE)
+		add_use(new.v.value, stmt);
 
 	    *lst = elem->next;
 	}
 	else
 	    lst = &elem->next;
     }
+}
+
+static void
+rewrite_uses_to_value (value_t *old, value_t *new, statement_t *limit)
+{
+    primary_t primary;
+
+    if (old == new)
+	return;
+
+    primary.type = PRIMARY_VALUE;
+    primary.v.value = new;
+
+    rewrite_uses(old, primary, limit);
 }
 
 void
@@ -695,7 +897,8 @@ commit_assign (statement_t *stmt)
 	{
 	    case STMT_IF_COND :
 		{
-		    statement_t *phi_assign = find_phi_assign(tos->next, stmt->v.assign.lhs->compvar);
+		    statement_t *phi_assign = find_phi_assign(tos->v.if_cond.exit,
+							      stmt->v.assign.lhs->compvar);
 
 		    if (phi_assign == 0)
 		    {
@@ -713,8 +916,9 @@ commit_assign (statement_t *stmt)
 
 			phi_assign->v.assign.old_value = current_value(stmt->v.assign.lhs->compvar);
 
-			phi_assign->next = tos->next;
-			tos->next = phi_assign;
+			phi_assign->v.assign.lhs->def = phi_assign;
+
+			UNSAFE_EMIT_STMT(phi_assign, tos->v.if_cond.exit);
 		    }
 
 		    if (tos->v.if_cond.alternative == 0)
@@ -751,22 +955,29 @@ commit_assign (statement_t *stmt)
 			phi_assign->v.assign.lhs = make_value_copy(stmt->v.assign.lhs);
 
 			phi_assign->v.assign.rhs = make_value_rhs(current_value(stmt->v.assign.lhs->compvar));
+
 			add_use(current_value(stmt->v.assign.lhs->compvar), phi_assign);
 
-			phi_assign->next = tos->v.while_loop.entry;
-			tos->v.while_loop.entry = phi_assign;
+			phi_assign->v.assign.lhs->def = phi_assign;
+
+			UNSAFE_EMIT_STMT(phi_assign, tos->v.while_loop.entry);
+
+			phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
+			add_use(stmt->v.assign.lhs, phi_assign);
+
+			phi_assign->v.assign.old_value = current_value(stmt->v.assign.lhs->compvar);
+
+			rewrite_uses_to_value(current_value(stmt->v.assign.lhs->compvar), phi_assign->v.assign.lhs, tos);
 		    }
 		    else
 		    {
 			assert(phi_assign->v.assign.rhs2->type = RHS_PRIMARY
 			       && phi_assign->v.assign.rhs2->v.primary.type == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs2->v.primary.v.value, phi_assign);
+
+			phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
+			add_use(stmt->v.assign.lhs, phi_assign);
 		    }
-
-		    phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
-		    add_use(stmt->v.assign.lhs, phi_assign);
-
-		    rewrite_uses(current_value(stmt->v.assign.lhs->compvar), phi_assign->v.assign.lhs, tos->index);
 		}
 		break;
 
@@ -781,51 +992,42 @@ commit_assign (statement_t *stmt)
 void
 emit_stmt (statement_t *stmt)
 {
-    stmt->index = next_stmt_index++;
+    void add_use_in_stmt (value_t *value)
+	{ add_use(value, stmt); }
+
+    assert(stmt->next == 0);
+
+    stmt->parent = CURRENT_STACK_TOP;
 
     *emit_loc = stmt;
     emit_loc = &stmt->next;
 
     switch (stmt->type)
     {
+	case STMT_NIL :
+	    break;
+
 	case STMT_ASSIGN :
-	    if (stmt->v.assign.rhs->type == RHS_PRIMARY
-		&& stmt->v.assign.rhs->v.primary.type == PRIMARY_VALUE)
-		add_use(stmt->v.assign.rhs->v.primary.v.value, stmt);
-	    else if (stmt->v.assign.rhs->type == RHS_OP)
-	    {
-		int i;
-
-		for (i = 0; i < stmt->v.assign.rhs->v.op.op->num_args; ++i)
-		    if (stmt->v.assign.rhs->v.op.args[i].type == PRIMARY_VALUE)
-			add_use(stmt->v.assign.rhs->v.op.args[i].v.value, stmt);
-	    }
-
+	    for_each_value_in_rhs(stmt->v.assign.rhs, add_use_in_stmt);
 	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_PHI_ASSIGN :
-	    if (stmt->v.assign.rhs->type == RHS_PRIMARY
-		&& stmt->v.assign.rhs->v.primary.type == PRIMARY_VALUE)
-		add_use(stmt->v.assign.rhs->v.primary.v.value, stmt);
-	    if (stmt->v.assign.rhs2->type == RHS_PRIMARY
-		&& stmt->v.assign.rhs2->v.primary.type == PRIMARY_VALUE)
-		add_use(stmt->v.assign.rhs2->v.primary.v.value, stmt);
-
+	    for_each_value_in_rhs(stmt->v.assign.rhs, add_use_in_stmt);
+	    for_each_value_in_rhs(stmt->v.assign.rhs2, add_use_in_stmt);
 	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_IF_COND :
-	    if (stmt->v.if_cond.condition->type == RHS_PRIMARY
-		&& stmt->v.if_cond.condition->v.primary.type == PRIMARY_VALUE)
-		add_use(stmt->v.if_cond.condition->v.primary.v.value, stmt);
+	    for_each_value_in_rhs(stmt->v.if_cond.condition, add_use_in_stmt);
 	    break;
 
 	case STMT_WHILE_LOOP :
-	    if (stmt->v.while_loop.invariant->type == RHS_PRIMARY
-		&& stmt->v.while_loop.invariant->v.primary.type == PRIMARY_VALUE)
-		add_use(stmt->v.while_loop.invariant->v.primary.v.value, stmt);
+	    for_each_value_in_rhs(stmt->v.while_loop.invariant, add_use_in_stmt);
 	    break;
+
+	default :
+	    assert(0);
     }
 }
 
@@ -867,6 +1069,7 @@ start_if_cond (rhs_t *condition)
     stmt->v.if_cond.condition = condition;
     stmt->v.if_cond.consequent = 0;
     stmt->v.if_cond.alternative = 0;
+    stmt->v.if_cond.exit = 0;
 
     emit_stmt(stmt);
     stmt_stack[stmt_stackp++] = stmt;
@@ -874,10 +1077,24 @@ start_if_cond (rhs_t *condition)
     emit_loc = &stmt->v.if_cond.consequent;
 }
 
+static void
+reset_values_for_phis (statement_t *phi, int delete)
+{
+    for (; phi != 0; phi = phi->next)
+    {
+	assert(phi->type == STMT_PHI_ASSIGN);
+
+	set_value_current(phi->v.assign.lhs, phi->v.assign.old_value);
+
+	if (delete)
+	    phi->v.assign.old_value = 0;
+    }
+}
+
 void
 switch_if_branch (void)
 {
-    statement_t *stmt, *phi;
+    statement_t *stmt;
 
     assert(stmt_stackp > 0);
 
@@ -888,14 +1105,7 @@ switch_if_branch (void)
     if (stmt->v.if_cond.consequent == 0)
 	emit_nil();
 
-    for (phi = stmt->next; phi != 0; phi = phi->next)
-    {
-	assert(phi->type == STMT_PHI_ASSIGN);
-
-	set_value_current(phi->v.assign.lhs, phi->v.assign.old_value);
-
-	phi->v.assign.old_value = 0;
-    }
+    reset_values_for_phis(stmt->v.if_cond.exit, 0);
 
     emit_loc = &stmt->v.if_cond.alternative;
 }
@@ -914,14 +1124,22 @@ end_if_cond (void)
     if (stmt->v.if_cond.alternative == 0)
 	emit_nil();
 
-    for (phi = stmt->next; phi != 0; phi = phi->next)
+    if (stmt->v.if_cond.exit == 0)
+    {
+	statement_t *nil = alloc_stmt();
+
+	nil->type = STMT_NIL;
+
+	UNSAFE_EMIT_STMT(nil, stmt->v.if_cond.exit);
+    }
+
+    reset_values_for_phis(stmt->v.if_cond.exit, 1);
+
+    for (phi = stmt->v.if_cond.exit; phi != 0; phi = phi->next)
     {
 	assert(phi->type == STMT_PHI_ASSIGN);
 
 	commit_assign(phi);
-
-	if (phi->next == 0)
-	    stmt = phi;
     }
 
     emit_loc = &stmt->next;
@@ -936,8 +1154,34 @@ start_while_loop (rhs_t *invariant)
     stmt->next = 0;
 
     stmt->v.while_loop.entry = 0;
-    stmt->v.while_loop.invariant = invariant;
     stmt->v.while_loop.body = 0;
+
+    {
+	value_t *value;
+	statement_t *phi_assign;
+
+	assert(invariant->type == RHS_PRIMARY && invariant->v.primary.type == PRIMARY_VALUE);
+
+	value = invariant->v.primary.v.value;
+
+	phi_assign = alloc_stmt();
+
+	phi_assign->type = STMT_PHI_ASSIGN;
+	phi_assign->v.assign.lhs = make_value_copy(value);
+	phi_assign->v.assign.rhs = make_value_rhs(current_value(value->compvar));
+	phi_assign->v.assign.rhs2 = make_value_rhs(current_value(value->compvar));
+
+	add_use(current_value(value->compvar), phi_assign);
+	add_use(current_value(value->compvar), phi_assign);
+
+	phi_assign->v.assign.lhs->def = phi_assign;
+
+	UNSAFE_EMIT_STMT(phi_assign, stmt->v.while_loop.entry);
+
+	assign_value_index_and_make_current(phi_assign->v.assign.lhs);
+ 
+	stmt->v.while_loop.invariant = make_value_rhs(current_value(value->compvar));
+    }
 
     emit_stmt(stmt);
     stmt_stack[stmt_stackp++] = stmt;
@@ -958,6 +1202,8 @@ end_while_loop (void)
 
     if (stmt->v.while_loop.body == 0)
 	emit_nil();
+
+    reset_values_for_phis(stmt->v.while_loop.entry, 1);
 
     for (phi = stmt->v.while_loop.entry; phi != 0; phi = phi->next)
     {
@@ -999,7 +1245,9 @@ end_while_loop (void)
 
 #include "new_builtins.c"
 
-void
+/*** debug printing ***/
+
+static void
 print_indent (int indent)
 {
     int i;
@@ -1008,7 +1256,7 @@ print_indent (int indent)
 	fputs("  ", stdout);
 }
 
-void
+static void
 print_value (value_t *val)
 {
     if (val->compvar->var != 0)
@@ -1017,7 +1265,7 @@ print_value (value_t *val)
 	printf("$t%d_%d", val->compvar->temp->number, val->index);
 }
 
-void
+static void
 print_primary (primary_t *primary)
 {
     switch (primary->type)
@@ -1039,7 +1287,7 @@ print_primary (primary_t *primary)
     }
 }
 
-void
+static void
 print_rhs (rhs_t *rhs)
 {
     switch (rhs->type)
@@ -1065,30 +1313,32 @@ print_rhs (rhs_t *rhs)
 	    }
 	    break;
 
-	    /*
-	case RHS_INT_CONST :
-	    printf("%d", rhs->v.int_const);
-	    break;
-
-	case RHS_FLOAT_CONST :
-	    printf("%f", rhs->v.float_const);
-	    break;
-	    */
-
 	default :
 	    assert(0);
     }
 }
 
-void
-output_value_const_type (FILE *out, value_t *val)
+static void
+output_const_type (FILE *out, unsigned int const_type)
 {
-    if (val->const_type & CONST_ROW)
-	fputs("y", out);
-    if (val->const_type & CONST_COL)
+    if (const_type & CONST_ROW)
 	fputs("x", out);
-    if (val->const_type == CONST_NONE)
+    if (const_type & CONST_COL)
+	fputs("y", out);
+    if (const_type == CONST_NONE)
 	fputs("-", out);
+}
+
+static int
+count_uses (value_t *val)
+{
+    statement_list_t *lst;
+    int num_uses = 0;
+
+    for (lst = val->uses; lst != 0; lst = lst->next)
+	++num_uses;
+
+    return num_uses;
 }
 
 void
@@ -1099,46 +1349,59 @@ dump_code (statement_t *stmt, int indent)
 	switch (stmt->type)
 	{
 	    case STMT_NIL :
+		/*
 		print_indent(indent);
-		printf("nil\n");
+		printf("nil (%p)\n", stmt);
+		*/
 		break;
 
 	    case STMT_ASSIGN :
 		print_indent(indent);
 		print_value(stmt->v.assign.lhs);
-		printf(" = ");
+		printf(" (%d) = ", count_uses(stmt->v.assign.lhs));
 		print_rhs(stmt->v.assign.rhs);
 		printf("   ");
-		output_value_const_type(stdout, stmt->v.assign.lhs);
-		printf("\n");
+		output_const_type(stdout, stmt->v.assign.lhs->const_type);
+		printf(" ");
+		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_directly_used_in);
+		printf(" ");
+		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_multiply_used_in);
+		printf(" (%p)\n", stmt);
 		break;
 
 	    case STMT_PHI_ASSIGN :
 		print_indent(indent);
 		print_value(stmt->v.assign.lhs);
-		printf(" = phi(");
+		printf(" (%d) = phi(", count_uses(stmt->v.assign.lhs));
 		print_rhs(stmt->v.assign.rhs);
 		printf(", ");
 		print_rhs(stmt->v.assign.rhs2);
 		printf(")   ");
-		output_value_const_type(stdout, stmt->v.assign.lhs);
-		printf("\n");
+		output_const_type(stdout, stmt->v.assign.lhs->const_type);
+		printf(" ");
+		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_directly_used_in);
+		printf(" ");
+		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_multiply_used_in);
+		printf(" (%p)\n", stmt);
 		break;
 
 	    case STMT_IF_COND :
 		print_indent(indent);
 		printf("if ");
 		print_rhs(stmt->v.if_cond.condition);
-		printf("\n");
+		printf(" (%p)\n", stmt);
 		dump_code(stmt->v.if_cond.consequent, indent + 1);
 		print_indent(indent);
 		printf("else\n");
 		dump_code(stmt->v.if_cond.alternative, indent + 1);
+		print_indent(indent);
+		printf("exit\n");
+		dump_code(stmt->v.if_cond.exit, indent + 1);
 		break;
 
 	    case STMT_WHILE_LOOP :
 		print_indent(indent);
-		printf("start while\n");
+		printf("start while (%p)\n", stmt);
 		dump_code(stmt->v.while_loop.entry, indent + 1);
 		print_indent(indent);
 		printf("while ");
@@ -1154,6 +1417,8 @@ dump_code (statement_t *stmt, int indent)
 	stmt = stmt->next;
     }
 }
+
+/*** ssa generation from tree code ***/
 
 static void
 alloc_var_compvars_if_needed (variable_t *var)
@@ -1501,15 +1766,60 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
    }
 }
 
-statement_t*
-skip_phis (statement_t *stmt)
+/*** dfa ***/
+
+static statement_list_t*
+prepend_value_statements (value_t *value, statement_list_t *rest)
 {
-    while (stmt != 0 && stmt->type == STMT_PHI_ASSIGN)
-	stmt = stmt->next;
-    return stmt;
+    statement_list_t *lst;
+
+    for (lst = value->uses; lst != 0; lst = lst->next)
+	rest = prepend_statement(lst->stmt, rest);
+
+    return rest;
 }
 
-type_t
+static statement_list_t*
+prepend_compvar_statements (compvar_t *compvar, statement_list_t *rest)
+{
+    value_t *value;
+
+    for (value = compvar->values; value != 0; value = value->next)
+	rest = prepend_value_statements(value, rest);
+
+    return rest;
+}
+
+static void
+perform_worklist_dfa (statement_t *stmts,
+		      statement_list_t* (*build_worklist) (statement_t *stmt, statement_list_t *worklist),
+		      statement_list_t* (*work_statement) (statement_t *stmt, statement_list_t *worklist))
+{
+    statement_list_t *worklist = 0;
+
+    void builder (statement_t *stmt)
+	{ worklist = build_worklist(stmt, worklist); }
+
+    for_each_assign_statement(stmts, &builder);
+
+    do
+    {
+	statement_list_t *new_worklist = 0;
+
+	while (worklist != 0)
+	{
+	    new_worklist = work_statement(worklist->stmt, new_worklist);
+	    worklist = worklist->next;
+	}
+
+	worklist = new_worklist;
+    } while (worklist != 0);
+}
+
+
+/*** type propagation ***/
+
+static type_t
 primary_type (primary_t *primary)
 {
     switch (primary->type)
@@ -1528,7 +1838,7 @@ primary_type (primary_t *primary)
     }
 }
 
-type_t
+static type_t
 rhs_type (rhs_t *rhs)
 {
     switch (rhs->type)
@@ -1568,121 +1878,94 @@ rhs_type (rhs_t *rhs)
     return 0;
 }
 
-statement_list_t*
-prepend_compvar_statements (compvar_t *compvar, statement_list_t *rest)
-{
-    value_t *value;
-
-    for (value = compvar->values; value != 0; value = value->next)
-    {
-	statement_list_t *lst;
-
-	for (lst = value->uses; lst != 0; lst = lst->next)
-	    rest = prepend_statement(lst->stmt, rest);
-    }
-
-    return rest;
-}
-
-void
-propagate_types_initially (statement_t *stmt, statement_list_t **worklist)
+static statement_list_t*
+propagate_types_builder (statement_t *stmt, statement_list_t *worklist)
 {
     int type, type2;
 
-    while (stmt != 0)
+    switch (stmt->type)
     {
-	switch (stmt->type)
-	{
-	    case STMT_NIL :
-		break;
+	case STMT_ASSIGN :
+	    type = rhs_type(stmt->v.assign.rhs);
+	    if (type != stmt->v.assign.lhs->compvar->type)
+	    {
+		stmt->v.assign.lhs->compvar->type = type;
+		worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, worklist);
+	    }
+	    break;
 
-	    case STMT_ASSIGN :
-		type = rhs_type(stmt->v.assign.rhs);
-		if (type != stmt->v.assign.lhs->compvar->type)
-		{
-		    stmt->v.assign.lhs->compvar->type = type;
-		    *worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, *worklist);
-		}
-		break;
-
-	    case STMT_PHI_ASSIGN :
-		type = rhs_type(stmt->v.assign.rhs);
-		type2 = rhs_type(stmt->v.assign.rhs2);
-		if (type != type2)
-		{
-		    if (type2 > type)
-			type = type2;
-		}
-		if (type != stmt->v.assign.lhs->compvar->type)
-		{
-		    stmt->v.assign.lhs->compvar->type = type;
-		    *worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, *worklist);
-		}
-		break;
-
-	    case STMT_IF_COND :
-		propagate_types_initially(stmt->v.if_cond.consequent, worklist);
-		propagate_types_initially(stmt->v.if_cond.alternative, worklist);
-		break;
-
-	    case STMT_WHILE_LOOP :
-		propagate_types_initially(stmt->v.while_loop.entry, worklist);
-		propagate_types_initially(stmt->v.while_loop.body, worklist);
-		break;
-
-	    default :
-		assert(0);
-	}
-
-	stmt = stmt->next;
-    }
-}
-
-void
-propagate_types_from_worklist (statement_list_t *worklist, statement_list_t **new_worklist)
-{
-    while (worklist != 0)
-    {
-	statement_t *stmt = worklist->stmt;
-	int type, type2;
-
-	assert(stmt->type == STMT_ASSIGN || stmt->type == STMT_PHI_ASSIGN);
-
-	type = rhs_type(stmt->v.assign.rhs);
-	if (stmt->type == STMT_PHI_ASSIGN)
-	{
+	case STMT_PHI_ASSIGN :
+	    type = rhs_type(stmt->v.assign.rhs);
 	    type2 = rhs_type(stmt->v.assign.rhs2);
 	    if (type != type2)
 	    {
+		assert(type <= MAX_PROMOTABLE_TYPE && type2 <= MAX_PROMOTABLE_TYPE);
 		if (type2 > type)
 		    type = type2;
 	    }
-	}
+	    if (type != stmt->v.assign.lhs->compvar->type)
+	    {
+		stmt->v.assign.lhs->compvar->type = type;
+		worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, worklist);
+	    }
+	    break;
 
-	if (type != stmt->v.assign.lhs->compvar->type)
-	{
-	    stmt->v.assign.lhs->compvar->type = type;
-	    *new_worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, *new_worklist);
-	}
-
-	worklist = worklist->next;
+	default :
+	    assert(0);
     }
+
+    return worklist;
 }
 
-void
+static statement_list_t*
+propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
+{
+    switch (stmt->type)
+    {
+	case STMT_ASSIGN :
+	case STMT_PHI_ASSIGN :
+	{
+	    int type, type2;
+	    type = rhs_type(stmt->v.assign.rhs);
+	    if (stmt->type == STMT_PHI_ASSIGN)
+	    {
+		type2 = rhs_type(stmt->v.assign.rhs2);
+		if (type != type2)
+		{
+		    assert(type <= MAX_PROMOTABLE_TYPE && type2 <= MAX_PROMOTABLE_TYPE);
+		    if (type2 > type)
+			type = type2;
+		}
+	    }
+
+	    if (type != stmt->v.assign.lhs->compvar->type)
+	    {
+		stmt->v.assign.lhs->compvar->type = type;
+		worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, worklist);
+	    }
+	}
+	break;
+
+	case STMT_IF_COND :
+	case STMT_WHILE_LOOP :
+	    break;
+
+	default :
+	    assert(0);
+    }
+
+    return worklist;
+}
+
+static void
 propagate_types (void)
 {
-    statement_list_t *worklist = 0;
-
-    propagate_types_initially(first_stmt, &worklist);
-    do
-    {
-	statement_list_t *new_worklist = 0;
-
-	propagate_types_from_worklist(worklist, &new_worklist);
-	worklist = new_worklist;
-    } while (worklist != 0);
+    perform_worklist_dfa(first_stmt, &propagate_types_builder, &propagate_types_worker);
 }
+
+/*** constants analysis ***/
+
+#define LEAST_CONST_TYPE(v)        ((v)->const_type & (v)->least_const_type_multiply_used_in)
 
 int
 primary_constant (primary_t *primary)
@@ -1690,11 +1973,11 @@ primary_constant (primary_t *primary)
     switch (primary->type)
     {
 	case PRIMARY_VALUE :
-	    return primary->v.value->const_type;
+	    return LEAST_CONST_TYPE(primary->v.value);
 
 	case PRIMARY_INT_CONST :
 	case PRIMARY_FLOAT_CONST :
-	    return CONST_ROW | CONST_COL;
+	    return CONST_MAX;
 
 	default :
 	    assert(0);
@@ -1713,9 +1996,10 @@ rhs_constant (rhs_t *rhs)
 	    return rhs->v.internal->const_type;
 
 	case RHS_OP :
+	    if (rhs->v.op.op->is_pure)
 	    {
 		int i;
-		int const_type_max = CONST_ROW | CONST_COL;
+		int const_type_max = CONST_MAX;
 
 		for (i = 0; i < rhs->v.op.op->num_args; ++i)
 		{
@@ -1726,6 +2010,8 @@ rhs_constant (rhs_t *rhs)
 
 		return const_type_max;
 	    }
+	    else
+		return CONST_NONE;
 	    break;
 
 	default :
@@ -1736,10 +2022,20 @@ rhs_constant (rhs_t *rhs)
 void
 analyze_phis_constant (statement_t *phis, int const_max, int *changed)
 {
-    while (phis != 0 && phis->type == STMT_PHI_ASSIGN)
+    while (phis != 0)
     {
-	int const_type = rhs_constant(phis->v.assign.rhs);
-	int const_type2 = rhs_constant(phis->v.assign.rhs2);
+	int const_type, const_type2;
+
+	if (phis->type == STMT_NIL)
+	{
+	    phis = phis->next;
+	    continue;
+	}
+
+	assert(phis->type == STMT_PHI_ASSIGN);
+
+	const_type = rhs_constant(phis->v.assign.rhs);
+	const_type2 = rhs_constant(phis->v.assign.rhs2);
 
 	const_type = const_type & const_type2 & const_max;
 
@@ -1753,8 +2049,8 @@ analyze_phis_constant (statement_t *phis, int const_max, int *changed)
     }
 }
 
-void
-analyze_stmts_constants (statement_t *stmt, int *changed)
+static void
+analyze_stmts_constants (statement_t *stmt, int *changed, unsigned int inherited_max_const)
 {
     int const_type;
 
@@ -1763,80 +2059,251 @@ analyze_stmts_constants (statement_t *stmt, int *changed)
 	switch (stmt->type)
 	{
 	    case STMT_NIL :
-		stmt = stmt->next;
 		break;
 
 	    case STMT_ASSIGN :
 		const_type = rhs_constant(stmt->v.assign.rhs);
-		if (stmt->v.assign.lhs->const_type != const_type)
+		if (stmt->v.assign.lhs->const_type != (const_type & inherited_max_const))
 		{
-		    stmt->v.assign.lhs->const_type = const_type;
+		    stmt->v.assign.lhs->const_type = (const_type & inherited_max_const);
 		    *changed = 1;
 		}
-
-		stmt = stmt->next;
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		{
-		    int const_type2 = rhs_constant(stmt->v.assign.rhs2);
-
-		    const_type = rhs_constant(stmt->v.assign.rhs);
-
-		    if (stmt->v.assign.lhs->const_type != (const_type & const_type2))
-		    {
-			stmt->v.assign.lhs->const_type = const_type & const_type2;
-			*changed = 1;
-		    }
-
-		    stmt = stmt->next;
-		}
+		assert(0);
 		break;
 
 	    case STMT_IF_COND :
 		const_type = rhs_constant(stmt->v.if_cond.condition);
 
-		analyze_stmts_constants(stmt->v.if_cond.consequent, changed);
-		analyze_stmts_constants(stmt->v.if_cond.alternative, changed);
-		analyze_phis_constant(stmt->next, const_type, changed);
-
-		stmt = skip_phis(stmt->next);
+		analyze_stmts_constants(stmt->v.if_cond.consequent, changed, const_type & inherited_max_const);
+		analyze_stmts_constants(stmt->v.if_cond.alternative, changed, const_type & inherited_max_const);
+		analyze_phis_constant(stmt->v.if_cond.exit, const_type & inherited_max_const, changed);
 		break;
 
 	    case STMT_WHILE_LOOP :
 		const_type = rhs_constant(stmt->v.while_loop.invariant);
 
-		analyze_phis_constant(stmt->v.while_loop.entry, const_type, changed);
-		analyze_stmts_constants(stmt->v.while_loop.body, changed);
-
-		stmt = stmt->next;
+		analyze_phis_constant(stmt->v.while_loop.entry, const_type & inherited_max_const, changed);
+		analyze_stmts_constants(stmt->v.while_loop.body, changed, const_type & inherited_max_const);
 		break;
 
 	    default :
 		assert(0);
 	}
+
+	stmt = stmt->next;
     }
 }
 
-void
+static unsigned int
+analyze_least_const_type_directly_used_in (statement_t *stmt)
+{
+    void clear_const_bits_from_assignment (value_t *val)
+	{ val->least_const_type_directly_used_in &= LEAST_CONST_TYPE(stmt->v.assign.lhs); }
+
+    unsigned int least_const_type = CONST_MAX;
+
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		for_each_value_in_rhs(stmt->v.assign.rhs2, &clear_const_bits_from_assignment);
+	    case STMT_ASSIGN :
+		for_each_value_in_rhs(stmt->v.assign.rhs, &clear_const_bits_from_assignment);
+		least_const_type &= LEAST_CONST_TYPE(stmt->v.assign.lhs);
+		break;
+
+	    case STMT_IF_COND :
+	    {
+		unsigned int sub_least_const_type = CONST_MAX;
+
+		void clear_const_bits (value_t *val)
+		    { val->least_const_type_directly_used_in &= sub_least_const_type; }
+
+		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.consequent);
+		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.alternative);
+		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.exit);
+
+		for_each_value_in_rhs(stmt->v.if_cond.condition, &clear_const_bits);
+
+		least_const_type &= sub_least_const_type;
+
+		break;
+	    }
+
+	    case STMT_WHILE_LOOP :
+	    {
+		unsigned int sub_least_const_type = CONST_MAX;
+
+		void clear_const_bits (value_t *val)
+		    { val->least_const_type_directly_used_in &= sub_least_const_type; }
+
+		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.while_loop.entry);
+		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.while_loop.body);
+
+		for_each_value_in_rhs(stmt->v.while_loop.invariant, &clear_const_bits);
+
+		least_const_type &= sub_least_const_type;
+
+		break;
+	    }
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+
+    return least_const_type;
+}
+
+#undef LEAST_CONST_TYPE
+
+static int
+analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value_set_t *multiply_assigned_set, int *changed)
+{
+    int update_const_mask;
+    value_set_t *update_const_set = multiply_assigned_set;
+    void update_const (value_t *val)
+	{
+	    if (value_set_contains(update_const_set, val)
+		&& ((val->least_const_type_multiply_used_in & update_const_mask)
+		    != val->least_const_type_multiply_used_in))
+	    {
+		val->least_const_type_multiply_used_in &= update_const_mask;
+		*changed = 1;
+	    }
+	}
+
+    int least_const = CONST_MAX;
+
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		update_const_mask = stmt->v.assign.lhs->least_const_type_multiply_used_in;
+		for_each_value_in_rhs(stmt->v.assign.rhs2, &update_const);
+	    case STMT_ASSIGN :
+		update_const_mask = stmt->v.assign.lhs->least_const_type_multiply_used_in;
+		for_each_value_in_rhs(stmt->v.assign.rhs, &update_const);
+		if (in_loop)
+		    value_set_add(multiply_assigned_set, stmt->v.assign.lhs);
+		least_const &= stmt->v.assign.lhs->least_const_type_multiply_used_in;
+		break;
+
+	    case STMT_IF_COND :
+	    {
+		int sub_least_const;
+
+		sub_least_const = analyze_least_const_type_multiply_used_in(stmt->v.if_cond.consequent,
+									    in_loop, multiply_assigned_set, changed);
+		sub_least_const &= analyze_least_const_type_multiply_used_in(stmt->v.if_cond.alternative,
+									     in_loop, multiply_assigned_set, changed);
+		sub_least_const &= analyze_least_const_type_multiply_used_in(stmt->v.if_cond.exit,
+									     in_loop, multiply_assigned_set, changed);
+
+		update_const_mask = sub_least_const;
+		for_each_value_in_rhs(stmt->v.if_cond.condition, &update_const);
+
+		least_const &= sub_least_const;
+
+		break;
+	    }
+
+	    case STMT_WHILE_LOOP :
+	    {
+		int sub_least_const;
+		value_set_t *copy;
+
+		sub_least_const = analyze_least_const_type_multiply_used_in(stmt->v.while_loop.entry,
+									    in_loop, multiply_assigned_set, changed);
+
+		copy = value_set_copy(multiply_assigned_set);
+		assert(copy != 0);
+
+		/* we have to process the body twice because
+		 * multiply_assigned_to information flows from the body to the
+		 * entry as well as from the entry to the body (we could just
+		 * as well have processed the entry first, then the body, and
+		 * then the entry again) */
+		sub_least_const &= analyze_least_const_type_multiply_used_in(stmt->v.while_loop.body,
+									     1, copy, changed);
+		sub_least_const &= analyze_least_const_type_multiply_used_in(stmt->v.while_loop.entry,
+									     1, copy, changed);
+		sub_least_const &= analyze_least_const_type_multiply_used_in(stmt->v.while_loop.body,
+									     1, copy, changed);
+
+		update_const_set = copy;
+		update_const_mask = sub_least_const;
+		for_each_value_in_rhs(stmt->v.while_loop.invariant, &update_const);
+		update_const_set = multiply_assigned_set;
+
+		free_value_set(copy);
+
+		least_const &= sub_least_const;
+
+		break;
+	    }
+
+	    default:
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+
+    return least_const;
+}
+
+static void
 analyze_constants (void)
 {
+    void init_const_type (value_t *value)
+	{ value->const_type = CONST_MAX; }
+
+    void init_least_const_types (value_t *value)
+	{
+	    value->least_const_type_multiply_used_in = value->const_type;
+	    value->least_const_type_directly_used_in = value->const_type;
+	}
+
     int changed;
+
+    for_each_value_in_statements(first_stmt, &init_const_type);
 
     do
     {
-	/*
-	printf("\n\niterating constants:\n\n");
-	dump_code(first_stmt, 0);
-	*/
 	changed = 0;
-	analyze_stmts_constants(first_stmt, &changed);
+	analyze_stmts_constants(first_stmt, &changed, CONST_MAX);
     } while (changed);
-    /*
-    printf("\n\nresult:\n\n");
-    dump_code(first_stmt, 0);
-    */
+
+    for_each_value_in_statements(first_stmt, &init_least_const_types);
+
+    do
+    {
+	value_set_t *set = new_value_set();
+
+	changed = 0;
+	analyze_least_const_type_multiply_used_in(first_stmt, 0, set, &changed);
+
+	free_value_set(set);
+    } while (changed);
+
+    analyze_least_const_type_directly_used_in(first_stmt);
 }
+
+/*** make_color optimization ***/
 
 static int
 is_color_def (statement_t *stmt, int op, value_t **value)
@@ -1896,8 +2363,7 @@ optimize_make_color (statement_t *stmt)
 	    case STMT_IF_COND :
 		optimize_make_color(stmt->v.if_cond.consequent);
 		optimize_make_color(stmt->v.if_cond.alternative);
-
-		stmt = skip_phis(stmt->next);
+		stmt = stmt->next;
 		break;
 
 	    case STMT_WHILE_LOOP :
@@ -1910,6 +2376,37 @@ optimize_make_color (statement_t *stmt)
 	}
     }
 }
+
+/*** constant propagation ***/
+
+/*** copy propagation ***/
+
+static void
+copy_propagation (void)
+{
+    int changed;
+
+    void propagate_copy (statement_t *stmt)
+	{
+	    if (stmt->type == STMT_ASSIGN
+		&& stmt->v.assign.lhs->uses != 0
+		&& stmt->v.assign.rhs->type == RHS_PRIMARY
+		&& (stmt->v.assign.rhs->v.primary.type != PRIMARY_VALUE
+		    || stmt->v.assign.rhs->v.primary.v.value != stmt->v.assign.lhs))
+	    {
+		rewrite_uses(stmt->v.assign.lhs, stmt->v.assign.rhs->v.primary, 0);
+		changed = 1;
+	    }
+	}
+
+    do
+    {
+	changed = 0;
+	for_each_assign_statement(first_stmt, &propagate_copy);
+    } while (changed);
+}
+
+/*** dead code removal ***/
 
 static value_list_t*
 add_value_if_new (value_list_t *list, value_t *value)
@@ -1935,6 +2432,8 @@ remove_values_from_rhs (statement_t *stmt, rhs_t *rhs, value_list_t **worklist)
 	case RHS_PRIMARY :
 	    if (rhs->v.primary.type == PRIMARY_VALUE)
 	    {
+		assert(rhs->v.primary.v.value->index < 0
+		       || rhs->v.primary.v.value->def->type != STMT_NIL);
 		remove_use(rhs->v.primary.v.value, stmt);
 		if (rhs->v.primary.v.value->uses == 0)
 		    *worklist = add_value_if_new(*worklist, rhs->v.primary.v.value);
@@ -1948,6 +2447,8 @@ remove_values_from_rhs (statement_t *stmt, rhs_t *rhs, value_list_t **worklist)
 		for (i = 0; i < rhs->v.op.op->num_args; ++i)
 		    if (rhs->v.op.args[i].type == PRIMARY_VALUE)
 		    {
+			assert(rhs->v.op.args[i].v.value->index < 0
+			       || rhs->v.op.args[i].v.value->def->type != STMT_NIL);
 			remove_use(rhs->v.op.args[i].v.value, stmt);
 			if (rhs->v.op.args[i].v.value->uses == 0)
 			    *worklist = add_value_if_new(*worklist, rhs->v.op.args[i].v.value);
@@ -1960,6 +2461,8 @@ remove_values_from_rhs (statement_t *stmt, rhs_t *rhs, value_list_t **worklist)
 static void
 remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist)
 {
+    assert(stmt->v.assign.lhs->uses == 0);
+
     if ((stmt->v.assign.rhs->type == RHS_OP
 	 && !stmt->v.assign.rhs->v.op.op->is_pure)
 	|| (stmt->type == STMT_PHI_ASSIGN
@@ -1985,18 +2488,15 @@ remove_dead_code_initially (statement_t *stmt, value_list_t **worklist)
 		break;
 
 	    case STMT_ASSIGN :
-		if (stmt->v.assign.lhs->uses == 0)
-		    remove_assign_stmt_if_pure(stmt, worklist);
-		break;
-
 	    case STMT_PHI_ASSIGN :
 		if (stmt->v.assign.lhs->uses == 0)
-		    remove_assign_stmt_if_pure(stmt, worklist);
+		    *worklist = add_value_if_new(*worklist, stmt->v.assign.lhs);
 		break;
 
 	    case STMT_IF_COND :
 		remove_dead_code_initially(stmt->v.if_cond.consequent, worklist);
 		remove_dead_code_initially(stmt->v.if_cond.alternative, worklist);
+		remove_dead_code_initially(stmt->v.if_cond.exit, worklist);
 		break;
 
 	    case STMT_WHILE_LOOP :
@@ -2048,20 +2548,198 @@ remove_dead_code (void)
     } while (worklist != 0);
 }
 
-/*
-value_list_t*
-find_rhs_precalculatables (rhs_t *rhs, int const_type, value_list_t *list)
+/*** ssa well-formedness check ***/
+
+static void
+check_rhs_defined (rhs_t *rhs, value_set_t *defined_set)
 {
-    switch (rhs->type)
+    void check_value (value_t *value)
+	{ assert(value_set_contains(defined_set, value)); }
+
+    for_each_value_in_rhs(rhs, check_value);
+}
+
+static value_t*
+last_assignment_to_compvar (statement_t *stmts, compvar_t *compvar)
+{
+    value_t *last = 0;
+
+    while (stmts != 0)
     {
-	case RHS_PRIMARY :
+	switch (stmts->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN :
+	    case STMT_PHI_ASSIGN :
+		if (stmts->v.assign.lhs->compvar == compvar)
+		    last = stmts->v.assign.lhs;
+		break;
+
+	    case STMT_IF_COND :
+	    {
+		value_t *new_last = last_assignment_to_compvar(stmts->v.if_cond.exit, compvar);
+
+		if (new_last != 0)
+		    last = new_last;
+
+		break;
+	    }
+
+	    case STMT_WHILE_LOOP :
+	    {
+		value_t *new_last = last_assignment_to_compvar(stmts->v.while_loop.entry, compvar);
+
+		if (new_last != 0)
+		    last = new_last;
+
+		break;
+	    }
+
+	    default :
+		assert(0);
+	}
+
+	stmts = stmts->next;
+    }
+
+    return last;
+}
+
+static void
+set_value_defined_and_current_for_checking (value_t *value, GHashTable *current_value_hash, value_set_t *defined_set)
+{
+    value_set_add(defined_set, value);
+    g_hash_table_insert(current_value_hash, value->compvar, value);
+}
+
+static void
+check_phis (statement_t *stmts, statement_t *body1, statement_t *body2,
+	    GHashTable *current_value_hash, value_set_t *defined_set)
+{
+    while (stmts != 0)
+    {
+	assert(stmts->type == STMT_NIL || stmts->type == STMT_PHI_ASSIGN);
+
+	if (stmts->type == STMT_PHI_ASSIGN)
+	{
+	    void check_value (value_t *value)
+		{
+		    if (value->index >= 0)
+		    {
+			value_t *value1, *value2;
+			value_t *current_value = (value_t*)g_hash_table_lookup(current_value_hash, value->compvar);
+
+			value1 = last_assignment_to_compvar(body1, value->compvar);
+			value2 = last_assignment_to_compvar(body2, value->compvar);
+			if (value1 == 0)
+			    value1 = current_value;
+			if (value2 == 0)
+			    value2 = current_value;
+
+			assert(value == value1 || value == value2);
+		    }
+		    else
+			assert(g_hash_table_lookup(current_value_hash, value->compvar) == 0);
+		}
+
+	    for_each_value_in_rhs(stmts->v.assign.rhs, check_value);
+	    for_each_value_in_rhs(stmts->v.assign.rhs2, check_value);
+
+	    set_value_defined_and_current_for_checking(stmts->v.assign.lhs, current_value_hash, defined_set);
+	}
+
+	stmts = stmts->next;
     }
 }
 
-value_list_t*
-find_precalculatables (statement_t *stmt, value_list_t *list)
+static void check_ssa_recursively (statement_t *stmts, GHashTable *current_value_hash, value_set_t *defined_set);
+
+static void
+check_ssa_with_undo (statement_t *stmts, GHashTable *current_value_hash, value_set_t *defined_set)
 {
-    int type, type2;
+    GHashTable *current_value_hash_copy;
+    value_set_t *defined_set_copy;
+
+    current_value_hash_copy = direct_hash_table_copy(current_value_hash);
+    defined_set_copy = value_set_copy(defined_set);
+
+    check_ssa_recursively(stmts, current_value_hash_copy, defined_set_copy);
+
+    free_value_set(defined_set_copy);
+    g_hash_table_destroy(current_value_hash_copy);
+}
+
+static void
+check_ssa_recursively (statement_t *stmts, GHashTable *current_value_hash, value_set_t *defined_set)
+{
+    while (stmts != 0)
+    {
+	switch (stmts->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN:
+		check_rhs_defined(stmts->v.assign.rhs, defined_set);
+		assert(!value_set_contains(defined_set, stmts->v.assign.lhs));
+		set_value_defined_and_current_for_checking(stmts->v.assign.lhs, current_value_hash, defined_set);
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		assert(0);
+		break;
+
+	    case STMT_IF_COND :
+		check_rhs_defined(stmts->v.if_cond.condition, defined_set);
+
+		check_ssa_with_undo(stmts->v.if_cond.consequent, current_value_hash, defined_set);
+		check_ssa_with_undo(stmts->v.if_cond.alternative, current_value_hash, defined_set);
+
+		check_phis(stmts->v.if_cond.exit, stmts->v.if_cond.consequent, stmts->v.if_cond.alternative,
+			   current_value_hash, defined_set);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		check_phis(stmts->v.while_loop.entry, stmts->v.while_loop.body, 0,
+			   current_value_hash, defined_set);
+
+		check_rhs_defined(stmts->v.while_loop.invariant, defined_set);
+
+		check_ssa_with_undo(stmts->v.while_loop.body, current_value_hash, defined_set);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmts = stmts->next;
+    }
+}
+
+static void
+check_ssa (statement_t *stmts)
+{
+    GHashTable *current_value_hash;
+    value_set_t *defined_set;
+
+    current_value_hash = g_hash_table_new(&g_direct_hash, &g_direct_equal);
+    defined_set = new_value_set();
+
+    check_ssa_recursively(stmts, current_value_hash, defined_set);
+
+    free_value_set(defined_set);
+    g_hash_table_destroy(current_value_hash);
+}
+
+/*** code slicing ***/
+
+/* returns whether the slice is non-empty */
+static int
+slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statement_t *stmt))
+{
+    int non_empty = 0;
 
     while (stmt != 0)
     {
@@ -2071,60 +2749,116 @@ find_precalculatables (statement_t *stmt, value_list_t *list)
 		break;
 
 	    case STMT_ASSIGN :
-		list = find_rhs_precalculatables(stmt->v.assign.rhs,
-						 stmt->v.assign.lhs->const_type,
-						 list);
-		break;
-
 	    case STMT_PHI_ASSIGN :
-		type = rhs_type(stmt->v.assign.rhs);
-		type2 = rhs_type(stmt->v.assign.rhs2);
-		if (type != type2)
+		if (predicate(stmt))
 		{
-		    if (type2 > type)
-			type = type2;
-		}
-		if (type != stmt->v.assign.lhs->compvar->type)
-		{
-		    stmt->v.assign.lhs->compvar->type = type;
-		    *worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, *worklist);
+		    stmt->slice_flags |= slice_flag;
+		    non_empty = 1;
 		}
 		break;
 
 	    case STMT_IF_COND :
-		propagate_types_initially(stmt->v.if_cond.consequent, worklist);
-		propagate_types_initially(stmt->v.if_cond.alternative, worklist);
+	    {
+		int result;
+
+		result = slice_code(stmt->v.if_cond.consequent, slice_flag, predicate);
+		result = slice_code(stmt->v.if_cond.alternative, slice_flag, predicate) || result;
+		result = slice_code(stmt->v.if_cond.exit, slice_flag, predicate) || result;
+
+		if (result)
+		{
+		    slice_code(stmt->v.if_cond.exit, slice_flag, predicate);
+
+		    stmt->slice_flags |= slice_flag;
+		    non_empty = 1;
+		}
 		break;
+	    }
 
 	    case STMT_WHILE_LOOP :
-		propagate_types_initially(stmt->v.while_loop.entry, worklist);
-		propagate_types_initially(stmt->v.while_loop.body, worklist);
-		break;
+	    {
+		if (slice_code(stmt->v.while_loop.body, slice_flag, predicate))
+		{
+		    slice_code(stmt->v.while_loop.entry, slice_flag, predicate);
 
-	    default :
+		    stmt->slice_flags |= slice_flag;
+		    non_empty = 1;
+		}
+		else
+		    assert(!slice_code(stmt->v.while_loop.entry, slice_flag, predicate));
+		break;
+	    }
+
+	    default:
 		assert(0);
 	}
 
 	stmt = stmt->next;
     }
+
+    return non_empty;
 }
-*/
+
+/*** c code output ***/
+
+/* permanent const values must be calculated once and then available for the
+ * calculation of all less const values */
+static int
+is_permanent_const_value (value_t *value)
+{
+    return value->least_const_type_multiply_used_in == value->const_type
+	&& value->least_const_type_directly_used_in != value->const_type;
+}
+
+/* temporary const values must be defined for the calculation of all const
+ * types up to the least const type they are used in */
+static int
+is_temporary_const_value (value_t *value)
+{
+    return !is_permanent_const_value(value);
+}
+
+/* returns whether const_type is at least as const as lower_bound but not more
+ * const than upper_bound */
+static int
+is_const_type_within (int const_type, int lower_bound, int upper_bound)
+{
+    assert((lower_bound & upper_bound) == lower_bound);
+
+    return (const_type & lower_bound) == lower_bound
+	&& (const_type & upper_bound) == const_type;
+}
 
 void
-output_compvar_name (FILE *out, compvar_t *compvar)
+output_value_name (FILE *out, value_t *value, int for_decl)
 {
-    if (compvar->var != 0)
-	fprintf(out, "var_%s_%d", compvar->var->name, compvar->n);
+    if (value->index < 0)
+	fputs("0 /* uninitialized */ ", out);
     else
-	fprintf(out, "tmp_%d", compvar->temp->number);
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	if (!for_decl && is_permanent_const_value(value))
+	{
+	    if (value->const_type == (CONST_ROW | CONST_COL))
+		fprintf(out, "xy_vars->");
+	    else if (value->const_type == CONST_COL)
+		fprintf(out, "y_vars->");
+	}
+#endif
+
+	if (value->compvar->var != 0)
+	    fprintf(out, "var_%s_%d_%d", value->compvar->var->name, value->compvar->n, value->index);
+	else
+	    fprintf(out, "tmp_%d_%d", value->compvar->temp->number, value->index);
+    }
 }
 
 void
-output_compvar_decl (FILE *out, compvar_t *compvar)
+output_value_decl (FILE *out, value_t *value)
 {
-    if (!compvar->flag)
+    if (!value->have_defined && value->index >= 0)
     {
-	switch (compvar->type)
+	switch (value->compvar->type)
 	{
 	    case TYPE_INT :
 		fputs("int ", out);
@@ -2139,7 +2873,7 @@ output_compvar_decl (FILE *out, compvar_t *compvar)
 		break;
 
 	    case TYPE_COMPLEX :
-		fputs("complex float", out);
+		fputs("complex float ", out);
 		break;
 
 	    case TYPE_MATRIX :
@@ -2151,66 +2885,19 @@ output_compvar_decl (FILE *out, compvar_t *compvar)
 		break;
 	}
 
-	output_compvar_name(out, compvar);
+	output_value_name(out, value, 1);
 	fputs(";\n", out);
-	compvar->flag = 1;
+	value->have_defined = 1;
     }
 }
 
-void
-output_rhs_decl (FILE *out, rhs_t *rhs)
+static void
+reset_have_defined (statement_t *stmt)
 {
-    if (rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_VALUE)
-	output_compvar_decl(out, rhs->v.primary.v.value->compvar);
-    else if (rhs->type == RHS_OP)
-    {
-	int i;
+    void reset_value_have_defined (value_t *value)
+	{ value->have_defined = 0; }
 
-	for (i = 0; i < rhs->v.op.op->num_args; ++i)
-	    if (rhs->v.op.args[i].type == PRIMARY_VALUE)
-		output_compvar_decl(out, rhs->v.op.args[i].v.value->compvar);
-    }
-}
-
-void
-output_decls (FILE *out, statement_t *stmt)
-{
-    while (stmt != 0)
-    {
-	switch (stmt->type)
-	{
-	    case STMT_NIL :
-		break;
-
-	    case STMT_ASSIGN :
-		output_compvar_decl(out, stmt->v.assign.lhs->compvar);
-		output_rhs_decl(out, stmt->v.assign.rhs);
-		break;
-
-	    case STMT_PHI_ASSIGN :
-		output_compvar_decl(out, stmt->v.assign.lhs->compvar);
-		output_rhs_decl(out, stmt->v.assign.rhs);
-		output_rhs_decl(out, stmt->v.assign.rhs2);
-		break;
-
-	    case STMT_IF_COND :
-		output_rhs_decl(out, stmt->v.if_cond.condition);
-		output_decls(out, stmt->v.if_cond.consequent);
-		output_decls(out, stmt->v.if_cond.alternative);
-		break;
-
-	    case STMT_WHILE_LOOP :
-		output_rhs_decl(out, stmt->v.while_loop.invariant);
-		output_decls(out, stmt->v.while_loop.entry);
-		output_decls(out, stmt->v.while_loop.body);
-		break;
-
-	    default :
-		assert(0);
-	}
-
-	stmt = stmt->next;
-    }
+    for_each_value_in_statements(stmt, &reset_value_have_defined);
 }
 
 void
@@ -2219,7 +2906,7 @@ output_primary (FILE *out, primary_t *prim)
     switch (prim->type)
     {
 	case PRIMARY_VALUE :
-	    output_compvar_name(out, prim->v.value->compvar);
+	    output_value_name(out, prim->v.value, 0);
 	    break;
 
 	case PRIMARY_INT_CONST :
@@ -2267,17 +2954,31 @@ output_rhs (FILE *out, rhs_t *rhs)
 }
 
 void
-output_phis (FILE *out, statement_t *phis, int branch)
+output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
 {
-    while (phis != 0 && phis->type == STMT_PHI_ASSIGN)
+    while (phis != 0)
     {
-	rhs_t *rhs = ((branch == 0) ? phis->v.assign.rhs : phis->v.assign.rhs2);
+	rhs_t *rhs;
+
+#ifndef NO_CONSTANTS_ANALYSIS
+	if ((phis->slice_flags & slice_flag) == 0)
+#else
+        if (phis->type == STMT_NIL)
+#endif
+	{
+	    phis = phis->next;
+	    continue;
+	}
+
+	assert(phis->type == STMT_PHI_ASSIGN);
+
+	rhs = ((branch == 0) ? phis->v.assign.rhs : phis->v.assign.rhs2);
 
 	if (rhs->type != RHS_PRIMARY
 	    || rhs->v.primary.type != PRIMARY_VALUE
-	    || rhs->v.primary.v.value->compvar != phis->v.assign.lhs->compvar)
+	    || rhs->v.primary.v.value != phis->v.assign.lhs)
 	{
-	    output_compvar_name(out, phis->v.assign.lhs->compvar);
+	    output_value_name(out, phis->v.assign.lhs, 0);
 	    fputs(" = ", out);
 	    output_rhs(out, rhs);
 	    fputs(";\n", out);
@@ -2288,69 +2989,124 @@ output_phis (FILE *out, statement_t *phis, int branch)
 }
 
 void
-output_stmts (FILE *out, statement_t *stmt)
+output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
-	{
-	    case STMT_NIL :
-		stmt = stmt->next;
-		break;
+#ifndef NO_CONSTANTS_ANALYSIS
+	if (stmt->slice_flags & slice_flag)
+#endif
+	    switch (stmt->type)
+	    {
+		case STMT_NIL :
+#ifndef NO_CONSTANTS_ANALYSIS
+		    assert(0);
+#endif
+		    break;
 
-	    case STMT_ASSIGN :
-		output_compvar_name(out, stmt->v.assign.lhs->compvar);
-		fputs(" = ", out);
-		output_rhs(out, stmt->v.assign.rhs);
-		fputs("; /* ", out);
-		output_value_const_type(out, stmt->v.assign.lhs);
-		fputs(" */\n", out);
+		case STMT_ASSIGN :
+		    output_value_name(out, stmt->v.assign.lhs, 0);
+		    fputs(" = ", out);
+		    output_rhs(out, stmt->v.assign.rhs);
+		    fputs(";\n", out);
+		    break;
 
-		stmt = stmt->next;
-		break;
+		case STMT_PHI_ASSIGN :
+		    assert(0);
+		    break;
 
-	    case STMT_PHI_ASSIGN :
-		assert(0);
-		break;
+		case STMT_IF_COND :
+		    fputs("if (", out);
+		    output_rhs(out, stmt->v.if_cond.condition);
+		    fputs(")\n{\n", out);
+		    output_stmts(out, stmt->v.if_cond.consequent, slice_flag);
+		    output_phis(out, stmt->v.if_cond.exit, 0, slice_flag);
+		    fputs("}\nelse\n{\n", out);
+		    output_stmts(out, stmt->v.if_cond.alternative, slice_flag);
+		    output_phis(out, stmt->v.if_cond.exit, 1, slice_flag);
+		    fputs("}\n", out);
+		    break;
 
-	    case STMT_IF_COND :
-		fputs("if (", out);
-		output_rhs(out, stmt->v.if_cond.condition);
-		fputs(")\n{\n", out);
-		output_stmts(out, stmt->v.if_cond.consequent);
-		output_phis(out, stmt->next, 0);
-		fputs("}\nelse\n{\n", out);
-		output_stmts(out, stmt->v.if_cond.alternative);
-		output_phis(out, stmt->next, 1);
-		fputs("}\n", out);
+		case STMT_WHILE_LOOP :
+		    output_phis(out, stmt->v.while_loop.entry, 0, slice_flag);
+		    fputs("while (", out);
+		    output_rhs(out, stmt->v.while_loop.invariant);
+		    fputs(")\n{\n", out);
+		    output_stmts(out, stmt->v.while_loop.body, slice_flag);
+		    output_phis(out, stmt->v.while_loop.entry, 1, slice_flag);
+		    fputs("}\n", out);
+		    break;
 
-		stmt = skip_phis(stmt->next);
-		break;
+		default :
+		    assert(0);
+	    }
 
-	    case STMT_WHILE_LOOP :
-		output_phis(out, stmt->v.while_loop.entry, 0);
-		fputs("while (", out);
-		output_rhs(out, stmt->v.while_loop.invariant);
-		fputs(")\n{\n", out);
-		output_stmts(out, stmt->v.while_loop.body);
-		output_phis(out, stmt->v.while_loop.entry, 1);
-		fputs("}\n", out);
-
-		stmt = stmt->next;
-		break;
-
-	    default :
-		assert(0);
-	}
+	stmt = stmt->next;
     }
 }
 
-void
-output_c_code (FILE *out)
+static void
+output_permanent_const_declarations (FILE *out, int const_type)
 {
-    output_decls(out, first_stmt);
-    output_stmts(out, first_stmt);
+    void output_value_if_needed (value_t *value)
+	{
+	    if (value->const_type == const_type
+		&& is_permanent_const_value(value))
+		output_value_decl(out, value);
+	}
+
+    reset_have_defined(first_stmt);
+
+    for_each_value_in_statements(first_stmt, &output_value_if_needed);
 }
+
+static void
+output_permanent_const_code (FILE *out, int const_type)
+{
+    int is_value_needed (value_t *value)
+	{
+	    return value->const_type == const_type
+		|| (is_const_type_within(const_type,
+					 value->least_const_type_multiply_used_in,
+					 value->const_type));
+	}
+
+    void output_value_if_needed (value_t *value)
+	{
+	    if ((is_temporary_const_value(value) || const_type == 0)
+		&& is_value_needed(value))
+		output_value_decl(out, value);
+	}
+
+    int const_predicate (statement_t *stmt)
+	{
+	    assert(stmt->type == STMT_ASSIGN || stmt->type == STMT_PHI_ASSIGN);
+
+	    return is_value_needed(stmt->v.assign.lhs);
+	}
+
+    unsigned int slice_flag;
+
+    /* declarations */
+    reset_have_defined(first_stmt);
+    for_each_value_in_statements(first_stmt, &output_value_if_needed);
+
+    /* code */
+    if (const_type == (CONST_ROW | CONST_COL))
+	slice_flag = SLICE_XY_CONST;
+    else if (const_type == CONST_ROW)
+	slice_flag = SLICE_X_CONST;
+    else if (const_type == CONST_COL)
+	slice_flag = SLICE_Y_CONST;
+    else
+	slice_flag = SLICE_NO_CONST;
+
+    slice_code(first_stmt, slice_flag, &const_predicate);
+
+    output_stmts(out, first_stmt, slice_flag);
+}
+
+/*** compiling and loading ***/
 
 #ifdef OPENSTEP
 #ifndef MAX
@@ -2384,6 +3140,9 @@ has_altivec (void)
 }
 #endif
 
+#define MAX_TEMPLATE_VAR_LENGTH       64
+#define is_word_character(c)          (isalnum((c)) || (c) == '_')
+
 initfunc_t
 gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 {
@@ -2403,8 +3162,8 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 
     first_stmt = 0;
     emit_loc = &first_stmt;
-    next_stmt_index = 0;
     next_temp_number = 1;
+    next_value_global_index = 0;
 
     assert(template != 0);
 
@@ -2417,13 +3176,21 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 						     make_compvar_primary(result[2]), make_compvar_primary(result[3])));
 	emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
     }
+
     propagate_types();
-    /*
-    optimize_make_color(first_stmt);
-    analyze_constants();
-    remove_dead_code();
-    */
+
     dump_code(first_stmt, 0);
+    check_ssa(first_stmt);
+
+    optimize_make_color(first_stmt);
+    copy_propagation();
+    remove_dead_code();
+
+#ifndef NO_CONSTANTS_ANALYSIS
+    analyze_constants();
+#endif
+    dump_code(first_stmt, 0);
+    check_ssa(first_stmt);
 
     buf = (char*)alloca(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
     assert(buf != 0);
@@ -2443,59 +3210,111 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 	    c = fgetc(template);
 	    assert(c != EOF);
 
-	    switch (c)
+	    if (!is_word_character(c))
+		putc(c, out);
+	    else
 	    {
-		case 'l' :
-		    fprintf(out, "%d", MAX_TUPLE_LENGTH);
-		    break;
+		char name[MAX_TEMPLATE_VAR_LENGTH + 1];
+		int length = 1;
 
-		case 'g' :
+		name[0] = c;
+
+		do
+		{
+		    c = fgetc(template);
+
+		    if (is_word_character(c))
+		    {
+			assert(length < MAX_TEMPLATE_VAR_LENGTH);
+			name[length++] = c;
+		    }
+		    else
+			if (c != EOF)
+			    ungetc(c, template);
+		} while (is_word_character(c));
+
+		assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
+
+		name[length] = '\0';
+
+		if (strcmp(name, "l") == 0)
+		    fprintf(out, "%d", MAX_TUPLE_LENGTH);
+		else if (strcmp(name, "g") == 0)
+		{
 #ifdef GIMP
 		    putc('1', out);
 #else
 		    putc('0', out);
 #endif
-		    break;
-
-		case '2' :
+		}
+		else if (strcmp(name, "2") == 0)
+		{
 #ifdef GIMP2
 		    putc('1', out);
 #else
 		    putc('0', out);
 #endif
-		    break;
-
-		case 'm' :
-		    output_c_code(out);
-		    break;
-
-		case 'p' :
+		}
+		else if (strcmp(name, "m") == 0)
+		    output_permanent_const_code(out, 0);
+		else if (strcmp(name, "p") == 0)
 		    fprintf(out, "%d", USER_CURVE_POINTS);
-		    break;
-
-		case 'q' :
+		else if (strcmp(name, "q") == 0)
 		    fprintf(out, "%d", USER_GRADIENT_POINTS);
-		    break;
-
-		case 'o' :
+		else if (strcmp(name, "o") == 0)
+		{
 #ifdef OPENSTEP
 		    putc('1', out);
 #else
 		    putc('0', out);
 #endif
-		    break;
-
-		case 'a' :
+		}
+		else if (strcmp(name, "a") == 0)
+		{
 #ifdef OPENSTEP
 		    putc(has_altivec() ? '1' : '0', out);
 #else
 		    putc('0', out);
 #endif
-		    break;
-
-		default :
-		    putc(c, out);
-		    break;
+		}
+		else if (strcmp(name, "xy_decls") == 0)
+		{
+#ifndef NO_CONSTANTS_ANALYSIS
+		    output_permanent_const_declarations(out, CONST_ROW | CONST_COL);
+#endif
+		}
+		else if (strcmp(name, "x_decls") == 0)
+		{
+#ifndef NO_CONSTANTS_ANALYSIS
+		    output_permanent_const_declarations(out, CONST_ROW);
+#endif
+		}
+		else if (strcmp(name, "y_decls") == 0)
+		{
+#ifndef NO_CONSTANTS_ANALYSIS
+		    output_permanent_const_declarations(out, CONST_COL);
+#endif
+		}
+		else if (strcmp(name, "xy_code") == 0)
+		{
+#ifndef NO_CONSTANTS_ANALYSIS
+		    output_permanent_const_code(out, CONST_ROW | CONST_COL);
+#endif
+		}
+		else if (strcmp(name, "x_code") == 0)
+		{
+#ifndef NO_CONSTANTS_ANALYSIS
+		    output_permanent_const_code(out, CONST_ROW);
+#endif
+		}
+		else if (strcmp(name, "y_code") == 0)
+		{
+#ifndef NO_CONSTANTS_ANALYSIS
+		    output_permanent_const_code(out, CONST_COL);
+#endif
+		}
+		else
+		    assert(0);
 	    }
 	}
 	else
@@ -2504,7 +3323,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 
     fclose(out);
 
-#ifndef TEST
     sprintf(buf, "%s /tmp/mathfunc%d_%d.o /tmp/mathfunc%d_%d.c", CGEN_CC, pid, last_mathfunc, pid, last_mathfunc);
     if (system(buf) != 0)
     {
@@ -2579,7 +3397,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 	*module_info = module;
     }
 #endif
-#endif
 
     free_pools();
 
@@ -2599,80 +3416,7 @@ unload_c_code (void *module_info)
 #endif
 }
 
-#ifdef TEST
-void
-test_compiler (void)
-{
-    variable_t *vars = 0;
-
-    compvar_t *a = make_variable(register_variable(&vars, "a", make_tuple_info(nil_tag_number, 1)), 0);
-    compvar_t *t = make_temporary();
-    compvar_t *b = make_variable(register_variable(&vars, "b", make_tuple_info(nil_tag_number, 1)), 0);
-
-    emit_assign(make_lhs(a), make_int_const_rhs(0));
-    emit_assign(make_lhs(b), make_int_const_rhs(1));
-    emit_assign(make_lhs(t), make_compvar_rhs(a));
-    emit_assign(make_lhs(a), make_compvar_rhs(b));
-    emit_assign(make_lhs(b), make_compvar_rhs(t));
-    emit_assign(make_lhs(a), make_op_rhs(OP_ADD, make_compvar_primary(a), make_compvar_primary(b)));
-
-    start_if_cond(make_compvar_rhs(a));
-    /* emit_assign(make_lhs(b), make_int_const_rhs(1)); */
-    switch_if_branch();
-    emit_assign(make_lhs(b), make_int_const_rhs(2));
-    end_if_cond();
-
-    start_while_loop(make_compvar_rhs(a));
-    emit_assign(make_lhs(b), make_compvar_rhs(b));
-    emit_assign(make_lhs(b), make_int_const_rhs(1));
-    emit_assign(make_lhs(b), make_int_const_rhs(3));
-    end_while_loop();
-
-    dump_code(first_stmt, 0);
-}
-
-void init_internals (mathmap_t *mathmap);
-
-void
-test_mathmap_compiler (char *expr)
-{
-    static mathmap_t mathmap;
-    /* static compvar_t *result[MAX_TUPLE_LENGTH]; */
-
-    mathmap.variables = 0;
-    mathmap.userval_infos = 0;
-    mathmap.internals = 0;
-
-    mathmap.exprtree = 0;
-
-    init_internals(&mathmap);
-
-    the_mathmap = &mathmap;
-
-    DO_JUMP_CODE {
-	scanFromString(expr);
-	yyparse();
-	endScanningFromString();
-
-	the_mathmap = 0;
-
-	assert(mathmap.exprtree != 0);
-
-	gen_and_load_c_code(&mathmap, 0);
-
-	dump_code(first_stmt, 0);
-
-	/*
-	gen_code(mathmap.exprtree, result, 0);
-
-	output_c_code();
-	*/
-    } WITH_JUMP_HANDLER {
-	printf("%s\n", error_string);
-	assert(0);
-    } END_JUMP_HANDLER;
-}
-#endif
+/*** inits ***/
 
 static void
 init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure)
@@ -2702,6 +3446,7 @@ init_compiler (void)
     init_op(OP_ABS, "fabs", 1, TYPE_PROP_MAX, 0, PURE);
     init_op(OP_MIN, "MIN", 2, TYPE_PROP_MAX, 0, PURE);
     init_op(OP_MAX, "MAX", 2, TYPE_PROP_MAX, 0, PURE);
+
     init_op(OP_SQRT, "sqrt", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_HYPOT, "hypot", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_SIN, "sin", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
@@ -2721,18 +3466,22 @@ init_compiler (void)
     init_op(OP_ACOSH, "acosh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_ATANH, "atanh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_GAMMA, "GAMMA", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+
     init_op(OP_FLOOR, "floor", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
     init_op(OP_EQ, "EQ", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
     init_op(OP_LESS, "LESS", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
     init_op(OP_LEQ, "LEQ", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
     init_op(OP_NOT, "NOT", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
+
     init_op(OP_PRINT, "PRINT", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
     init_op(OP_NEWLINE, "NEWLINE", 0, TYPE_PROP_CONST, TYPE_INT, NONPURE);
+
     init_op(OP_ORIG_VAL, "ORIG_VAL", 4, TYPE_PROP_CONST, TYPE_COLOR, PURE);
     init_op(OP_RED, "RED_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_GREEN, "GREEN_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_BLUE, "BLUE_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_ALPHA, "ALPHA_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+
     init_op(OP_COMPLEX, "COMPLEX", 2, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_REAL, "crealf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_C_IMAG, "cimagf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
@@ -2743,7 +3492,7 @@ init_compiler (void)
     init_op(OP_C_ASIN, "casinf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_ACOS, "cacosf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_ATAN, "catanf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_POW, "cpowf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_POW, "cpowf", 2, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_EXP, "cexpf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_LOG, "clogf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_ARG, "cargf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
@@ -2754,6 +3503,7 @@ init_compiler (void)
     init_op(OP_C_ACOSH, "cacoshf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_ATANH, "catanhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_GAMMA, "cgamma", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+
     init_op(OP_MAKE_M2X2, "MAKE_M2X2", 4, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
     init_op(OP_MAKE_M3X3, "MAKE_M3X3", 9, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
     init_op(OP_FREE_MATRIX, "FREE_MATRIX", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
@@ -2774,20 +3524,3 @@ init_compiler (void)
     init_op(OP_MAKE_COLOR, "MAKE_COLOR", 4, TYPE_PROP_CONST, TYPE_COLOR, PURE);
     init_op(OP_OUTPUT_COLOR, "OUTPUT_COLOR", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
 }
-
-#ifdef TEST
-int
-main (int argc, char *argv[])
-{
-    assert(argc == 2);
-
-    init_tags();
-    init_builtins();
-    init_macros();
-    init_compiler();
-
-    /* test_compiler(); */
-    test_mathmap_compiler(argv[1]);
-    return 0;
-}
-#endif

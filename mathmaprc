@@ -260,7 +260,8 @@ gl=user_int(\"green wavelength\",1,50);
 bl=user_int(\"blue wavelength\",1,50);
 q=t*2*pi;
 abs(rgba:[sin(r/rl+q)+sin(a*rl+q),sin(r/gl+q)+sin(a*gl+q),sin(r/bl+q)+sin(a*bl+q),2])")
-	(expression "Moire 1" "q=t*360;\nabs(rgba:[sin(15*r+q)+sin(15*a+q),sin(17*r+q)+sin(17*a+q),sin(19*r+q)+sin(19*a+q),2])*0.5")
+	(expression "Moire 1" "q=t*2*pi;
+abs(rgba:[sin(r/4+q)+sin(15*a+q),sin(r/3.5+q)+sin(17*a+q),sin(r/3+q)+sin(19*a+q),2])*0.5")
 	(expression "Moire 2" "z=user_float(\"zoom\",1,100);
 grayColor(sin(x*y/z+t*2*pi)*0.5+0.5)")
 	(expression "Mandelbrot" "p=ri:(xy/xy:[X,X]*1.5-xy:[0.5,0]);
@@ -595,7 +596,6 @@ sl=30;
 nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
 alpha=[0,0,0,0];
 radii=[0,0,0,0];
-phii=[0,0,0,0];
 xc=[0,0,0,0];
 yc=[0,0,0,0];
 nummugls=user_int(\"edges\",3,10);
@@ -608,7 +608,6 @@ i=0; while i < 4 do
     yc[i]=(iy+0.5)*sl;
     alpha[i]=(noise([ix*0.3,iy*0.3,0])+1)*pi+t*pi*2;
     kurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,pmod(alpha[i],pi*2)];
-    phii[i]=kurde[1];
     radii[i]=heuslfaktor/cos(abs(kurde[1]%(muglwinkl*2)-muglwinkl));
     i = i + 1
 end;

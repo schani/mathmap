@@ -109,6 +109,9 @@ typedef struct _mathmap_invocation_t
     int uses_ra;
 
     mathfunc_t mathfunc;
+
+    void *xy_vars;
+    void *y_vars;
 } mathmap_invocation_t;
 
 #ifndef MIN

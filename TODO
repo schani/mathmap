@@ -1,6 +1,12 @@
+parameter t is disregarded in constant optimized compiler (xy and y vars must be initialized for each frame)
+supersampling does not work in constant optimized compiler (row length is changed for each second line computed)
+
+
+short circuit execution for && in compiler
 sqrt for complex
 update screenshots
-rewrite HACKING
+rewrite HACKING and include it in distro
+make user_* accept constant folded arguments
 
 
 
@@ -9,7 +15,6 @@ rewrite HACKING
 
 unload c code in openstep
 library
-constant optimization
 
 
 

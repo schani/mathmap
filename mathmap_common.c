@@ -101,6 +101,10 @@ free_invocation (mathmap_invocation_t *invocation)
 	}
 	free(invocation->uservals);
     }
+    if (invocation->xy_vars != 0)
+	free(invocation->xy_vars);
+    if (invocation->y_vars != 0)
+	free(invocation->y_vars);
     free(invocation);
 }
 
@@ -316,6 +320,9 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 	invocation->stack = (tuple_t*)malloc(POSTFIX_STACKSIZE * sizeof(tuple_t));
     else
 	invocation->stack = 0;
+
+    invocation->xy_vars = 0;
+    invocation->y_vars = 0;
 
     return invocation;
 }

@@ -31,6 +31,12 @@
  * $$q -> USER_GRADIENT_POINTS
  * $$o -> OPENSTEP
  * $$a -> has altivec
+ * $$xy_decls     -> declarations for xy-constant variables
+ * $$xy_code      -> code for xy-constant variables
+ * $$x_decls      -> declarations for x-constant variables
+ * $$x_code       -> code for x-constant variables
+ * $$y_decls      -> declarations for y-constant variables
+ * $$y_code       -> code for y-constant variables
  */
 
 #include <stdlib.h>
@@ -138,6 +144,16 @@ typedef struct _mathmap_t
     int exprlen;
 } mathmap_t;
 
+typedef struct
+{
+    $xy_decls
+} xy_const_vars_t;
+
+typedef struct
+{
+    $y_decls
+} y_const_vars_t;
+
 typedef struct _mathmap_invocation_t
 {
     mathmap_t *mathmap;
@@ -173,6 +189,9 @@ typedef struct _mathmap_invocation_t
     int uses_ra;
 
     void *mathfunc;
+
+    xy_const_vars_t *xy_vars;
+    y_const_vars_t *y_vars;
 } mathmap_invocation_t;
 
 typedef void (*mathfunc_t) (mathmap_invocation_t*, int, int, unsigned char*);
@@ -444,7 +463,7 @@ complex float cgamma (complex float z);
     })
 #endif
 
-void
+static void
 mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
@@ -461,6 +480,7 @@ mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsi
     int is_bw = output_bpp == 1 || output_bpp == 2;
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
+    xy_const_vars_t *xy_vars = invocation->xy_vars;
 
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, invocation->img_height);
@@ -482,8 +502,13 @@ mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsi
 	float y = middle_y - (float)(row + origin_y) * scale_y;
 	unsigned char *p = q;
 
+	$x_decls
+
+	$x_code
+
 	for (col = 0; col < invocation->img_width; ++col)
 	{
+	    y_const_vars_t *y_vars = &invocation->y_vars[col];
 	    float x = (float)(col + origin_x) * scale_x - middle_x;
 	    float r, a;
 
@@ -500,7 +525,7 @@ mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsi
 	    }
 
 	    {
-$m
+		$m
 	    }
 
 	    p += output_bpp;
@@ -516,5 +541,38 @@ $m
 mathfunc_t
 mathmapinit (mathmap_invocation_t *invocation)
 {
-    return mathmapfunc;
+    /* FIXME */
+    float t = /* invocation->current_t */ 0.0;
+    float X = invocation->image_X, Y = invocation->image_Y;
+    float W = invocation->image_W, H = invocation->image_H;
+    float R = invocation->image_R;
+
+    invocation->xy_vars = (xy_const_vars_t*)malloc(sizeof(xy_const_vars_t));
+    invocation->y_vars = (y_const_vars_t*)malloc(sizeof(y_const_vars_t) * invocation->img_width);
+
+    {
+	xy_const_vars_t *xy_vars = invocation->xy_vars;
+
+	{
+	    $xy_code
+	}
+    }
+
+    {
+	xy_const_vars_t *xy_vars = invocation->xy_vars;
+	int col;
+
+	for (col = 0; col < invocation->img_width; ++col)
+	{
+	    y_const_vars_t *y_vars = &invocation->y_vars[col];
+	    float x = (float)(col + invocation->origin_x) * invocation->scale_x - invocation->middle_x;
+
+	    {
+		$y_code
+	    }
+	}
+    }
+
+
+    return &mathmapfunc;
 }
