@@ -11,14 +11,12 @@ typedef struct _internal_t
 {
     char name[MAX_INTERNAL_LENGTH + 1];
     tuple_t value;
+    int is_used;
     struct _internal_t *next;
 } internal_t;
 
 internal_t* register_internal (const char *name, int number, int length);
 internal_t* lookup_internal (const char *name, tuple_info_t *type);
-
-void init_internals (void);
-void update_image_internals (void);
-void update_pixel_internals (void);
+void internals_clear_used (void);
 
 #endif

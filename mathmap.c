@@ -121,6 +121,8 @@ static void run(char    *name,
 		int     *nreturn_vals,
 		GParam **return_vals);
 
+static void init_internals (void);
+
 static void expression_copy (gchar *dest, gchar *src);
 
 static void mathmap (int frame_num);
@@ -496,10 +498,12 @@ run(char    *name,
 
 /*****/
 
+static internal_t *xy_internal = 0, *ra_internal = 0;
+
 inline void
 calc_ra (void)
 {
-    if (usesRA)
+    if (ra_internal->is_used)
     {
 	double x = currentX,
 	    y = currentY;
@@ -514,6 +518,50 @@ calc_ra (void)
 	    currentA = 360 - currentA;
     }
 }
+
+static void
+init_internals (void)
+{
+    xy_internal = register_internal("xy", xy_tag_number, 2);
+    ra_internal = register_internal("ra", ra_tag_number, 2);
+    register_internal("t", nil_tag_number, 1);
+    register_internal("XY", xy_tag_number, 2);
+    register_internal("WH", xy_tag_number, 2);
+    register_internal("R", nil_tag_number, 1);
+}
+
+static void
+update_image_internals (void)
+{
+    internal_t *internal;
+    tuple_info_t dummy;
+
+    internal = lookup_internal("t", &dummy);
+    internal->value.data[0] = currentT;
+
+    internal = lookup_internal("XY", &dummy);
+    internal->value.data[0] = imageX;
+    internal->value.data[1] = imageY;
+    
+    internal = lookup_internal("WH", &dummy);
+    internal->value.data[0] = imageW;
+    internal->value.data[1] = imageH;
+    
+    internal = lookup_internal("R", &dummy);
+    internal->value.data[0] = imageR;
+}
+
+static void
+update_pixel_internals (void)
+{
+    xy_internal->value.data[0] = currentX;
+    xy_internal->value.data[1] = currentY;
+
+    ra_internal->value.data[0] = currentR;
+    ra_internal->value.data[1] = currentA;
+}
+
+/*****/
 
 static gint32 
 mathmap_layer_copy(gint32 layerID)
@@ -572,6 +620,7 @@ generate_code (void)
 
 	DO_JUMP_CODE {
 	    clear_all_variables();
+	    internals_clear_used();
 	    scanFromString(mmvals.expression);
 	    mmparse();
 	    endScanningFromString();
