@@ -1,16 +1,17 @@
-# if you do not want to use the c code generator,
-# comment the following line
+# if you do not want to use the c code generator, comment the
+# following line
 CGEN = YES
 
-# if you do not have the __complex__ type and complex.h header (i.e. if you do
-# not have gcc and glibc), comment the following line
+# if you do not have the __complex__ type and complex.h header
+# (i.e. if you do not have gcc and glibc), comment the following line
 HAVE_COMPLEX = YES
 
-# if you want to build the command line version instead of the GIMP plug-in,
-# uncomment the following line
+# if you want to build the command line version instead of the GIMP
+# plug-in, uncomment the following line
 #CMDLINE = YES
 
-# if you are building on linux/alpha and have libffm, uncomment the following line
+# if you are building on linux/alpha and have libffm, uncomment the
+# following line
 LIBFFM = -lffm
 
 # you should not need to change anything beyond this line

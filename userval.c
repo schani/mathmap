@@ -389,7 +389,7 @@ make_userval_table (void)
 
 	    if (userval->v.image.index != -1)
 	    {
-		GDrawable *drawable = get_input_drawable(userval->v.image.index);
+		GimpDrawable *drawable = get_input_drawable(userval->v.image.index);
 
 		if (drawable != 0)
 		    drawable_id = drawable->id;

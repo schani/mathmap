@@ -1,16 +1,16 @@
-In case you don't have libPropList installed on your system, do the
-following in this directory:
+Edit the Makefile if necessary. These are, amongst more obscure
+things, the reasons why you might have to do this:
 
-	tar -zxf libPropList.tar.gz
-	cd libPropList
-	./configure
-	make
-	cd ..
+  * You are building on an Alpha. If you don't know what an Alpha is,
+    this does not apply to you.
 
-If you are using GIMP 1.1 and/or are building on an Alpha, edit
-Makefile and follow the comments there.
+  * You don't have a gcc/glibc system. If you use a recent Linux
+    distribution, this does not apply to you.
 
-Then just type
+  * If you want to build the command line version instead of the GIMP
+    plug-in.
+
+After you are finished with the Makefile, just type
 
 	make
 

@@ -105,23 +105,23 @@ typedef struct {
 } mathmap_interface_t;
 
 typedef struct {
-    GDrawable *drawable;
+    GimpDrawable *drawable;
     gint bpp;
     gint row;
     gint col;
-    GTile *tile;
+    GimpTile *tile;
     guchar *fast_image_source;
     int used;
 } input_drawable_t;
 
 /***** Prototypes *****/
 
-static void query(void);
-static void run(char    *name,
-		int      nparams,
-		GParam  *param,
-		int     *nreturn_vals,
-		GParam **return_vals);
+static void query (void);
+static void run (char       *name,
+		 int         nparams,
+		 GimpParam  *param,
+		 int        *nreturn_vals,
+		 GimpParam **return_vals);
 
 static void expression_copy (gchar *dest, gchar *src);
 
@@ -159,7 +159,7 @@ static void dialog_tree_changed (GtkTree *tree);
 
 /***** Variables *****/
 
-GPlugInInfo PLUG_IN_INFO = {
+GimpPlugInInfo PLUG_IN_INFO = {
 	NULL,   /* init_proc */
 	NULL,   /* quit_proc */
 	query,  /* query_proc */
@@ -182,11 +182,11 @@ static mathmap_interface_t wint = {
 
 #define MAX_INPUT_DRAWABLES 64
 
-static GRunModeType run_mode;
+static GimpRunModeType run_mode;
 static gint32 image_id;
 static gint32 layer_id;
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
-static GDrawable *output_drawable;
+static GimpDrawable *output_drawable;
 
 static gint   tile_width, tile_height;
 gint   sel_x1, sel_y1, sel_x2, sel_y2;
@@ -319,16 +319,16 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 	    register_lisp_obj(data, symbol, menu);
 	else
 	{
-	    static GParamDef args[] = {
-		{ PARAM_INT32,      "run_mode",         "Interactive, non-interactive" },
-		{ PARAM_IMAGE,      "image",            "Input image" },
-		{ PARAM_DRAWABLE,   "drawable",         "Input drawable" },
-		{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate 8: Periodic" },
-		{ PARAM_INT32,      "frames",           "Number of frames" },
-		{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" },
-		{ PARAM_STRING,     "expression",       "The expression" }
+	    static GimpParamDef args[] = {
+		{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
+		{ GIMP_PDB_IMAGE,      "image",            "Input image" },
+		{ GIMP_PDB_DRAWABLE,   "drawable",         "Input drawable" },
+		{ GIMP_PDB_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate 8: Periodic" },
+		{ GIMP_PDB_INT32,      "frames",           "Number of frames" },
+		{ GIMP_PDB_FLOAT,      "param_t",          "The parameter t (if not animating)" },
+		{ GIMP_PDB_STRING,     "expression",       "The expression" }
 	    };
-	    static GParamDef *return_vals  = NULL;
+	    static GimpParamDef *return_vals  = NULL;
 	    static int nargs = sizeof(args) / sizeof(args[0]);
 	    static int nreturn_vals = 0;
 
@@ -344,7 +344,7 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 				   "September 2000, " MATHMAP_VERSION,
 				   menu,
 				   "RGB*, GRAY*",
-				   PROC_PLUG_IN,
+				   GIMP_PLUGIN,
 				   nargs,
 				   nreturn_vals,
 				   args,
@@ -424,16 +424,16 @@ expression_for_symbol (char *symbol, lisp_object_t *obj)
 static void
 query(void)
 {
-    static GParamDef args[] = {
-	{ PARAM_INT32,      "run_mode",         "Interactive, non-interactive" },
-	{ PARAM_IMAGE,      "image",            "Input image" },
-	{ PARAM_DRAWABLE,   "drawable",         "Input drawable" },
-	{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
-	{ PARAM_INT32,      "frames",           "Number of frames" },
-	{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" },
-	{ PARAM_STRING,     "expression",       "MathMap expression" }
+    static GimpParamDef args[] = {
+	{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
+	{ GIMP_PDB_IMAGE,      "image",            "Input image" },
+	{ GIMP_PDB_DRAWABLE,   "drawable",         "Input drawable" },
+	{ GIMP_PDB_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
+	{ GIMP_PDB_INT32,      "frames",           "Number of frames" },
+	{ GIMP_PDB_FLOAT,      "param_t",          "The parameter t (if not animating)" },
+	{ GIMP_PDB_STRING,     "expression",       "MathMap expression" }
     };
-    static GParamDef *return_vals  = NULL;
+    static GimpParamDef *return_vals  = NULL;
     static int nargs = sizeof(args) / sizeof(args[0]);
     static int nreturn_vals = 0;
 
@@ -444,10 +444,10 @@ query(void)
 			   "distortions can be constructed. Even animations can be generated.",
 			   "Mark Probst",
 			   "Mark Probst",
-			   "April 2000, " MATHMAP_VERSION,
+			   "September 2000, " MATHMAP_VERSION,
 			   "<Image>/Filters/Generic/MathMap/MathMap",
 			   "RGB*, GRAY*",
-			   PROC_PLUG_IN,
+			   GIMP_PLUGIN,
 			   nargs,
 			   nreturn_vals,
 			   args,
@@ -459,11 +459,11 @@ query(void)
 /*****/
 
 static void
-run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_vals)
+run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **return_vals)
 {
-    static GParam values[1];
+    static GimpParam values[1];
 
-    GStatusType status;
+    GimpPDBStatusType status;
     double xhsiz, yhsiz;
     int pwidth, pheight;
 
@@ -483,13 +483,13 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 	}
     }
 
-    status   = STATUS_SUCCESS;
+    status   = GIMP_PDB_SUCCESS;
     run_mode = param[0].data.d_int32;
 
     image_id = param[1].data.d_int32;
     layer_id = gimp_image_get_active_layer(image_id);
 
-    values[0].type = PARAM_STATUS;
+    values[0].type = GIMP_PDB_STATUS;
     values[0].data.d_status = status;
 
     *nreturn_vals = 1;
@@ -582,7 +582,7 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
     /* See how we will run */
 
     switch (run_mode) {
-	case RUN_INTERACTIVE:
+	case GIMP_RUN_INTERACTIVE:
 	    /* Possibly retrieve data */
 
 	    gimp_get_data(name, &mmvals);
@@ -596,13 +596,13 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 
 	    break;
 
-	case RUN_NONINTERACTIVE:
+	case GIMP_RUN_NONINTERACTIVE:
 	    /* Make sure all the arguments are present */
 
 	    if (nparams != 7)
-		status = STATUS_CALLING_ERROR;
+		status = GIMP_PDB_CALLING_ERROR;
 
-	    if (status == STATUS_SUCCESS)
+	    if (status == GIMP_PDB_SUCCESS)
 	    {
 		mmvals.flags = param[3].data.d_int32;
 		mmvals.frames = param[4].data.d_int32;
@@ -612,7 +612,7 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 
 	    break;
 
-	case RUN_WITH_LAST_VALS:
+	case GIMP_RUN_WITH_LAST_VALS:
 	    /* Possibly retrieve data */
 
 	    gimp_get_data(name, &mmvals);
@@ -624,9 +624,9 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 
     /* Mathmap the image */
 
-    if ((status == STATUS_SUCCESS)
-	&& (gimp_drawable_color(input_drawables[0].drawable->id)
-	    || gimp_drawable_gray(input_drawables[0].drawable->id)))
+    if ((status == GIMP_PDB_SUCCESS)
+	&& (gimp_drawable_is_rgb(input_drawables[0].drawable->id)
+	    || gimp_drawable_is_gray(input_drawables[0].drawable->id)))
     {
 	intersamplingEnabled = mmvals.flags & FLAG_INTERSAMPLING;
 	oversamplingEnabled = mmvals.flags & FLAG_OVERSAMPLING;
@@ -673,15 +673,15 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 
 	/* If run mode is interactive, flush displays */
 
-	if (run_mode != RUN_NONINTERACTIVE)
+	if (run_mode != GIMP_RUN_NONINTERACTIVE)
 	    gimp_displays_flush();
 
 	/* Store data */
 
-	if (run_mode == RUN_INTERACTIVE)
+	if (run_mode == GIMP_RUN_INTERACTIVE)
 	    gimp_set_data(name, &mmvals, sizeof(mathmap_vals_t));
-    } else if (status == STATUS_SUCCESS)
-	status = STATUS_EXECUTION_ERROR;
+    } else if (status == GIMP_PDB_SUCCESS)
+	status = GIMP_PDB_EXECUTION_ERROR;
 
     values[0].data.d_status = status;
 
@@ -693,17 +693,17 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 static gint32 
 mathmap_layer_copy(gint32 layerID)
 {
-    GParam *return_vals;
+    GimpParam *return_vals;
     int nreturn_vals;
     gint32 nlayer;
 
     return_vals = gimp_run_procedure ("gimp_layer_copy", 
 				      &nreturn_vals,
-				      PARAM_LAYER, layerID,
-				      PARAM_INT32, TRUE,
-				      PARAM_END);
+				      GIMP_PDB_LAYER, layerID,
+				      GIMP_PDB_INT32, TRUE,
+				      GIMP_PDB_END);
  
-    if (return_vals[0].data.d_status == STATUS_SUCCESS)
+    if (return_vals[0].data.d_status == GIMP_PDB_SUCCESS)
 	nlayer = return_vals[1].data.d_layer;
     else
 	nlayer = -1;
@@ -737,7 +737,7 @@ generate_code (void)
 
     if (expression_changed)
     {
-	if (run_mode == RUN_INTERACTIVE && expression_entry != 0)
+	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
 
 	theExprtree = 0;
@@ -804,7 +804,7 @@ unref_tiles (void)
 /*****/
 
 int
-alloc_input_drawable (GDrawable *drawable)
+alloc_input_drawable (GimpDrawable *drawable)
 {
     int i;
 
@@ -843,7 +843,7 @@ free_input_drawable (int index)
     input_drawables[index].used = 0;
 }
 
-GDrawable*
+GimpDrawable*
 get_input_drawable (int index)
 {
     assert(input_drawables[index].used);
@@ -856,12 +856,12 @@ get_input_drawable (int index)
 static void
 mathmap (int frame_num)
 {
-    GPixelRgn dest_rgn;
-    gpointer  pr;
-    gint      progress, max_progress;
-    guchar   *dest_row;
-    guchar   *dest;
-    gint      row, col;
+    GimpPixelRgn dest_rgn;
+    gpointer pr;
+    gint progress, max_progress;
+    guchar *dest_row;
+    guchar *dest;
+    gint row, col;
     int i;
     gchar progress_info[30];
 
@@ -1928,20 +1928,21 @@ static void
 dialog_help_callback (GtkWidget *widget, gpointer data)
 {
     char *proc_blurb, *proc_help, *proc_author, *proc_copyright, *proc_date;
-    int proc_type, nparams, nreturn_vals;
-    GParamDef *params, *return_vals;
+    int nparams, nreturn_vals;
+    GimpParamDef *params, *return_vals;
     gint baz;
+    GimpPDBProcType proc_type;
 
-    if (gimp_query_procedure ("extension_web_browser",
-			      &proc_blurb, &proc_help, 
-			      &proc_author, &proc_copyright, &proc_date,
-			      &proc_type, &nparams, &nreturn_vals,
-			      &params, &return_vals))
-	gimp_run_procedure ("extension_web_browser", &baz,
-			    PARAM_INT32, RUN_NONINTERACTIVE,
-			    PARAM_STRING, MATHMAP_MANUAL_URL,
-			    PARAM_INT32, 1,
-			    PARAM_END);
+    if (gimp_procedural_db_proc_info("extension_web_browser",
+				     &proc_blurb, &proc_help, 
+				     &proc_author, &proc_copyright, &proc_date,
+				     &proc_type, &nparams, &nreturn_vals,
+				     &params, &return_vals))
+	gimp_run_procedure("extension_web_browser", &baz,
+			   GIMP_PDB_INT32, GIMP_RUN_NONINTERACTIVE,
+			   GIMP_PDB_STRING, MATHMAP_MANUAL_URL,
+			   GIMP_PDB_INT32, 1,
+			   GIMP_PDB_END);
     else 
     {
 	gchar *message = g_strdup_printf("See %s", MATHMAP_MANUAL_URL);

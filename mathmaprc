@@ -13,7 +13,6 @@
 	(expression "Jitter" "origValRA(r,a+(a+t*8)%8-4)")
 	(expression "Circular Slice" "origValRA(r,a+(r+t*6)%6-3)")
 	(expression "Fisheye" "origValRA(r^(2-t)/R^(1-t),a)")
-	(expression "Center Shake" "origValXY(x+max(0,cos(x*2))*5*max(0,cos(y*2))*cos(y*10),y+max(0,cos(x*2))*5*max(0,cos(y*2))*cos(x*10))")
 	(expression "Inverse Lambert Azimuthal Projection" "# Thanks to Carlos A. Furuti\nc=2*asin(r/Y);\nphi =\n    if r == 0 then\n        0\n    else\n        asin(y*sin(c)/r)\n    end;\norigVal(xy:[atan(x*sin(c),r*cos(c))*X/180,phi*Y/90])")
 	(expression "Curve Bend" "alpha = user_slider(\"alpha\",0,360);\ndir = xy:[cos(alpha),sin(alpha)];\nndir = xy:[-dir[1],dir[0]];\np = xy / m2x2:[dir[0],-ndir[0],\n               dir[1],-ndir[1]];\npt = dir * p[0];\nvec = xy - pt;\ndist = -p[1] / R;\npos = 0.5 + p[0] / R / 2;\nlower = 1 / (user_curve(\"lower\",pos) * 4 - 2);\nupper = 1 / (user_curve(\"upper\",pos) * 4 - 2);\nf = lower + ((dist + 1) / 2) * (upper - lower);\norigVal(pt + ndir * f * R)")
 	(expression "Peel Animation" "# tomr@aceldama.com\nif (r > X) then\n    user_color(\"Outside\");\nelse\n    rad = (X*t);\n    if (r > rad) then\n        origVal(ra:[rad*(1-(r-rad)/(X-rad)), a]);\n    else\n        origVal(xy);\n    end\nend")

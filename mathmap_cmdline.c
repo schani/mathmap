@@ -154,6 +154,24 @@ generate_code (char *expr)
     return result;
 }
 
+void
+usage (void)
+{
+    printf("Usage:\n"
+	   "  mathmap --version\n"
+	   "      print out version number\n"
+	   "  mathmap --help\n"
+	   "      print this help text\n"
+	   "  mathmap [option ...] <expression> <outimage> <inimage> ...\n"
+	   "      transform one or more <inimage>s with <expression> and write\n"
+	   "      the result image to <outimage>\n"
+	   "Options:\n"
+	   "  -i, --intersampling         use intersampling\n"
+	   "  -o, --oversampling          use oversampling\n"
+	   "\n"
+	   "Report bug reports and suggestions to schani@complang.tuwien.ac.at\n");
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -205,7 +223,7 @@ main (int argc, char *argv[])
 		return 0;
 
 	    case 257 :
-		printf("rotfl\n");
+		usage();
 		return 0;
 
 	    case 'i' :
@@ -218,7 +236,11 @@ main (int argc, char *argv[])
 	}
     }
 
-    assert(argc - optind >= 3);
+    if (argc - optind < 3)
+    {
+	usage();
+	return 1;
+    }
 
     init_builtins();
     init_tags();

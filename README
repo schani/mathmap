@@ -6,8 +6,14 @@ The newest version is always available from the MathMap home-page:
 
 	http://www.complang.tuwien.ac.at/~schani/mathmap/
 
+MathMap now features a command-line version. See INSTALL on how to
+build it. It's still very crude though. Mail me if you use it and need
+more features.
+
 If you have any suggestions, bug reports, criticism or even
 contributions, don't hesitate mailing me.
+
+Note: This version of MathMap only works with GIMP 1.1.26 and up.
 
 ---
 Mark Probst

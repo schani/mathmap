@@ -45,9 +45,9 @@ void mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel);
 void mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel);
 
 #ifdef GIMP
-int alloc_input_drawable (GDrawable *drawable);
+int alloc_input_drawable (GimpDrawable *drawable);
 void free_input_drawable (int index);
-GDrawable* get_input_drawable (int index);
+GimpDrawable* get_input_drawable (int index);
 #endif
 
 #ifndef MIN
