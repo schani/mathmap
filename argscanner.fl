@@ -1,0 +1,32 @@
+%{
+#include <stdlib.h>
+
+#include "tags.h"
+#include "overload.h"
+#include "argparser.h"
+%}
+
+%option noyywrap
+
+%%
+
+_                         { oalval.binding = new_free_variable_binding(); return T_BINDING; }
+[0-9]+                    { oalval.binding = new_constant_binding(atoi(oatext)); return T_BINDING; }
+[a-z][a-zA-Z0-9]*         { oalval.binding = new_constant_binding(tag_number_for_name(oatext)); return T_BINDING; }
+[A-Z][a-zA-Z0-9]*         { oalval.binding = free_binding_with_name(oatext); return T_BINDING; }
+[:=,]                     return oatext[0];
+[ \t\n]+                  ;
+
+%%
+
+void
+scan_args_from_string (char *string)
+{
+    oa_scan_string(string);
+}
+
+void
+end_scanning_args_from_string (void)
+{
+    oa_delete_buffer(YY_CURRENT_BUFFER);
+}

@@ -1,0 +1,49 @@
+%{
+#include <string.h>
+
+#include "exprtree.h"
+#include "builtins.h"
+#include "parser.h"
+%}
+
+%option noyywrap
+
+%%
+
+if                          return T_IF;
+then                        return T_THEN;
+else                        return T_ELSE;
+end                         return T_END;
+while                       return T_WHILE;
+do                          return T_DO;
+[a-zA-Z_][a-zA-Z0-9_]*      {
+			        strncpy(mmlval.ident, mmtext, MAX_IDENT_LENGTH);
+				mmlval.ident[MAX_IDENT_LENGTH] = '\0';
+				return T_IDENT;
+	                    }
+[0-9]+                      { mmlval.exprtree = make_number(atof(mmtext)); return T_NUMBER; }
+[0-9]*\.[0-9]+              { mmlval.exprtree = make_number(atof(mmtext)); return T_NUMBER; }
+"=="                        return T_EQUAL;
+"<="                        return T_LESSEQUAL;
+">="                        return T_GREATEREQUAL;
+"!="                        return T_NOTEQUAL;
+"||"                        return T_OR;
+"&&"                        return T_AND;
+"::"                        return T_CONVERT;
+[-<>!,()+*/%=;^:\[\]]       return mmtext[0];
+#.*                         ;
+[ \t\n]                     ;
+
+%%
+
+void
+scanFromString (char *string)
+{
+    mm_scan_string(string);
+}
+
+void
+endScanningFromString (void)
+{
+    mm_delete_buffer(YY_CURRENT_BUFFER);
+}

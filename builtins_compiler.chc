@@ -1,0 +1,68 @@
+%<newtmpnum=%locals(i,%<i=0>,%lambda(%<i=%[i+1]>%i))>\
+%<curnumargs=0>\
+\
+%defspecial(builtin,name,funcname,args,code,
+    %<curnumargs=%llength(%ssplit(%',',%eval(%args)))>\
+    void gen_%eval(%funcname) %'(FILE *out, int *invarnums, int *invarlengths, int outvarnum)'
+    {
+        %'fprintf(out, "'%eval(%code)%'");'
+    }%'\n'
+)\
+\
+%defspecial(forarglength,argnum,name,code,
+%locals(varname,
+    %<varname=i_%newtmpnum()>\
+    %envAdd(%envThis(),%eval(%name),%varname)\
+    %'{");'
+    {
+        int %varname;
+
+        for %'('%varname = 0; %varname < invarlengths[%eval(%argnum)]; ++%varname%')'
+        {
+            %'fprintf(out, "'%eval(%code)%'");'
+        }
+    }
+    %'fprintf(out, "}'
+))\
+\
+%defspecial(fornum,name,begin,end,code,
+%locals(varname,
+    %<varname=i_%newtmpnum()>\
+    %envAdd(%envThis(),%eval(%name),%varname)\
+    %'{");'
+    {
+        int %varname;
+
+        for %'('%varname = %eval(%begin); %varname < %eval(%end); ++%varname%')'
+        {
+            %'fprintf(out, "'%eval(%code)%'");'
+        }
+    }
+    %'fprintf(out, "}'
+))\
+\
+%define(result,index,
+    %'");'
+    fprintf%'(out,' "tmpvar_%%d_%%d"%',' outvarnum%',' %index%');'
+    %'fprintf(out, "'
+)\
+\
+%define(reslength,
+    dummy
+)\
+\
+%define(arg,argnum,index,
+    %'");'
+    fprintf%'(out,' "tmpvar_%%d_%%d"%',' invarnums[%argnum]%',' %index%');'
+    %'fprintf(out, "'
+)\
+\
+%define(val,index,
+    %'");'
+    fprintf%'('out%',' "%%d"%',' %index%');'
+    %'fprintf(out, "'
+)\
+\
+%'#include <stdio.h>'
+
+#include builtins.chc

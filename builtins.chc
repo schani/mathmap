@@ -1,0 +1,459 @@
+%builtin(__add,add_ri,%'ri:2=ri:2,ri:2',
+    %result(0) = %arg(0,0) + %arg(1,0);
+    %result(1) = %arg(0,1) + %arg(1,1);
+)\
+
+%builtin(__add,add_1,%'T:1=T:1,T:1',
+    %result(0) = %arg(0,0) + %arg(1,0);
+)\
+
+%builtin(__add,add_s,%'T:L=T:L,_:1',
+    %forarglength(0,i,
+        %result(%<i>) = %arg(0,%<i>) + %arg(1,0);
+    )
+)\
+
+%builtin(__add,add_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        %result(%<i>) = %arg(0,%<i>) + %arg(1,%<i>);
+    )
+)\
+
+%builtin(__sub,sub_ri,%'ri:2=ri:2,ri:2',
+    %result(0) = %arg(0,0) + %arg(1,0);
+    %result(1) = %arg(0,1) + %arg(1,1);
+)\
+
+%builtin(__sub,sub_1,%'T:1=T:1,T:1',
+    %result(0) = %arg(0,0) - %arg(1,0);
+)\
+
+%builtin(__sub,sub_s,%'T:L=T:L,_:1',
+    %forarglength(0,i,
+        %result(%<i>) = %arg(0,%<i>) - %arg(1,0);
+    )
+)\
+
+%builtin(__sub,sub_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        %result(%<i>) = %arg(0,%<i>) - %arg(1,%<i>);
+    )
+)\
+
+%builtin(__mul,mul_ri,%'ri:2=ri:2,ri:2',
+    float r1 = %arg(0,0);
+    float r2 = %arg(1,0);
+    float c1 = %arg(0,1);
+    float c2 = %arg(1,1);
+
+    %result(0) = r1 * r2 - c1 * c2;
+    %result(1) = r1 * c2 + r2 * c1;
+)\
+
+%builtin(__mul,mul_1,%'T:1=T:1,T:1',
+    %result(0) = %arg(0,0) * %arg(1,0);
+)\
+
+%builtin(__mul,mul_s,%'T:L=T:L,_:1',
+    %forarglength(0,i,
+        %result(%<i>) = %arg(0,%<i>) * %arg(1,0);
+    )
+)\
+
+%builtin(__mul,mul_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        %result(%<i>) = %arg(0,%<i>) * %arg(1,%<i>);
+    )
+)\
+
+%builtin(__div,div_ri,%'ri:2=ri:2,ri:2',
+    float r1 = %arg(0,0);
+    float r2 = %arg(1,0);
+    float c1 = %arg(0,1);
+    float c2 = %arg(1,1);
+
+    if %'('r2 == 0 && c2 == 0%')'
+    {
+        %result(0) = 0;
+        %result(1) = 0;
+    }
+    else
+    {
+        %result(0) = %'(r1 * r2 + c1 * c2) / (r2 * r2 + c2 * c2)';
+        %result(1) = %'(-r1 * c2 + r2 * c1) / (r2 * r2 + c2 * c2)';
+    }
+)\
+
+%builtin(__div,div_1,%'T:1=T:1,T:1',
+    if %'('%arg(1,0) == 0%')'
+        %result(0) = 0.0;
+    else
+        %result(0) = %arg(0,0) / %arg(1,0);
+)\
+
+%builtin(__div,div_s,%'T:L=T:L,_:1',
+    if %'('%arg(1,0) == 0%')'
+        %forarglength(0,i,
+            %result(%<i>) = 0.0;
+        )
+    else
+        %forarglength(0,i,
+            %result(%<i>) = %arg(0,%<i>) / %arg(1,%<i>);
+        )
+)\
+
+%builtin(__div,div_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        if %'('%arg(1,%<i>) == 0%')'
+            %result(%<i>) = 0.0;
+        else
+            %result(%<i>) = %arg(0,%<i>) / %arg(1,%<i>);
+    )
+)\
+
+%builtin(__mod,mod_1,%'T:1=T:1,T:1',
+    if %'('%arg(1,0) == 0%')'
+        %result(0) = 0.0;
+    else
+        %result(0) = fmod%'('%arg(0,0)%',' %arg(1,0)%')';
+)\
+
+%builtin(__mod,mod_s,%'T:L=T:L,_:1',
+    if %'('%arg(1,0) == 0%')'
+        %forarglength(0,i,
+            %result(%<i>) = 0.0;
+        )
+    else
+        %forarglength(0,i,
+            %result(%<i>) = fmod%'('%arg(0,%<i>)%',' %arg(1,0)%')';
+        )
+)\
+
+%builtin(__mod,mod_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        if %'('%arg(1,%<i>) == 0%')'
+            %result(%<i>) = 0.0;
+        else
+            %result(%<i>) = fmod%'('%arg(0,%<i>)%',' %arg(1,%<i>)%')';
+    )
+)\
+
+%builtin(pmod,pmod,%'T:1=T:1,T:1',
+    float mod = fmod%'('%arg(0,0)%',' %arg(1,0)%')';
+
+    if %'('%arg(0,0) < 0%')'
+        mod += %arg(1,0);
+
+    %result(0) = mod;
+)\
+
+%builtin(dotp,dotp,%'nil:1=T:L,T:L',
+    float sum = 0.0;
+
+    %forarglength(0,i,
+        sum += %arg(0,%<i>) * %arg(1,%<i>);
+    )
+    %result(0) = sum;
+    %reslength() = 1;
+)\
+
+%builtin(normalize,normalize,%'T:L=T:L',
+    float l = 0.0;
+
+    %forarglength(0,i,
+        l += %arg(0,%<i>) * %arg(0,%<i>);
+    )
+    l = %'sqrt(l)';
+    %forarglength(0,i,
+        if %'('l == 0%')'
+            %result(%<i>) = 0.0;
+        else
+            %result(%<i>) = %arg(0,%<i>) / l;
+    )
+)\
+
+%builtin(__neg,neg,%'T:L=T:L',
+    %forarglength(0,i,
+        %result(%<i>) = -%arg(0,%<i>);
+    )
+)\
+
+%builtin(sin,sin,%'T:1=T:1',
+    %result(0) = sin%'('%arg(0,0) * M_PI / 180.0%')';
+)\
+
+%builtin(cos,cos,%'T:1=T:1',
+    %result(0) = cos%'('%arg(0,0) * M_PI / 180.0%')';
+)\
+
+%builtin(tan,tan,%'T:1=T:1',
+    %result(0) = tan%'('%arg(0,0) * M_PI / 180.0%')';
+)\
+
+%builtin(asin,asin,%'T:1=T:1',
+    %result(0) = asin%'('%arg(0,0)%')' * 180.0 / M_PI;
+)\
+
+%builtin(acos,acos,%'T:1=T:1',
+    %result(0) = acos%'('%arg(0,0)%')' * 180.0 / M_PI;
+)\
+
+%builtin(atan,atan,%'T:1=T:1',
+    %result(0) = atan%'('%arg(0,0)%')' * 180.0 / M_PI;
+)\
+
+%builtin(__pow,pow_1,%'T:1=T:1,T:1',
+    %result(0) = pow%'('%arg(0,0)%',' %arg(1,0)%')';
+)\
+
+%builtin(__pow,pow_s,%'T:L=T:L,_:1',
+    %forarglength(0,i,
+        %result(%<i>) = pow%'('%arg(0,%<i>)%',' %arg(1,0)%')';
+    )
+)\
+
+%builtin(abs,abs_ri,%'nil:1=ri:2',
+    float r = %arg(0,0);
+    float i = %arg(0,1);
+
+    %result(0) = sqrt%'(r * r + i * i)';
+    %reslength() = 1;
+)\
+
+%builtin(abs,abs_1,%'T:1=T:1',
+    %result(0) = fabs%'('%arg(0,0)%')';
+)\
+
+%builtin(abs,abs_n,%'T:L=T:L',
+    %forarglength(0,i,
+        %result(%<i>) = fabs%'('%arg(0,%<i>)%')';
+    )
+)\
+
+%builtin(floor,floor,%'T:1=T:1',
+    %result(0) = floor%'('%arg(0,0)%')';
+)\
+
+%builtin(sign,sign_1,%'T:1=T:1',
+    if %'('%arg(0,0) < 0%')'
+        %result(0) = -1.0;
+    else if %'('%arg(0,0) > 0%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(sign,sign_n,%'T:L=T:L',
+    %forarglength(0,i,
+        if %'('%arg(0,%<i>) < 0%')'
+            %result(%<i>) = -1.0;
+        else if %'('%arg(0,%<i>) > 0%')'
+            %result(%<i>) = 1.0;
+        else
+            %result(%<i>) = 0.0;
+    )
+)\
+
+%builtin(min,min_1,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) < %arg(1,0)%')'
+        %result(0) = %arg(0,0);
+    else
+        %result(0) = %arg(1,0);
+)\
+
+%builtin(min,min_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        if %'('%arg(0,%<i>) < %arg(1,%<i>)%')'
+            %result(%<i>) = %arg(0,%<i>);
+        else
+            %result(%<i>) = %arg(1,%<i>);
+    )
+)\
+
+%builtin(max,max_1,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) > %arg(1,0)%')'
+        %result(0) = %arg(0,0);
+    else
+        %result(0) = %arg(1,0);
+)\
+
+%builtin(max,max_n,%'T:L=T:L,T:L',
+    %forarglength(0,i,
+        if %'('%arg(0,%<i>) > %arg(1,%<i>)%')'
+            %result(%<i>) = %arg(0,%<i>);
+        else
+            %result(%<i>) = %arg(1,%<i>);
+    )
+)\
+
+%builtin(__not,not,%'T:1=T:1',
+    if %'('%arg(0,0) != 0%')'
+        %result(0) = 0.0;
+    else
+        %result(0) = 1.0;
+)\
+
+%builtin(__or,or,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) || %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__and,and,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) && %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__equal,equal,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) == %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__less,less,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) < %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__greater,greater,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) > %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__lessequal,lessequal,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) <= %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__greaterequal,greaterequal,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) >= %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(__notequal,notequal,%'T:1=T:1,T:1',
+    if %'('%arg(0,0) != %arg(1,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(inintv,inintv,%'T:1=T:1,T:1,T:1',
+    if %'('%arg(0,0) >= %arg(1,0) && %arg(0,0) <= %arg(2,0)%')'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+%builtin(rand,rand,%'T:1=T:1,T:1',
+    %result(0) = %'(random() / (double)0x7fffffff)' * %'('%arg(1,0) - %arg(0,0)%')' + %arg(0,0);
+)\
+
+%builtin(origVal,origValXY,%'rgba:4=xy:2',
+    unsigned char pixel[4];
+
+    getOrigValPixel%'('%arg(0,0)%','%arg(0,1)%','pixel%')';
+
+    %fornum(i,0,4,
+        %result(%<i>) = pixel[%val(%<i>)] / 255.0;
+    )
+    %reslength() = 4;
+)\
+
+%builtin(origValIntersample,origValXYIntersample,%'rgba:4=xy:2',
+    unsigned char pixel[4];
+
+    getOrigValIntersamplePixel%'('%arg(0,0)%','%arg(0,1)%','pixel%')';
+
+    %fornum(i,0,4,
+        %result(%<i>) = pixel[%val(%<i>)] / 255.0;
+    )
+    %reslength() = 4;
+)\
+
+%builtin(gray,gray,%'nil:1=rgba:4',
+    %result(0) = 0.299 * %arg(0,0) + 0.587 * %arg(0,1) + 0.114 * %arg(0,2);
+    %reslength() = 1;
+)\
+
+%builtin(curve,curve,%'T:1=T:1',
+    int index = %arg(0,0) * %'(user_curve_points - 1)';
+
+    if %'(index < 0)'
+        index = 0;
+    else if %'(index >=  user_curve_points)'
+        index = user_curve_points - 1;
+
+    %result(0) = user_curve_values[index];
+)\
+
+%builtin(gradient,gradient,%'rgba:4=_:1',
+    int index = %arg(0,0) * %'(num_gradient_samples - 1)';
+
+    if %'(index < 0)'
+        index = 0;
+    else if %'(index >= num_gradient_samples)'
+        index = num_gradient_samples - 1;
+
+    %fornum(i,0,4,
+        %result(%<i>) = gradient_samples[index].data[%val(%<i>)];
+    )
+    %reslength() = 4;
+)\
+
+%builtin(bertl,bertl,%'T:1=T:1',
+    float x = %arg(0,0);
+
+    %result(0) = %'(sin(x) + sin(x * 5) / 5 + sin(x * 13) / 13 + sin(x * 17) / 17) / (1.0 + 1.0 / 5.0 + 1.0 / 13.0 + 1.0 / 17.0)';
+)\
+
+%builtin(morph,morph,%'T:L=T:L,_:1,_:1',
+    int index = %arg(1,0);
+
+    %forarglength(0,i,
+        if %'('%val(%<i>) == index%')'
+            %result(%<i>) = %arg(2,0);
+        else
+            %result(%<i>) = %arg(0,%<i>);
+    )
+)\
+
+%builtin(toXY,toXY,%'xy:2=ra:2',
+    double x%',' y;
+
+    x = cos%'('%arg(0,1) * M_PI / 180%')' * %arg(0,0);
+    y = sin%'('%arg(0,1) * M_PI / 180%')' * %arg(0,0);
+
+    %result(0) = x;
+    %result(1) = y;
+)\
+
+%builtin(toRA,toRA,%'ra:2=xy:2',
+    double %'x, y, r, a';
+
+    x = %arg(0,0);
+    y = %arg(0,1);
+
+    r = sqrt%'(x * x + y * y)';
+    if %'(r == 0)'
+        a = 0.0;
+    else
+        a = %'acos(x / r) * 180 / M_PI';
+
+    if %'(y < 0)'
+        a = 360 - a;
+
+    %result(0) = r;
+    %result(1) = a;
+)\
