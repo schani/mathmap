@@ -1,0 +1,138 @@
+#!/bin/bash
+
+mkdir plugins
+
+../../mathmap -g blender 'wv=user_float("wavelength",1,100);
+amp=user_float("distortion",0,100);
+origVal(xy+xy:[sin(y/wv+t*2*pi),sin(x/wv+t*2*pi)]*amp)' plugins/plugin_wave.c
+
+../../mathmap -g blender 'q=t*2*pi;
+size=user_float("size",1,100);
+offset=user_float("offset",0,100);
+origVal(xy+xy:[offset*sign(cos(y/size+q)),offset*sign(cos(x/size+q))])' plugins/plugin_slice.c
+
+../../mathmap -g blender 'origVal(xy*xy:[cos(pi/2/Y*y+t*2*pi),1])' plugins/plugin_mercator.c
+
+../../mathmap -g blender 'amp=user_float("height",0,100);
+length=user_float("wavelength",1,50);
+origVal(ra+ra:[sin(r/length+t*2*pi)*amp,0])' plugins/plugin_pond.c
+
+../../mathmap -g blender 'max_freq=user_slider("max frequency",1,10000);
+amp=user_slider("amplitude",0,100);
+r_off=user_slider("r offset",1,1000);
+origVal(ra+ra:[sin(max_freq/(r+r_off)+t*2*pi)*amp,0])' plugins/plugin_enhanced_pond.c
+
+../../mathmap -g blender 'amp1=user_float("h size",0,100);
+amp2=user_float("v size",0,100);
+wv=user_float("waviness",1,100);
+s=sin(t*2*pi+wv*Y*(-y+Y+60)^-1);
+origVal(xy+xy:[amp1*s,amp2*s])' plugins/plugin_sea3.c
+
+../../mathmap -g blender 'origVal(ra+ra:[0,(r/R-1)*(t-0.5)*4*pi])' plugins/plugin_twirl.c
+
+../../mathmap -g blender 'ang=user_float("angle",0,6.28318530);
+origValRA(r,a+(a+t*ang)%ang-ang/2)' plugins/plugin_jitter.c
+
+../../mathmap -g blender 'ang=user_float("slicage",0,1);
+origValRA(r,a+(r/200+t*ang)%ang-ang/2)' plugins/plugin_circular_slice.c
+
+../../mathmap -g blender 'amt=user_float("amount",-2,1);
+origValRA(r^(2-amt)/R^(1-amt),a)' plugins/plugin_fisheye.c
+
+../../mathmap -g blender 'if (r > X) then
+    grayColor(0)
+else
+    rad = (X*t);
+    if (r > rad) then
+        origVal(ra:[rad*(1-(r-rad)/(X-rad)), a]);
+    else
+        origVal(xy);
+    end
+end' plugins/plugin_peel_animation.c
+
+../../mathmap -g blender 'sz=user_float("size",1,100);
+origVal(xy-xy%sz)' plugins/plugin_mosaic.c
+
+../../mathmap -g blender 'asz=user_float("angular size",0.01,3.141592);
+rsz=user_float("radial size",1,100);
+origVal(ra-ra%ra:[rsz,asz]+ra:[0,asz/2])' plugins/plugin_radial_mosaic.c
+
+../../mathmap -g blender 'A=user_slider("pixel area",10,5000);
+asp=user_slider("aspect ratio",0.1,10);
+B=(A*asp)^0.5;
+pi2=pi/2;
+twopi=pi*2;
+n=floor(r/B)+0.5;
+alpha=twopi/floor(twopi/(A/(pi2*(n-0.5)*B*B)));
+origVal(ra:[(n*A/(alpha*pi2))^0.5,a-a%alpha])' plugins/plugin_radial_mosaic_bertl_edition.c
+
+../../mathmap -g blender 'd=user_slider("distance",0,50);
+origVal(xy)-origVal(xy-xy:[rand(0,d),rand(0,d)])' plugins/plugin_random_edge_detect.c
+
+../../mathmap -g blender 'n=user_float("rotations",0,20);
+q=sin((r/R*n-a*0.1)*10+t*2*pi)*0.5+0.5;
+origVal(xy)*grayColor(q)' plugins/plugin_spiral.c
+
+../../mathmap -g blender 'ang=2*pi/user_int("subdivisions",1,30);
+p=origVal(xy);
+q=if inintv((a-ang/4)%ang,0,ang/2)
+    then
+        p
+    else
+        -p+1
+    end;
+dist=user_float("distance",10,200);
+width=user_float("width",0,100);
+q=if inintv(r%dist,dist-width,dist)
+    then
+        q
+    else
+        -q+1
+    end;
+rgba:[q[0],q[1],q[2],p[3]]' plugins/plugin_darts_board.c
+
+../../mathmap -g blender 'p=origVal(xy);
+grayaColor(gray(p),alpha(p))' plugins/plugin_desaturate.c
+
+../../mathmap -g blender 'd=user_slider("distance",0,100);
+origVal(xy+xy:[rand(-d,d),rand(-d,d)]*t)' plugins/plugin_scatter.c
+
+../../mathmap -g blender 'origVal(xy+xy:[(gray(origVal(xy,user_image("x image")))-0.5)*user_slider("x disp",0,100)*2,
+(gray(origVal(xy,user_image("y image")))-0.5)*user_slider("y disp",0,100)*2])' plugins/plugin_displace.c
+
+../../mathmap -g blender 'origVal(ra:[r+t*user_slider("MaxR",0,32)*((2*gray(origVal(xy,user_image("Radial"))))-1),a+t*user_slider("MaxA",0,6.2831853)*((2*gray(origVal(xy,user_image("Angle"))))-1)])' plugins/plugin_radial_displace.c
+
+../../mathmap -g blender 'wd=user_float("width",1,200);
+sk=user_float("skip",0,200);
+pd=wd+sk;
+mx=pmod(x,pd);
+my=pmod(y,pd);
+if inintv(mx,wd/2,wd/2+sk) || inintv(my,wd/2,wd/2+sk) then
+  rgba:[0,0,0,0]
+else
+  px = if mx <= wd/2 then
+      x-floor(x/pd)*sk
+    else
+      x-(floor(x/pd)+1)*sk
+    end;
+  py = if my <= wd/2 then
+      y-floor(y/pd)*sk
+    else
+      y-(floor(y/pd)+1)*sk
+    end;
+  origVal(xy:[px,py])
+end' plugins/plugin_square_decompose.c
+
+../../mathmap -g blender 'rr=user_float("red in red",-5,5);
+rg=user_float("green in red",-5,5);
+rb=user_float("blue in red",-5,5);
+gr=user_float("red in green",-5,5);
+gg=user_float("green in green",-5,5);
+gb=user_float("blue in green",-5,5);
+br=user_float("red in blue",-5,5);
+bg=user_float("green in blue",-5,5);
+bb=user_float("blue in blue",-5,5);
+p=origVal(xy);
+rgba:[sum(p*rgba:[rr,rg,rb,0]),sum(p*rgba:[gr,gg,gb,0]),sum(p*rgba:[br,bg,bb,0]),1]' plugins/plugin_color_shuffle.c
+
+../../mathmap -g blender 'lerp(t,origVal(xy,user_image("out")),origVal(xy,user_image("in")))' plugins/plugin_fade.c

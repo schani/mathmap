@@ -34,8 +34,48 @@ extern char error_string[];
 
 typedef char ident[MAX_IDENT_LENGTH + 1];
 
+#define ARG_TYPE_INT           1
+#define ARG_TYPE_FLOAT         2
+#define ARG_TYPE_COLOR         3
+#define ARG_TYPE_GRADIENT      4
+#define ARG_TYPE_CURVE         5
+#define ARG_TYPE_FILTER        6
+
+typedef struct _arg_decl_t
+{
+    ident name;
+    int type;
+    union
+    {
+	struct
+	{
+	    struct _arg_decl_t *args;
+	} filter;
+    } v;
+    struct _arg_decl_t *next;
+} arg_decl_t;
+
 struct _overload_entry_t;
 struct _userval_t;
+
+#define EXPR_INT_CONST       1
+#define EXPR_FLOAT_CONST     2
+#define EXPR_TUPLE_CONST     3
+#define EXPR_FUNC            4
+#define EXPR_INTERNAL        5
+#define EXPR_SEQUENCE        6
+#define EXPR_ASSIGNMENT      7
+#define EXPR_VARIABLE        8
+#define EXPR_IF_THEN         9
+#define EXPR_IF_THEN_ELSE   10
+#define EXPR_WHILE          11
+#define EXPR_DO_WHILE       12
+#define EXPR_TUPLE          13
+#define EXPR_SELECT         14
+#define EXPR_CAST           15
+#define EXPR_CONVERT        16
+#define EXPR_SUB_ASSIGNMENT 17
+#define EXPR_USERVAL        18
 
 typedef struct _exprtree
 {
@@ -121,24 +161,33 @@ typedef struct _exprtree
     struct _exprtree *next;
 } exprtree;
 
-#define EXPR_INT_CONST       1
-#define EXPR_FLOAT_CONST     2
-#define EXPR_TUPLE_CONST     3
-#define EXPR_FUNC            4
-#define EXPR_INTERNAL        5
-#define EXPR_SEQUENCE        6
-#define EXPR_ASSIGNMENT      7
-#define EXPR_VARIABLE        8
-#define EXPR_IF_THEN         9
-#define EXPR_IF_THEN_ELSE   10
-#define EXPR_WHILE          11
-#define EXPR_DO_WHILE       12
-#define EXPR_TUPLE          13
-#define EXPR_SELECT         14
-#define EXPR_CAST           15
-#define EXPR_CONVERT        16
-#define EXPR_SUB_ASSIGNMENT 17
-#define EXPR_USERVAL        18
+#define TOP_LEVEL_FILTER            1
+#define TOP_LEVEL_FUNCTION          2
+
+typedef struct _top_level_decl_t
+{
+    int type;
+    ident name;
+    union
+    {
+	struct
+	{
+	    arg_decl_t *args;
+	    exprtree *body;
+	} filter;
+    } v;
+
+    struct _top_level_decl_t *next;
+} top_level_decl_t;
+
+top_level_decl_t* make_filter (const char *name, arg_decl_t *args, exprtree *body);
+
+top_level_decl_t* top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2);
+
+arg_decl_t* make_simple_arg_decl (const char *type_name, const char *name);
+arg_decl_t* make_filter_arg_decl (const char *name, arg_decl_t *args);
+
+arg_decl_t* arg_decl_list_append (arg_decl_t *list1, arg_decl_t *list2);
 
 exprtree* make_int_number (int num);
 exprtree* make_float_number (float num);

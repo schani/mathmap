@@ -22,20 +22,27 @@ MACOSX = YES
 # comment the following line
 ENABLE_NLS = YES
 
+# prefix for the software installation
+PREFIX = /usr/local
+
 # directory where the localization files should be installed in
-LOCALEDIR = /usr/local/share/locale
+LOCALEDIR = $(PREFIX)/share/locale
+
+# directory where the template files (only for the command line version)
+# should be installed in
+TEMPLATE_DIR = $(PREFIX)/share/mathmap
 
 # you should not need to change anything beyond this line
 # -------------------------------------------------------
 
-VERSION = 0.14
+VERSION = 1.1.0
 
 #OPT_CFLAGS := -O2
 OPT_CFLAGS := -g
 
 ifeq ($(MACOSX),YES)
-CGEN_CC=-DCGEN_CC="\"cc -c -fPIC -faltivec -o\""
-CGEN_LD=-DCGEN_LD="\"cc -bundle -flat_namespace -undefined suppress -o\""
+CGEN_CC=-DCGEN_CC="\"cc -g -c -fPIC -faltivec -o\""
+CGEN_LD=-DCGEN_LD="\"cc -g -bundle -flat_namespace -undefined suppress -o\""
 MACOSX_LIBS=-lmx
 MACOSX_CFLAGS=-I/sw/include
 else
@@ -55,7 +62,7 @@ GLIB_CFLAGS = `glib-config --cflags`
 GLIB_LDFLAGS = `glib-config --libs gmodule`
 endif
 
-CFLAGS = -I. $(CGEN_CFLAGS) -Wall $(OPT_CFLAGS) $(GLIB_CFLAGS) -DCMDLINE $(MACOSX_CFLAGS)
+CFLAGS = -I. $(CGEN_CFLAGS) -Wall $(OPT_CFLAGS) $(GLIB_CFLAGS) -DCMDLINE $(MACOSX_CFLAGS) -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\"
 LDFLAGS = $(LIBFFM) $(GLIB_LDFLAGS) $(MACOSX_LIBS) -lm -ljpeg -lpng -lz
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -90,10 +97,10 @@ CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
 
 CC = gcc
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o lispreader.o spec_func.o compiler.o bitvector.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o lispreader.o spec_func.o compiler.o bitvector.o pools.o
 
 ifeq ($(CMDLINE),YES)
-OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o
+OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o generators/blender/blender.o
 else
 OBJECTS = $(COMMON_OBJECTS) mathmap.o
 endif
@@ -105,7 +112,7 @@ mathmap : $(OBJECTS)
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(LDFLAGS) -lgsl -lgslcblas
 
 %.o : %.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -o $@ -c $<
 
 %.mo : %.po
 	msgfmt -o $@ $<
@@ -124,6 +131,8 @@ compiler.o : new_builtins.c opdefs.h
 new_builtins.c opdefs.h : builtins.lisp
 	clisp builtins.lisp
 
+blender.o : generators/blender/blender.c
+
 install : mathmap
 ifneq ($(CMDLINE),YES)
 	$(GIMPTOOL) --install-bin mathmap
@@ -131,6 +140,9 @@ ifneq ($(CMDLINE),YES)
 	if [ ! -f $(HOME)/$(GIMPDIR)/mathmap/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/mathmap/ ; fi
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
+else
+	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
+	cp generators/blender/blender_template.c $(TEMPLATE_DIR)
 endif
 
 install-mos : $(MOS)

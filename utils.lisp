@@ -31,3 +31,13 @@
 
 (defun mappend (func &rest lists)
   (reduce #'append (apply #'mapcar func lists)))
+
+;; down-case-symbol
+(defun dcs (x)
+  (substitute #\d #\. (substitute #\p #\+ (substitute #\_ #\- (string-downcase (symbol-name x))))))
+
+(defvar *tmp-num* 0)
+(defun make-tmp-name ()
+  (let ((name (format nil "tmp_~A" *tmp-num*)))
+    (incf *tmp-num*)
+    name))

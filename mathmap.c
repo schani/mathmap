@@ -153,6 +153,7 @@ static void dialog_edge_color_changed (GtkWidget *color_well, gpointer data);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_periodic_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
+static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
@@ -206,6 +207,9 @@ gint sel_width, sel_height;
 gint preview_width, preview_height;
 
 static long num_pixels_requested = 0;
+
+static int debug_tuples = 0;
+static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkWidget *expression_entry = 0,
     *frame_table,
@@ -934,99 +938,15 @@ do_mathmap (int frame_num, float current_t)
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
-	    /*
-	    if (invocation->supersampling)
-	    {
-		unsigned char *line1,
-		    *line2,
-		    *line3;
+	    invocation->img_width = dest_rgn.w;
+	    invocation->img_height = dest_rgn.h;
+	    invocation->row_stride = dest_rgn.rowstride;
+	    invocation->origin_x = dest_rgn.x - sel_x1;
+	    invocation->origin_y = dest_rgn.y - sel_y1;
+	    invocation->scale_x = invocation->scale_y = 1.0;
+	    invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
-		dest_row = dest_rgn.data;
-
-		line1 = (unsigned char*)malloc((sel_width + 1) * output_bpp);
-		line2 = (unsigned char*)malloc(sel_width * output_bpp);
-		line3 = (unsigned char*)malloc((sel_width + 1) * output_bpp);
-
-		for (col = 0; col <= dest_rgn.w; ++col)
-		{
-		    invocation->current_x = col + dest_rgn.x - sel_x1 - invocation->middle_x;
-		    invocation->current_y = -(0.0 + dest_rgn.y - sel_y1 - invocation->middle_y);
-		    calc_ra(invocation);
-		    update_pixel_internals(invocation);
-		    write_tuple_to_pixel(call_invocation(invocation), line1 + col * output_bpp, output_bpp);
-		}
-
-		for (row = 0; row < dest_rgn.h; ++row)
-		{
-		    dest = dest_row;
-
-		    for (col = 0; col < dest_rgn.w; ++col)
-		    {
-			invocation->current_x = col + dest_rgn.x - sel_x1 + 0.5 - invocation->middle_x;
-			invocation->current_y = -(row + dest_rgn.y - sel_y1 + 0.5 - invocation->middle_y);
-			calc_ra(invocation);
-			update_pixel_internals(invocation);
-			write_tuple_to_pixel(call_invocation(invocation), line2 + col * output_bpp, output_bpp);
-		    }
-		    for (col = 0; col <= dest_rgn.w; ++col)
-		    {
-			invocation->current_x = col + dest_rgn.x - sel_x1 - invocation->middle_x;
-			invocation->current_y = -(row + dest_rgn.y - sel_y1 + 1.0 - invocation->middle_y);
-			calc_ra(invocation);
-			update_pixel_internals(invocation);
-			write_tuple_to_pixel(call_invocation(invocation), line3 + col * output_bpp, output_bpp);
-		    }
-	    
-		    for (col = 0; col < dest_rgn.w; ++col)
-		    {
-			for (i = 0; i < output_bpp; ++i)
-			    dest[i] = (line1[col*output_bpp+i]
-				       + line1[(col+1)*output_bpp+i]
-				       + 2*line2[col*output_bpp+i]
-				       + line3[col*output_bpp+i]
-				       + line3[(col+1)*output_bpp+i]) / 6;
-			dest += output_bpp;
-		    }
-
-		    memcpy(line1, line3, (sel_width + 1) * output_bpp);
-
-		    dest_row += dest_rgn.rowstride;
-		}
-	    }
-	    else
-	    */
-	    {
-		invocation->img_width = dest_rgn.w;
-		invocation->img_height = dest_rgn.h;
-		invocation->row_stride = dest_rgn.rowstride;
-		invocation->origin_x = dest_rgn.x - sel_x1;
-		invocation->origin_y = dest_rgn.y - sel_y1;
-		invocation->scale_x = invocation->scale_y = 1.0;
-		invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
-
-		call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
-
-		/*
-		dest_row = dest_rgn.data;
-
-		for (row = dest_rgn.y; row < (dest_rgn.y + dest_rgn.h); row++)
-		{
-		    dest = dest_row;
-
-		    for (col = dest_rgn.x; col < (dest_rgn.x + dest_rgn.w); col++)
-		    {
-			invocation->current_x = col - sel_x1 - invocation->middle_x;
-			invocation->current_y = -(row - sel_y1 - invocation->middle_y);
-			calc_ra(invocation);
-			update_pixel_internals(invocation);
-			write_tuple_to_pixel(call_invocation(invocation), dest, output_bpp);
-			dest += output_bpp;
-		    }
-		
-		    dest_row += dest_rgn.rowstride;
-		}
-		*/
-	    }
+	    call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
 
 	    /* Update progress */
 	    progress += dest_rgn.w * dest_rgn.h;
@@ -1409,6 +1329,9 @@ mathmap_dialog (int mutable_expression)
     gtk_widget_show(frame);
 
     wint.preview = gtk_preview_new(GTK_PREVIEW_COLOR);
+    gtk_widget_add_events(GTK_WIDGET(wint.preview), GDK_BUTTON_PRESS_MASK);
+    gtk_signal_connect (GTK_OBJECT (wint.preview), "button-press-event",
+			(GtkSignalFunc)dialog_preview_click, 0);
     gtk_preview_size(GTK_PREVIEW(wint.preview), preview_width, preview_height);
     gtk_container_add(GTK_CONTAINER(frame), wint.preview);
     gtk_widget_show(wint.preview);
@@ -1822,6 +1745,17 @@ dialog_update_preview (void)
 	invocation->scale_y = (float)sel_height / (float)preview_height;
 	invocation->output_bpp = 4;
 
+	if (debug_tuples)
+	{
+	    int i;
+
+	    enable_debugging(invocation);
+	    for (i = 0; i < PREVIEW_SIZE * PREVIEW_SIZE; ++i)
+		pixel_debug_infos[i].num_debug_tuples = 0;
+	}
+	else
+	    disable_debugging(invocation);
+
 	call_invocation(invocation, 0, preview_height, buf);
 
 	p = buf;
@@ -2059,6 +1993,80 @@ dialog_preview_callback (GtkWidget *widget, gpointer data)
 {
     update_gradient();
     dialog_update_preview();
+}
+
+/*****/
+
+static pixel_debug_info_t*
+get_pixel_debug_info (int row, int col)
+{
+    assert(row >= 0 && row < PREVIEW_SIZE && col >= 0 && col < PREVIEW_SIZE);
+
+    return &pixel_debug_infos[row * PREVIEW_SIZE + col];
+}
+
+void
+save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
+{
+    pixel_debug_info_t *info = get_pixel_debug_info(row, col);
+    int i;
+
+    info->num_debug_tuples = invocation->num_debug_tuples;
+    assert(info->num_debug_tuples <= MAX_DEBUG_TUPLES);
+
+    for (i = 0; i < info->num_debug_tuples; ++i)
+	info->debug_tuples[i] = invocation->debug_tuples[i];
+
+}
+
+static void
+print_tuple (tuple_t tuple)
+{
+    const char *name = tag_name_for_number(tuple.number);
+    int i;
+
+    assert(name != 0);
+
+    printf("%s:[", name);
+    for (i = 0; i < tuple.length; ++i)
+    {
+	printf("%f", tuple.data[i]);
+	if (i + 1 < tuple.length)
+	    printf(",");
+    }
+    printf("]");
+}
+
+static void
+dialog_preview_click (GtkWidget *widget, GdkEvent *event)
+{
+    switch (event->type)
+    {
+	case GDK_BUTTON_PRESS :
+	    if (debug_tuples)
+	    {
+		GdkEventButton *bevent = (GdkEventButton*)event;
+		int row = bevent->y;
+		int col = bevent->x;
+		pixel_debug_info_t *info = get_pixel_debug_info(row, col);
+		int i;
+
+		printf("clicked at %d %d\n", row, col);
+
+		for (i = 0; i < info->num_debug_tuples; ++i)
+		{
+		    print_tuple(info->debug_tuples[i]);
+		    printf("\n");
+		}
+	    }
+	    break;
+
+	case GDK_MOTION_NOTIFY :
+	    printf("motion\n");
+	    break;
+
+	default :
+    }
 }
 
 /*****/

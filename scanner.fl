@@ -26,12 +26,16 @@
 #include "exprtree.h"
 #include "builtins.h"
 #include "parser.h"
+#include "jump.h"
 %}
 
 %option noyywrap
 
 %%
 
+filter                      return T_FILTER;
+function                    { sprintf(error_string, "`function' is a reserved keyword"); JUMP(1); }
+lambda                      { sprintf(error_string, "`lambda' is a reserved keyword"); JUMP(1); }
 if                          return T_IF;
 then                        return T_THEN;
 else                        return T_ELSE;

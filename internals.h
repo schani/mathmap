@@ -46,7 +46,7 @@ typedef struct _internal_t
 } internal_t;
 
 internal_t* register_internal (internal_t **internals, const char *name, int const_type);
-internal_t* lookup_internal (internal_t *internals, const char *name);
+internal_t* lookup_internal (internal_t *internals, const char *name, int dont_touch);
 
 tuple_t* instantiate_internals (internal_t *internals);
 void free_internals (internal_t *internals);

@@ -70,9 +70,7 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
-#ifdef GIMP
 #define INPUT_IMAGE_USERVAL_NAME         "_*_input_*_"
-#endif
 
 typedef struct _userval_t
 {

@@ -110,11 +110,7 @@ macro_var_e (exprtree *args)
 static exprtree*
 make_default_image (void)
 {
-#ifdef OPENSTEP
-    return make_userval("user_image", "input", 0);
-#else
-    return make_cast("image", make_int_number(0));
-#endif
+    return make_userval("user_image", INPUT_IMAGE_USERVAL_NAME, 0);
 }
 
 exprtree*

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,9 +34,12 @@
 %union {
     ident ident;
     exprtree *exprtree;
+    arg_decl_t *arg_decl;
+    top_level_decl_t *top_level;
 }
 
 %token T_IDENT T_STRING T_INT T_FLOAT T_RANGE
+%token T_FILTER
 %token T_IF T_THEN T_ELSE T_END
 %token T_WHILE T_DO
 
@@ -53,8 +56,33 @@
 
 %%
 
-start :   expr              { the_mathmap->exprtree = $<exprtree>1; }
+teststart : expr             { the_mathmap->exprtree = $<exprtree>1; }
+          ;
+
+start : filters              { /* the_mathmap->top_level_decls = $<top_level>1; */ }
+      ;
+
+filters :                    { $<top_level>$ = 0; }
+        | filters filter     { $<top_level>$ = top_level_list_append($<top_level>1, $<top_level>2); }
         ;
+
+filter : T_FILTER T_IDENT '(' args_decl ')' expr T_END
+			     { $<top_level>$ = make_filter($<ident>2, $<arg_decl>4, $<exprtree>6); }
+       ;
+
+args_decl :                  { $<arg_decl>$ = 0; }
+          | arg_decl_list    { $<arg_decl>$ = $<arg_decl>1; }
+          ;
+
+arg_decl_list : arg_decl     { $<arg_decl>$ = $<arg_decl>1; }
+              | arg_decl_list ',' arg_decl
+                             { $<arg_decl>$ = arg_decl_list_append($<arg_decl>1, $<arg_decl>3); }
+              ;
+
+arg_decl : T_IDENT T_IDENT   { $<arg_decl>$ = make_simple_arg_decl($<ident>1, $<ident>2); }
+         | T_FILTER T_IDENT '(' args_decl ')'
+                             { $<arg_decl>$ = make_filter_arg_decl($<ident>2, $<arg_decl>4); }
+         ;
 
 expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | T_FLOAT             { $<exprtree>$ = $<exprtree>1; }

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,187 +40,338 @@
 
 #define EXPRSIZE     8192
 
-static postfix expression[EXPRSIZE];
+static postfix_insn_t expression[EXPRSIZE];
 static int exprp;
 
-void
-stack_push (mathmap_invocation_t *invocation, postfix_arg *arg)
+#define STK             (invocation->stack_machine->stack)
+#define SP              (invocation->stack_machine->stackp)
+#define BP              (invocation->stack_machine->basep)
+#define IP              (invocation->stack_machine->ip)
+#define CLOS            (invocation->stack_machine->current_closure)
+
+static void
+stack_push (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->stack[invocation->stackp] = arg->tuple;
-    ++invocation->stackp;
+    STK[SP].type = POSTFIX_VALUE_TUPLE;
+    STK[SP].v.tuple = arg->tuple;
+    ++SP;
 }
 
-void
-stack_pop (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_pop (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    --invocation->stackp;
+    --SP;
 }
 
-void
-stack_select (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_select (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
     tuple_t result;
     int i;
 
-    for (i = 0; i < invocation->stack[invocation->stackp - 1].length; ++i)
-    {
-	int index = invocation->stack[invocation->stackp - 1].data[i];
+    assert(STK[SP - 1].type == POSTFIX_VALUE_TUPLE
+	   && STK[SP - 2].type == POSTFIX_VALUE_TUPLE);
 
-	if (index < 0 || index >= invocation->stack[invocation->stackp - 2].length)
+    for (i = 0; i < STK[SP - 1].v.tuple.length; ++i)
+    {
+	int index = STK[SP - 1].v.tuple.data[i];
+
+	if (index < 0 || index >= STK[SP - 2].v.tuple.length)
 	    result.data[i] = 0.0;
 	else
-	    result.data[i] = invocation->stack[invocation->stackp - 2].data[index];
+	    result.data[i] = STK[SP - 2].v.tuple.data[index];
     }
 
-    memcpy(invocation->stack[invocation->stackp - 2].data, result.data, sizeof(float) * invocation->stack[invocation->stackp - 1].length);
-    if (invocation->stack[invocation->stackp - 1].length == 1)
-	invocation->stack[invocation->stackp - 2].number = nil_tag_number;
-    invocation->stack[invocation->stackp - 2].length = invocation->stack[invocation->stackp - 1].length;
-    --invocation->stackp;
+    memcpy(STK[SP - 2].v.tuple.data, result.data, sizeof(float) * STK[SP - 1].v.tuple.length);
+    if (STK[SP - 1].v.tuple.length == 1)
+	STK[SP - 2].v.tuple.number = nil_tag_number;
+    STK[SP - 2].v.tuple.length = STK[SP - 1].v.tuple.length;
+    --SP;
 }
 
-void
-stack_tuple (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_tuple (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
     int i;
 
-    for (i = 1; i < arg->integer; ++i)
-	invocation->stack[invocation->stackp - arg->integer].data[i] = invocation->stack[invocation->stackp - arg->integer + i].data[0];
-    invocation->stack[invocation->stackp - arg->integer].number = nil_tag_number;
-    invocation->stack[invocation->stackp - arg->integer].length = arg->integer;
+    for (i = 1; i < arg->integer.i1; ++i)
+	STK[SP - arg->integer.i1].v.tuple.data[i] = STK[SP - arg->integer.i1 + i].v.tuple.data[0];
+    STK[SP - arg->integer.i1].v.tuple.number = nil_tag_number;
+    STK[SP - arg->integer.i1].v.tuple.length = arg->integer.i1;
 
-    invocation->stackp -= arg->integer - 1;
+    SP -= arg->integer.i1 - 1;
 }
 
-void
-stack_dupn_i (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_dupn_i (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
     int i;
 
-    for (i = 0; i < arg->integer; ++i)
-	invocation->stack[invocation->stackp + i] = invocation->stack[invocation->stackp - 1];
+    for (i = 0; i < arg->integer.i1; ++i)
+	STK[SP + i] = STK[SP - 1];
 
-    invocation->stackp += arg->integer;
+    SP += arg->integer.i1;
 }
 
-void
-stack_cast (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_cast (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->stack[invocation->stackp - 1].number = arg->integer;
+    STK[SP - 1].v.tuple.number = arg->integer.i1;
 }
 
-void
-stack_jmp (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_jmp (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->exprp = arg->integer - 1;
+    IP = arg->integer.i1 - 1;
 }
 
-void
-stack_jez (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_jez (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    if (invocation->stack[--invocation->stackp].data[0] == 0.0)
-	invocation->exprp = arg->integer - 1;
+    if (STK[--SP].v.tuple.data[0] == 0.0)
+	IP = arg->integer.i1 - 1;
 }
 
-void
-stack_jnez (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_jnez (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    if (invocation->stack[--invocation->stackp].data[0] != 0.0)
-	invocation->exprp = arg->integer - 1;
+    if (STK[--SP].v.tuple.data[0] != 0.0)
+	IP = arg->integer.i1 - 1;
 }
 
-void
-stack_push_internal (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_push_internal (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->stack[invocation->stackp++] = invocation->internals[arg->internal->index];
+    STK[SP].type = POSTFIX_VALUE_TUPLE;
+    STK[SP].v.tuple = invocation->internals[arg->internal->index];
+    ++SP;
 }
 
-void
-stack_push_user_var (mathmap_invocation_t *invocation, postfix_arg *arg)
-{
-    invocation->stack[invocation->stackp++] = invocation->variables[arg->user_var->index];
-}
-
-void
-stack_assign (mathmap_invocation_t *invocation, postfix_arg *arg)
-{
-    invocation->variables[arg->user_var->index] = invocation->stack[invocation->stackp - 1];
-}
-
-void
-stack_sub_assign (mathmap_invocation_t *invocation, postfix_arg *arg)
+static void
+stack_sub_set (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
     int i;
 
-    for (i = 0; i < invocation->stack[invocation->stackp - 1].length; ++i)
+    assert(STK[SP - 1].type == POSTFIX_VALUE_TUPLE
+	   && STK[SP - 2].type == POSTFIX_VALUE_TUPLE
+	   && STK[SP - 3].type == POSTFIX_VALUE_TUPLE);
+
+    for (i = 0; i < STK[SP - 1].v.tuple.length; ++i)
     {
-	int index = (int)invocation->stack[invocation->stackp - 1].data[i];
+	int index = (int)STK[SP - 1].v.tuple.data[i];
 
-	if (index >= 0 && index < arg->user_var->type.length)
-	    invocation->variables[arg->user_var->index].data[index] = invocation->stack[invocation->stackp - 2].data[i];
+	if (index >= 0 && index < STK[SP - 3].v.tuple.length)
+	    STK[SP - 3].v.tuple.data[index] = STK[SP - 2].v.tuple.data[i];
     }
-    --invocation->stackp;
+
+    SP -= 2;
 }
 
-void
-stack_userval_int_const (mathmap_invocation_t *invocation, postfix_arg *arg)
+/*** functions ***/
+
+/* ... arg1 arg0 -> result */
+static void
+stack_call (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->stack[invocation->stackp].data[0] = invocation->uservals[arg->userval->index].v.int_const;
-    invocation->stack[invocation->stackp].length = 1;
-    invocation->stack[invocation->stackp].number = nil_tag_number;
-    ++invocation->stackp;
+    STK[SP].type = POSTFIX_VALUE_RETURN_INFO;
+    STK[SP].v.return_info.num_args = arg->integer.i2;
+    STK[SP].v.return_info.return_address = IP;
+    STK[SP].v.return_info.old_basep = BP;
+    STK[SP].v.return_info.old_closure = CLOS;
+
+    BP = SP;
+
+    ++SP;
+
+    IP = arg->integer.i1 - 1;
 }
 
-void
-stack_userval_float_const (mathmap_invocation_t *invocation, postfix_arg *arg)
+/* return */
+static void
+stack_return (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->stack[invocation->stackp].data[0] = invocation->uservals[arg->userval->index].v.float_const;
-    invocation->stack[invocation->stackp].length = 1;
-    invocation->stack[invocation->stackp].number = nil_tag_number;
-    ++invocation->stackp;
+    int num_args = STK[BP].v.return_info.num_args;
+    int return_value_src = SP - 1;
+    int return_value_dst = BP - num_args;
+
+    IP = STK[BP].v.return_info.return_address;
+    CLOS = STK[BP].v.return_info.old_closure;
+    BP = STK[BP].v.return_info.old_basep;
+
+    STK[return_value_dst] = STK[return_value_src];
+
+    SP = return_value_dst + 1;
 }
 
-void
-stack_userval_bool_const (mathmap_invocation_t *invocation, postfix_arg *arg)
+/* () -> () */
+static void
+stack_alloc_locals (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    invocation->stack[invocation->stackp].data[0] = invocation->uservals[arg->userval->index].v.bool_const;
-    invocation->stack[invocation->stackp].length = 1;
-    invocation->stack[invocation->stackp].number = nil_tag_number;
-    ++invocation->stackp;
+    assert(STK[SP - 1].type == POSTFIX_VALUE_RETURN_INFO);
+
+    SP += arg->integer.i1;
+}
+
+/* value -> () */
+static void
+stack_set_local (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[BP + 1 + arg->integer.i1] = STK[--SP];
+}
+
+/* () -> value */
+static void
+stack_get_local (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[SP++] = STK[BP + 1 + arg->integer.i1];
+}
+
+/* value -> () */
+static void
+stack_set_arg (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[BP - 1 - arg->integer.i1] = STK[--SP];
+}
+
+/* () -> value */
+static void
+stack_get_arg (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[SP++] = STK[BP - 1 - arg->integer.i1];
+}
+
+/*** closures ***/
+
+/* ... arg1 arg0 -> closure */
+static void
+stack_make_closure (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    postfix_closure_t *closure;
+    int i;
+
+    closure = pools_alloc(&invocation->stack_machine->pools, sizeof(postfix_closure_t) + arg->integer.i2 * sizeof(postfix_value_t));
+    assert(closure != 0);
+
+    closure->start_address = arg->integer.i1;
+    closure->num_args = arg->integer.i2;
+
+    for (i = 0; i < closure->num_args; ++i)
+	closure->args[i] = STK[--SP];
+
+    STK[SP].type = POSTFIX_VALUE_CLOSURE;
+    STK[SP].v.closure = closure;
+    ++SP;
+}
+
+/* ... arg1 arg0 closure -> result */
+static void
+stack_call_closure (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    postfix_closure_t *closure;
+
+    assert(STK[SP - 1].type == POSTFIX_VALUE_CLOSURE);
+
+    closure = STK[SP - 1].v.closure;
+
+    STK[SP - 1].type = POSTFIX_VALUE_RETURN_INFO;
+    STK[SP - 1].v.return_info.num_args = arg->integer.i1;
+    STK[SP - 1].v.return_info.return_address = IP;
+    STK[SP - 1].v.return_info.old_basep = BP;
+    STK[SP - 1].v.return_info.old_closure = CLOS;
+
+    BP = SP - 1;
+    CLOS = closure;
+    IP = closure->start_address;
+}
+
+/* () -> value */
+static void
+stack_get_closure_binding (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    assert(arg->integer.i1 >= 0 && arg->integer.i1 < CLOS->num_args);
+
+    STK[SP++] = CLOS->args[arg->integer.i1];
+}
+
+/* value -> () */
+static void
+stack_set_closure_binding (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    assert(arg->integer.i1 >= 0 && arg->integer.i1 < CLOS->num_args);
+
+    CLOS->args[arg->integer.i1] = STK[--SP];
+}
+
+/*** vimages ***/
+
+/* closure -> vimage */
+static void
+stack_make_vimage (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    /* FIXME: implement */
+}
+
+/*** user values (FIXME: obsolete) ***/
+
+void
+stack_userval_int_const (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[SP].v.tuple.data[0] = invocation->uservals[arg->userval->index].v.int_const;
+    STK[SP].v.tuple.length = 1;
+    STK[SP].v.tuple.number = nil_tag_number;
+    ++SP;
 }
 
 void
-stack_userval_color (mathmap_invocation_t *invocation, postfix_arg *arg)
+stack_userval_float_const (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[SP].v.tuple.data[0] = invocation->uservals[arg->userval->index].v.float_const;
+    STK[SP].v.tuple.length = 1;
+    STK[SP].v.tuple.number = nil_tag_number;
+    ++SP;
+}
+
+void
+stack_userval_bool_const (mathmap_invocation_t *invocation, postfix_arg_t *arg)
+{
+    STK[SP].v.tuple.data[0] = invocation->uservals[arg->userval->index].v.bool_const;
+    STK[SP].v.tuple.length = 1;
+    STK[SP].v.tuple.number = nil_tag_number;
+    ++SP;
+}
+
+void
+stack_userval_color (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
     color_t color = invocation->uservals[arg->userval->index].v.color.value;
 
-    invocation->stack[invocation->stackp].data[0] = RED(color) / 255.0;
-    invocation->stack[invocation->stackp].data[1] = GREEN(color) / 255.0;
-    invocation->stack[invocation->stackp].data[2] = BLUE(color) / 255.0;
-    invocation->stack[invocation->stackp].data[3] = ALPHA(color) / 255.0;
-    invocation->stack[invocation->stackp].length = 4;
-    invocation->stack[invocation->stackp].number = rgba_tag_number;
-    ++invocation->stackp;
+    STK[SP].v.tuple.data[0] = RED(color) / 255.0;
+    STK[SP].v.tuple.data[1] = GREEN(color) / 255.0;
+    STK[SP].v.tuple.data[2] = BLUE(color) / 255.0;
+    STK[SP].v.tuple.data[3] = ALPHA(color) / 255.0;
+    STK[SP].v.tuple.length = 4;
+    STK[SP].v.tuple.number = rgba_tag_number;
+    ++SP;
 }
 
 void
-stack_userval_curve (mathmap_invocation_t *invocation, postfix_arg *arg)
+stack_userval_curve (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    int index = invocation->stack[invocation->stackp - 1].data[0] * (USER_CURVE_POINTS - 1);
+    int index = STK[SP - 1].v.tuple.data[0] * (USER_CURVE_POINTS - 1);
 
     if (index < 0)
 	index = 0;
     else if (index >= USER_CURVE_POINTS)
 	index = USER_CURVE_POINTS - 1;
 
-    invocation->stack[invocation->stackp - 1].data[0] = invocation->uservals[arg->userval->index].v.curve.values[index];
-    invocation->stack[invocation->stackp - 1].number = nil_tag_number;
+    STK[SP - 1].v.tuple.data[0] = invocation->uservals[arg->userval->index].v.curve.values[index];
+    STK[SP - 1].v.tuple.number = nil_tag_number;
 }
 
 void
-stack_userval_gradient (mathmap_invocation_t *invocation, postfix_arg *arg)
+stack_userval_gradient (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
-    int index = invocation->stack[invocation->stackp - 1].data[0] * (USER_GRADIENT_POINTS - 1);
+    int index = STK[SP - 1].v.tuple.data[0] * (USER_GRADIENT_POINTS - 1);
     color_t color;
 
     if (index < 0)
@@ -230,30 +381,33 @@ stack_userval_gradient (mathmap_invocation_t *invocation, postfix_arg *arg)
 
     color = invocation->uservals[arg->userval->index].v.gradient.values[index];
 
-    invocation->stack[invocation->stackp - 1].data[0] = RED(color) / 255.0;
-    invocation->stack[invocation->stackp - 1].data[1] = GREEN(color) / 255.0;
-    invocation->stack[invocation->stackp - 1].data[2] = BLUE(color) / 255.0;
-    invocation->stack[invocation->stackp - 1].data[3] = ALPHA(color) / 255.0;
-    invocation->stack[invocation->stackp - 1].length = 4;
-    invocation->stack[invocation->stackp - 1].number = rgba_tag_number;
+    STK[SP - 1].v.tuple.data[0] = RED(color) / 255.0;
+    STK[SP - 1].v.tuple.data[1] = GREEN(color) / 255.0;
+    STK[SP - 1].v.tuple.data[2] = BLUE(color) / 255.0;
+    STK[SP - 1].v.tuple.data[3] = ALPHA(color) / 255.0;
+    STK[SP - 1].v.tuple.length = 4;
+    STK[SP - 1].v.tuple.number = rgba_tag_number;
 }
 
 void
-stack_userval_image (mathmap_invocation_t *invocation, postfix_arg *arg)
+stack_userval_image (mathmap_invocation_t *invocation, postfix_arg_t *arg)
 {
 #ifndef OPENSTEP
-    invocation->stack[invocation->stackp].data[0] = invocation->uservals[arg->userval->index].v.image.index;
+    STK[SP].v.tuple.data[0] = invocation->uservals[arg->userval->index].v.image.index;
 #else
-    invocation->stack[invocation->stackp].data[0] = arg->userval->index;
+    STK[SP].v.tuple.data[0] = arg->userval->index;
 #endif
-    invocation->stack[invocation->stackp].length = 1;
-    invocation->stack[invocation->stackp].number = image_tag_number;
-    ++invocation->stackp;
+    STK[SP].v.tuple.length = 1;
+    STK[SP].v.tuple.number = image_tag_number;
+    ++SP;
 }
 
 void
 make_postfix_recursive (exprtree *tree)
 {
+    assert(0);
+
+    /*
     switch (tree->type)
     {
 	case EXPR_INT_CONST :
@@ -286,7 +440,7 @@ make_postfix_recursive (exprtree *tree)
 		    make_postfix_recursive(elem);
 
 		expression[exprp].func = stack_tuple;
-		expression[exprp].arg.integer = tree->val.tuple.length;
+		expression[exprp].arg.integer.i1 = tree->val.tuple.length;
 		++exprp;
 	    }
 	    break;
@@ -303,7 +457,7 @@ make_postfix_recursive (exprtree *tree)
 	    if (tree->val.cast.tuple->result.number != tree->val.cast.tagnum)
 	    {
 		expression[exprp].func = stack_cast;
-		expression[exprp].arg.integer = tree->val.cast.tagnum;
+		expression[exprp].arg.integer.i1 = tree->val.cast.tagnum;
 		++exprp;
 	    }
 	    break;
@@ -400,14 +554,14 @@ make_postfix_recursive (exprtree *tree)
 		expression[exprp].func = stack_jmp;
 		jump_pos2 = exprp;
 		++exprp;
-		expression[jump_pos1].arg.integer = exprp;
+		expression[jump_pos1].arg.integer.i1 = exprp;
 		expression[exprp].func = stack_push;
 		expression[exprp].arg.tuple.number = tree->result.number;
 		expression[exprp].arg.tuple.length = tree->result.length;
 		for (i = 0; i < tree->result.length; ++i)
 		    expression[exprp].arg.tuple.data[i] = 0.0;
 		++exprp;
-		expression[jump_pos2].arg.integer = exprp;
+		expression[jump_pos2].arg.integer.i1 = exprp;
 	    }
 	    break;
 
@@ -424,9 +578,9 @@ make_postfix_recursive (exprtree *tree)
 		expression[exprp].func = stack_jmp;
 		jump_pos2 = exprp;
 		++exprp;
-		expression[jump_pos1].arg.integer = exprp;
+		expression[jump_pos1].arg.integer.i1 = exprp;
 		make_postfix_recursive(tree->val.ifExpr.alternative);
-		expression[jump_pos2].arg.integer = exprp;
+		expression[jump_pos2].arg.integer.i1 = exprp;
 	    }
 	    break;
 
@@ -443,9 +597,9 @@ make_postfix_recursive (exprtree *tree)
 		make_postfix_recursive(tree->val.whileExpr.body);
 		expression[exprp++].func = stack_pop;
 		expression[exprp].func = stack_jmp;
-		expression[exprp].arg.integer = label1;
+		expression[exprp].arg.integer.i1 = label1;
 		++exprp;
-		expression[jump_pos2].arg.integer = exprp;
+		expression[jump_pos2].arg.integer.i1 = exprp;
 		expression[exprp].func = stack_push;
 		expression[exprp].arg.tuple.number = nil_tag_number;
 		expression[exprp].arg.tuple.length = 1;
@@ -463,7 +617,7 @@ make_postfix_recursive (exprtree *tree)
 		expression[exprp++].func = stack_pop;
 		make_postfix_recursive(tree->val.whileExpr.invariant);
 		expression[exprp].func = stack_jnez;
-		expression[exprp].arg.integer = label;
+		expression[exprp].arg.integer.i1 = label;
 		++exprp;
 		expression[exprp].func = stack_push;
 		expression[exprp].arg.tuple.number = nil_tag_number;
@@ -477,19 +631,26 @@ make_postfix_recursive (exprtree *tree)
 	    fprintf(stderr, "illegal expr\n");
 	    break;
     }
+    */
 }
 
-postfix*
+static void
+compile_filter (arg_decl_t *args, exprtree *body)
+{
+    
+}
+
+postfix_insn_t*
 make_postfix (exprtree *tree, int *len)
 {
-    postfix *result;
+    postfix_insn_t *result;
 
     exprp = 0;
     make_postfix_recursive(tree);
     *len = exprp;
 
-    result = (postfix*)malloc(*len * sizeof(postfix));
-    memcpy(result, expression, *len * sizeof(postfix));
+    result = (postfix_insn_t*)malloc(*len * sizeof(postfix_insn_t));
+    memcpy(result, expression, *len * sizeof(postfix_insn_t));
 
     return result;
 }
@@ -505,7 +666,7 @@ output_tuple (tuple_t *tuple)
 }
 
 void
-output_postfix (postfix *expression, int exprlen)
+output_postfix (postfix_insn_t *expression, int exprlen)
 {
     int i;
 
@@ -525,25 +686,43 @@ output_postfix (postfix *expression, int exprlen)
 	else if (expression[i].func == stack_select)
 	    printf("select\n");
 	else if (expression[i].func == stack_tuple)
-	    printf("tuple %d\n", expression[i].arg.integer);
+	    printf("tuple %d\n", expression[i].arg.integer.i1);
 	else if (expression[i].func == stack_dupn_i)
-	    printf("dupn_i %d\n", expression[i].arg.integer);
+	    printf("dupn_i %d\n", expression[i].arg.integer.i1);
 	else if (expression[i].func == stack_cast)
-	    printf("cast %s\n", tag_name_for_number(expression[i].arg.integer));
+	    printf("cast %s\n", tag_name_for_number(expression[i].arg.integer.i1));
 	else if (expression[i].func == stack_jmp)
-	    printf("jmp %d\n", expression[i].arg.integer);
+	    printf("jmp %d\n", expression[i].arg.integer.i1);
 	else if (expression[i].func == stack_jez)
-	    printf("jez %d\n", expression[i].arg.integer);
+	    printf("jez %d\n", expression[i].arg.integer.i1);
 	else if (expression[i].func == stack_jnez)
-	    printf("jnez %d\n", expression[i].arg.integer);
+	    printf("jnez %d\n", expression[i].arg.integer.i1);
 	else if (expression[i].func == stack_push_internal)
 	    printf("push_internal %s (%d)\n", expression[i].arg.internal->name, expression[i].arg.internal->index);
-	else if (expression[i].func == stack_push_user_var)
-	    printf("push_user_var %s\n", expression[i].arg.user_var->name);
-	else if (expression[i].func == stack_assign)
-	    printf("sto %s\n", expression[i].arg.user_var->name);
-	else if (expression[i].func == stack_sub_assign)
-	    printf("substo %s\n", expression[i].arg.user_var->name);
+	else if (expression[i].func == stack_sub_set)
+	    printf("subset %s\n", expression[i].arg.user_var->name); /* FIXME */
+	else if (expression[i].func == stack_call)
+	    printf("call %d %d\n", expression[i].arg.integer.i1, expression[i].arg.integer.i2);
+	else if (expression[i].func == stack_return)
+	    printf("ret\n");
+	else if (expression[i].func == stack_alloc_locals)
+	    printf("locals %d\n", expression[i].arg.integer.i1);
+	else if (expression[i].func == stack_set_local)
+	    printf("setloc %d\n", expression[i].arg.integer.i1);
+	else if (expression[i].func == stack_get_local)
+	    printf("getloc %d\n", expression[i].arg.integer.i1);
+	else if (expression[i].func == stack_set_arg)
+	    printf("setarg %d\n", expression[i].arg.integer.i1);
+	else if (expression[i].func == stack_get_arg)
+	    printf("getarg %d\n", expression[i].arg.integer.i1);
+	else if (expression[i].func == stack_make_closure)
+	    printf("make_clos %d %d\n", expression[i].arg.integer.i1, expression[i].arg.integer.i2);
+	else if (expression[i].func == stack_call_closure)
+	    printf("call_clos %d %d\n", expression[i].arg.integer.i1, expression[i].arg.integer.i2);
+	else if (expression[i].func == stack_get_closure_binding)
+	    printf("getbind %d\n", expression[i].arg.integer.i1);
+	else if (expression[i].func == stack_set_closure_binding)
+	    printf("setbind %d\n", expression[i].arg.integer.i1);
 	else
 	{
 	    overload_entry_t *entry = overloaded_builtin_with_function(expression[i].func);
@@ -559,15 +738,37 @@ output_postfix (postfix *expression, int exprlen)
 tuple_t*
 eval_postfix (mathmap_invocation_t *invocation)
 {
-    postfix *expression = invocation->mathmap->expression;
+    postfix_insn_t *expression = invocation->mathmap->expression;
     int exprlen = invocation->mathmap->exprlen;
+    postfix_machine_t *machine = invocation->stack_machine;
 
-    invocation->stackp = 0;
-    for (invocation->exprp = 0; invocation->exprp < exprlen; ++invocation->exprp)
-	expression[invocation->exprp].func(invocation, &expression[invocation->exprp].arg);
+    machine->stackp = 0;
+    for (machine->ip = 0; machine->ip < exprlen; ++machine->ip)
+	expression[machine->ip].func(invocation, &expression[machine->ip].arg);
 
-    invocation->stack[0].number = rgba_tag_number;
-    invocation->stack[0].length = 4;
+    machine->stack[0].type = POSTFIX_VALUE_TUPLE;
+    machine->stack[0].v.tuple.number = rgba_tag_number;
+    machine->stack[0].v.tuple.length = 4;
 
-    return &invocation->stack[0];
+    return &machine->stack[0].v.tuple;
+}
+
+postfix_machine_t*
+make_postfix_machine (void)
+{
+    postfix_machine_t *machine = (postfix_machine_t*)malloc(sizeof(postfix_machine_t));
+
+    assert(machine != 0);
+
+    init_pools(&machine->pools);
+
+    return machine;
+}
+
+void
+free_postfix_machine (postfix_machine_t *machine)
+{
+    free_pools(&machine->pools);
+
+    free(machine);
 }

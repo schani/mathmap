@@ -63,8 +63,11 @@
 (defop <= 2 "OP_LEQ" "LEQ" :type int)
 (defop not 1 "OP_NOT" "NOT" :type int)
 
-(defop print-dummy 1 "OP_PRINT" "PRINT" :type int :pure nil)
+(defop print-dummy 1 "OP_PRINT" "PRINT_FLOAT" :type int :pure nil)
 (defop newline-dummy 0 "OP_NEWLINE" "NEWLINE" :type int :pure nil)
+
+(defop start-debug-tuple 1 "OP_START_DEBUG_TUPLE" "START_DEBUG_TUPLE" :type int :pure nil)
+(defop set-debug-tuple-data 2 "OP_SET_DEBUG_TUPLE_DATA" "SET_DEBUG_TUPLE_DATA" :type int :pure nil)
 
 (defop orig-val 4 "OP_ORIG_VAL" "ORIG_VAL" :type color)
 (defop red 1 "OP_RED" "RED_FLOAT")
@@ -105,6 +108,9 @@
 
 (defop solve-linear-2 2 "OP_SOLVE_LINEAR_2" "SOLVE_LINEAR_2" :type v2 :pure nil)
 (defop solve-linear-3 2 "OP_SOLVE_LINEAR_3" "SOLVE_LINEAR_3" :type v3 :pure nil)
+
+(defop solve-poly-2 3 "OP_SOLVE_POLY_2" "SOLVE_POLY_2" :type v2 :pure nil)
+(defop solve-poly-3 4 "OP_SOLVE_POLY_3" "SOLVE_POLY_3" :type v3 :pure nil)
 
 (defop noise 3 "OP_NOISE" "noise")
 (defop rand 2 "OP_RAND" "RAND" :pure nil)

@@ -36,8 +36,8 @@ struct _compvar_t;
 
 #define MAX_BUILTIN_LENGTH     63
 
-typedef void (*builtin_function_t) (struct _mathmap_invocation_t*, postfix_arg*);
-typedef void (*generator_function_t) (struct _compvar_t***, int*, struct _compvar_t**);
+typedef void (*builtin_function_t) (struct _mathmap_invocation_t*, postfix_arg_t*);
+typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
 
 typedef struct _builtin
 {

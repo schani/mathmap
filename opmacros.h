@@ -9,8 +9,21 @@
 #define LESS(a,b)             ((a)<(b))
 #define LEQ(a,b)              ((a)<=(b))
 #define NOT(a)                (!(a))
-#define PRINT(a)              (printf("%f ", (float)(a)), 0)
+
+#define PRINT_FLOAT(a)        (printf("%f ", (float)(a)), 0)
 #define NEWLINE()             (printf("\n"))
+
+#define START_DEBUG_TUPLE(n)       ({ if (invocation->do_debug && invocation->num_debug_tuples < MAX_DEBUG_TUPLES) { \
+                                          invocation->debug_tuples[invocation->num_debug_tuples].length = 0; \
+                                          invocation->debug_tuples[invocation->num_debug_tuples].number = (n); \
+                                          ++invocation->num_debug_tuples; } \
+                                      0; })
+/* this assumes that operator calls are not reordered */
+#define SET_DEBUG_TUPLE_DATA(i,v)  ({ if (invocation->do_debug && invocation->num_debug_tuples < MAX_DEBUG_TUPLES) { \
+                                          invocation->debug_tuples[invocation->num_debug_tuples - 1].data[(int)(i)] = (v); \
+                                          invocation->debug_tuples[invocation->num_debug_tuples - 1].length = (i) + 1; } \
+                                      0; })
+
 #define COMPLEX(r,i)          ((r) + (i) * I)
 #define MAKE_M2X2(a,b,c,d)           ({ gsl_matrix *m = gsl_matrix_alloc(2,2); \
                                         gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,1,0,(c)); gsl_matrix_set(m,1,1,(d)); m; })
@@ -25,6 +38,8 @@
 #define VECTOR_NTH(i,v)       gsl_vector_get((v), (i))
 #define SOLVE_LINEAR_2(m,v)   ({ gsl_vector *r = gsl_vector_alloc(2); gsl_linalg_HH_solve(m,v,r); r; })
 #define SOLVE_LINEAR_3(m,v)   ({ gsl_vector *r = gsl_vector_alloc(3); gsl_linalg_HH_solve(m,v,r); r; })
+#define SOLVE_POLY_2(a,b,c)   0
+#define SOLVE_POLY_3(a,b,c,d) 0
 #define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
 #define USERVAL_INT_ACCESS(x)        (invocation->uservals[(x)].v.int_const)

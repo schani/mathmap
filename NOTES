@@ -25,3 +25,64 @@ end
 filter blendwave (image back, image front, float alpha)
   blend(back, wave(front), alpha)
 end
+
+in neuer sprache:
+  tile_x  tile_y   mit und ohne aspect ratio beibehaltung
+
+
+
+
+
+
+
+
+
+
+  make_vimage
+    closure -> vimage
+
+  call name num_args
+    ... arg -> result
+
+  make_closure name num_args
+    ... arg -> closure
+
+  return
+    () -> n/a
+
+  call_closure num_args
+    ... arg closure -> result
+
+  alloc_local num_vars
+    () -> ()
+
+  bind_local pos
+    value -> ()
+
+  get_local pos
+    () -> value
+
+  get_arg pos
+    () -> value
+
+  get_closure_binding pos
+    () -> value
+
+  filter gray (float g)
+    rgba:[g,g,g,1]
+  end
+
+  ->
+
+  gray:
+    get_arg 0
+    make_closure gray_func 1
+    make_vimage
+    return
+  gray_func:
+    get_closure_binding 0
+    get_closure_binding 0
+    get_closure_binding 0
+    push nil:[1.0]
+    make_tuple rgba:4
+    return

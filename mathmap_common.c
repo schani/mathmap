@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -75,8 +76,8 @@ free_invocation (mathmap_invocation_t *invocation)
 	free(invocation->internals);
     if (invocation->variables != 0)
 	free(invocation->variables);
-    if (invocation->stack != 0)
-	free(invocation->stack);
+    if (invocation->stack_machine != 0)
+	free_postfix_machine(invocation->stack_machine);
     if (invocation->uservals != 0)
     {
 	for (info = invocation->mathmap->userval_infos; info != 0; info = info->next)
@@ -130,6 +131,27 @@ init_internals (mathmap_t *mathmap)
 }
 
 int
+does_mathmap_use_ra (mathmap_t *mathmap)
+{
+    internal_t *r_internal = lookup_internal(mathmap->internals, "r", 1);
+    internal_t *a_internal = lookup_internal(mathmap->internals, "a", 1);
+
+    assert(r_internal != 0 && a_internal != 0);
+
+    return r_internal->is_used || a_internal->is_used;
+}
+
+int
+does_mathmap_use_t (mathmap_t *mathmap)
+{
+    internal_t *t_internal = lookup_internal(mathmap->internals, "t", 1);
+
+    assert(t_internal != 0);
+
+    return t_internal->is_used;
+}
+
+int
 check_mathmap (char *expression)
 {
     static mathmap_t mathmap;
@@ -177,11 +199,9 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
+parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-    static int try_compiler = 1;
-
     userval_info_t *info;
 
     mathmap = (mathmap_t*)malloc(sizeof(mathmap_t));
@@ -196,10 +216,6 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
     mathmap->exprtree = 0;
 
     init_internals(mathmap);
-
-#ifdef GIMP
-    register_image(&mathmap->userval_infos, INPUT_IMAGE_USERVAL_NAME);
-#endif
 
     the_mathmap = mathmap;
 
@@ -219,6 +235,36 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 	    mathmap = 0;
 
 	    sprintf(error_string, "The expression must have the result type rgba:4.");
+	    JUMP(1);
+	}
+    } WITH_JUMP_HANDLER {
+	the_mathmap = 0;
+
+	free_mathmap(mathmap);
+	mathmap = 0;
+    } END_JUMP_HANDLER;
+
+    if (mathmap != 0)
+    {
+	mathmap->num_uservals = 0;
+	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	    ++mathmap->num_uservals;
+    }
+
+    return mathmap;
+}
+
+mathmap_t*
+compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
+{
+    static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
+    static int try_compiler = 1;
+
+    DO_JUMP_CODE {
+	mathmap = parse_mathmap(expression);
+
+	if (mathmap == 0)
+	{
 	    JUMP(1);
 	}
 
@@ -242,16 +288,12 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
     } WITH_JUMP_HANDLER {
 	the_mathmap = 0;
 
-	free_mathmap(mathmap);
-	mathmap = 0;
+	if (mathmap != 0)
+	{
+	    free_mathmap(mathmap);
+	    mathmap = 0;
+	}
     } END_JUMP_HANDLER;
-
-    if (mathmap != 0)
-    {
-	mathmap->num_uservals = 0;
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
-	    ++mathmap->num_uservals;
-    }
 
     return mathmap;
 }
@@ -267,11 +309,18 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->uservals = instantiate_uservals(mathmap->userval_infos);
 #ifdef GIMP
-    /* this is the original image */
-    assert(mathmap->num_uservals > 0
-	   && mathmap->userval_infos->type == USERVAL_IMAGE
-	   && strcmp(mathmap->userval_infos->name, INPUT_IMAGE_USERVAL_NAME) == 0);
-    invocation->uservals[0].v.image.index = 0;
+    {
+	userval_info_t *info;
+
+	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	    if (info->type == USERVAL_IMAGE
+		&& strcmp(info->name, INPUT_IMAGE_USERVAL_NAME) == 0)
+	    {
+		/* this is the original image */
+		invocation->uservals[info->index].v.image.index = 0;
+		break;
+	    }
+    }
 #endif
 
     invocation->variables = instantiate_variables(mathmap->variables);
@@ -317,23 +366,33 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->num_rows_finished = 0;
 
     if (!mathmap->is_native)
-	invocation->stack = (tuple_t*)malloc(POSTFIX_STACKSIZE * sizeof(tuple_t));
+	invocation->stack_machine = make_postfix_machine();
     else
-	invocation->stack = 0;
+	invocation->stack_machine = 0;
 
     invocation->xy_vars = 0;
     invocation->y_vars = 0;
 
+    invocation->do_debug = 0;
+
     return invocation;
+}
+
+void
+enable_debugging (mathmap_invocation_t *invocation)
+{
+    invocation->do_debug = 1;
+}
+
+void
+disable_debugging (mathmap_invocation_t *invocation)
+{
+    invocation->do_debug = 0;
 }
 
 static void
 init_invocation (mathmap_invocation_t *invocation)
 {
-    invocation->uses_ra =
-	invocation->mathmap->internals->next->next->is_used
-	|| invocation->mathmap->internals->next->next->next->is_used;
-
     if (invocation->mathmap->is_native)
 	invocation->mathfunc = invocation->mathmap->initfunc(invocation);
 }
@@ -385,6 +444,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	int origin_x = invocation->origin_x, origin_y = invocation->origin_y;
 	float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
 	float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
+	int uses_ra = does_mathmap_use_ra(invocation->mathmap);
 
 	for (row = first_row; row < last_row; ++row)
 	{
@@ -396,7 +456,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 		float x = (float)(col + origin_x) * scale_x - middle_x;
 		float r, a;
 
-		if (invocation->uses_ra)
+		if (uses_ra)
 		{
 		    r = hypot(x, y);
 		    if (r == 0.0)
@@ -491,23 +551,23 @@ update_image_internals (mathmap_invocation_t *invocation)
 {
     internal_t *internal;
 
-    internal = lookup_internal(invocation->mathmap->internals, "t");
+    internal = lookup_internal(invocation->mathmap->internals, "t", 1);
     invocation->internals[internal->index].data[0] = invocation->current_t;
 
-    internal = lookup_internal(invocation->mathmap->internals, "X");
+    internal = lookup_internal(invocation->mathmap->internals, "X", 1);
     invocation->internals[internal->index].data[0] = invocation->image_X;
-    internal = lookup_internal(invocation->mathmap->internals, "Y");
+    internal = lookup_internal(invocation->mathmap->internals, "Y", 1);
     invocation->internals[internal->index].data[0] = invocation->image_Y;
     
-    internal = lookup_internal(invocation->mathmap->internals, "W");
+    internal = lookup_internal(invocation->mathmap->internals, "W", 1);
     invocation->internals[internal->index].data[0] = invocation->image_W;
-    internal = lookup_internal(invocation->mathmap->internals, "H");
+    internal = lookup_internal(invocation->mathmap->internals, "H", 1);
     invocation->internals[internal->index].data[0] = invocation->image_H;
     
-    internal = lookup_internal(invocation->mathmap->internals, "R");
+    internal = lookup_internal(invocation->mathmap->internals, "R", 1);
     invocation->internals[internal->index].data[0] = invocation->image_R;
 
-    internal = lookup_internal(invocation->mathmap->internals, "frame");
+    internal = lookup_internal(invocation->mathmap->internals, "frame", 1);
     invocation->internals[internal->index].data[0] = invocation->current_frame;
 }
 
@@ -522,5 +582,56 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 
 	if (template_info != 0)
 	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);
+    }
+}
+
+#define MAX_TEMPLATE_VAR_LENGTH       64
+#define is_word_character(c)          (isalnum((c)) || (c) == '_')
+
+void
+process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor)
+{
+    int c;
+
+    while ((c = fgetc(template)) != EOF)
+    {
+	if (c == '$')
+	{
+	    c = fgetc(template);
+	    assert(c != EOF);
+
+	    if (!is_word_character(c))
+		putc(c, out);
+	    else
+	    {
+		char name[MAX_TEMPLATE_VAR_LENGTH + 1];
+		int length = 1;
+
+		name[0] = c;
+
+		do
+		{
+		    c = fgetc(template);
+
+		    if (is_word_character(c))
+		    {
+			assert(length < MAX_TEMPLATE_VAR_LENGTH);
+			name[length++] = c;
+		    }
+		    else
+			if (c != EOF)
+			    ungetc(c, template);
+		} while (is_word_character(c));
+
+		assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
+
+		name[length] = '\0';
+
+		if (!template_processor(mathmap, name, out))
+		    assert(0);
+	    }
+	}
+	else
+	    putc(c, out);
     }
 }

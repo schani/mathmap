@@ -37,18 +37,127 @@
 
 char error_string[1024];
 
-extern double currentX,
-    currentY,
-    currentR,
-    currentA;
-extern int imageWidth,
-    imageHeight;
-extern int intersamplingEnabled;
+static arg_decl_t*
+make_arg_decl (int type, const char *name)
+{
+    arg_decl_t *arg = (arg_decl_t*)malloc(sizeof(arg_decl_t));
 
-exprtree*
+    assert(arg != 0);
+
+    arg->type = type;
+
+    assert(strlen(name) < MAX_IDENT_LENGTH);
+    strcpy(arg->name, name);
+
+    arg->next = 0;
+
+    return arg;
+}
+
+arg_decl_t*
+make_simple_arg_decl (const char *type_name, const char *name)
+{
+    static struct { const char *name; int type; } types[] =
+	{
+	    { "int", ARG_TYPE_INT },
+	    { "float", ARG_TYPE_FLOAT },
+	    { "color", ARG_TYPE_COLOR },
+	    { "gradient", ARG_TYPE_GRADIENT },
+	    { "curve", ARG_TYPE_CURVE },
+	    { 0 }
+	};
+
+    int i;
+
+    for (i = 0; types[i].name != 0; ++i)
+	if (strcmp(types[i].name, name) == 0)
+	    break;
+
+    if (types[i].name == 0)
+    {
+	sprintf(error_string, "Unknown type %s.", name);
+	JUMP(1);
+    }
+    else
+	return make_arg_decl(types[i].type, name);
+
+    return 0;
+}
+
+arg_decl_t*
+make_filter_arg_decl (const char *name, arg_decl_t *args)
+{
+    arg_decl_t *arg = make_arg_decl(ARG_TYPE_FILTER, name);
+
+    arg->v.filter.args = args;
+
+    return arg;
+}
+
+arg_decl_t*
+arg_decl_list_append (arg_decl_t *list1, arg_decl_t *list2)
+{
+    arg_decl_t *list = list1;
+
+    if (list1 == 0)
+	return list2;
+
+    while (list->next != 0)
+	list = list->next;
+
+    list->next = list2;
+
+    return list1;
+}
+
+static top_level_decl_t*
+make_top_level_decl (int type, const char *name)
+{
+    top_level_decl_t *top_level = (top_level_decl_t*)malloc(sizeof(top_level_decl_t));
+
+    assert(top_level != 0);
+
+    top_level->type = type;
+
+    assert(strlen(name) < MAX_IDENT_LENGTH);
+    strcpy(top_level->name, name);
+
+    return top_level;
+}
+
+top_level_decl_t*
+make_filter (const char *name, arg_decl_t *args, exprtree *body)
+{
+    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name);
+
+    top_level->v.filter.args = args;
+    top_level->v.filter.body = body;
+
+    return top_level;
+}
+
+top_level_decl_t*
+top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2)
+{
+    top_level_decl_t *list = list1;
+
+    if (list1 == 0)
+	return list2;
+
+    while (list->next != 0)
+	list = list->next;
+
+    list->next = list2;
+
+    return list1;
+}
+
+static exprtree*
 alloc_exprtree (void)
 {
     exprtree *tree = (exprtree*)malloc(sizeof(exprtree));
+
+    assert(tree != 0);
 
     tree->next = 0;
 
@@ -107,12 +216,12 @@ make_var (const char *name)
     tuple_info_t info;
     exprtree *tree = 0;
 
-    if (lookup_internal(the_mathmap->internals, name) != 0)
+    if (lookup_internal(the_mathmap->internals, name, 0) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_INTERNAL;
-	tree->val.internal = lookup_internal(the_mathmap->internals, name);
+	tree->val.internal = lookup_internal(the_mathmap->internals, name, 0);
 	tree->result = make_tuple_info(nil_tag_number, 1);
     }
     else if (lookup_variable_macro(name, &info) != 0)
@@ -297,7 +406,9 @@ make_function (const char *name, exprtree *args)
 	    tree->val.func.args = args;
 	    tree->result = info;
 
-	    if (is_constant && 0) /* FIXME: can only do if function is side-effect free */
+	    /* FIXME: can only do if function is side-effect free */
+	    /*
+	    if (is_constant && 0)
 	    {
 		tuple_t stack[32];
 		mathmap_t mathmap;
@@ -323,6 +434,7 @@ make_function (const char *name, exprtree *args)
 
 		free(mathmap.expression);
 	    }
+	    */
 	}
 	else if (entry->type == OVERLOAD_MACRO)
 	    tree = entry->v.macro(args);
@@ -688,6 +800,9 @@ exprtree*
 exprlist_append (exprtree *list1, exprtree *list2)
 {
     exprtree *tree = list1;
+
+    if (list1 == 0)
+	return list2;
 
     while (tree->next != 0)
 	tree = tree->next;

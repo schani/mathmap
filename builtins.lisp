@@ -26,9 +26,6 @@
 
 (defparameter *only-ansi* nil)
 
-(defun dcs (x)
-  (substitute #\d #\. (substitute #\p #\+ (substitute #\_ #\- (string-downcase (symbol-name x))))))
-
 (defun my-macroexpand (sexp macros)
   (labels ((expand (sexp)
 	     (if (consp sexp)
@@ -40,12 +37,6 @@
 		     (mapcar #'expand sexp))
 		 sexp)))
     (expand sexp)))
-
-(defvar *tmp-num* 0)
-(defun make-tmp-name ()
-  (let ((name (format nil "tmp_~A" *tmp-num*)))
-    (incf *tmp-num*)
-    name))
 
 (defparameter *ops* '((+v 2 "OP_ADD" "ADD")
 		      (-v 2 "OP_SUB" "SUB")
@@ -74,7 +65,11 @@
   (labels ((length-of-arg-pos (pos)
 	     (if for-compiler-p
 		 (format nil "arglengths[~A]" pos)
-		 (format nil "STK[STKP - ~A].length" (- (length args) pos))))
+		 (format nil "STK[STKP - ~A].v.tuple.length" (- (length args) pos))))
+	   (number-of-arg-pos (pos)
+	     (if for-compiler-p
+		 (format nil "argnumbers[~A]" pos)
+	       (format nil "STK[STKP - ~A].v.tuple.number" (- (length args) pos))))
 	   (lookup-length (l)
 	     (if (var-symbol-p l)
 		 (let ((position (position-if #'(lambda (a) (eq l (cadadr a))) args)))
@@ -89,7 +84,7 @@
 		   (values #'(lambda (n)
 			       (if for-compiler-p
 				   (format nil "args[~A][~A]" pos n)
-				   (format nil "STK[STKP - ~A].data[~A]" (- (length args) pos) n)))
+				   (format nil "STK[STKP - ~A].v.tuple.data[~A]" (- (length args) pos) n)))
 			   'tuple
 			   (lookup-length (cadadr (nth pos args)))))))
 	   (lookup-op (op num-args table)
@@ -225,6 +220,12 @@
 						     (gen-expr-nth expr tmp nil ctr)
 						     sum tmp
 						     lval sum)))))))
+			      ((argtag ?val)
+			       (let ((number (number-of-arg-pos (arg-pos val))))
+				 (if for-compiler-p
+				     (format nil "~Aemit_assign(make_lhs(~A), make_int_const_rhs(~A));~%"
+					     (make-allocated lval allocatedp) lval number)
+				   (format nil "~A = ~A;~%" lval number))))
 			      ((?op . ?args)
 			       (let ((op-entry (lookup-op op (length args) *primops*)))
 				 (if (not (null op-entry))
@@ -253,16 +254,27 @@
 				     ((symbolp val)
 				      (multiple-value-bind (name type length c-type)
 					  (lookup-var val)
-					(assert (eq type 'primary))
-					(values
-					 (if for-compiler-p
-					     (if allocatedp
-						 (format nil "emit_assign(make_lhs(~A), make_compvar_rhs(~A));~%"
-							 lval name)
-					       (format nil "~A = ~A;~%"
-						       lval name))
-					   (format nil "~A = ~A;~%" lval name))
-					 c-type)))
+					(case type
+					  (primary
+					   (values
+					    (if for-compiler-p
+						(if allocatedp
+						    (format nil "emit_assign(make_lhs(~A), make_compvar_rhs(~A));~%"
+							    lval name)
+						  (format nil "~A = ~A;~%"
+							  lval name))
+					      (format nil "~A = ~A;~%" lval name))
+					    c-type))
+					  (counter
+					   (values
+					    (if for-compiler-p
+						(format nil "~Aemit_assign(make_lhs(~A), make_int_const_rhs(~A));~%"
+							(make-allocated lval allocatedp)
+							lval name)
+					      (format nil "~A = ~A;~%" lval name))
+					    c-type))
+					  (t
+					   (error "expr ~A is not a primary but a ~A" expr type)))))
 				     (t
 				      (error "unknown primary ~A" expr))))
 			      (t
@@ -401,7 +413,7 @@
 				      name dummy
 				      (gen-primary arg name nil)
 				      dummy name))
-			    (format nil "{~%~A~%~APRINT(~A);~%}~%"
+			    (format nil "{~%~A~%~APRINT_FLOAT(~A);~%}~%"
 				    (expr-decl arg name)
 				    (gen-primary arg name nil)
 				    name))))
@@ -437,17 +449,22 @@
 							bindings)))
 				  (mapcar #'(lambda (s) (gen s bindings)) body)))))))))
 	(if for-compiler-p
-	    (format t "static void~%gen_~A (compvar_t ***args, int *arglengths, compvar_t **result)~%{~%" (dcs name))
-	    (format t "static void~%builtin_~A (mathmap_invocation_t *invocation, postfix_arg *arg)~%{~%float result[MAX_TUPLE_LENGTH];~%" (dcs name)))
+	    (format t "static void~%gen_~A (compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%" (dcs name))
+	    (format t "static void~%builtin_~A (mathmap_invocation_t *invocation, postfix_arg_t *arg)~%{~%float result[MAX_TUPLE_LENGTH];~%" (dcs name)))
 	(dolist (stmt body)
 	  (princ (gen stmt nil)))
 	(if for-compiler-p
 	    (format t "}~%~%")
-	    (format t "{~%int i;~%for (i = 0; i < ~A; ++i)~%STK[STKP - ~A].data[i] = result[i];~%}~%STK[STKP - ~A].length = ~A;~%STKP -= ~A;~%}~%~%"
+	    (format t "{~%int i;~%for (i = 0; i < ~A; ++i)~%STK[STKP - ~A].v.tuple.data[i] = result[i];~%}~%STK[STKP - ~A].v.tuple.length = ~A;~%STKP -= ~A;~%}~%~%"
 		    result-length (length args)
 		    (length args) result-length
 		    (1- (length args))))))))
 
+(defbuiltin "merd" merd (?T ?L) ((val (?T ?L)))
+  (let ((dummy1 (start-debug-tuple (argtag val))))
+    (forarglength val i
+      (let ((dummy2 (set-debug-tuple-data i (nth i val))))
+	(set (nth i result) (nth i val))))))
 
 (defbuiltin "print" print (nil 1) ((val (_ _)))
   (forarglength val i
@@ -661,7 +678,7 @@
   (let ((l (sum (*v a a))))
     (if (= l 0)
 	(set result (splat (?T ?L) 0))
-	(set result (/v a (splat (?T ?L) l))))))
+	(set result (/v a (splat (?T ?L) (sqrt l)))))))
 
 (defbuiltin "abs" abs_ri (nil 1) ((a (ri 2)))
   (set result (make (nil 1) (hypot (nth 0 a) (nth 1 a)))))
@@ -883,6 +900,18 @@
 	(set (nth i result) (+ (* (/ (- (nth i a) (nth i fl)) div)
 				  (- (nth i tu) (nth i tl)))
 			       (nth i tl)))))))
+
+;;; polynomials
+
+(defbuiltin "solve" solve-poly-2 (nil 2) ((p (poly 3)))
+  (let ((v (solve-poly-2 (nth 0 p) (nth 1 p) (nth 2 p))))
+    (set result (make (nil 2) (vector-nth 0 v) (vector-nth 1 v)))
+    (forget (free-vector v))))
+
+(defbuiltin "solve" solve-poly-3 (nil 3) ((p (poly 4)))
+  (let ((v (solve-poly-3 (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p))))
+    (set result (make (nil 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))
+    (forget (free-vector v))))
 
 ;;; logic
 

@@ -1,5 +1,3 @@
-/* -*- c -*- */
-
 /*
  * new_template.c
  *
@@ -31,13 +29,14 @@
  * $$q -> USER_GRADIENT_POINTS
  * $$o -> OPENSTEP
  * $$a -> has altivec
- * $$xy_decls     -> declarations for xy-constant variables
- * $$xy_code      -> code for xy-constant variables
- * $$x_decls      -> declarations for x-constant variables
- * $$x_code       -> code for x-constant variables
- * $$y_decls      -> declarations for y-constant variables
- * $$y_code       -> code for y-constant variables
- * $$opmacros_h   -> full name of opmacros.h file
+ * $$xy_decls         -> declarations for xy-constant variables
+ * $$xy_code          -> code for xy-constant variables
+ * $$x_decls          -> declarations for x-constant variables
+ * $$x_code           -> code for x-constant variables
+ * $$y_decls          -> declarations for y-constant variables
+ * $$y_code           -> code for y-constant variables
+ * $$opmacros_h       -> full name of opmacros.h file
+ * $$max_debug_tuples -> MAX_DEBUG_TUPLES
  */
 
 #include <stdlib.h>
@@ -65,6 +64,8 @@
 
 #define USER_CURVE_POINTS             $p
 #define USER_GRADIENT_POINS           $q
+
+#define MAX_DEBUG_TUPLES              $max_debug_tuples
 
 typedef struct
 {
@@ -140,6 +141,7 @@ typedef struct _mathmap_t
     void *internals;
 
     void *exprtree;
+    /* void *top_level_decls; */
 
     int num_uservals;
 
@@ -187,19 +189,19 @@ typedef struct _mathmap_invocation_t
 
     float current_x, current_y, current_r, current_a, current_t;
 
-    tuple_t *stack;
-    int stackp;
-
-    int exprp;
+    void *stack_machine;
 
     int row_stride;
     volatile int num_rows_finished;
-    int uses_ra;
 
     void *mathfunc;
 
     xy_const_vars_t *xy_vars;
     y_const_vars_t *y_vars;
+
+    int do_debug;
+    int num_debug_tuples;
+    tuple_t debug_tuples[MAX_DEBUG_TUPLES];
 } mathmap_invocation_t;
 
 typedef void (*mathfunc_t) (mathmap_invocation_t*, int, int, unsigned char*);
@@ -409,6 +411,8 @@ int gsl_linalg_HH_solve (gsl_matrix * A, const gsl_vector * b, gsl_vector * x);
 
 complex float cgamma (complex float z);
 
+extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
+
 #include "$opmacros_h"
 
 static void
@@ -458,23 +462,29 @@ mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsi
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
 	    float x = (float)(col + origin_x) * scale_x - middle_x;
+
+#if $uses_ra
 	    float r, a;
 
-	    if (invocation->uses_ra)
-	    {
-		r = hypot(x, y);
-		if (r == 0.0)
-		    a = 0.0;
-		else
-		    a = acos(x / r);
+	    r = hypot(x, y);
+	    if (r == 0.0)
+		a = 0.0;
+	    else
+		a = acos(x / r);
 
-		if (y < 0)
-		    a = 2 * M_PI - a;
-	    }
+	    if (y < 0)
+		a = 2 * M_PI - a;
+#endif
+
+	    if (invocation->do_debug)
+		invocation->num_debug_tuples = 0;
 
 	    {
 		$m
 	    }
+
+	    if (invocation->do_debug)
+		save_debug_tuples(invocation, row, col);
 
 	    p += output_bpp;
 	}

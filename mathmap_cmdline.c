@@ -50,6 +50,8 @@
 #include "readimage.h"
 #include "writeimage.h"
 
+#include "generators/blender/blender.h"
+
 typedef struct
 {
     int drawable_index;
@@ -181,6 +183,7 @@ usage (void)
 	   "  -i, --intersampling         use intersampling\n"
 	   "  -o, --oversampling          use oversampling\n"
 	   "  -c, --cache=NUM             cache NUM input images (default %d)\n"
+	   "  -g, --generator=GEN         generate plug-in code with GEN\n"
 	   "\n"
 	   "Report bugs and suggestions to schani@complang.tuwien.ac.at\n",
 	   cache_size);
@@ -200,6 +203,7 @@ main (int argc, char *argv[])
     int antialiasing = 0, supersampling = 0;
     int img_width, img_height;
     FILE *template;
+    char *generator;
 
     for (;;)
     {
@@ -211,6 +215,7 @@ main (int argc, char *argv[])
 		{ "oversampling", no_argument, 0, 'o' },
 		{ "cache", required_argument, 0, 'c' },
 		{ "image", required_argument, 0, 'I' },
+		{ "generator", required_argument, 0, 'g' },
 #ifdef MOVIES
 		{ "frames", required_argument, 0, 'f' },
 		{ "movie", required_argument, 0, 'M' },
@@ -222,9 +227,9 @@ main (int argc, char *argv[])
 
 	option = getopt_long(argc, argv, 
 #ifdef MOVIES
-			     "iof:I:M:c:", 
+			     "iof:I:M:c:g:", 
 #else
-			     "ioI:c:",
+			     "ioI:c:g:",
 #endif
 			     long_options, &option_index);
 
@@ -279,6 +284,10 @@ main (int argc, char *argv[])
 		++num_input_drawables;
 		break;
 
+	    case 'g' :
+		generator = optarg;
+		break;
+
 #ifdef MOVIES
 	    case 'f' :
 		generate_movie = 1;
@@ -315,107 +324,123 @@ main (int argc, char *argv[])
     init_noise();
     init_compiler();
 
-    assert(num_input_drawables > 0);
-
-    cache = (cache_entry_t*)malloc(sizeof(cache_entry_t) * cache_size);
-    for (i = 0; i < cache_size; ++i)
+    if (generator == 0)
     {
-	cache[i].drawable_index = -1;
-	cache[i].data = 0;
-    }
+	assert(num_input_drawables > 0);
 
-    if (input_drawables[0].type == DRAWABLE_IMAGE)
-    {
-	cache[0].drawable_index = 0;
-	cache[0].frame = 0;
-	cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
-	if (cache[0].data == 0)
+	cache = (cache_entry_t*)malloc(sizeof(cache_entry_t) * cache_size);
+	for (i = 0; i < cache_size; ++i)
 	{
-	    fprintf(stderr, "Error: could not load image `%s'.", input_drawables[0].v.image_filename);
+	    cache[i].drawable_index = -1;
+	    cache[i].data = 0;
+	}
+
+	if (input_drawables[0].type == DRAWABLE_IMAGE)
+	{
+	    cache[0].drawable_index = 0;
+	    cache[0].frame = 0;
+	    cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
+	    if (cache[0].data == 0)
+	    {
+		fprintf(stderr, "Error: could not load image `%s'.", input_drawables[0].v.image_filename);
+		exit(1);
+	    }
+	    cache[0].timestamp = current_time;
+	    input_drawables[0].cache_entries[0] = &cache[0];
+	}
+#ifdef MOVIES
+	else
+	{
+	    img_width = quicktime_video_width(input_drawables[0].v.movie, 0);
+	    img_height = quicktime_video_height(input_drawables[0].v.movie, 0);
+	}
+#endif
+
+#ifdef MOVIES
+	for (i = 1; i < num_input_drawables; ++i)
+	    if (input_drawables[i].type == DRAWABLE_MOVIE)
+	    {
+		assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
+		assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
+	    }
+#endif
+
+	template = fopen("new_template.c", "r");
+	if (template == 0)
+	{
+	    fprintf(stderr, "Error: could not open template file new_template.c.\n");
 	    exit(1);
 	}
-	cache[0].timestamp = current_time;
-	input_drawables[0].cache_entries[0] = &cache[0];
-    }
-#ifdef MOVIES
-    else
-    {
-	img_width = quicktime_video_width(input_drawables[0].v.movie, 0);
-	img_height = quicktime_video_height(input_drawables[0].v.movie, 0);
-    }
-#endif
-
-#ifdef MOVIES
-    for (i = 1; i < num_input_drawables; ++i)
-	if (input_drawables[i].type == DRAWABLE_MOVIE)
+	mathmap = compile_mathmap(argv[optind], template, "opmacros.h");
+	if (mathmap == 0)
 	{
-	    assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
-	    assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
+	    fprintf(stderr, "Error: %s\n", error_string);
+	    exit(1);
 	}
-#endif
 
-    template = fopen("new_template.c", "r");
-    if (template == 0)
-    {
-	fprintf(stderr, "Error: could not open template file new_template.c.\n");
-	exit(1);
-    }
-    mathmap = compile_mathmap(argv[optind], template);
-    if (mathmap == 0)
-    {
-	fprintf(stderr, "Error: %s\n", error_string);
-	exit(1);
-    }
+	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
 
-    invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
+	invocation->antialiasing = antialiasing;
+	invocation->supersampling = supersampling;
 
-    invocation->antialiasing = antialiasing;
-    invocation->supersampling = supersampling;
+	invocation->output_bpp = 4;
 
-    invocation->output_bpp = 4;
-
-    output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
-    assert(output != 0);
-
-#ifdef MOVIES
-    if (generate_movie)
-    {
-	output_movie = quicktime_open(argv[optind + 1], 0, 1);
-	assert(output_movie != 0);
-
-	quicktime_set_video(output_movie, 1, img_width, img_height, 25, QUICKTIME_JPEG);
-	assert(quicktime_supported_video(output_movie, 0));
-	quicktime_seek_start(output_movie);
-
-	rows = (guchar**)malloc(sizeof(guchar*) * img_height);
-	for (i = 0; i < img_height; ++i)
-	    rows[i] = output + img_width * invocation->output_bpp * i;
-    }
-#endif
-
-    for (invocation->current_frame = 0; invocation->current_frame < num_frames; ++invocation->current_frame)
-    {
-	invocation->current_t = (float)invocation->current_frame / (float)num_frames;
-
-	update_image_internals(invocation);
-
-	call_invocation(invocation, 0, img_height, output);
+	output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
+	assert(output != 0);
 
 #ifdef MOVIES
 	if (generate_movie)
 	{
-	    fprintf(stderr, "writing frame %d\n", current_frame);
-	    assert(quicktime_encode_video(output_movie, rows, 0) == 0);
+	    output_movie = quicktime_open(argv[optind + 1], 0, 1);
+	    assert(output_movie != 0);
+
+	    quicktime_set_video(output_movie, 1, img_width, img_height, 25, QUICKTIME_JPEG);
+	    assert(quicktime_supported_video(output_movie, 0));
+	    quicktime_seek_start(output_movie);
+
+	    rows = (guchar**)malloc(sizeof(guchar*) * img_height);
+	    for (i = 0; i < img_height; ++i)
+		rows[i] = output + img_width * invocation->output_bpp * i;
 	}
 #endif
-    }
+
+	for (invocation->current_frame = 0; invocation->current_frame < num_frames; ++invocation->current_frame)
+	{
+	    invocation->current_t = (float)invocation->current_frame / (float)num_frames;
+
+	    update_image_internals(invocation);
+
+	    call_invocation(invocation, 0, img_height, output);
 
 #ifdef MOVIES
-    if (generate_movie)
-	quicktime_close(output_movie);
-    else
+	    if (generate_movie)
+	    {
+		fprintf(stderr, "writing frame %d\n", current_frame);
+		assert(quicktime_encode_video(output_movie, rows, 0) == 0);
+	    }
 #endif
-	write_image(argv[optind + 1], img_width, img_height, output, IMAGE_FORMAT_PNG);
+	}
+
+#ifdef MOVIES
+	if (generate_movie)
+	    quicktime_close(output_movie);
+	else
+#endif
+	    write_image(argv[optind + 1], img_width, img_height, output, IMAGE_FORMAT_PNG);
+    }
+    else
+    {
+	if (strcmp(generator, "blender") == 0)
+	{
+	    if (!blender_generate_plug_in(argv[optind], argv[optind + 1]))
+		return 1;
+	}
+	else
+	{
+	    fprintf(stderr, "Unknown generator `%s'\n", generator);
+	    return 1;
+	}
+    }
 
     return 0;
 }

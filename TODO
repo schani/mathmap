@@ -1,6 +1,11 @@
+MERD!!!!!!!
 parameter t is disregarded in constant optimized compiler (xy and y vars must be initialized for each frame)
 supersampling does not work in constant optimized compiler (row length is changed for each second line computed)
 make matrix operations pure (i.e. no memory allocation or think of something else)
+in blender:
+  noise, cgamma, vector/matrix div
+  edge behaviour
+  antialiasing/supersampling
 
 
 short circuit execution for && in compiler

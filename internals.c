@@ -49,14 +49,15 @@ register_internal (internal_t **internals, const char *name, int const_type)
 }
 
 internal_t*
-lookup_internal (internal_t *internals, const char *name)
+lookup_internal (internal_t *internals, const char *name, int dont_touch)
 {
     internal_t *internal;
 
     for (internal = internals; internal != 0; internal = internal->next)
 	if (strcmp(internal->name, name) == 0)
 	{
-	    internal->is_used = 1;
+	    if (!dont_touch)
+		internal->is_used = 1;
 	    return internal;
 	}
 

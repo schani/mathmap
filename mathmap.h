@@ -47,6 +47,7 @@ typedef struct _mathmap_t
     internal_t *internals;
 
     exprtree *exprtree;
+    /* top_level_decl_t *top_level_decls; */
 
     int num_uservals;
 
@@ -55,7 +56,7 @@ typedef struct _mathmap_t
     initfunc_t initfunc;
     void *module_info;
 
-    postfix *expression;
+    postfix_insn_t *expression;
     int exprlen;
 } mathmap_t;
 
@@ -73,6 +74,8 @@ extern color_t gradient_samples[USER_GRADIENT_POINTS];
 #define EDGE_BEHAVIOUR_COLOR          1	/* all three used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
+
+#define MAX_DEBUG_TUPLES              8
 
 typedef struct _mathmap_invocation_t
 {
@@ -99,20 +102,26 @@ typedef struct _mathmap_invocation_t
 
     float current_x, current_y, current_r, current_a, current_t;
 
-    tuple_t *stack;
-    int stackp;
-
-    int exprp;
+    postfix_machine_t *stack_machine;
 
     int row_stride;
     volatile int num_rows_finished;
-    int uses_ra;
 
     mathfunc_t mathfunc;
 
     void *xy_vars;
     void *y_vars;
+
+    int do_debug;
+    int num_debug_tuples;
+    tuple_t debug_tuples[MAX_DEBUG_TUPLES];
 } mathmap_invocation_t;
+
+typedef struct
+{
+    int num_debug_tuples;
+    tuple_t debug_tuples[MAX_DEBUG_TUPLES];
+} pixel_debug_info_t;
 
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -129,7 +138,14 @@ void unload_mathmap (mathmap_t *mathmap);
 void free_mathmap (mathmap_t *mathmap);
 void free_invocation (mathmap_invocation_t *invocation);
 
+void enable_debugging (mathmap_invocation_t *invocation);
+void disable_debugging (mathmap_invocation_t *invocation);
+
+int does_mathmap_use_ra (mathmap_t *mathmap);
+int does_mathmap_use_t (mathmap_t *mathmap);
+
 int check_mathmap (char *expression);
+mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_filename);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
@@ -140,6 +156,10 @@ void update_image_internals (mathmap_invocation_t *invocation);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y);
 color_t mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y);
+
+typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
+
+void process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor);
 
 #ifdef GIMP
 void user_value_changed (void);

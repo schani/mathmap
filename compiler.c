@@ -47,6 +47,7 @@
 #include "jump.h"
 #include "scanner.h"
 #include "bitvector.h"
+#include "pools.h"
 
 //#define NO_CONSTANTS_ANALYSIS
 
@@ -206,6 +207,8 @@ typedef struct _statement_list_t
     struct _statement_list_t *next;
 } statement_list_t;
 
+static pools_t compiler_pools;
+
 static operation_t ops[NUM_OPS];
 
 static int next_temp_number = 1;
@@ -277,75 +280,16 @@ free_value_set (value_set_t *set)
     free_bit_vector(set);
 }
 
-/*** pools ***/
-
-#define GRANULARITY                sizeof(long)
-#define FIRST_POOL_SIZE            2048
-#define NUM_POOLS                  16
-
-static int active_pool = -1;
-static int fill_ptr = 0;
-
-static long *pools[NUM_POOLS];
-
-void
-free_pools (void)
-{
-    int i;
-
-    /* printf("alloced %d pools\n", active_pool + 1); */
-    for (i = 0; i <= active_pool; ++i)
-	free(pools[i]);
-
-    active_pool = -1;
-}
-
-void*
-pool_alloc (int size)
-{
-    int pool_size;
-    void *p;
-
-    if (active_pool < 0)
-    {
-	active_pool = 0;
-	pools[0] = (long*)malloc(GRANULARITY * FIRST_POOL_SIZE);
-	fill_ptr = 0;
-
-	memset(pools[0], 0, GRANULARITY * FIRST_POOL_SIZE);
-    }
-
-    pool_size = FIRST_POOL_SIZE << active_pool;
-    size = (size + GRANULARITY - 1) / GRANULARITY;
-
-    if (fill_ptr + size >= pool_size)
-    {
-	++active_pool;
-	assert(active_pool < NUM_POOLS);
-	pools[active_pool] = (long*)malloc(GRANULARITY * (FIRST_POOL_SIZE << active_pool));
-	fill_ptr = 0;
-
-	memset(pools[active_pool], 0, GRANULARITY * (FIRST_POOL_SIZE << active_pool));
-    }
-
-    assert(fill_ptr + size < pool_size);
-
-    p = pools[active_pool] + fill_ptr;
-    fill_ptr += size;
-
-    return p;
-}
-
 int
 op_index (operation_t *op)
 {
     return op - ops;
 }
 
-#define alloc_stmt()               ((statement_t*)pool_alloc(sizeof(statement_t)))
-#define alloc_value()              ((value_t*)pool_alloc(sizeof(value_t)))
-#define alloc_rhs()                ((rhs_t*)pool_alloc(sizeof(rhs_t)))
-#define alloc_compvar()            (compvar_t*)pool_alloc(sizeof(compvar_t))
+#define alloc_stmt()               ((statement_t*)pools_alloc(&compiler_pools, sizeof(statement_t)))
+#define alloc_value()              ((value_t*)pools_alloc(&compiler_pools, sizeof(value_t)))
+#define alloc_rhs()                ((rhs_t*)pools_alloc(&compiler_pools, sizeof(rhs_t)))
+#define alloc_compvar()            (compvar_t*)pools_alloc(&compiler_pools, sizeof(compvar_t))
 
 static value_t*
 new_value (compvar_t *compvar)
@@ -369,7 +313,7 @@ new_value (compvar_t *compvar)
 compvar_t*
 make_temporary (void)
 {
-    temporary_t *temp = (temporary_t*)pool_alloc(sizeof(temporary_t));
+    temporary_t *temp = (temporary_t*)pools_alloc(&compiler_pools, sizeof(temporary_t));
     compvar_t *compvar = alloc_compvar();
     value_t *val = new_value(compvar);
 
@@ -415,7 +359,7 @@ make_lhs (compvar_t *compvar)
 statement_list_t*
 prepend_statement (statement_t *stmt, statement_list_t *rest)
 {
-    statement_list_t *lst = (statement_list_t*)pool_alloc(sizeof(statement_list_t));
+    statement_list_t *lst = (statement_list_t*)pools_alloc(&compiler_pools, sizeof(statement_list_t));
 
     lst->stmt = stmt;
     lst->next = rest;
@@ -1135,8 +1079,8 @@ end_while_loop (void)
     emit_loc = &stmt->next;
 }
 
-#define STK                   invocation->stack
-#define STKP                  invocation->stackp
+#define STK                   (invocation->stack_machine->stack)
+#define STKP                  (invocation->stack_machine->stackp)
 
 #include <complex.h>
 #include <gsl/gsl_vector.h>
@@ -1511,18 +1455,20 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		exprtree *arg;
 		int num_args = 0;
 		compvar_t ***args;
-		int *arglengths;
+		int *arglengths, *argnumbers;
 
 		for (arg = tree->val.func.args; arg != 0; arg = arg->next)
 		    ++num_args;
 
 		args = (compvar_t***)alloca(num_args * sizeof(compvar_t**));
 		arglengths = (int*)alloca(num_args * sizeof(int));
+		argnumbers = (int*)alloca(num_args * sizeof(int));
 
 		for (i = 0, arg = tree->val.func.args; i < num_args; ++i, arg = arg->next)
 		{
 		    args[i] = (compvar_t**)alloca(arg->result.length * sizeof(compvar_t*));
 		    arglengths[i] = arg->result.length;
+		    argnumbers[i] = arg->result.number;
 		    gen_code(arg, args[i], 0);
 		}
 
@@ -1530,7 +1476,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
 			dest[i] = make_temporary();
 
-		tree->val.func.entry->v.builtin.generator(args, arglengths, dest);
+		tree->val.func.entry->v.builtin.generator(args, arglengths, argnumbers, dest);
 	    }
 	    break;
  
@@ -2325,7 +2271,7 @@ add_value_if_new (value_list_t *list, value_t *value)
 	if (l->value == value)
 	    return list;
 
-    l = (value_list_t*)pool_alloc(sizeof(value_list_t));
+    l = (value_list_t*)pools_alloc(&compiler_pools, sizeof(value_list_t));
     l->value = value;
     l->next = list;
 
@@ -3048,32 +2994,17 @@ has_altivec (void)
 }
 #endif
 
-#define MAX_TEMPLATE_VAR_LENGTH       64
-#define is_word_character(c)          (isalnum((c)) || (c) == '_')
-
-initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename)
+void
+generate_ir_code (mathmap_t *mathmap)
 {
-    static int last_mathfunc = 0;
-
-    FILE *out;
-    int numtmpvars = 0, i;
-    variable_t *var;
-    char *buf;
-    int pid = getpid();
-    int c;
-    initfunc_t initfunc;
     compvar_t *result[MAX_TUPLE_LENGTH];
-#ifndef OPENSTEP
-    GModule *module = 0;
-#endif
 
     first_stmt = 0;
     emit_loc = &first_stmt;
     next_temp_number = 1;
     next_value_global_index = 0;
 
-    assert(template != 0);
+    init_pools(&compiler_pools);
 
     gen_code(mathmap->exprtree, result, 0);
     {
@@ -3087,7 +3018,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     propagate_types();
 
-    dump_code(first_stmt, 0);
+    // dump_code(first_stmt, 0);
     check_ssa(first_stmt);
 
     optimize_make_color(first_stmt);
@@ -3097,8 +3028,147 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 #ifndef NO_CONSTANTS_ANALYSIS
     analyze_constants();
 #endif
-    dump_code(first_stmt, 0);
+    // dump_code(first_stmt, 0);
     check_ssa(first_stmt);
+}
+
+void
+forget_ir_code (mathmap_t *mathmap)
+{
+    first_stmt = 0;
+
+    free_pools(&compiler_pools);
+}
+
+static char *opmacros_filename = 0;
+
+void
+set_opmacros_filename (const char *filename)
+{
+    if (opmacros_filename != 0)
+	free(opmacros_filename);
+    opmacros_filename = strdup(filename);
+    assert(opmacros_filename != 0);
+}
+
+int
+compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
+{
+    if (strcmp(directive, "l") == 0)
+	fprintf(out, "%d", MAX_TUPLE_LENGTH);
+    else if (strcmp(directive, "g") == 0)
+    {
+#ifdef GIMP
+	putc('1', out);
+#else
+	putc('0', out);
+#endif
+    }
+    else if (strcmp(directive, "2") == 0)
+    {
+#ifdef GIMP2
+	putc('1', out);
+#else
+	putc('0', out);
+#endif
+    }
+    else if (strcmp(directive, "m") == 0)
+	output_permanent_const_code(out, 0);
+    else if (strcmp(directive, "p") == 0)
+	fprintf(out, "%d", USER_CURVE_POINTS);
+    else if (strcmp(directive, "q") == 0)
+	fprintf(out, "%d", USER_GRADIENT_POINTS);
+    else if (strcmp(directive, "o") == 0)
+    {
+#ifdef OPENSTEP
+	putc('1', out);
+#else
+	putc('0', out);
+#endif
+    }
+    else if (strcmp(directive, "a") == 0)
+    {
+#ifdef OPENSTEP
+	putc(has_altivec() ? '1' : '0', out);
+#else
+	putc('0', out);
+#endif
+    }
+    else if (strcmp(directive, "xy_decls") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_declarations(out, CONST_ROW | CONST_COL);
+#endif
+    }
+    else if (strcmp(directive, "x_decls") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_declarations(out, CONST_ROW);
+#endif
+    }
+    else if (strcmp(directive, "y_decls") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_declarations(out, CONST_COL);
+#endif
+    }
+    else if (strcmp(directive, "xy_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_code(out, CONST_ROW | CONST_COL);
+#endif
+    }
+    else if (strcmp(directive, "x_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_code(out, CONST_ROW);
+#endif
+    }
+    else if (strcmp(directive, "y_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_code(out, CONST_COL);
+#endif
+    }
+    else if (strcmp(directive, "opmacros_h") == 0)
+    {
+	fputs(opmacros_filename, out);
+    }
+    else if (strcmp(directive, "max_debug_tuples") == 0)
+    {
+	fprintf(out, "%d", MAX_DEBUG_TUPLES);
+    }
+    else if (strcmp(directive, "uses_ra") == 0)
+    {
+	fprintf(out, "%d", does_mathmap_use_ra(mathmap) ? 1 : 0);
+    }
+    else if (strcmp(directive, "uses_t") == 0)
+    {
+	fprintf(out, "%d", does_mathmap_use_t(mathmap) ? 1 : 0);
+    }
+    else
+	return 0;
+    return 1;
+}
+
+initfunc_t
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename)
+{
+    static int last_mathfunc = 0;
+
+    FILE *out;
+    int numtmpvars = 0, i;
+    variable_t *var;
+    char *buf;
+    int pid = getpid();
+    initfunc_t initfunc;
+#ifndef OPENSTEP
+    GModule *module = 0;
+#endif
+
+    assert(template != 0);
+
+    generate_ir_code(mathmap);
 
     buf = (char*)alloca(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
     assert(buf != 0);
@@ -3111,127 +3181,8 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 	return 0;
     }
 
-    while ((c = fgetc(template)) != EOF)
-    {
-	if (c == '$')
-	{
-	    c = fgetc(template);
-	    assert(c != EOF);
-
-	    if (!is_word_character(c))
-		putc(c, out);
-	    else
-	    {
-		char name[MAX_TEMPLATE_VAR_LENGTH + 1];
-		int length = 1;
-
-		name[0] = c;
-
-		do
-		{
-		    c = fgetc(template);
-
-		    if (is_word_character(c))
-		    {
-			assert(length < MAX_TEMPLATE_VAR_LENGTH);
-			name[length++] = c;
-		    }
-		    else
-			if (c != EOF)
-			    ungetc(c, template);
-		} while (is_word_character(c));
-
-		assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
-
-		name[length] = '\0';
-
-		if (strcmp(name, "l") == 0)
-		    fprintf(out, "%d", MAX_TUPLE_LENGTH);
-		else if (strcmp(name, "g") == 0)
-		{
-#ifdef GIMP
-		    putc('1', out);
-#else
-		    putc('0', out);
-#endif
-		}
-		else if (strcmp(name, "2") == 0)
-		{
-#ifdef GIMP2
-		    putc('1', out);
-#else
-		    putc('0', out);
-#endif
-		}
-		else if (strcmp(name, "m") == 0)
-		    output_permanent_const_code(out, 0);
-		else if (strcmp(name, "p") == 0)
-		    fprintf(out, "%d", USER_CURVE_POINTS);
-		else if (strcmp(name, "q") == 0)
-		    fprintf(out, "%d", USER_GRADIENT_POINTS);
-		else if (strcmp(name, "o") == 0)
-		{
-#ifdef OPENSTEP
-		    putc('1', out);
-#else
-		    putc('0', out);
-#endif
-		}
-		else if (strcmp(name, "a") == 0)
-		{
-#ifdef OPENSTEP
-		    putc(has_altivec() ? '1' : '0', out);
-#else
-		    putc('0', out);
-#endif
-		}
-		else if (strcmp(name, "xy_decls") == 0)
-		{
-#ifndef NO_CONSTANTS_ANALYSIS
-		    output_permanent_const_declarations(out, CONST_ROW | CONST_COL);
-#endif
-		}
-		else if (strcmp(name, "x_decls") == 0)
-		{
-#ifndef NO_CONSTANTS_ANALYSIS
-		    output_permanent_const_declarations(out, CONST_ROW);
-#endif
-		}
-		else if (strcmp(name, "y_decls") == 0)
-		{
-#ifndef NO_CONSTANTS_ANALYSIS
-		    output_permanent_const_declarations(out, CONST_COL);
-#endif
-		}
-		else if (strcmp(name, "xy_code") == 0)
-		{
-#ifndef NO_CONSTANTS_ANALYSIS
-		    output_permanent_const_code(out, CONST_ROW | CONST_COL);
-#endif
-		}
-		else if (strcmp(name, "x_code") == 0)
-		{
-#ifndef NO_CONSTANTS_ANALYSIS
-		    output_permanent_const_code(out, CONST_ROW);
-#endif
-		}
-		else if (strcmp(name, "y_code") == 0)
-		{
-#ifndef NO_CONSTANTS_ANALYSIS
-		    output_permanent_const_code(out, CONST_COL);
-#endif
-		}
-		else if (strcmp(name, "opmacros_h") == 0)
-		{
-		    fputs(opmacros_filename, out);
-		}
-		else
-		    assert(0);
-	    }
-	}
-	else
-	    putc(c, out);
-    }
+    set_opmacros_filename(opmacros_filename);
+    process_template_file(mathmap, template, out, &compiler_template_processor);
 
     fclose(out);
 
@@ -3310,7 +3261,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     }
 #endif
 
-    free_pools();
+    forget_ir_code(mathmap);
 
     return initfunc;
 }
