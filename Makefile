@@ -1,10 +1,3 @@
-# if you do not want to use the c code generator, comment the
-# following line
-CGEN = YES
-
-# if you don't have GNU libc, uncomment the following line
-#ONLY_ANSI = YES
-
 # if you want to build the command line version instead of the GIMP
 # plug-in, uncomment the following line
 #CMDLINE = YES
@@ -27,21 +20,14 @@ LOCALEDIR = /usr/local/share/locale
 # you should not need to change anything beyond this line
 # -------------------------------------------------------
 
-ifeq ($(CGEN),YES)
 CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 
 CGEN_CFLAGS=-DUSE_CGEN $(CGEN_CC) $(CGEN_LD)
 CGEN_LDFLAGS=-Wl,--export-dynamic
-endif
-
-ifeq ($(ONLY_ANSI),YES)
-ANSI_CFLAGS = -DONLY_ANSI
-ANSI_CHPPFLAGS = -DONLY_ANSI
-endif
 
 ifeq ($(CMDLINE),YES)
-CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) -Wall -g `glib-config --cflags` -DCMDLINE
+CFLAGS = -I. $(CGEN_CFLAGS) -Wall -g `glib-config --cflags` -DCMDLINE
 LDFLAGS = $(LIBFFM) `glib-config --libs gmodule` -lm -ljpeg -lpng -lz
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -50,7 +36,7 @@ endif
 else
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
+CFLAGS = -I. $(CGEN_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
 LDFLAGS = $(LIBFFM) `gimp-config --libs`
 endif
 
@@ -61,14 +47,13 @@ endif
 
 CC = gcc
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o lispreader.o spec_func.o compiler.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o lispreader.o spec_func.o compiler.o builtins_interpreter.o
 
 ifeq ($(CMDLINE),YES)
 OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o
 else
 OBJECTS = $(COMMON_OBJECTS) mathmap.o
 endif
-#builtins_interpreter.o 
 
 mathmap : $(OBJECTS)
 	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LDFLAGS) -lgsl -lgslcblas
@@ -109,7 +94,7 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *~ *.o mathmap scanner.c parser.[ch] parser.output core
+	rm -f *~ *.o mathmap compiler scanner.c parser.[ch] parser.output core
 
 realclean : clean
 	rm -f builtins_interpreter.c builtins_compiler.c

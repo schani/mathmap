@@ -107,11 +107,21 @@ macro_var_e (exprtree *args)
     return make_float_number(M_E);
 }
 
+static exprtree*
+make_default_image (void)
+{
+#ifdef OPENSTEP
+    return make_userval("user_image", "input", 0);
+#else
+    return make_cast("image", make_int_number(0));
+#endif
+}
+
 exprtree*
 macro_func_origVal (exprtree *args)
 {
     return make_function("origVal", exprlist_append(make_function("toXY", args),
-						    exprlist_append(make_cast("image", make_int_number(0)),
+						    exprlist_append(make_default_image(),
 								    make_int_number(0))));
 }
 
@@ -133,7 +143,7 @@ macro_func_origValFrame (exprtree *args)
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  exprlist_append(make_cast("image", make_int_number(0)),
+								  exprlist_append(make_default_image(),
 										  args->next))));
 }
 

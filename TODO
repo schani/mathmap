@@ -1,5 +1,20 @@
+library
+altivec origVal
+constant optimization
+
+
+macos:
+gruen fuer ints, floats und konstanten duenkler
+"Informational Text" in library?
+tool tips
+library at startup
+
+
+
+
 manual: WH,W,H statt wh,w,h
 koordinatensystem erklaeren
+scanner default action auf error!
 
 short circuit logic eval
 
@@ -215,11 +230,11 @@ grayColor(sum / (max * 2) + 0.5)
 
 
 # fractal noise displace
-z = user_slider("z",0,10);
-depth = floor(user_slider("depth",1,10));
-pers = user_slider("persistence",0,1);
-g = user_slider("granularity",0,50);
-strength = user_slider("strength",0,50);
+z = user_float("z",0,10);
+depth = user_int("depth",1,10);
+pers = user_float("persistence",0,1);
+g = user_float("granularity",0,50);
+strength = user_float("strength",0,50);
 nxy = xy / R * g;
 xyz = [nxy[0],nxy[1],z];
 i = 1;
@@ -326,11 +341,6 @@ origVal(xy+dispxy)
 
 
 
-
-
-# radial displace
-# tomr@aceldama.com
-origVal(ra:[r+t*user_slider("MaxR",0,32)*((2*gray(origVal(xy,user_image("Radial"))))-1),a+t*user_slider("MaxA",0,360)*((2*gray(origVal(xy,user_image("Angle"))))-1)])
 
 
 

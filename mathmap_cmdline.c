@@ -46,10 +46,7 @@
 #include "jump.h"
 #include "mathmap.h"
 #include "noise.h"
-#ifdef USE_CGEN
 #include "cgen.h"
-#endif
-#include "mathmap_common.h"
 #include "readimage.h"
 #include "writeimage.h"
 
@@ -322,9 +319,7 @@ main (int argc, char *argv[])
     init_builtins();
     init_macros();
     init_noise();
-#ifdef USE_CGEN
     init_compiler();
-#endif
 
     assert(num_input_drawables > 0);
 
@@ -361,7 +356,7 @@ main (int argc, char *argv[])
 	}
 #endif
 
-    mathmap = compile_mathmap(argv[optind]);
+    mathmap = compile_mathmap(argv[optind], "new_template.c");
     if (mathmap == 0)
     {
 	printf("%s\n", error_string);
@@ -373,12 +368,10 @@ main (int argc, char *argv[])
     invocation->antialiasing = antialiasing;
     invocation->supersampling = supersampling;
 
-    invocation->output_bpp = 3;
+    invocation->output_bpp = 4;
 
     output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
     assert(output != 0);
-
-    init_invocation(invocation);
 
 #ifdef MOVIES
     if (generate_movie)
@@ -404,8 +397,9 @@ main (int argc, char *argv[])
 
 	dest = output;
 
-	if (antialiasing)
+	if (supersampling)
 	{
+	    /*
 	    guchar *line1, *line2, *line3;
 
 	    line1 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
@@ -456,9 +450,13 @@ main (int argc, char *argv[])
 		memcpy(line1, line3, (img_width + 1) * invocation->output_bpp);
 		++current_time;
 	    }
+	    */
 	}
 	else
 	{
+	    call_invocation(invocation, 0, img_height, output);
+
+	    /*
 	    for (row = 0; row < img_height; row++)
 	    {
 		for (col = 0; col < img_width; col++)
@@ -472,6 +470,7 @@ main (int argc, char *argv[])
 		}
 		++current_time;
 	    }
+	    */
 	}
 
 #ifdef MOVIES

@@ -101,4 +101,6 @@ overload_entry_t* overloaded_builtin_with_function (builtin_function_t function)
 
 overload_entry_t* resolve_function_call (const char *name, function_arg_info_t *args, tuple_info_t *result);
 
+int exists_overload_entry_with_name (char *name);
+
 #endif

@@ -26,8 +26,11 @@
 #include <math.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdarg.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
+#else
+#include <mach-o/dyld.h>
 #endif
 
 #include "gtypes.h"
@@ -86,8 +89,15 @@ typedef struct _value_t
     compvar_t *compvar;
     int index;			/* SSA index */
     struct _statement_list_t *uses;
+    int const_type;		/* defined in internals.h */
     struct _value_t *next;	/* next value for same compvar */
 } value_t;
+
+typedef struct _value_list_t
+{
+    value_t *value;
+    struct _value_list_t *next;
+} value_list_t;
 
 #define PRIMARY_VALUE        1
 #define PRIMARY_INT_CONST    2
@@ -183,8 +193,10 @@ typedef struct
 #define OP_USERVAL_CURVE 76
 #define OP_USERVAL_COLOR 77
 #define OP_USERVAL_GRADIENT 78
+#define OP_MAKE_COLOR 79
+#define OP_OUTPUT_COLOR 80
 
-#define NUM_OPS             79
+#define NUM_OPS             81
 
 #define TYPE_PROP_CONST      1
 #define TYPE_PROP_MAX        2
@@ -197,6 +209,7 @@ typedef struct _operation_t
     int num_args;
     type_prop_t type_prop;
     type_t const_type;		/* used only if type_prop == TYPE_PROP_CONST */
+    int is_pure;
 } operation_t;
 
 #define RHS_PRIMARY          1
@@ -274,15 +287,67 @@ static statement_t **emit_loc = &first_stmt;
 static statement_t *stmt_stack[STMT_STACK_SIZE];
 static int stmt_stackp = 0;
 
-#define alloc_stmt()               ((statement_t*)malloc(sizeof(statement_t)))
-#define alloc_value()              ((value_t*)malloc(sizeof(value_t)))
-#define alloc_rhs()                ((rhs_t*)malloc(sizeof(rhs_t)))
-#define alloc_compvar()            (compvar_t*)malloc(sizeof(compvar_t))
+#define GRANULARITY                sizeof(long)
+#define FIRST_POOL_SIZE            2048
+#define NUM_POOLS                  16
+
+static int active_pool = -1;
+static int fill_ptr = 0;
+
+static long *pools[NUM_POOLS];
+
+void
+free_pools (void)
+{
+    int i;
+
+    printf("alloced %d pools\n", active_pool + 1);
+    for (i = 0; i <= active_pool; ++i)
+	free(pools[i]);
+
+    active_pool = -1;
+}
+
+void*
+pool_alloc (int size)
+{
+    int pool_size;
+    void *p;
+
+    if (active_pool < 0)
+    {
+	active_pool = 0;
+	pools[0] = (long*)malloc(GRANULARITY * FIRST_POOL_SIZE);
+	fill_ptr = 0;
+    }
+
+    pool_size = FIRST_POOL_SIZE << active_pool;
+    size = (size + GRANULARITY - 1) / GRANULARITY;
+
+    if (fill_ptr + size >= pool_size)
+    {
+	++active_pool;
+	pools[active_pool] = (long*)malloc(GRANULARITY * (FIRST_POOL_SIZE << active_pool));
+	fill_ptr = 0;
+    }
+
+    assert(fill_ptr + size < pool_size);
+
+    p = pools[active_pool] + fill_ptr;
+    fill_ptr += size;
+
+    return p;
+}
+
+#define alloc_stmt()               ((statement_t*)pool_alloc(sizeof(statement_t)))
+#define alloc_value()              ((value_t*)pool_alloc(sizeof(value_t)))
+#define alloc_rhs()                ((rhs_t*)pool_alloc(sizeof(rhs_t)))
+#define alloc_compvar()            (compvar_t*)pool_alloc(sizeof(compvar_t))
 
 compvar_t*
 make_temporary (void)
 {
-    temporary_t *temp = (temporary_t*)malloc(sizeof(temporary_t));
+    temporary_t *temp = (temporary_t*)pool_alloc(sizeof(temporary_t));
     compvar_t *compvar = alloc_compvar();
     value_t *val = alloc_value();
 
@@ -298,6 +363,7 @@ make_temporary (void)
 
     val->compvar = compvar;	/* dummy value */
     val->index = -1;
+    val->const_type = CONST_NONE;
     val->uses = 0;
     val->next = 0;
 
@@ -320,6 +386,7 @@ make_variable (variable_t *var, int n)
 
     val->compvar = compvar;
     val->index = -1;
+    val->const_type = CONST_NONE;
     val->uses = 0;
     val->next = 0;
 
@@ -333,6 +400,7 @@ make_lhs (compvar_t *compvar)
 
     val->compvar = compvar;
     val->index = -1;
+    val->const_type = CONST_NONE;
     val->uses = 0;
 
     val->next = compvar->values;
@@ -344,7 +412,7 @@ make_lhs (compvar_t *compvar)
 statement_list_t*
 prepend_statement (statement_t *stmt, statement_list_t *rest)
 {
-    statement_list_t *lst = (statement_list_t*)malloc(sizeof(statement_list_t));
+    statement_list_t *lst = (statement_list_t*)pool_alloc(sizeof(statement_list_t));
 
     lst->stmt = stmt;
     lst->next = rest;
@@ -370,8 +438,6 @@ remove_use (value_t *val, statement_t *stmt)
 	if (elem->stmt == stmt)
 	{
 	    *lst = elem->next;
-
-	    free(elem);
 
 	    return;
 	}
@@ -506,12 +572,6 @@ make_op_rhs (int op_index, ...)
     return rhs;
 }
 
-void
-free_rhs (rhs_t *rhs)
-{
-    /* FIXME */
-}
-
 statement_t*
 find_phi_assign (statement_t *stmts, compvar_t *compvar)
 {
@@ -604,8 +664,6 @@ rewrite_uses (value_t *old, value_t *new, int start_index)
 	    add_use(new, stmt);
 
 	    *lst = elem->next;
-
-	    free(elem);
 	}
 	else
 	    lst = &elem->next;
@@ -652,7 +710,6 @@ commit_assign (statement_t *stmt)
 			assert(phi_assign->v.assign.rhs->type = RHS_PRIMARY
 			       && phi_assign->v.assign.rhs->v.primary.type == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs->v.primary.v.value, phi_assign);
-			free_rhs(phi_assign->v.assign.rhs);
 
 			phi_assign->v.assign.rhs = make_value_rhs(stmt->v.assign.lhs);
 			add_use(stmt->v.assign.lhs, phi_assign);
@@ -662,7 +719,6 @@ commit_assign (statement_t *stmt)
 			assert(phi_assign->v.assign.rhs2->type = RHS_PRIMARY
 			       && phi_assign->v.assign.rhs2->v.primary.type == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs2->v.primary.v.value, phi_assign);
-			free_rhs(phi_assign->v.assign.rhs2);
 
 			phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
 			add_use(stmt->v.assign.lhs, phi_assign);
@@ -693,7 +749,6 @@ commit_assign (statement_t *stmt)
 			assert(phi_assign->v.assign.rhs2->type = RHS_PRIMARY
 			       && phi_assign->v.assign.rhs2->v.primary.type == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs2->v.primary.v.value, phi_assign);
-			free_rhs(phi_assign->v.assign.rhs2);
 		    }
 
 		    phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
@@ -982,6 +1037,17 @@ print_rhs (rhs_t *rhs)
 }
 
 void
+output_value_const_type (FILE *out, value_t *val)
+{
+    if (val->const_type & CONST_ROW)
+	fputs("y", out);
+    if (val->const_type & CONST_COL)
+	fputs("x", out);
+    if (val->const_type == CONST_NONE)
+	fputs("-", out);
+}
+
+void
 dump_code (statement_t *stmt, int indent)
 {
     while (stmt != 0)
@@ -998,6 +1064,8 @@ dump_code (statement_t *stmt, int indent)
 		print_value(stmt->v.assign.lhs);
 		printf(" = ");
 		print_rhs(stmt->v.assign.rhs);
+		printf("   ");
+		output_value_const_type(stdout, stmt->v.assign.lhs);
 		printf("\n");
 		break;
 
@@ -1008,7 +1076,9 @@ dump_code (statement_t *stmt, int indent)
 		print_rhs(stmt->v.assign.rhs);
 		printf(", ");
 		print_rhs(stmt->v.assign.rhs2);
-		printf(")\n");
+		printf(")   ");
+		output_value_const_type(stdout, stmt->v.assign.lhs);
+		printf("\n");
 		break;
 
 	    case STMT_IF_COND :
@@ -1229,12 +1299,12 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		for (arg = tree->val.func.args; arg != 0; arg = arg->next)
 		    ++num_args;
 
-		args = (compvar_t***)malloc(num_args * sizeof(compvar_t**));
-		arglengths = (int*)malloc(num_args * sizeof(int));
+		args = (compvar_t***)alloca(num_args * sizeof(compvar_t**));
+		arglengths = (int*)alloca(num_args * sizeof(int));
 
 		for (i = 0, arg = tree->val.func.args; i < num_args; ++i, arg = arg->next)
 		{
-		    args[i] = (compvar_t**)malloc(arg->result.length * sizeof(compvar_t*));
+		    args[i] = (compvar_t**)alloca(arg->result.length * sizeof(compvar_t*));
 		    arglengths[i] = arg->result.length;
 		    gen_code(arg, args[i], 0);
 		}
@@ -1244,11 +1314,6 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			dest[i] = make_temporary();
 
 		tree->val.func.entry->v.builtin.generator(args, arglengths, dest);
-
-		for (i = 0; i < num_args; ++i)
-		    free(args[i]);
-		free(arglengths);
-		free(args);
 	    }
 	    break;
  
@@ -1256,9 +1321,8 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    {
 		compvar_t **left_result;
 
-		left_result = (compvar_t**)malloc(tree->val.operator.left->result.length * sizeof(compvar_t*));
+		left_result = (compvar_t**)alloca(tree->val.operator.left->result.length * sizeof(compvar_t*));
 		gen_code(tree->val.operator.left, left_result, 0);
-		free(left_result);
 
 		gen_code(tree->val.operator.right, dest, is_alloced);
 	    }
@@ -1268,7 +1332,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	case EXPR_IF_THEN_ELSE :
 	    {
 		compvar_t *condition;
-		compvar_t **result = (compvar_t**)malloc(tree->result.length * sizeof(compvar_t*));
+		compvar_t **result = (compvar_t**)alloca(tree->result.length * sizeof(compvar_t*));
 
 		for (i = 0; i < tree->result.length; ++i)
 		    result[i] = make_temporary();
@@ -1291,8 +1355,6 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			emit_assign(make_lhs(dest[i]), make_compvar_rhs(result[i]));
 		    else
 			dest[i] = result[i];
-
-		free(result);
 	    }
 	    break;
 
@@ -1300,7 +1362,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	case EXPR_WHILE :
 	    {
 		compvar_t *invariant = make_temporary();
-		compvar_t **body_result = (compvar_t**)malloc(tree->val.whileExpr.body->result.length * sizeof(compvar_t*));
+		compvar_t **body_result = (compvar_t**)alloca(tree->val.whileExpr.body->result.length * sizeof(compvar_t*));
 
 		if (tree->type == EXPR_DO_WHILE)
 		    gen_code(tree->val.whileExpr.body, body_result, 0);
@@ -1310,8 +1372,6 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		gen_code(tree->val.whileExpr.body, body_result, 0);
 		gen_code(tree->val.whileExpr.invariant, &invariant, 1);
 		end_while_loop();
-
-		free(body_result);
 
 		if (!is_alloced)
 		    dest[0] = make_temporary();
@@ -1395,6 +1455,14 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	default :
 	    assert(0);
    }
+}
+
+statement_t*
+skip_phis (statement_t *stmt)
+{
+    while (stmt != 0 && stmt->type == STMT_PHI_ASSIGN)
+	stmt = stmt->next;
+    return stmt;
 }
 
 type_t
@@ -1572,6 +1640,238 @@ propagate_types (void)
     } while (worklist != 0);
 }
 
+int
+primary_constant (primary_t *primary)
+{
+    switch (primary->type)
+    {
+	case PRIMARY_VALUE :
+	    return primary->v.value->const_type;
+
+	case PRIMARY_INT_CONST :
+	case PRIMARY_FLOAT_CONST :
+	    return CONST_ROW | CONST_COL;
+
+	default :
+	    assert(0);
+    }
+}
+
+int
+rhs_constant (rhs_t *rhs)
+{
+    switch (rhs->type)
+    {
+	case RHS_PRIMARY :
+	    return primary_constant(&rhs->v.primary);
+
+	case RHS_INTERNAL :
+	    return rhs->v.internal->const_type;
+
+	case RHS_OP :
+	    {
+		int i;
+		int const_type_max = CONST_ROW | CONST_COL;
+
+		for (i = 0; i < rhs->v.op.op->num_args; ++i)
+		{
+		    int const_type = primary_constant(&rhs->v.op.args[i]);
+
+		    const_type_max &= const_type;
+		}
+
+		return const_type_max;
+	    }
+	    break;
+
+	default :
+	    assert(0);
+    }
+}
+
+void
+analyze_phis_constant (statement_t *phis, int const_max, int *changed)
+{
+    while (phis != 0 && phis->type == STMT_PHI_ASSIGN)
+    {
+	int const_type = rhs_constant(phis->v.assign.rhs);
+	int const_type2 = rhs_constant(phis->v.assign.rhs2);
+
+	const_type = const_type & const_type2 & const_max;
+
+	if (phis->v.assign.lhs->const_type != const_type)
+	{
+	    phis->v.assign.lhs->const_type = const_type;
+	    *changed = 1;
+	}
+
+	phis = phis->next;
+    }
+}
+
+void
+analyze_stmts_constants (statement_t *stmt, int *changed)
+{
+    int const_type;
+
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		stmt = stmt->next;
+		break;
+
+	    case STMT_ASSIGN :
+		const_type = rhs_constant(stmt->v.assign.rhs);
+		if (stmt->v.assign.lhs->const_type != const_type)
+		{
+		    stmt->v.assign.lhs->const_type = const_type;
+		    *changed = 1;
+		}
+
+		stmt = stmt->next;
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		{
+		    int const_type2 = rhs_constant(stmt->v.assign.rhs2);
+
+		    const_type = rhs_constant(stmt->v.assign.rhs);
+
+		    if (stmt->v.assign.lhs->const_type != (const_type & const_type2))
+		    {
+			stmt->v.assign.lhs->const_type = const_type & const_type2;
+			*changed = 1;
+		    }
+
+		    stmt = stmt->next;
+		}
+		break;
+
+	    case STMT_IF_COND :
+		const_type = rhs_constant(stmt->v.if_cond.condition);
+
+		analyze_stmts_constants(stmt->v.if_cond.consequent, changed);
+		analyze_stmts_constants(stmt->v.if_cond.alternative, changed);
+		analyze_phis_constant(stmt->next, const_type, changed);
+
+		stmt = skip_phis(stmt->next);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		const_type = rhs_constant(stmt->v.while_loop.invariant);
+
+		analyze_phis_constant(stmt->v.while_loop.entry, const_type, changed);
+		analyze_stmts_constants(stmt->v.while_loop.body, changed);
+
+		stmt = stmt->next;
+		break;
+
+	    default :
+		assert(0);
+	}
+    }
+}
+
+void
+analyze_constants (void)
+{
+    int changed;
+
+    do
+    {
+	/*
+	printf("\n\niterating constants:\n\n");
+	dump_code(first_stmt, 0);
+	*/
+	changed = 0;
+	analyze_stmts_constants(first_stmt, &changed);
+    } while (changed);
+    /*
+    printf("\n\nresult:\n\n");
+    dump_code(first_stmt, 0);
+    */
+}
+
+value_list_t*
+add_value_if_new (value_list_t *list, value_t *value)
+{
+    value_list_t *l;
+
+    for (l = list; l != 0; l = l->next)
+	if (l->value == value)
+	    return list;
+
+    l = (value_list_t*)pool_alloc(sizeof(value_list_t));
+    l->value = value;
+    l->next = list;
+
+    return l;
+}
+
+/*
+value_list_t*
+find_rhs_precalculatables (rhs_t *rhs, int const_type, value_list_t *list)
+{
+    switch (rhs->type)
+    {
+	case RHS_PRIMARY :
+    }
+}
+
+value_list_t*
+find_precalculatables (statement_t *stmt, value_list_t *list)
+{
+    int type, type2;
+
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN :
+		list = find_rhs_precalculatables(stmt->v.assign.rhs,
+						 stmt->v.assign.lhs->const_type,
+						 list);
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		type = rhs_type(stmt->v.assign.rhs);
+		type2 = rhs_type(stmt->v.assign.rhs2);
+		if (type != type2)
+		{
+		    if (type2 > type)
+			type = type2;
+		}
+		if (type != stmt->v.assign.lhs->compvar->type)
+		{
+		    stmt->v.assign.lhs->compvar->type = type;
+		    *worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, *worklist);
+		}
+		break;
+
+	    case STMT_IF_COND :
+		propagate_types_initially(stmt->v.if_cond.consequent, worklist);
+		propagate_types_initially(stmt->v.if_cond.alternative, worklist);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		propagate_types_initially(stmt->v.while_loop.entry, worklist);
+		propagate_types_initially(stmt->v.while_loop.body, worklist);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+*/
+
 void
 output_compvar_name (FILE *out, compvar_t *compvar)
 {
@@ -1675,14 +1975,6 @@ output_decls (FILE *out, statement_t *stmt)
     }
 }
 
-statement_t*
-skip_phis (statement_t *stmt)
-{
-    while (stmt != 0 && stmt->type == STMT_PHI_ASSIGN)
-	stmt = stmt->next;
-    return stmt;
-}
-
 void
 output_primary (FILE *out, primary_t *prim)
 {
@@ -1712,7 +2004,8 @@ output_rhs (FILE *out, rhs_t *rhs)
 	    break;
 
 	case RHS_INTERNAL :
-	    fprintf(out, "invocation->internals[%d].data[0]", rhs->v.internal->index);
+	    fputs(rhs->v.internal->name, out);
+	    /* fprintf(out, "invocation->internals[%d].data[0]", rhs->v.internal->index); */
 	    break;
 
 	case RHS_OP :
@@ -1771,7 +2064,9 @@ output_stmts (FILE *out, statement_t *stmt)
 		output_compvar_name(out, stmt->v.assign.lhs->compvar);
 		fputs(" = ", out);
 		output_rhs(out, stmt->v.assign.rhs);
-		fputs(";\n", out);
+		fputs("; /* ", out);
+		output_value_const_type(out, stmt->v.assign.lhs);
+		fputs(" */\n", out);
 
 		stmt = stmt->next;
 		break;
@@ -1820,15 +2115,19 @@ output_c_code (FILE *out)
 }
 
 #ifdef OPENSTEP
+#ifndef MAX
 #define	MAX(a,b)	(((a)<(b))?(b):(a))
-#define	CGEN_CC		"cc -c -o" 
-#define	CGEN_LD		"cc -bundle -o"
+#endif
+#define	CGEN_CC		"cc -c -fPIC -o"
+#define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
 initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename)
 {
-    FILE *template = fopen("new_template.c", "r");
+    static int last_mathfunc = 0;
+
+    FILE *template = fopen(template_filename, "r");
     FILE *out;
     int numtmpvars = 0, i;
     variable_t *var;
@@ -1846,16 +2145,36 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
     next_stmt_index = 0;
     next_temp_number = 1;
 
-    assert(template != 0);
+    if (template == 0)
+    {
+	fprintf(stderr, "cannot read template file %s\n", template_filename);
+	return 0;
+    }
 
     gen_code(mathmap->exprtree, result, 0);
+    {
+	compvar_t *color_tmp = make_temporary(), *dummy = make_temporary();
+
+	emit_assign(make_lhs(color_tmp), make_op_rhs(OP_MAKE_COLOR,
+						     make_compvar_primary(result[0]), make_compvar_primary(result[1]),
+						     make_compvar_primary(result[2]), make_compvar_primary(result[3])));
+	emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
+    }
     propagate_types();
+    analyze_constants();
+    /* dump_code(first_stmt, 0); */
 
-    buf = (char*)malloc(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
+    buf = (char*)alloca(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
+    assert(buf != 0);
 
-    sprintf(buf, "/tmp/mathfunc%d.c", pid);
+    sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, ++last_mathfunc);
     out = fopen(buf, "w");
-    assert(out != 0);
+    if (out == 0)
+    {
+	fprintf(stderr, "cannot write temporary file %s\n", buf);
+	fclose(template);
+	return 0;
+    }
 
     while ((c = fgetc(template)) != EOF)
     {
@@ -1879,21 +2198,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
 		    break;
 
 		case 'm' :
-		    {
-			output_c_code(out);
-
-			for (i = 0; i < mathmap->exprtree->result.length; ++i)
-			{
-			    fprintf(out, "invocation->stack[0].data[%d] = ", i);
-			    output_compvar_name(out, result[i]);
-			    fprintf(out, ";\n");
-			}
-
-			fprintf(out,
-				"invocation->stack[0].length = %d;\n"
-				"return &invocation->stack[0];\n",
-				mathmap->exprtree->result.length);
-		    }
+		    output_c_code(out);
 		    break;
 
 		case 'p' :
@@ -1925,20 +2230,28 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
     fclose(template);
 
 #ifndef TEST
-    sprintf(buf, "%s /tmp/mathfunc%d.o /tmp/mathfunc%d.c", CGEN_CC, pid, pid);
-    system(buf);
+    sprintf(buf, "%s /tmp/mathfunc%d_%d.o /tmp/mathfunc%d_%d.c", CGEN_CC, pid, last_mathfunc, pid, last_mathfunc);
+    if (system(buf) != 0)
+    {
+	fprintf(stderr, "compiler failed\n");
+	return 0;
+    }
 
-    sprintf(buf, "%s /tmp/mathfunc%d.so /tmp/mathfunc%d.o", CGEN_LD, pid, pid);
-    system(buf);
+    sprintf(buf, "%s /tmp/mathfunc%d_%d.so /tmp/mathfunc%d_%d.o", CGEN_LD, pid, last_mathfunc, pid, last_mathfunc);
+    if (system(buf) != 0)
+    {
+	fprintf(stderr, "linker failed\n");
+	return 0;
+    }
 
-    sprintf(buf, "/tmp/mathfunc%d.so", pid);
+    sprintf(buf, "/tmp/mathfunc%d_%d.so", pid, last_mathfunc);
 
 #ifndef OPENSTEP
     module = g_module_open(buf, 0);
     if (module == 0)
     {
 	fprintf(stderr, "could not load module: %s\n", g_module_error());
-	assert(0);
+	return 0;
     }
 
     printf("loaded %p\n", module);
@@ -1947,11 +2260,11 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
 
     unlink(buf);
 
-    sprintf(buf, "/tmp/mathfunc%d.o", pid);
+    sprintf(buf, "/tmp/mathfunc%d_%d.o", pid, last_mathfunc);
     unlink(buf);
 
     /*
-    sprintf(buf, "/tmp/mathfunc%d.c", pid);
+    sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, last_mathfunc);
     unlink(buf);
     */
 
@@ -1963,25 +2276,31 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
         const char *moduleName = "Johnny";
         NSSymbol symbol;
         
-        NSCreateObjectFileImageFromFile(
-            buf, &objectFileImage);
+        NSCreateObjectFileImageFromFile(buf, &objectFileImage);
+	if (objectFileImage == 0)
+	{
+	    fprintf(stderr, "NSCreateObjectFileImageFromFile() failed\n");
+	    return 0;
+	}
 
-        module = NSLinkModule(
-            objectFileImage, moduleName,
-            NSLINKMODULE_OPTION_PRIVATE | NSLINKMODULE_OPTION_BINDNOW);
+        module = NSLinkModule(objectFileImage, moduleName,
+			      NSLINKMODULE_OPTION_PRIVATE | NSLINKMODULE_OPTION_BINDNOW);
+	if (module == 0)
+	{
+	    fprintf(stderr, "NSLinkModule() failed\n");
+	    return 0;
+	}
         NSDestroyObjectFileImage(objectFileImage);
 
-        {
-            symbol = NSLookupSymbolInModule(
-                module, "__init");
-            if (symbol) {
-                void (*init) (void) = NSAddressOfSymbol(symbol);
-                init();
-            }
-        }
+	symbol = NSLookupSymbolInModule(module, "__init");
+	if (symbol != 0)
+	{
+	    void (*init) (void) = NSAddressOfSymbol(symbol);
+	    init();
+	}
 
-        symbol = NSLookupSymbolInModule(
-            module, "_mathmapinit");
+        symbol = NSLookupSymbolInModule(module, "_mathmapinit");
+	assert(symbol != 0);
         initfunc = NSAddressOfSymbol(symbol);
 
 	*module_info = module;
@@ -1989,7 +2308,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
 #endif
 #endif
 
-    free(buf);
+    free_pools();
 
     return initfunc;
 }
@@ -2007,6 +2326,7 @@ unload_c_code (void *module_info)
 #endif
 }
 
+#ifdef TEST
 void
 test_compiler (void)
 {
@@ -2079,9 +2399,10 @@ test_mathmap_compiler (char *expr)
 	assert(0);
     } END_JUMP_HANDLER;
 }
+#endif
 
 static void
-init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type)
+init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure)
 {
     assert(num_args <= MAX_OP_ARGS);
 
@@ -2089,90 +2410,96 @@ init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t cons
     ops[index].num_args = num_args;
     ops[index].type_prop = type_prop;
     ops[index].const_type = const_type;
+    ops[index].is_pure = is_pure;
 }
+
+#define PURE          1
+#define NONPURE       0
 
 void
 init_compiler (void)
 {
-    init_op(OP_NOP, "NOP", 0, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_ADD, "ADD", 2, TYPE_PROP_MAX, 0);
-    init_op(OP_SUB, "SUB", 2, TYPE_PROP_MAX, 0);
-    init_op(OP_NEG, "NEG", 1, TYPE_PROP_MAX, 0);
-    init_op(OP_MUL, "MUL", 2, TYPE_PROP_MAX, 0);
-    init_op(OP_DIV, "DIV", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_MOD, "MOD", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ABS, "abs", 1, TYPE_PROP_MAX, 0);
-    init_op(OP_MIN, "MIN", 2, TYPE_PROP_MAX, 0);
-    init_op(OP_MAX, "MAX", 2, TYPE_PROP_MAX, 0);
-    init_op(OP_SQRT, "sqrt", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_HYPOT, "hypot", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_SIN, "sin", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_COS, "cos", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_TAN, "tan", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ASIN, "asin", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ACOS, "acos", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ATAN, "atan", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ATAN2, "atan2", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_POW, "pow", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_EXP, "exp", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_LOG, "log", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_SINH, "sinh", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_COSH, "cosh", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_TANH, "tanh", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ASINH, "asinh", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ACOSH, "acosh", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ATANH, "atanh", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_GAMMA, "GAMMA", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_FLOOR, "floor", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_EQ, "EQ", 2, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_LESS, "LESS", 2, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_LEQ, "LEQ", 2, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_NOT, "NOT", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_PRINT, "PRINT", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_NEWLINE, "NEWLINE", 0, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_ORIG_VAL, "ORIG_VAL", 4, TYPE_PROP_CONST, TYPE_COLOR);
-    init_op(OP_RED, "RED_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_GREEN, "GREEN_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_BLUE, "BLUE_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_ALPHA, "ALPHA_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_COMPLEX, "COMPLEX", 2, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_REAL, "C_REAL", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_C_IMAG, "C_IMAG", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_C_SQRT, "gsl_complex_sqrt", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_SIN, "gsl_complex_sin", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_COS, "gsl_complex_cos", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_TAN, "gsl_complex_tan", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ASIN, "gsl_complex_asin", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ACOS, "gsl_complex_acos", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ATAN, "gsl_complex_atan", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_POW, "gsl_complex_pow", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_EXP, "gsl_complex_exp", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_LOG, "gsl_complex_log", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ARG, "gsl_complex_arg", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_C_SINH, "gsl_complex_sinh", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_COSH, "gsl_complex_cosh", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_TANH, "gsl_complex_tanh", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ASINH, "gsl_complex_asinh", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ACOSH, "gsl_complex_acosh", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_ATANH, "gsl_complex_atanh", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_C_GAMMA, "gsl_complex_gamma", 1, TYPE_PROP_CONST, TYPE_COMPLEX);
-    init_op(OP_MAKE_M2X2, "MAKE_M2X2", 4, TYPE_PROP_CONST, TYPE_MATRIX);
-    init_op(OP_MAKE_M3X3, "MAKE_M3X3", 9, TYPE_PROP_CONST, TYPE_MATRIX);
-    init_op(OP_FREE_MATRIX, "FREE_MATRIX", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_MAKE_V2, "MAKE_V2", 2, TYPE_PROP_CONST, TYPE_VECTOR);
-    init_op(OP_MAKE_V3, "MAKE_V3", 3, TYPE_PROP_CONST, TYPE_VECTOR);
-    init_op(OP_FREE_VECTOR, "FREE_VECTOR", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_VECTOR_NTH, "VECTOR_NTH", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_SOLVE_LINEAR_2, "SOLVE_LINEAR_2", 2, TYPE_PROP_CONST, TYPE_VECTOR);
-    init_op(OP_SOLVE_LINEAR_3, "SOLVE_LINEAR_3", 2, TYPE_PROP_CONST, TYPE_VECTOR);
-    init_op(OP_NOISE, "noise", 3, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_RAND, "RAND", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_USERVAL_INT, "USERVAL_INT", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_USERVAL_FLOAT, "USERVAL_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_USERVAL_BOOL, "USERVAL_BOOL", 1, TYPE_PROP_CONST, TYPE_INT);
-    init_op(OP_USERVAL_CURVE, "USERVAL_CURVE", 2, TYPE_PROP_CONST, TYPE_FLOAT);
-    init_op(OP_USERVAL_COLOR, "USERVAL_COLOR", 1, TYPE_PROP_CONST, TYPE_COLOR);
-    init_op(OP_USERVAL_GRADIENT, "USERVAL_GRADIENT", 2, TYPE_PROP_CONST, TYPE_COLOR);
+    init_op(OP_NOP, "NOP", 0, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_ADD, "ADD", 2, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_SUB, "SUB", 2, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_NEG, "NEG", 1, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_MUL, "MUL", 2, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_DIV, "DIV", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_MOD, "MOD", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ABS, "abs", 1, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_MIN, "MIN", 2, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_MAX, "MAX", 2, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_SQRT, "sqrt", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_HYPOT, "hypot", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_SIN, "sin", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_COS, "cos", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_TAN, "tan", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ASIN, "asin", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ACOS, "acos", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ATAN, "atan", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ATAN2, "atan2", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_POW, "pow", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_EXP, "exp", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_LOG, "log", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_SINH, "sinh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_COSH, "cosh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_TANH, "tanh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ASINH, "asinh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ACOSH, "acosh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ATANH, "atanh", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_GAMMA, "GAMMA", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_FLOOR, "floor", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_EQ, "EQ", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_LESS, "LESS", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_LEQ, "LEQ", 2, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_NOT, "NOT", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_PRINT, "PRINT", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
+    init_op(OP_NEWLINE, "NEWLINE", 0, TYPE_PROP_CONST, TYPE_INT, NONPURE);
+    init_op(OP_ORIG_VAL, "ORIG_VAL", 4, TYPE_PROP_CONST, TYPE_COLOR, PURE);
+    init_op(OP_RED, "RED_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_GREEN, "GREEN_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_BLUE, "BLUE_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_ALPHA, "ALPHA_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_COMPLEX, "COMPLEX", 2, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_REAL, "C_REAL", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_C_IMAG, "C_IMAG", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_C_SQRT, "gsl_complex_sqrt", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_SIN, "gsl_complex_sin", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_COS, "gsl_complex_cos", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_TAN, "gsl_complex_tan", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ASIN, "gsl_complex_asin", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ACOS, "gsl_complex_acos", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ATAN, "gsl_complex_atan", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_POW, "gsl_complex_pow", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_EXP, "gsl_complex_exp", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_LOG, "gsl_complex_log", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ARG, "gsl_complex_arg", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_C_SINH, "gsl_complex_sinh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_COSH, "gsl_complex_cosh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_TANH, "gsl_complex_tanh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ASINH, "gsl_complex_asinh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ACOSH, "gsl_complex_acosh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ATANH, "gsl_complex_atanh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_GAMMA, "cgamma", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_MAKE_M2X2, "MAKE_M2X2", 4, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
+    init_op(OP_MAKE_M3X3, "MAKE_M3X3", 9, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
+    init_op(OP_FREE_MATRIX, "FREE_MATRIX", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
+    init_op(OP_MAKE_V2, "MAKE_V2", 2, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
+    init_op(OP_MAKE_V3, "MAKE_V3", 3, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
+    init_op(OP_FREE_VECTOR, "FREE_VECTOR", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
+    init_op(OP_VECTOR_NTH, "VECTOR_NTH", 2, TYPE_PROP_CONST, TYPE_FLOAT, NONPURE);
+    init_op(OP_SOLVE_LINEAR_2, "SOLVE_LINEAR_2", 2, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
+    init_op(OP_SOLVE_LINEAR_3, "SOLVE_LINEAR_3", 2, TYPE_PROP_CONST, TYPE_VECTOR, NONPURE);
+    init_op(OP_NOISE, "noise", 3, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_RAND, "RAND", 2, TYPE_PROP_CONST, TYPE_FLOAT, NONPURE);
+    init_op(OP_USERVAL_INT, "USERVAL_INT", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_USERVAL_FLOAT, "USERVAL_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_USERVAL_BOOL, "USERVAL_BOOL", 1, TYPE_PROP_CONST, TYPE_INT, PURE);
+    init_op(OP_USERVAL_CURVE, "USERVAL_CURVE", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_USERVAL_COLOR, "USERVAL_COLOR", 1, TYPE_PROP_CONST, TYPE_COLOR, PURE);
+    init_op(OP_USERVAL_GRADIENT, "USERVAL_GRADIENT", 2, TYPE_PROP_CONST, TYPE_COLOR, PURE);
+    init_op(OP_MAKE_COLOR, "MAKE_COLOR", 4, TYPE_PROP_CONST, TYPE_COLOR, PURE);
+    init_op(OP_OUTPUT_COLOR, "OUTPUT_COLOR", 1, TYPE_PROP_CONST, TYPE_INT, NONPURE);
 }
 
 #ifdef TEST

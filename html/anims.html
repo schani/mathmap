@@ -1,0 +1,94 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>MathMap Animation Examples</title>
+  </head>
+
+  <body>
+    <h1>MathMap Animation Examples</h1>
+
+    These are examples of the animation capabilities of MathMap. The
+    source of all but the last animation is an image of
+    <a href="http://members.theglobe.com/BeanBandi/gallery/Bridges.html">Elisa
+    Bridges</a> (US Playmate of the Month December 1994). All the
+    expressions creating these animations are included in the plug-in.
+
+    <hr>
+    The original image:
+    <br><img src="elisa_orig.jpg">
+
+    <hr>
+    <pre>
+origValXY(x+sin(y*10+t*360)*3,y+sin(x*10+t*360)*3)
+</pre>
+    <a href="elisa_wave_anim.gif">Animated GIF</a>
+
+    <hr>
+    <pre>
+origValXY(x*cos(90/Y*y+t*360),y)
+</pre>
+    <a href="elisa_mercator_anim.gif">Animated GIF</a>
+
+    <hr>
+    <pre>
+origValRA(r+(sin(500000/(r+100)+t*360)*7),a)
+</pre>
+    <a href="elisa_enhancedpond_anim.gif">Animated GIF</a>
+
+    <hr>
+    <pre>
+origValXY(x,y+5*sin(t*360+2000*Y*pow(y+Y+60,-1)))
+</pre>
+    <a href="elisa_sea2_anim.gif">Animated GIF</a>
+
+    <hr>
+    <pre>
+p=origValXY(x,y);q=sin((r-a*0.1)*10+t*360)*0.5+0.5;rgbColor(q*red(p),q*green(p),q*blue(p))
+</pre>
+    <a href="elisa_spiral_anim.gif">Animated GIF</a>
+
+    <hr>
+    <pre>
+# Thanks to Herbert Poetzl
+rd=0.9*min(X,Y);
+if r>rd then
+    rgba:[0,0,0,1]
+else
+    alpha=300; beta=120; gamma=t*360;
+    sa=sin(alpha);
+    sb=sin(beta);
+    ca=cos(alpha);
+    cb=cos(beta);
+    theta=a;
+    phi=acos(r/rd);
+    x0=cos(theta)*cos(phi);
+    y0=sin(theta)*cos(phi);
+    z0=sin(phi);
+    x1=ca*x0+sa*y0;
+    z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;
+    if z1 >= 0 || 1 then
+        y1=cb*-sa*x0+cb*ca*y0+sb*z0
+    else
+        z1=z1-2*cb*z0;
+        y1=cb*-sa*x0+cb*ca*y0-sb*z0
+    end;
+    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);
+    phi1=asin(z1);
+    origVal(xy:[((theta1*2+gamma)%360-180)/180*X,-phi1/90*Y])
+end
+</pre>
+    <a href="elisa_sphere_anim.gif">Animated GIF</a>
+
+    <hr>
+    <pre>
+q=t*360;rgbColor(abs(sin(15*r+q)+sin(15*a+q))*0.5,abs(sin(17*r+q)+sin(17*a+q))*0.5,abs(sin(19*r+q)+sin(19*a+q))*0.5)
+</pre>
+    <a href="moire1_anim.gif">Animated GIF</a>
+
+    <hr>
+    Two other examples of animations generated with MathMap can be
+    found at Laurent Despeyroux's <a href="http://laurent.despeyroux.free.fr/gimp/gimp.html">
+    GIMP page</a>.
+
+  </body>
+</html>

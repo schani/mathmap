@@ -37,6 +37,9 @@
 #include <libgimp/gimp.h>
 #endif
 
+#define MATHMAP_DATE          "March 2002"
+#define MATHMAP_VERSION       "0.14"
+
 typedef struct _mathmap_t
 {
     userval_info_t *userval_infos;
@@ -45,10 +48,12 @@ typedef struct _mathmap_t
 
     exprtree *exprtree;
 
-#ifdef USE_CGEN
+    int num_uservals;
+
+    int is_native;
+
     initfunc_t initfunc;
     void *module_info;
-#endif
 
     postfix *expression;
     int exprlen;
@@ -57,7 +62,8 @@ typedef struct _mathmap_t
 /*
  * this variable is set by the compiler.  it's ok that it is global
  * because the compiler is non-reentrant (which is ok because it's
- * fast).  */
+ * fast).
+ */
 extern mathmap_t *the_mathmap;
 
 #define EDGE_BEHAVIOUR_COLOR          1
@@ -83,21 +89,22 @@ typedef struct _mathmap_invocation_t
     int current_frame;
     int origin_x, origin_y;
     int img_width, img_height;
-    double middle_x, middle_y;
-    double image_R, image_X, image_Y, image_W, image_H;
+    float middle_x, middle_y;
+    float image_R, image_X, image_Y, image_W, image_H;
+    float scale_x, scale_y;
 
-    double current_x, current_y, current_r, current_a, current_t;
+    float current_x, current_y, current_r, current_a, current_t;
 
     tuple_t *stack;
     int stackp;
 
     int exprp;
 
+    int row_stride;
     volatile int num_rows_finished;
+    int uses_ra;
 
-#ifdef USE_CGEN
     mathfunc_t mathfunc;
-#endif
 } mathmap_invocation_t;
 
 #ifndef MIN
@@ -116,15 +123,13 @@ void free_mathmap (mathmap_t *mathmap);
 void free_invocation (mathmap_invocation_t *invocation);
 
 int check_mathmap (char *expression);
-mathmap_t* compile_mathmap (char *expression);
+mathmap_t* compile_mathmap (char *expression, char *template_filename);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
-void init_invocation (mathmap_invocation_t *invocation);
+void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
 
-#ifdef USE_CGEN
-#define call_invocation(i)            ((i)->mathfunc())
-#else
-#define call_invocation(i)            (eval_postfix(i))
-#endif
+void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
+
+void update_image_internals (mathmap_invocation_t *invocation);
 
 void mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel);
 void mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y, guchar *pixel);

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -290,5 +290,16 @@ resolve_function_call (const char *name, function_arg_info_t *args, tuple_info_t
 	}
 
     free(undo_array);
+    return 0;
+}
+
+int
+exists_overload_entry_with_name (char *name)
+{
+    overload_entry_t *entry;
+
+    for (entry = first_overload_entry; entry != 0; entry = entry->next)
+	if (strcmp(name, entry->name) == 0)
+	    return 1;
     return 0;
 }

@@ -5,16 +5,16 @@
   </head>
 
   <body>
-    <center><h1>The MathMap GIMP Plug-In User's Manual</h1></center>
+    <center><h1>The MathMap Language Reference Manual</h1></center>
 
     <h2>The Type System</h2>
 
     <blockquote>
       <p>Every value in MathMap is a tagged tuple. This means it
 	consists of one or more numbers (currently stupidly limited to
-	9 in the interpreter) and a symbolic tag. RGBA colors, for
-	example are represented by tuples of length 4 with the tag
-	<tt>rgba</tt> (for red, green, blue, alpha). The value
+	9) and a symbolic tag. RGBA colors, for example are
+	represented by tuples of length 4 with the tag <tt>rgba</tt>
+	(for red, green, blue, alpha). The value
 	<tt>rgba:[1,0,0,1]</tt> for example, represents the fully
 	opaque color red.
 
@@ -28,7 +28,7 @@
 	MathMap:
 
       <table>
-	<tr><td><b>Symbol</b> <td><b>Purpose</b></tr>
+	<tr><td><b>Tag</b>    <td><b>Purpose</b></tr>
 	<tr><td><tt>nil</tt>  <td>Default tag</tr>
 	<tr><td><tt>rgba</tt> <td>RGBA Color</tr>
 	<tr><td><tt>hsva</tt> <td>HSVA Color</tr>
@@ -45,7 +45,10 @@
 	arguments. In order for this to work at compile time, types
 	must be statically determined. This means that any expression
 	must have only one possible type, e.g. the expression <tt>if x
-	  then abc:[1,2,3] else xyz:[4,5] end</tt> is not valid.
+	then abc:[1,2,3] else xyz:[4,5] end</tt> is not valid.
+	Furthermore, all assignments to the same variable must have
+	the same type.  Hence, <tt>v=[1,2];v=[1,2,3]</tt> is not
+	valid.
 
       <p>Tuple types are expressed in this manual in the form
 	<tt>T:L</tt> where <tt>T</tt> is the tag and <tt>L</tt> is the
@@ -67,23 +70,23 @@
 
       <dl>
 	<dt><tt>xy</tt> (<tt>xy:2</tt>)
-	<dd>The cartesian coordinate of the pixel.
+	<dd>The cartesian coordinates of the pixel.
 
 	<dt><tt>x</tt> (<tt>nil:1</tt>)
-	<dd>The first component of the cartesian coordinate of the pixel.
+	<dd>The first component of the cartesian coordinates of the pixel.
 
 	<dt><tt>y</tt> (<tt>nil:1</tt>)
-	<dd>The second component of the cartesian coordinate of the pixel.
+	<dd>The second component of the cartesian coordinates of the pixel.
 
 	<dt><tt>ra</tt> (<tt>ra:2</tt>)
-	<dd>The polar coordinate of the pixel.
+	<dd>The polar coordinates of the pixel.
 
 	<dt><tt>r</tt> (<tt>nil:1</tt>)
-	<dd>The first component of the polar coordinate of the pixel
-	  (<tt>0 &lt;= r &lt; 360</tt>).
+	<dd>The first component of the polar coordinates of the pixel
+	  (<tt>0 &lt;= r &lt; 2*pi</tt>).
 
 	<dt><tt>a</tt> (<tt>nil:1</tt>)
-	<dd>The second component of the polar coordinate of the pixel
+	<dd>The second component of the polar coordinates of the pixel
 	  (the distance from the center).
       </dl>
 
@@ -91,13 +94,13 @@
       image size, a few additional variables are set:
 
       <dl>
-	<dt><tt>wh</tt> (<tt>xy:2</tt>)
+	<dt><tt>WH</tt> (<tt>xy:2</tt>)
 	<dd>The size of the image.
 
-	<dt><tt>w</tt> (<tt>nil:1</tt>)
+	<dt><tt>W</tt> (<tt>nil:1</tt>)
 	<dd>The width of the image.
 
-	<dt><tt>h</tt> (<tt>nil:1</tt>)
+	<dt><tt>H</tt> (<tt>nil:1</tt>)
 	<dd>The height of the image.
 
 	<dt><tt>R</tt> (<tt>nil:1</tt>)
@@ -150,40 +153,6 @@
 
     </blockquote>
 
-    <h2>Simple Examples</h2>
-
-    <blockquote>
-      <p>Using the function <tt>origVal</tt> it is possible to retrieve
-	values of the original image. To map the image to itself, the
-	following expressions can be used:
-
-      <ul>
-	<li><tt>origVal(xy)</tt>
-	<li><tt>origVal(ra)</tt>
-      </ul>
-
-      <p>A very simple transformation would be the translation of
-	the image which can be accomplished by:
-
-      <ul>
-	<li><tt>origVal(xy+xy:[0,10])</tt>
-      </ul>
-
-      <p>which moves the image 10 pixels to the left. If the same
-	thing is done with polar coordinates, the image is rotated by
-	10 degrees:
-
-      <ul>
-	<li><tt>origVal(ra+ra:[0,10])</tt>
-      </ul>
-
-      <p>These examples would, of course, not make a lot of sense,
-	but they should give you a feeling for how it works. The
-	plug-in contains a few <a href="stills.html">examples</a>, so
-	you can get an idea of what is possible with MathMap.
-
-    </blockquote>
-
     <h2>Operators</h2>
 
     <blockquote>
@@ -193,6 +162,10 @@
 	they perform their operation element-wise. If their second
 	argument is a tuple of length 1, they perform element-wise on
 	the left operand always using the same right operand.
+
+      <p>For example, <tt>[1,2,3]+[7,2,4]</tt> gives
+        <tt>nil:[8,4,7]</tt>, while <tt>[1,2,3]+1</tt> gives
+	<tt>nil:[2,3,4]</tt>.
 
       <p>Relational and logical operators currently only work on
 	tuples with length 1.
@@ -206,10 +179,15 @@
 	  <dd>Subtraction
 
 	  <dt><tt>*</tt>
-	  <dd>Multiplication
+	  <dd>Multiplication.  Matrix-matrix, matrix-vector and
+	    vector-matrix multiplication for 2x2 or 3x3 matrices
+	    is done when the matrix has the type <tt>m2x2:4</tt> or
+	    <tt>m3x3:9</tt>, respectively.
 
 	  <dt><tt>/</tt>
-	  <dd>Division
+	  <dd>Division.  Vector-matrix division is done for 2x2 or 3x3
+	    matrices when the matrix has the type <tt>m2x2:4</tt> or
+            <tt>m3x3:9</tt>, respectively.
 
 	  <dt><tt>%</tt>
 	  <dd>Modulo. This also works with real numbers.
@@ -258,7 +236,8 @@
 	    otherwise.
 
 	  <dt><tt>;</tt>
-	  <dd>Evaluates both operands and gives the value of the second.
+	  <dd>Evaluates both operands (first the left one, then the right
+	    one) and gives the value of the second.
 	</dl>
       </blockquote>
     </blockquote>
@@ -266,7 +245,8 @@
     <h2>Conditionals and Loops</h2>
 
     <blockquote>
-      <p>Conditions are always expected to be tuples of length 1.
+      <p>Conditions and invariants are always expected to be tuples of
+        length 1.
 
       <blockquote>
 	<dl>
@@ -299,218 +279,278 @@
     <h2>Built-in Functions</h2>
 
     <blockquote>
-      <p>Trigonometric functions work with degrees. Functions work
-	on and return tuples of length 1 if not noted otherwise.
 
-      <dl>
-	<dt><tt>pmod(x,y)</tt>
-	<dd>Returns the modulo of <tt>x</tt> and <tt>y</tt> as a
-	  positive value, even if <tt>x</tt> is negative.
+      <h3>Complex Numbers</h3>
 
-	<dt><tt>dotp(x,y)</tt>
-	<dd>Returns the scalar (inner) product of <tt>x</tt> and
-	  <tt>y</tt>
+      <blockquote>
+        <p>Complex numbers have type <tt>ri:2</tt>.
 
-	<dt><tt>crossp(x,y)</tt>
-	<dd>Returns the cross (outer) product of <tt>x</tt> and
-	  <tt>y</tt>, which must both have the length 3.
+	<dl>
+	  <dt><tt>arg(x)</tt>
+          <dd>Returns the argument of the complex value
+            <tt>x == ri:[re,im]</tt>, which is <tt>atan(im/re)</tt>.
 
-	<dt><tt>det(m)</tt>
-	<dd>Returns the determinant of matrix <tt>m</tt> which must
-	  be of type <tt>m2x2:4</tt> or <tt>m3x3:9</tt>.
+	  <dt><tt>conj(x)</tt>
+	  <dd>Returns the conjugate complex of </tt>x == ri:[re,im]</tt>,
+	    which is <tt>ri:[re,-im]</tt>.
+	</dl>
+      </blockquote>
 
-	<dt><tt>normalize(v)</tt>
-	<dd>Returns a vector with the same direction as <tt>v</tt>
-	  but with length 1. For example, <tt>normalize([2,0,0])</tt>
-	  yields <tt>[1,0,0]</tt>.
+      <h3>Vectors and Matrices</h3>
 
-	<dt><tt>sin(x)</tt>
-	<dd>Returns the sine of <tt>x</tt>.
+      <blockquote>
+        <p>Only matrices of dimensions 2x2 and 3x3 are supported.
+	  They must have the types <tt>m2x2:4</tt> and
+	  <tt>m3x3:9</tt>, respectively.
 
-	<dt><tt>cos(x)</tt>
-	<dd>Returns the cosine of <tt>x</tt>.
+        <dl>
+	  <dt><tt>dotp(x,y)</tt>
+	  <dd>Returns the scalar (inner) product of <tt>x</tt> and
+	    <tt>y</tt>
 
-	<dt><tt>tan(x)</tt>
-	<dd>Returns the tangens of <tt>x</tt>.
+	  <dt><tt>crossp(x,y)</tt>
+	  <dd>Returns the cross (outer) product of <tt>x</tt> and
+	    <tt>y</tt>, which must both have the length 3.
 
-	<dt><tt>asin(x)</tt>
-	<dd>Returns the arc-sine of <tt>x</tt>.
+	  <dt><tt>det(m)</tt>
+	  <dd>Returns the determinant of matrix <tt>m</tt>.
 
-	<dt><tt>acos(x)</tt>
-	<dd>Returns the arc-cosine of <tt>x</tt>.
+	  <dt><tt>normalize(v)</tt>
+	  <dd>Returns a vector with the same direction as <tt>v</tt>
+	    but with length 1. For example, <tt>normalize([2,0,0])</tt>
+	    yields <tt>[1,0,0]</tt>.
 
-	<dt><tt>atan(x)</tt>
-	<dd>Returns the arc-tangent of <tt>x</tt>.
+	  <dt><tt>abs(x)</tt>
+	  <dd>Returns the absolute value of <tt>x</tt>.  This works
+	    with complex numbers and vectors.
 
-	<dt><tt>atan(y,x)</tt>
-	<dd>Returns the arc tangent of <tt>x</tt> and <tt>y</tt>
-	  which is the same as <tt>atan(y/x)</tt>, except that
-	  the signs of <tt>x</tt> and <tt>y</tt> are used to
-	  determine the quadrant of the result.
+	  <dt><tt>sum(t)</tt>
+	  <dd>Returns the sum of all elements of the tuple <tt>t</tt>.
+	</dl>
+      </blockquote>
 
-	<dt><tt>sinh(x)</tt>
-	<dd>Returns the hyperbolic sine of <tt>x</tt>.
+      <h3>Trigonometry</h3>
 
-	<dt><tt>cosh(x)</tt>
-	<dd>Returns the hyperbolic cosine of <tt>x</tt>.
+      <blockquote>
+        <p>Trigonometric functions work with radians on real and
+        complex numbers.
 
-	<dt><tt>tanh(x)</tt>
-	<dd>Returns the hyperbolic tangent of <tt>x</tt>.
+	<dl>
+	  <dt><tt>deg2rad(x)</tt>
+	  <dd>Returns the value <tt>x</tt> converted from degrees to
+	    radians.
 
-	<dt><tt>asinh(x)</tt>
-	<dd>Returns the hyperbolic arc-sine of <tt>x</tt>.
+	  <dt><tt>rad2deg(x)</tt>
+	  <dd>Returns the value <tt>x</tt> converted from radians to
+	    degrees.
 
-	<dt><tt>acosh(x)</tt>
-	<dd>Returns the hyperbolic arc-cosine of <tt>x</tt>.
+	  <dt><tt>sin(x)</tt>
+	  <dd>Returns the sine of <tt>x</tt>.
 
-	<dt><tt>atanh(x)</tt>
-	<dd>Returns the hyperbolic arc-tangent of <tt>x</tt>.
+	  <dt><tt>cos(x)</tt>
+	  <dd>Returns the cosine of <tt>x</tt>.
 
-	<dt><tt>exp(x)</tt>
-	<dd>Returns <tt>e^x</tt>.
+	  <dt><tt>tan(x)</tt>
+	  <dd>Returns the tangens of <tt>x</tt>.
 
-	<dt><tt>gamma(x)</tt>
-        <dd>Returns the value of the gamma function for <tt>x</tt>.
+	  <dt><tt>asin(x)</tt>
+	  <dd>Returns the arc-sine of <tt>x</tt>.
 
-	<dt><tt>abs(x)</tt>
-	<dd>Returns the absolute value of <tt>x</tt>.
+	  <dt><tt>acos(x)</tt>
+	  <dd>Returns the arc-cosine of <tt>x</tt>.
 
-	<dt><tt>arg(x)</tt>
-        <dd>Returns the argument of the complex value
-          <tt>x == ri:[re,im]</tt>, which is <tt>atan(im/re)</tt>.
+	  <dt><tt>atan(x)</tt>
+	  <dd>Returns the arc-tangent of <tt>x</tt>.
 
-	<dt><tt>conj(x)</tt>
-	<dd>Returns the conjugate complex of </tt>x == ri:[re,im]</tt>,
-	  which is <tt>ri:[re,-im]</tt>.
+	  <dt><tt>atan(y,x)</tt>
+	  <dd>Returns the arc tangent of <tt>x</tt> and <tt>y</tt>
+	    which is the same as <tt>atan(y/x)</tt>, except that
+	    the signs of <tt>x</tt> and <tt>y</tt> are used to
+	    determine the quadrant of the result.
+        </dl>
+      </blockquote>
 
-	<dt><tt>sign(x)</tt>
-	<dd>Returns <tt>-1</tt> if <tt>x &lt; 0</tt>, 0 if <tt>x = 0</tt>
-	  and <tt>1</tt> if <tt>x &gt; 0</tt>. Works on two tuples of the
-	  same arbitrary length.
+      <h3>Hyperbolic Functions</h3>
 
-	<dt><tt>floor(x)</tt>
-	<dd>Returns the largest integer which is less or equal to
-	  <tt>x</tt>.
+      <blockquote>
+        <p>Hyperbolic functions work on real and complex numbers.
 
-	<dt><tt>min(x,y)</tt>
-	<dd>Returns x if <tt>x &lt; y</tt>, <tt>y</tt> otherwise. Works on
-	  two tuples of the same arbitrary length.
+	<dl>
+	  <dt><tt>sinh(x)</tt>
+	  <dd>Returns the hyperbolic sine of <tt>x</tt>.
 
-	<dt><tt>max(x,y)</tt>
-	<dd>Returns <tt>x</tt> if <tt>x &gt; y</tt>, <tt>y</tt> otherwise. Works on
-	  two tuples of the same arbitrary length.
+	  <dt><tt>cosh(x)</tt>
+	  <dd>Returns the hyperbolic cosine of <tt>x</tt>.
 
-	<dt><tt>clamp(x,l,u)</tt>
-	<dd>Clamps each element of <tt>x</tt> to be between the corresponding
-	  elements of <tt>l</tt> and <tt>u</tt> and returns the result. All
-	  three tuples must have the same tag and the same arbitrary length.
+	  <dt><tt>tanh(x)</tt>
+	  <dd>Returns the hyperbolic tangent of <tt>x</tt>.
 
-	<dt><tt>lerp(t,a,b)</tt>
-        <dd>Returns <tt>a*(1-t)+b*t</tt>. <tt>t</tt> must have length 1. <tt>a</tt>
-	  and <tt>b</tt> must have the same tag and the same arbitrary length.
+	  <dt><tt>asinh(x)</tt>
+	  <dd>Returns the hyperbolic arc-sine of <tt>x</tt>.
 
-	<dt><tt>scale(x,fl,fu,tl,tu)</tt>
-	<dd>Returns <tt>((x-fl)/(fu-fl))*(tu-tl)</tt>.
+	  <dt><tt>acosh(x)</tt>
+	  <dd>Returns the hyperbolic arc-cosine of <tt>x</tt>.
 
-	<dt><tt>sum(t)</tt>
-	<dd>Returns the sum of all elements of the tuple <tt>t</tt>.
+	  <dt><tt>atanh(x)</tt>
+	  <dd>Returns the hyperbolic arc-tangent of <tt>x</tt>.
+	</dl>
+      </blockquote>
 
-	<dt><tt>inintv(a,x,y)</tt>
-	<dd>Returns <tt>1</tt> if <tt>x &lt;= a &lt;= y</tt>, <tt>0</tt> otherwise.
+      <h3>Various Mathematical Functions</h3>
 
-	<dt><tt>rand(x,y)</tt>
-	<dd>Returns a random number <tt>a</tt> with <tt>x &lt;= a &lt;= y</tt>. Successive
-	  random numbers are evenly distributed within the interval.
+      <blockquote>
+        <p>Functions work on and return tuples of length 1 unless noted
+          otherwise.
 
-	<dt><tt>noise(coord)</tt>
-	<dd>Returns the value of a solid noise function at coordinate <tt>coord</tt>.
-	  <tt>coord</tt> must have length 3. The returned value is in the interval
-	  -1 to 1.
+        <dl>
+	  <dt><tt>exp(x)</tt>
+	  <dd>Returns <tt>e^x</tt>.  Works on real and complex numbers.
 
-	<dt><tt>red(p)</tt>
-	<dd>Returns the red component of
-	  <tt>p</tt>, which is <tt>0 &lt;= red(p) &lt;= 1</tt>.
+	  <dt><tt>log(x)</tt>
+	  <dd>Returns the natural logarithm of <tt>x</tt>.  Works on real
+	    and complex numbers.
 
-	<dt><tt>green(p)</tt>
-	<dd>Returns the green component of <tt>p</tt>, which is
-	  <tt>0 &lt;= green(p) &lt;= 1</tt>.
+	  <dt><tt>gamma(x)</tt>
+          <dd>Returns the value of the gamma function for <tt>x</tt>.
 
-	<dt><tt>blue(p)</tt>
-	<dd>Returns the blue component of <tt>p</tt>, which is
-	  <tt>0 &lt;= blue(p) &lt;= 1</tt>.
+	  <dt><tt>pmod(x,y)</tt>
+	  <dd>Returns the modulo of <tt>x</tt> and <tt>y</tt> as a
+	    positive value, even if <tt>x</tt> is negative.
 
-	<dt><tt>alpha(p)</tt>
-	<dd>Returns the alpha component of <tt>p</tt>, which is
-	  <tt>0 &lt;= alpha(p) &lt;= 1</tt>.
+	  <dt><tt>sign(x)</tt>
+	  <dd>Returns <tt>-1</tt> if <tt>x &lt; 0</tt>, 0 if <tt>x = 0</tt>
+	    and <tt>1</tt> if <tt>x &gt; 0</tt>. Works on two tuples of the
+	    same length.
 
-	<dt><tt>gray(p)</tt>
-	<dd>Returns the luminance of <tt>p</tt>, which is
-	  <tt>0 &lt;= gray(p) &lt;= 1</tt>.
+	  <dt><tt>floor(x)</tt>
+	  <dd>Returns the largest integer which is less or equal to
+	    <tt>x</tt>.
 
-	<dt><tt>toRGBA(c)</tt>
-	<dd>Transforms the color <tt>c</tt> to RGBA. Returns an
-	  <tt>rgba:4</tt> tuple.
+	  <dt><tt>min(x,y)</tt>
+	  <dd>Returns x if <tt>x &lt; y</tt>, <tt>y</tt> otherwise. Works on
+	    two tuples of the same arbitrary length.
 
-	<dt><tt>toHSVA(c)</tt>
-	<dd>Transforms the color <tt>c</tt> to HSVA. Returns an
-	  <tt>hsva:4</tt> tuple.
+	  <dt><tt>max(x,y)</tt>
+	  <dd>Returns <tt>x</tt> if <tt>x &gt; y</tt>, <tt>y</tt> otherwise. Works on
+	    two tuples of the same arbitrary length.
 
-	<dt><tt>origVal(coord)</tt>
-	<dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
-	  <tt>coord</tt>. <tt>coord</tt> may be of type <tt>xy:2</tt>
-	  or <tt>ra:2</tt>.
+	  <dt><tt>clamp(x,l,u)</tt>
+	  <dd>Clamps each element of <tt>x</tt> to be between the corresponding
+	    elements of <tt>l</tt> and <tt>u</tt> and returns the result. All
+	    three tuples must have the same tag and the same arbitrary length.
 
-	<dt><tt>origVal(coord,image)</tt>
-	<dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
-	  <tt>coord</tt> in the image <tt>image</tt>. <tt>coord</tt> may
-	  be of type <tt>xy:2</tt> or <tt>ra:2</tt>. <tt>image</tt> must
-	  be of type <tt>image:1</tt> and must be a value returned by
-	  <tt>user_image</tt>.
+	  <dt><tt>lerp(t,a,b)</tt>
+          <dd>Returns <tt>a*(1-t)+b*t</tt>. <tt>t</tt> must have length 1. <tt>a</tt>
+	    and <tt>b</tt> must have the same tag and the same arbitrary length.
 
-	<dt><tt>origValXY(x,y)</tt>
-	<dd>Returns the pixel value of the pixel at the cartesian
-	  position (<tt>x</tt>,<tt>y</tt>). This function is provided
-	  for compatibility.
+	  <dt><tt>scale(x,fl,fu,tl,tu)</tt>
+	  <dd>Returns <tt>((x-fl)/(fu-fl))*(tu-tl)</tt>.
 
-	<dt><tt>origValRA(r,a)</tt>
-	<dd>Returns the pixel value of the pixel at the polar
-	  position (<tt>r</tt>,<tt>a</tt>). This function is provided
-	  for compatibility.
+	  <dt><tt>inintv(a,x,y)</tt>
+	  <dd>Returns <tt>1</tt> if <tt>x &lt;= a &lt;= y</tt>, <tt>0</tt> otherwise.
+	</dl>
+      </blockquote>
 
-	<dt><tt>rgbColor(r,g,b)</tt>
-	<dd>Returns the <tt>rgba</tt> value of a pixel with red component
-	  <tt>r</tt>, green component <tt>g</tt>, blue component
-	  <tt>b</tt> and alpha component <tt>1</tt>. This function
-	  is provided for compatibility.
+      <h3>Pseudo-Random Numbers</h3>
 
-	<dt><tt>rgbaColor(r,g,b,a)</tt>
-	<dd>Returns the <tt>rgba</tt> value of a pixel with red component
-	  <tt>r</tt>, green component <tt>g</tt>, blue component
-	  <tt>b</tt> and alpha component <tt>a</tt>. This function
-	  is provided for compatibility.
+      <blockquote>
+        <dl>
+	  <dt><tt>rand(x,y)</tt>
+	  <dd>Returns a random number <tt>a</tt> with <tt>x &lt;= a &lt;= y</tt>. Successive
+	    random numbers are evenly distributed within the interval.
 
-	<dt><tt>grayColor(g)</tt>
-	<dd>Returns the <tt>rgba</tt> value of a pixel with luminance
-	  <tt>g</tt> and alpha component <tt>1</tt>.
+	  <dt><tt>noise(coord)</tt>
+	  <dd>Returns the value of a solid noise function at coordinate <tt>coord</tt>.
+	    <tt>coord</tt> must have length 3. The returned value is in the interval
+	    -1 to 1.
+        </dl>
+      </blockquote>
 
-	<dt><tt>grayaColor(g,a)</tt>
-	<dd>Returns the <tt>rgba</tt> value of a pixel with luminance
-	  <tt>g</tt> and alpha component <tt>a</tt>.
+      <h3>Colors</h3>
 
-	<dt><tt>curve(x)</tt>
-	<dd>Returns the value of the user-defined curve at the value
-	  <tt>x</tt>. The curve is defined in the interval <tt>0</tt> to
-	  <tt>1</tt>. Its values are in the same interval. If <tt>x</tt> is
-	  outside the interval, it is clamped. This function is merely
-	  provided for compatibility reasons. It is semantically equivalent
-	  to <tt>user_curve("curve",x)</tt>.
+      <blockquote>
+        <p>Colors must have types <tt>rgba:4</tt> or <tt>hsva:4</tt>,
+	  depending on whether they are in the RGB or the HSV color
+	  space.
 
-	<dt><tt>gradient(x)</tt>
-	<dd>Returns the value of the user-defined gradient at the
-	  value <tt>x</tt>. The gradient is defined in the interval
-	  <tt>0</tt> to <tt>1</tt>. Values outside this interval
-	  are clamped.
-      </dl>
+	<dl>
+	  <dt><tt>red(p)</tt>
+	  <dd>Returns the red component of
+	    <tt>p</tt>, which is <tt>0 &lt;= red(p) &lt;= 1</tt>.
+
+	  <dt><tt>green(p)</tt>
+	  <dd>Returns the green component of <tt>p</tt>, which is
+	    <tt>0 &lt;= green(p) &lt;= 1</tt>.
+
+	  <dt><tt>blue(p)</tt>
+	  <dd>Returns the blue component of <tt>p</tt>, which is
+	    <tt>0 &lt;= blue(p) &lt;= 1</tt>.
+
+	  <dt><tt>alpha(p)</tt>
+	  <dd>Returns the alpha component of <tt>p</tt>, which is
+	    <tt>0 &lt;= alpha(p) &lt;= 1</tt>.
+
+	  <dt><tt>gray(p)</tt>
+	  <dd>Returns the luminance of <tt>p</tt>, which is
+	    <tt>0 &lt;= gray(p) &lt;= 1</tt>.
+
+	  <dt><tt>toRGBA(c)</tt>
+	  <dd>Transforms the color <tt>c</tt> to RGBA. Returns an
+	    <tt>rgba:4</tt> tuple.
+
+	  <dt><tt>toHSVA(c)</tt>
+	  <dd>Transforms the color <tt>c</tt> to HSVA. Returns an
+	    <tt>hsva:4</tt> tuple.
+
+	  <dt><tt>rgbColor(r,g,b)</tt>
+	  <dd>Returns the <tt>rgba</tt> value of a pixel with red component
+	    <tt>r</tt>, green component <tt>g</tt>, blue component
+	    <tt>b</tt> and alpha component <tt>1</tt>. This function
+	    is provided for compatibility.
+
+	  <dt><tt>rgbaColor(r,g,b,a)</tt>
+	  <dd>Returns the <tt>rgba</tt> value of a pixel with red component
+	    <tt>r</tt>, green component <tt>g</tt>, blue component
+	    <tt>b</tt> and alpha component <tt>a</tt>. This function
+	    is provided for compatibility.
+
+	  <dt><tt>grayColor(g)</tt>
+	  <dd>Returns the <tt>rgba</tt> value of a pixel with luminance
+	    <tt>g</tt> and alpha component <tt>1</tt>.
+
+	  <dt><tt>grayaColor(g,a)</tt>
+	  <dd>Returns the <tt>rgba</tt> value of a pixel with luminance
+	    <tt>g</tt> and alpha component <tt>a</tt>.
+        </dl>
+      </blockquote>
+
+      <h3>Input Images</h3>
+
+      <blockquote>
+        <dl>
+	  <dt><tt>origVal(coord)</tt>
+	  <dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
+	    <tt>coord</tt>. <tt>coord</tt> may be of type <tt>xy:2</tt>
+	    or <tt>ra:2</tt>.
+
+	  <dt><tt>origVal(coord,image)</tt>
+	  <dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
+	    <tt>coord</tt> in the image <tt>image</tt>. <tt>coord</tt> may
+	    be of type <tt>xy:2</tt> or <tt>ra:2</tt>. <tt>image</tt> must
+	    be of type <tt>image:1</tt> and must be a value returned by
+	    <tt>user_image</tt>.
+
+	  <dt><tt>origValXY(x,y)</tt>
+	  <dd>Returns the pixel value of the pixel at the cartesian
+	    position (<tt>x</tt>,<tt>y</tt>). This function is provided
+	    for compatibility.
+
+	  <dt><tt>origValRA(r,a)</tt>
+	  <dd>Returns the pixel value of the pixel at the polar
+	    position (<tt>r</tt>,<tt>a</tt>). This function is provided
+	    for compatibility.
+	</dl>
+      </blockquote>
     </blockquote>
 
     <h2>User Values</h2>
@@ -519,13 +559,19 @@
       <p>User values are values within the expression which are
         specified through the graphical interface. Each user value
         must have a name. User values sometimes take arguments, like
-        the <tt>user_slider</tt>, in this case to specify the range of
+        <tt>user_float</tt>, in this case to specify the range of
         allowed values.
 
       <dl>
+        <dt><tt>user_float(name,minimum,maximum)</tt>
         <dt><tt>user_slider(name,minimum,maximum)</tt>
 	<dd>Returns a tuple of type <tt>nil:1</tt> corresponding to
-	  the chosen value in a slider with range <tt>minimum</tt> to
+	  the chosen number in the range <tt>minimum</tt> to
+	  <tt>maximum</tt>.
+
+        <dt><tt>user_int(name,minimum,maximum)</tt>
+	<dd>Returns a tuple of type <tt>nil:1</tt> corresponding to
+	  the chosen integer in the range <tt>minimum</tt> to
 	  <tt>maximum</tt>.
 
 	<dt><tt>user_bool(name)</tt>
@@ -542,6 +588,13 @@
 	  defined in the interval <tt>0</tt> to <tt>1</tt>. Its values
 	  are in the same interval. If <tt>x</tt> is outside the
 	  interval, it is clamped.
+
+	<dt><tt>user_gradient(name,x)</tt>
+	<dd>Returns the value of a user-defined gradient at the
+	  value <tt>x</tt>.  The gradient is defined in the interval
+	  <tt>0</tt> to <tt>1</tt>.  Values outside this interval
+	  are clamped.  The returned tuple is a color of type
+	  <tt>rgba:4</tt>.
 
 	<dt><tt>user_image(name)</tt>
         <dd>Returns a tuple of type <tt>image:1</tt> containing the

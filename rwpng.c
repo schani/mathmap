@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -147,12 +147,12 @@ open_png_file_writing (char *filename, int width, int height)
     data->info_ptr->width = width;
     data->info_ptr->height = height;
     data->info_ptr->valid = 0;
-    data->info_ptr->rowbytes = width * 3;
+    data->info_ptr->rowbytes = width * 4;
     data->info_ptr->palette = 0;
     data->info_ptr->num_palette = 0;
     data->info_ptr->num_trans = 0;
     data->info_ptr->bit_depth = 8;
-    data->info_ptr->color_type = PNG_COLOR_TYPE_RGB;
+    data->info_ptr->color_type = PNG_COLOR_TYPE_RGB_ALPHA;
     data->info_ptr->compression_type = PNG_COMPRESSION_TYPE_BASE;
     data->info_ptr->filter_type = PNG_FILTER_TYPE_BASE;
     data->info_ptr->interlace_type = PNG_INTERLACE_NONE;
@@ -172,7 +172,7 @@ png_write_lines (void *_data, unsigned char *lines, int num_lines)
 	assert(0);
 
     for (i = 0; i < num_lines; ++i)
-	png_write_row(data->png_ptr, (png_bytep)(lines + i * 3 * data->info_ptr->width));
+	png_write_row(data->png_ptr, (png_bytep)(lines + i * 4 * data->info_ptr->width));
 }
 
 void

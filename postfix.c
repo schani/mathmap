@@ -192,10 +192,15 @@ stack_userval_bool_const (mathmap_invocation_t *invocation, postfix_arg *arg)
 void
 stack_userval_color (mathmap_invocation_t *invocation, postfix_arg *arg)
 {
-    /* FIXME: change for new uservals */
-    /*
-    invocation->stack[invocation->stackp++] = invocation->uservals[arg->userval->index].v.color.value;
-    */
+    color_t color = invocation->uservals[arg->userval->index].v.color.value;
+
+    invocation->stack[invocation->stackp].data[0] = RED(color) / 255.0;
+    invocation->stack[invocation->stackp].data[1] = GREEN(color) / 255.0;
+    invocation->stack[invocation->stackp].data[2] = BLUE(color) / 255.0;
+    invocation->stack[invocation->stackp].data[3] = ALPHA(color) / 255.0;
+    invocation->stack[invocation->stackp].length = 4;
+    invocation->stack[invocation->stackp].number = rgba_tag_number;
+    ++invocation->stackp;
 }
 
 void
@@ -215,21 +220,22 @@ stack_userval_curve (mathmap_invocation_t *invocation, postfix_arg *arg)
 void
 stack_userval_gradient (mathmap_invocation_t *invocation, postfix_arg *arg)
 {
-    /* FIXME: change for new uservals */
-    /*
     int index = invocation->stack[invocation->stackp - 1].data[0] * (USER_GRADIENT_POINTS - 1);
-    int i;
+    color_t color;
 
     if (index < 0)
 	index = 0;
     else if (index >= USER_GRADIENT_POINTS)
 	index = USER_GRADIENT_POINTS - 1;
 
-    for (i = 0; i < 4; ++i)
-	invocation->stack[invocation->stackp - 1].data[i] = invocation->uservals[arg->userval->index].v.gradient.values[index][i];
+    color = invocation->uservals[arg->userval->index].v.gradient.values[index];
+
+    invocation->stack[invocation->stackp - 1].data[0] = RED(color) / 255.0;
+    invocation->stack[invocation->stackp - 1].data[1] = GREEN(color) / 255.0;
+    invocation->stack[invocation->stackp - 1].data[2] = BLUE(color) / 255.0;
+    invocation->stack[invocation->stackp - 1].data[3] = ALPHA(color) / 255.0;
     invocation->stack[invocation->stackp - 1].length = 4;
     invocation->stack[invocation->stackp - 1].number = rgba_tag_number;
-    */
 }
 
 void

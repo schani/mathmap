@@ -56,10 +56,7 @@
 #include "jump.h"
 #include "mathmap.h"
 #include "noise.h"
-#ifdef USE_CGEN
 #include "cgen.h"
-#endif
-#include "mathmap_common.h"
 
 /***** Magic numbers *****/
 #define PREVIEW_SIZE 128
@@ -524,9 +521,7 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     init_tags();
     init_macros();
     init_noise();
-#ifdef USE_CGEN
     init_compiler();
-#endif
 
     /* See how we will run */
 
@@ -689,7 +684,7 @@ generate_code (int current_frame, float current_t)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	new_mathmap = compile_mathmap(mmvals.expression);
+	new_mathmap = compile_mathmap(mmvals.expression, "new_template.c");
 
 	if (new_mathmap == 0)
 	{
@@ -738,8 +733,6 @@ generate_code (int current_frame, float current_t)
 
 	invocation->edge_behaviour = edge_behaviour_mode;
 	memcpy(invocation->edge_color, edge_color, sizeof(edge_color));
-
-	init_invocation(invocation);
 
 	update_image_internals(invocation);
     }
@@ -822,10 +815,6 @@ do_mathmap (int frame_num, float current_t)
     GimpPixelRgn dest_rgn;
     gpointer pr;
     gint progress, max_progress;
-    guchar *dest_row;
-    guchar *dest;
-    gint row, col;
-    int i;
     gchar progress_info[30];
 
     assert(invocation != 0);
@@ -853,6 +842,7 @@ do_mathmap (int frame_num, float current_t)
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
+	    /*
 	    if (invocation->supersampling)
 	    {
 		unsigned char *line1,
@@ -912,7 +902,19 @@ do_mathmap (int frame_num, float current_t)
 		}
 	    }
 	    else
+	    */
 	    {
+		invocation->img_width = dest_rgn.w;
+		invocation->img_height = dest_rgn.h;
+		invocation->row_stride = dest_rgn.rowstride;
+		invocation->origin_x = dest_rgn.x - sel_x1;
+		invocation->origin_y = dest_rgn.y - sel_y1;
+		invocation->scale_x = invocation->scale_y = 1.0;
+		invocation->output_bpp = output_bpp;
+
+		call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
+
+		/*
 		dest_row = dest_rgn.data;
 
 		for (row = dest_rgn.y; row < (dest_rgn.y + dest_rgn.h); row++)
@@ -931,6 +933,7 @@ do_mathmap (int frame_num, float current_t)
 		
 		    dest_row += dest_rgn.rowstride;
 		}
+		*/
 	    }
 
 	    /* Update progress */
@@ -1579,28 +1582,31 @@ user_value_changed (void)
 static void
 dialog_update_preview (void)
 {
-    double left, right, bottom, top;
-    double dx, dy;
-    int x, y;
-    guchar *p_ul, *p_lr, *p;
-    gint check, check_0, check_1; 
-
-    previewing = fast_preview;
-
-    left = sel_x1;
-    right = sel_x2 - 1;
-    bottom = sel_y2 - 1;
-    top = sel_y1;
-
-    dx = (right - left) / (preview_width - 1);
-    dy = (bottom - top) / (preview_height - 1);
-
-    p_ul = wint.wimage;
-    p_lr = wint.wimage + 3 * (preview_width * preview_height - 1);
-
     if (generate_code(0, mmvals.param_t))
     {
+	int x, y;
+	guchar *p_ul, *p;
+	gint check, check_0, check_1; 
+	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
+
+	assert(buf != 0);
+
 	update_uservals(mathmap->userval_infos, invocation->uservals);
+
+	previewing = fast_preview;
+
+	invocation->img_width = preview_width;
+	invocation->img_height = preview_height;
+	invocation->row_stride = preview_width * 4;
+	invocation->origin_x = invocation->origin_y = 0;
+	invocation->scale_x = (float)sel_width / (float)preview_width;
+	invocation->scale_y = (float)sel_height / (float)preview_height;
+	invocation->output_bpp = 4;
+
+	call_invocation(invocation, 0, preview_height, buf);
+
+	p = buf;
+	p_ul = wint.wimage;
 
 	for (y = 0; y < preview_height; y++)
 	{
@@ -1611,41 +1617,44 @@ dialog_update_preview (void)
 		check_0 = CHECK_LIGHT;
 		check_1 = CHECK_DARK;
 	    }                        
+
 	    for (x = 0; x < preview_width; x++)
 	    {
-		tuple_t *result;
-		float redf, greenf, bluef, alphaf;
-
-		invocation->current_x = x * sel_width / preview_width - invocation->middle_x;
-		invocation->current_y = -(y * sel_height / preview_height - invocation->middle_y);
-
-		calc_ra(invocation);
-		update_pixel_internals(invocation);
-
-		result = call_invocation(invocation);
-		tuple_to_color(result, &redf, &greenf, &bluef, &alphaf);
-
-		if (input_drawables[0].bpp < 2)
-		    redf = greenf = bluef = 0.299 * redf + 0.587 * greenf + 0.114 * bluef;
-
-		p_ul[0] = redf * 255;
-		p_ul[1] = greenf * 255;
-		p_ul[2] = bluef * 255;
-
-		if (output_bpp == 2 || output_bpp == 4)
+		if (output_bpp == 2 || output_bpp == 4 )
 		{
 		    if (((x) / CHECK_SIZE) & 1)
 			check = check_0;
 		    else
 			check = check_1;
-		    p_ul[0] = check + (p_ul[0] - check) * alphaf;
-		    p_ul[1] = check + (p_ul[1] - check) * alphaf;
-		    p_ul[2] = check + (p_ul[2] - check) * alphaf;
+
+		    if (p[3] == 255)
+		    {
+			p_ul[0] = p[0];
+			p_ul[1] = p[1];
+			p_ul[2] = p[2];
+		    }
+		    else if (p[3] != 255)
+		    {
+			float alphaf = (float)p[3] / 255.0;
+
+			p_ul[0] = check + (p[0] - check) * alphaf;
+			p_ul[1] = check + (p[1] - check) * alphaf;
+			p_ul[2] = check + (p[2] - check) * alphaf;
+		    }
+		}
+		else
+		{
+		    p_ul[0] = p[0];
+		    p_ul[1] = p[1];
+		    p_ul[2] = p[2];
 		}
 
 		p_ul += 3;
+		p += 4;
 	    }
 	}
+
+	free(buf);
 
 	p = wint.wimage;
 

@@ -27,12 +27,13 @@
 #include "internals.h"
 
 internal_t*
-register_internal (internal_t **internals, const char *name)
+register_internal (internal_t **internals, const char *name, int const_type)
 {
     internal_t *internal = (internal_t*)malloc(sizeof(internal_t));
 
     strncpy(internal->name, name, MAX_INTERNAL_LENGTH);
     internal->name[MAX_INTERNAL_LENGTH] = '\0';
+    internal->const_type = const_type;
     internal->is_used = 0;
     internal->next = 0;
 

@@ -271,6 +271,8 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
 void
 instantiate_userval (userval_t *val, userval_info_t *info)
 {
+    val->type = info->type;
+
     switch (info->type)
     {
 	case USERVAL_CURVE :
@@ -335,7 +337,14 @@ free_uservals (userval_t *uservals, userval_info_t *infos)
 void
 free_userval_infos (userval_info_t *infos)
 {
-    /* FIXME */
+    while (infos != 0)
+    {
+	userval_info_t *next = infos->next;
+
+	free(infos);
+
+	infos = next;
+    }
 }
 
 void

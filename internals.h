@@ -29,17 +29,23 @@
 
 #define MAX_INTERNAL_LENGTH    63
 
+#define CONST_NONE              0
+#define CONST_ROW               1
+#define CONST_COL               2
+
 typedef struct _internal_t
 {
     char name[MAX_INTERNAL_LENGTH + 1];
     int index;
+
+    int const_type;
 
     unsigned int is_used;
 
     struct _internal_t *next;
 } internal_t;
 
-internal_t* register_internal (internal_t **internals, const char *name);
+internal_t* register_internal (internal_t **internals, const char *name, int const_type);
 internal_t* lookup_internal (internal_t *internals, const char *name);
 
 tuple_t* instantiate_internals (internal_t *internals);

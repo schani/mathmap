@@ -26,6 +26,10 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
+
 #ifdef GIMP
 #include <libgimp/gimp.h>
 #endif
@@ -51,9 +55,16 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, guchar *pixel, int dr
     int width, height;
 
 #ifndef OPENSTEP
-    width = invocation->img_width;
-    height = invocation->img_height;
+    width = invocation->image_W;
+    height = invocation->image_H;
 #else
+    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
+	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
+    {
+	pixel[0] = pixel[1] = pixel[2] = pixel[3] = 255;
+	return;
+    }
+
     width = invocation->uservals[drawable_index].v.image.width;
     height = invocation->uservals[drawable_index].v.image.height;
 #endif
@@ -97,23 +108,25 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, guchar *pixel, int dr
 void
 get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame)
 {
-    int middle_x, middle_y, origin_x, origin_y;
+    int middle_x, middle_y;
 
 #ifndef OPENSTEP
     middle_x = invocation->middle_x;
     middle_y = invocation->middle_y;
-    origin_x = invocation->origin_x;
-    origin_y = invocation->origin_y;
 #else
-    /* FIXME: assert that drawable_index is legal */
+    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
+	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
+    {
+	pixel[0] = pixel[1] = pixel[2] = pixel[3] = 255;
+	return;
+    }
 
     middle_x = invocation->uservals[drawable_index].v.image.middle_x;
     middle_y = invocation->uservals[drawable_index].v.image.middle_y;
-    origin_x = origin_y = 0;
 #endif
 
-    x += invocation->middle_x + invocation->origin_x;
-    y = -y + invocation->middle_y + invocation->origin_y;
+    x += middle_x;
+    y = -y + middle_y;
 
     if (!invocation->supersampling)
     {
@@ -149,8 +162,8 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
 	*pixel4 = pixel4a;
     int i;
 
-    x += invocation->middle_x + invocation->origin_x;
-    y = -y + invocation->middle_y + invocation->origin_y;
+    x += invocation->middle_x;
+    y = -y + invocation->middle_y;
 
     x1 = floor(x);
     x2 = x1 + 1;
@@ -177,78 +190,32 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
 	    + pixel4[i] * p4fact;
 }
 
-#define MAX_LINEAR_DIM       10
-#define MAT(r,c)             (a[exch[r] * dim + (c)])
-#define RHS(r)               (b[exch[r]])
-
 void
-solve_linear_equations (int dim, float *a, float *b)
+solve_linear_equations (int dim, float *_a, float *_b)
 {
-    float r[MAX_LINEAR_DIM];
-    int exch[MAX_LINEAR_DIM];
-    int i;
+    gsl_matrix *m;
+    gsl_vector *b, *r;
+    int i, j;
 
-    assert(dim <= MAX_LINEAR_DIM);
-
-    for (i = 0; i < dim; ++i)
-	exch[i] = i;
-
-    for (i = 0; i < dim - 1; ++i)
-    {
-	int p;
-
-	for (p = i; p < dim; ++p) /* find pivot element */
-	    if (MAT(p, i) != 0.0)
-		break;
-
-	if (p != dim)
-	{
-	    int j;
-
-	    if (p != i)
-	    {
-		int tmp;
-
-		tmp = exch[p];
-		exch[p] = exch[i];
-		exch[i] = tmp;
-	    }
-
-	    for (j = i + 1; j < dim; ++j)
-	    {
-		if (MAT(j, i) != 0.0)
-		{
-		    float f = MAT(i, i) / MAT(j, i);
-		    int k;
-
-		    MAT(j, i) = 0.0;
-		    for (k = i + 1; k < dim; ++k)
-			MAT(j, k) = MAT(j, k) * f - MAT(i, k);
-
-		    RHS(j) = RHS(j) * f - RHS(i);
-		}
-	    }
-	}
-    }
-
-    for (i = dim - 1; i >= 0; --i)
-    {
-	if (MAT(i, i) == 0.0)
-	    RHS(i) = 0.0;	/* this should be an error condition */
-	else
-	{
-	    int j;
-	    float v = 0.0;
-
-	    for (j = i + 1; j < dim; ++j)
-		v += MAT(i, j) * r[j];
-
-	    r[i] = (RHS(i) - v) / MAT(i, i);
-	}
-    }
+    m = gsl_matrix_alloc(dim, dim);
+    b = gsl_vector_alloc(dim);
+    r = gsl_vector_alloc(dim);
 
     for (i = 0; i < dim; ++i)
-	b[i] = r[i];
+	for (j = 0; j < dim; ++j)
+	    gsl_matrix_set(m, i, j, _a[i * dim + j]);
+
+    for (i = 0; i < dim; ++i)
+	gsl_vector_set(b, i, _b[i]);
+
+    gsl_linalg_HH_solve(m, b, r);
+
+    for (i = 0; i < dim; ++i)
+	_b[i] = gsl_vector_get(r, i);
+
+    gsl_vector_free(r);
+    gsl_vector_free(b);
+    gsl_matrix_free(m);
 }
 
 void

@@ -69,6 +69,8 @@ typedef struct _userval_info_t
 
 typedef struct _userval_t
 {
+    int type;
+
     union
     {
 	int int_const;
