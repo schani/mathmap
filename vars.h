@@ -36,6 +36,7 @@ typedef struct _variable_t
     int index;
 
     value_t *current[MAX_TUPLE_LENGTH];	/* only for the compiler */
+    int last_index[MAX_TUPLE_LENGTH]; /* ditto */
 
     struct _variable_t *next;
 } variable_t;

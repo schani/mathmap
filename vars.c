@@ -28,15 +28,32 @@
 #include "vars.h"
 
 variable_t*
-register_variable (variable_t **vars, const char *name, tuple_info_t type)
+alloc_variable (tuple_info_t type)
 {
     variable_t *var;
+    int i;
 
     var = (variable_t*)malloc(sizeof(variable_t));
-    assert(strlen(name) < VAR_MAX_LENGTH);
-    strcpy(var->name, name);
+
     var->type = type;
     var->next = 0;
+
+    for (i = 0; i < type.length; ++i)
+    {
+	var->current[i] = 0;
+	var->last_index[i] = 0;
+    }
+
+    return var;
+}
+
+variable_t*
+register_variable (variable_t **vars, const char *name, tuple_info_t type)
+{
+    variable_t *var = alloc_variable(type);
+
+    assert(strlen(name) < VAR_MAX_LENGTH);
+    strcpy(var->name, name);
 
     var->index = 0;
     while (*vars != 0)
@@ -69,16 +86,9 @@ new_temporary_variable (variable_t **vars, tuple_info_t type)
 {
     static int num = 0;
 
-    int i;
-
-    variable_t *var = (variable_t*)malloc(sizeof(variable_t));
+    variable_t *var = alloc_variable(type);
 
     sprintf(var->name, "tmp____%d", ++num);
-    var->type = type;
-    var->next = 0;
-
-    for (i = 0; i < type.length; ++i)
-	var->current[i] = 0;
 
     var->index = 0;
     while (*vars != 0)

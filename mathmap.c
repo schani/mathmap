@@ -123,7 +123,7 @@ static void expression_copy (gchar *dest, gchar *src);
 static void do_mathmap (int frame_num, float t);
 static gint32 mathmap_layer_copy (gint32 layerID);
 
-extern int mmparse (void);
+extern int yyparse (void);
 
 static void build_fast_image_source (input_drawable_t *drawable);
 

@@ -40,23 +40,23 @@ while                       return T_WHILE;
 do                          return T_DO;
 xor                         return T_XOR;
 [a-zA-Z_][a-zA-Z0-9_]*      {
-			        strncpy(mmlval.ident, mmtext, MAX_IDENT_LENGTH);
-				mmlval.ident[MAX_IDENT_LENGTH] = '\0';
+			        strncpy(yylval.ident, yytext, MAX_IDENT_LENGTH);
+				yylval.ident[MAX_IDENT_LENGTH] = '\0';
 				return T_IDENT;
 	                    }
 \"[^\"\n]*\"                {
 				int len;
 
-				if (mmleng - 2 < MAX_IDENT_LENGTH)
-				    len = mmleng - 2;
+				if (yyleng - 2 < MAX_IDENT_LENGTH)
+				    len = yyleng - 2;
 				else
 				    len = MAX_IDENT_LENGTH;
-				strncpy(mmlval.ident, mmtext + 1, len);
-				mmlval.ident[len] = '\0';
+				strncpy(yylval.ident, yytext + 1, len);
+				yylval.ident[len] = '\0';
 				return T_STRING;
 			    }
-[0-9]+                      { mmlval.exprtree = make_number(atof(mmtext)); return T_INT; }
-[0-9]*\.[0-9]+              { mmlval.exprtree = make_number(atof(mmtext)); return T_FLOAT; }
+[0-9]+                      { yylval.exprtree = make_number(atof(yytext)); return T_INT; }
+[0-9]*\.[0-9]+              { yylval.exprtree = make_number(atof(yytext)); return T_FLOAT; }
 "=="                        return T_EQUAL;
 "<="                        return T_LESSEQUAL;
 ">="                        return T_GREATEREQUAL;
@@ -65,7 +65,7 @@ xor                         return T_XOR;
 "&&"                        return T_AND;
 "::"                        return T_CONVERT;
 \.\.                        return T_RANGE;
-[-<>!,()+*/%=;^:\[\]]       return mmtext[0];
+[-<>!,()+*/%=;^:\[\]]       return yytext[0];
 #.*                         ;
 [ \t\n]                     ;
 
@@ -74,11 +74,11 @@ xor                         return T_XOR;
 void
 scanFromString (char *string)
 {
-    mm_scan_string(string);
+    yy_scan_string(string);
 }
 
 void
 endScanningFromString (void)
 {
-    mm_delete_buffer(YY_CURRENT_BUFFER);
+    yy_delete_buffer(YY_CURRENT_BUFFER);
 }

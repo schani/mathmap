@@ -1,6 +1,6 @@
 # if you do not want to use the c code generator, comment the
 # following line
-#CGEN = YES
+CGEN = YES
 
 # if you don't have GNU libc, uncomment the following line
 #ONLY_ANSI = YES
@@ -11,7 +11,7 @@ HAVE_COMPLEX = YES
 
 # if you want to build the command line version instead of the GIMP
 # plug-in, uncomment the following line
-#CMDLINE = YES
+CMDLINE = YES
 
 # if you build the command line version and want to have movie
 # (quicktime) support, uncomment the following line
@@ -91,13 +91,13 @@ compiler : $(COMMON_OBJECTS) compiler.o
 	msgfmt -o $@ $<
 
 parser.c parser.h : parser.y
-	bison -p mm -d parser.y
+	bison -d parser.y
 	mv parser.tab.c parser.c
 	mv parser.tab.h parser.h
 
 scanner.c : scanner.fl parser.h
-	flex -Pmm scanner.fl
-	mv lex.mm.c scanner.c
+	flex scanner.fl
+	mv lex.yy.c scanner.c
 
 builtins.o : builtins.c builtins.h
 

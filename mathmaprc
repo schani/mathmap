@@ -30,7 +30,7 @@
 	(expression "Alpha Spiral" "origVal(xy)*rgba:[1,1,1,0]+rgba:[0,0,0,sin((r-a*0.1)*10+t*360)*0.5+0.5]")
 	(expression "Darts" "p=origVal(xy);\np=if inintv((a-9)%36,0,18)\n    then\n        p\n    else\n        -p+1\n    end;\nif inintv(r%80,68,80)\nthen\n    p\nelse\n    -p+1\nend")
 	(expression "RGB Solid Noise" "g = user_slider(\"granularity\",0,50);\nnxy = xy/R*g;\nrz = user_slider(\"rz\",0,10);\ngz = user_slider(\"gz\",0,10);\nbz = user_slider(\"bz\",0,10);\nrgba:[noise([nxy[0],nxy[1],rz]),noise([nxy[0],nxy[1],gz]),noise([nxy[0],nxy[1],bz]),1]*0.5+0.5")
-	(expression "Sine Wave" "grayColor(sin(r*10+t*360)*0.5+0.5)")
+	(expression "Sine Wave" "grayColor(sin(r*10+t*360)*0.5+0.5)x")
 	(expression "Grid" "grayColor(if (x%20)*(y%20) then 1 else 0 end)")
 	(expression "Moire 1" "q=t*360;\nabs(rgba:[sin(15*r+q)+sin(15*a+q),sin(17*r+q)+sin(17*a+q),sin(19*r+q)+sin(19*a+q),2])*0.5")
 	(expression "Moire 2" "grayColor(sin(x*y+t*360)*0.5+0.5)")

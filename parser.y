@@ -29,8 +29,6 @@
 #include "exprtree.h"
 #include "builtins.h"
 #include "jump.h"
-
-exprtree *the_exprtree;
 %}
 
 %union {

@@ -38,7 +38,7 @@
 mathmap_t *the_mathmap = 0;
 
 /* from parser.y */
-int mmparse (void);
+int yyparse (void);
 
 void
 unload_mathmap (mathmap_t *mathmap)
@@ -96,7 +96,7 @@ check_mathmap (char *expression)
 
     DO_JUMP_CODE {
 	scanFromString(expression);
-	mmparse();
+	yyparse();
 	endScanningFromString();
 
 	the_mathmap = 0;
@@ -143,7 +143,7 @@ compile_mathmap (char *expression)
 
     DO_JUMP_CODE {
 	scanFromString(expression);
-	mmparse();
+	yyparse();
 	endScanningFromString();
 
 	the_mathmap = 0;

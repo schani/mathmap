@@ -226,10 +226,12 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
 	    val->v.color.value.number = rgba_tag_number;
 	    val->v.color.value.length = 4;
 
+#ifdef OPENSTEP
 	    val->v.color.button_value[0] =
 		val->v.color.button_value[1] =
 		val->v.color.button_value[2] = 0;
 	    val->v.color.button_value[3] = 255;
+#endif
 
 	    val->v.color.value.data[0] =
 		val->v.color.value.data[1] =
