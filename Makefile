@@ -1,10 +1,11 @@
 # uncomment the two following line if you are using the development version of gimp (1.1)
-#GIMP11 = YES
+GIMP11 = YES
 
 # if you are building on linux/alpha and have libffm, uncomment the following line
 LIBFFM = -lffm
 
-# if you want to use the c code generator, uncomment the following line (only gtk >= 1.1)
+# if you do not want to use the c code generator,
+# comment the following line (cgen only works with gimp >= 1.0.4)
 CGEN = YES
 
 # you should not need to change anything beyond this line
@@ -24,7 +25,7 @@ endif
 CFLAGS = -D_GIMP -D_GIMPDIR=\"$(GIMPDIR)\" $(CGEN_CFLAGS) -Wall -g -O3 `gtk-config --cflags` -IlibPropList
 CC = gcc
 
-OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o argparser.o argscanner.o overload.o jump.o cgen.o builtins_compiler.o
+OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o argparser.o argscanner.o overload.o jump.o cgen.o builtins_compiler.o colorwell.o noise.o
 
 mathmap : $(OBJECTS)
 	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LIBFFM) `gtk-config --libs` -lgimp -LlibPropList -lPropList

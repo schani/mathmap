@@ -11,6 +11,7 @@
 typedef char ident[MAX_IDENT_LENGTH + 1];
 
 struct _overload_entry_t;
+struct _userval_t;
 
 typedef struct _exprtree
 {
@@ -23,6 +24,11 @@ typedef struct _exprtree
 	tuple_t tuple_const;
 	variable_t *var;
 	internal_t *internal;
+	struct
+	{
+	    struct _userval_t *userval;
+	    struct _exprtree *args;
+	} userval;
 	struct
 	{
 	    int length;
@@ -104,6 +110,7 @@ typedef struct _exprtree
 #define EXPR_CAST           13
 #define EXPR_CONVERT        14
 #define EXPR_SUB_ASSIGNMENT 15
+#define EXPR_USERVAL        16
 
 exprtree* make_number (float num);
 exprtree* make_range (int first, int last);
@@ -113,6 +120,7 @@ exprtree* make_select (exprtree *tuple, exprtree *subscripts);
 exprtree* make_cast (const char *tagname, exprtree *tuple); /* should use tag number instead */
 exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */
 exprtree* make_function (const char *name, exprtree *args);
+exprtree* make_userval (const char *type, const char *name, exprtree *args);
 exprtree* make_sequence (exprtree *left, exprtree *right);
 exprtree* make_assignment (char *name, exprtree *value); /* should use variable_t instead */
 exprtree* make_sub_assignment (char *name, exprtree *subscripts, exprtree *value);
@@ -121,6 +129,7 @@ exprtree* make_if_then_else (exprtree *condition, exprtree *consequent, exprtree
 exprtree* make_while (exprtree *invariant, exprtree *body);
 exprtree* make_do_while (exprtree *body, exprtree *invariant);
 
+int exprlist_length (exprtree *list);
 exprtree* exprlist_append (exprtree *list1, exprtree *list2);
 
 double eval_exprtree (exprtree *tree);

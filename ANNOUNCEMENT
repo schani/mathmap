@@ -1,5 +1,5 @@
-MathMap 0.9
------------
+MathMap 0.10
+------------
 
 MathMap is a GIMP plug-in which allows distortion of images specified
 by mathematical formulae. For each pixel in the generated image, an
@@ -13,6 +13,21 @@ The MathMap homepage can be found at
     http://www.unix.cslab.tuwien.ac.at/~schani/mathmap/
 
 It includes a user's manual as well as screenshots and examples.
+
+Changes since 0.9:
+
+  * Expressions can now contain values which the user can specify
+    through the GUI (numbers, colors, booleans, curves). This is
+    a mega-feature!
+  * Pixels outside the image can now also be reflected back into
+    the image (thanks to Eric Kidd <eric.kidd@pobox.com>).
+  * More matrix/vector algebra (including gaussian elimination).
+  * The positive Y-axis direction is now upwards which is clearly
+    The Right Thing.
+  * Some minor C code generator changes which should not affect the
+    user but easy writing of built-ins.
+  * New/improved functions: print.
+  * Some bug fixes.
 
 Changes since 0.8:
 

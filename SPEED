@@ -14,3 +14,17 @@ mandelbrot         28             17            4               7
 sphere             22             14            5               4.4
 radial mosaic      19             16            9               2.11
 mugl               125            53            18              6.94
+
+
+
+
+
+
+
+
+                          pre-array      kurden-array      cool-array
+wave                      4              4
+radial mosaic bertl       11             11
+mandelbrot                4              4                 3
+life (w/o oversampling)   10             11
+mugl                      18             n/a               18

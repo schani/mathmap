@@ -21,6 +21,17 @@ do                          return T_DO;
 				mmlval.ident[MAX_IDENT_LENGTH] = '\0';
 				return T_IDENT;
 	                    }
+\"[^\"\n]*\"                {
+				int len;
+
+				if (mmleng - 2 < MAX_IDENT_LENGTH)
+				    len = mmleng - 2;
+				else
+				    len = MAX_IDENT_LENGTH;
+				strncpy(mmlval.ident, mmtext + 1, len);
+				mmlval.ident[len] = '\0';
+				return T_STRING;
+			    }
 [0-9]+                      { mmlval.exprtree = make_number(atof(mmtext)); return T_INT; }
 [0-9]*\.[0-9]+              { mmlval.exprtree = make_number(atof(mmtext)); return T_FLOAT; }
 "=="                        return T_EQUAL;

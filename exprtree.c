@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "exprtree.h"
+#include "userval.h"
 #include "builtins.h"
 #include "tags.h"
 #include "internals.h"
@@ -234,15 +235,43 @@ make_function (const char *name, exprtree *args)
     {
 	if (entry->type == OVERLOAD_BUILTIN)
 	{
+	    int is_constant = 1;
+
+	    for (arg = args; arg != 0; arg = arg->next)
+		if (arg->type != EXPR_TUPLE_CONST)
+		{
+		    is_constant = 0;
+		    break;
+		}
+
 	    tree = alloc_exprtree();
 
 	    tree->type = EXPR_FUNC;
 	    tree->val.func.entry = entry;
 	    tree->val.func.args = args;
 	    tree->result = info;
+
+	    if (is_constant && !entry->v.builtin.sidefx)
+	    {
+		tuple_t *result;
+		int i;
+
+		make_postfix(tree);
+		printf("foldings constants:\n");
+		output_postfix();
+		result = eval_postfix();
+
+		tree->type = EXPR_TUPLE_CONST;
+		for (i = 0; i < tree->result.length; ++i)
+		    tree->val.tuple_const.data[i] = result->data[i];
+		tree->val.tuple_const.number = tree->result.number;
+		tree->val.tuple_const.length = tree->result.length;
+	    }
 	}
-	else
+	else if (entry->type == OVERLOAD_MACRO)
 	    tree = entry->v.macro(args);
+	else
+	    assert(0);
     }
     else
     {
@@ -259,6 +288,117 @@ make_function (const char *name, exprtree *args)
 	first = next;
     }
     */
+
+    return tree;
+}
+
+exprtree*
+make_userval (const char *type, const char *name, exprtree *args)
+{
+    userval_t *userval;
+    exprtree *tree = alloc_exprtree();
+
+    if (strcmp(type, "user_slider") == 0)
+    {
+	float min, max;
+
+	if (exprlist_length(args) != 2)
+	{
+	    sprintf(error_string, "user_slider takes 2 arguments.");
+	    JUMP(0);
+	}
+	if (args->type != EXPR_TUPLE_CONST || args->val.tuple_const.length != 1
+	    || args->next->type != EXPR_TUPLE_CONST || args->next->val.tuple_const.length != 1)
+	{
+	    sprintf(error_string, "user_slider min and max must be constants with length 1.");
+	    JUMP(0);
+	}
+
+	min = args->val.tuple_const.data[0];
+	max = args->next->val.tuple_const.data[0];
+
+	userval = register_slider(name, min, max);
+
+	if (userval == 0)
+	{
+	    sprintf(error_string, "user_slider %s has a mismatch.", name);
+	    JUMP(0);
+	}
+
+	tree->result.number = nil_tag_number;
+	tree->result.length = 1;
+    }
+    else if (strcmp(type, "user_bool") == 0)
+    {
+	if (exprlist_length(args) != 0)
+	{
+	    sprintf(error_string, "user_bool takes no arguments.");
+	    JUMP(0);
+	}
+
+	userval = register_bool(name);
+
+	if (userval == 0)
+	{
+	    sprintf(error_string, "user_bool %s has a mismatch.", name);
+	    JUMP(0);
+	}
+
+	tree->result.number = nil_tag_number;
+	tree->result.length = 1;
+    }
+    else if (strcmp(type, "user_color") == 0)
+    {
+	if (exprlist_length(args) != 0)
+	{
+	    sprintf(error_string, "user_bool takes no arguments.");
+	    JUMP(0);
+	}
+
+	userval = register_color(name);
+
+	if (userval == 0)
+	{
+	    sprintf(error_string, "user_bool %s has a mismatch.", name);
+	    JUMP(0);
+	}
+
+	tree->result.number = rgba_tag_number;
+	tree->result.length = 4;
+    }
+    else if (strcmp(type, "user_curve") == 0)
+    {
+	if (exprlist_length(args) != 1)
+	{
+	    sprintf(error_string, "user_curve takes 1 argument.");
+	    JUMP(0);
+	}
+	if (args->result.length != 1)
+	{
+	    sprintf(error_string, "user_curve argument must have length 1.");
+	    JUMP(0);
+	}
+
+	userval = register_curve(name);
+
+	if (userval == 0)
+	{
+	    sprintf(error_string, "user_curve %s has mismatch.", name);
+	    JUMP(0);
+	}
+
+	tree->result.number = nil_tag_number;
+	tree->result.length = 1;
+    }
+    else
+    {
+	sprintf(error_string, "Unknown userval function %s.", type);
+	JUMP(0);
+    }
+
+    tree->type = EXPR_USERVAL;
+    tree->val.userval.userval = userval;
+    tree->val.userval.args = args;
 
     return tree;
 }
@@ -398,6 +538,21 @@ make_do_while (exprtree *body, exprtree *invariant)
     tree->result = make_tuple_info(nil_tag_number, 1);
 
     return tree;
+}
+
+int
+exprlist_length (exprtree *list)
+{
+    int l;
+
+    l = 0;
+    while (list != 0)
+    {
+	++l;
+	list = list->next;
+    }
+
+    return l;
 }
 
 exprtree*

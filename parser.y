@@ -16,7 +16,7 @@ extern exprtree *theExprtree;
     exprtree *exprtree;
 }
 
-%token T_IDENT T_INT T_FLOAT T_RANGE
+%token T_IDENT T_STRING T_INT T_FLOAT T_RANGE
 %token T_IF T_THEN T_ELSE T_END
 %token T_WHILE T_DO
 
@@ -83,6 +83,10 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | '(' expr ')'        { $<exprtree>$ = $<exprtree>2; };
        | T_IDENT '(' arglist ')'
                              { $<exprtree>$ = make_function($<ident>1, $<exprtree>3); }
+       | T_IDENT '(' T_STRING ')'
+                             { $<exprtree>$ = make_userval($<ident>1, $<ident>3, 0); }
+       | T_IDENT '(' T_STRING ',' exprlist ')'
+                             { $<exprtree>$ = make_userval($<ident>1, $<ident>3, $<exprtree>5); }
        | T_IDENT '=' expr    { $<exprtree>$ = make_assignment($<ident>1, $<exprtree>3); }
        | T_IDENT '[' subscripts ']' '=' expr
                              { $<exprtree>$ = make_sub_assignment($<ident>1, make_tuple($<exprtree>3), $<exprtree>6); }

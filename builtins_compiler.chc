@@ -1,7 +1,7 @@
 %<newtmpnum=%locals(i,%<i=0>,%lambda(%<i=%[i+1]>%i))>\
 %<curnumargs=0>\
 \
-%defspecial(builtin,name,funcname,args,code,
+%defspecial(builtin,name,funcname,args,sidefx,code,
     %<curnumargs=%llength(%ssplit(%',',%eval(%args)))>\
     void gen_%eval(%funcname) %'(FILE *out, int *invarnums, int *invarlengths, int outvarnum)'
     {
@@ -43,7 +43,7 @@
 \
 %define(result,index,
     %'");'
-    fprintf%'(out,' "tmpvar_%%d_%%d"%',' outvarnum%',' %index%');'
+    fprintf%'(out,' "tmpvar_%%d[%%d]"%',' outvarnum%',' %index%');'
     %'fprintf(out, "'
 )\
 \
@@ -53,7 +53,7 @@
 \
 %define(arg,argnum,index,
     %'");'
-    fprintf%'(out,' "tmpvar_%%d_%%d"%',' invarnums[%argnum]%',' %index%');'
+    fprintf%'(out,' "tmpvar_%%d[%%d]"%',' invarnums[%argnum]%',' %index%');'
     %'fprintf(out, "'
 )\
 \
@@ -63,6 +63,11 @@
     %'fprintf(out, "'
 )\
 \
+%<dq=\">\
+%<prc=%'%%'>\
+\
 %'#include <stdio.h>'
+
+%'#include "noise.h"'
 
 #include builtins.chc

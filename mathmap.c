@@ -48,10 +48,13 @@
 #include "tags.h"
 #include "scanner.h"
 #include "vars.h"
+#include "userval.h"
 #include "internals.h"
 #include "macros.h"
 #include "jump.h"
 #include "mathmap.h"
+#include "colorwell.h"
+#include "noise.h"
 #ifdef USE_CGEN
 #include "cgen.h"
 #endif
@@ -89,8 +92,6 @@
 
 #define MAX_EXPRESSION_LENGTH   8192
 
-#define USER_CURVE_POINTS       1024
-
 #define NUM_GRADIENT_SAMPLES    1024
 
 /***** Types *****/
@@ -100,8 +101,6 @@ typedef struct {
     gint frames;
     gfloat param_t;
     gchar expression[MAX_EXPRESSION_LENGTH];
-    gint num_curve_points;
-    gint16 curve_points[USER_CURVE_POINTS];
 } mathmap_vals_t;
 
 typedef struct {
@@ -133,9 +132,10 @@ extern int mmparse (void);
 static void build_fast_image_source (void);
 static void build_preview_source_image(void);
 
+static void update_userval_table (void);
+
 static void update_gradient (void);
 static gint mathmap_dialog(void);
-static void dialog_update_preview(void);
 static void dialog_scale_update(GtkAdjustment *adjustment, gint *value);
 static void dialog_t_update(GtkAdjustment *adjustment, gfloat *value);
 static void dialog_text_changed (void);
@@ -145,8 +145,8 @@ static void dialog_oversampling_update (GtkWidget *widget, gpointer data);
 static void dialog_auto_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_fast_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_edge_behaviour_update (GtkWidget *widget, gpointer data);
-static void dialog_edge_color_clicked (GtkWidget *widget, gpointer data);
-static void dialog_edge_color_show (void);
+static void dialog_edge_color_changed (ColorWell *color_well, gpointer data);
+static void dialog_edge_color_set (void);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 static void dialog_close_callback(GtkWidget *widget, gpointer data);
@@ -170,8 +170,7 @@ static mathmap_vals_t mmvals = {
 	FLAG_INTERSAMPLING,      /* flags */
 	DEFAULT_NUMBER_FRAMES,   /* frames */
 	0.0,                     /* t */
-	DEFAULT_EXPRESSION,      /* expression */
-	USER_CURVE_POINTS        /* number of curve points */
+	DEFAULT_EXPRESSION       /* expression */
 }; /* mmvals */
 
 static mathmap_interface_t wint = {
@@ -205,9 +204,9 @@ char error_string[1024];
 GtkWidget *expression_entry = 0,
     *frame_table,
     *t_table,
-    *user_curve,
-    *edge_color_preview,
-    *edge_color_preview_button;
+    *edge_color_well,
+    *uservalues_scrolled_window,
+    *uservalues_table;
 GtkColorSelectionDialog *color_selection_dialog;
 
 exprtree *theExprtree = 0;
@@ -244,10 +243,8 @@ int edge_behaviour_color = 1,
     edge_behaviour_reflect = 3;
 int edge_behaviour_mode = 1;
 unsigned char edge_color[4] = { 0, 0, 0, 0 };
-double user_curve_values[USER_CURVE_POINTS];
 int num_gradient_samples = NUM_GRADIENT_SAMPLES;
 tuple_t gradient_samples[NUM_GRADIENT_SAMPLES];
-int user_curve_points = USER_CURVE_POINTS;
 
 /***** Functions *****/
 
@@ -278,9 +275,7 @@ query(void)
 	{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
 	{ PARAM_INT32,      "frames",           "Number of frames" },
 	{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" },
-	{ PARAM_STRING,     "expression",       "MathMap expression" },
-	{ PARAM_INT32,      "num_curve_points", "Number of curve points" },
-	{ PARAM_INT16ARRAY, "curve_points",     "Curve Points (range 0-1023)" }
+	{ PARAM_STRING,     "expression",       "MathMap expression" }
     }; /* args */
 
     static GParamDef *return_vals  = NULL;
@@ -319,7 +314,6 @@ run(char    *name,
     GStatusType   status;
     double        xhsiz, yhsiz;
     int           pwidth, pheight;
-    int i;
 
     status   = STATUS_SUCCESS;
     run_mode = param[0].data.d_int32;
@@ -389,6 +383,7 @@ run(char    *name,
     init_tags();
     init_internals();
     init_macros();
+    init_noise();
 
     /* See how we will run */
 
@@ -399,9 +394,6 @@ run(char    *name,
 	    /*
 	    fprintf(stderr, "mathmap starting with pid %d\n", getpid());
 	    */
-
-	    for (i = 0; i < USER_CURVE_POINTS; ++i)
-		mmvals.curve_points[i] = i;
 
 	    gimp_get_data("plug_in_mathmap", &mmvals);
 
@@ -492,15 +484,7 @@ run(char    *name,
 	/* Store data */
 
 	if (run_mode == RUN_INTERACTIVE)
-	{
-	    int i;
-
-	    mmvals.num_curve_points = user_curve_points;
-	    for (i = 0; i < user_curve_points; ++i)
-		mmvals.curve_points[i] = user_curve_values[i] * 1023;
-
 	    gimp_set_data("plug_in_mathmap", &mmvals, sizeof(mathmap_vals_t));
-	}
     } else if (status == STATUS_SUCCESS)
 	status = STATUS_EXECUTION_ERROR;
 
@@ -569,19 +553,6 @@ update_gradient (void)
 
 /*****/
 
-static void
-update_curve (void)
-{
-    gfloat vector[USER_CURVE_POINTS];
-    int i;
-
-    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(user_curve)->curve), USER_CURVE_POINTS, vector);
-    for (i = 0; i < USER_CURVE_POINTS; ++i)
-	user_curve_values[i] = vector[i];
-}
-
-/*****/
-
 static int
 generate_code (void)
 {
@@ -596,6 +567,8 @@ generate_code (void)
 
 	theExprtree = 0;
 	usesRA = 0;
+
+	untag_uservals();
 
 	DO_JUMP_CODE {
 	    clear_all_variables();
@@ -625,6 +598,10 @@ generate_code (void)
 
 	    result = 0;
 	} END_JUMP_HANDLER;
+
+	clear_untagged_uservals();
+	untag_uservals();
+	update_userval_table();
     }
 
     update_image_internals();
@@ -735,7 +712,7 @@ mathmap (int frame_num)
 		for (col = 0; col <= dest_rgn.w; ++col)
 		{
 		    currentX = col + dest_rgn.x - sel_x1 - middleX;
-		    currentY = 0.0 + dest_rgn.y - sel_y1 - middleY;
+		    currentY = -(0.0 + dest_rgn.y - sel_y1 - middleY);
 		    calc_ra();
 		    update_pixel_internals();
 		    write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
@@ -748,7 +725,7 @@ mathmap (int frame_num)
 		    for (col = 0; col < dest_rgn.w; ++col)
 		    {
 			currentX = col + dest_rgn.x - sel_x1 + 0.5 - middleX;
-			currentY = row + dest_rgn.y - sel_y1 + 0.5 - middleY;
+			currentY = -(row + dest_rgn.y - sel_y1 + 0.5 - middleY);
 			calc_ra();
 			update_pixel_internals();
 			write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
@@ -756,7 +733,7 @@ mathmap (int frame_num)
 		    for (col = 0; col <= dest_rgn.w; ++col)
 		    {
 			currentX = col + dest_rgn.x - sel_x1 - middleX;
-			currentY = row + dest_rgn.y - sel_y1 + 1.0 - middleY;
+			currentY = -(row + dest_rgn.y - sel_y1 + 1.0 - middleY);
 			calc_ra();
 			update_pixel_internals();
 			write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
@@ -788,7 +765,8 @@ mathmap (int frame_num)
 
 		    for (col = dest_rgn.x; col < (dest_rgn.x + dest_rgn.w); col++)
 		    {
-			currentX = col - sel_x1 - middleX; currentY = row - sel_y1 - middleY;
+			currentX = col - sel_x1 - middleX;
+			currentY = -(row - sel_y1 - middleY);
 			calc_ra();
 			update_pixel_internals();
 			write_tuple_to_pixel(EVAL_EXPR(), dest);
@@ -1050,6 +1028,29 @@ read_tree_from_rc (void)
     return tree;
 }
 
+/*****/
+
+static void
+update_userval_table (void)
+{
+    if (uservalues_table != 0)
+    {
+	gtk_container_remove(GTK_CONTAINER(GTK_BIN(uservalues_scrolled_window)->child), uservalues_table);
+	uservalues_table = 0;
+    }
+
+    uservalues_table = make_userval_table();
+
+    if (uservalues_table != 0)
+    {
+#if GTK_MAJOR_VERSION < 1 || (GTK_MAJOR_VERSION == 1 && GTK_MINOR_VERSION < 1)
+	gtk_container_add(GTK_CONTAINER(uservalues_scrolled_window), uservalues_table);
+#else
+	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(uservalues_scrolled_window), uservalues_table);
+#endif
+    }
+}
+
 
 /*****/
 
@@ -1071,12 +1072,10 @@ mathmap_dialog(void)
     GtkWidget *notebook;
     GtkObject *adjustment;
     GSList *edge_group = 0;
-    int i;
     gint        argc,
 	position = 0;
     gchar     **argv;
     guchar     *color_cube;
-    gfloat vector[USER_CURVE_POINTS];
 
     argc    = 1;
     argv    = g_new(gchar *, 1);
@@ -1234,6 +1233,14 @@ mathmap_dialog(void)
 				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_color);
 		gtk_widget_show(toggle);
 
+		edge_color_well = color_well_new();
+		gtk_signal_connect(GTK_OBJECT(edge_color_well), "color-changed",
+				   (GtkSignalFunc)dialog_edge_color_changed, 0);
+		dialog_edge_color_set();
+		gtk_widget_show(edge_color_well);
+		gtk_table_attach(GTK_TABLE(table), edge_color_well, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
+
+		/*
 		edge_color_preview_button = gtk_button_new();
 		edge_color_preview = gtk_preview_new(GTK_PREVIEW_COLOR);
 		gtk_preview_size(GTK_PREVIEW(edge_color_preview), 32, 16);
@@ -1244,6 +1251,7 @@ mathmap_dialog(void)
 				   (GtkSignalFunc)dialog_edge_color_clicked, 0);
 		gtk_widget_show(edge_color_preview_button);
 		dialog_edge_color_show();
+		*/
 
 	        /* Wrap */
 
@@ -1375,22 +1383,18 @@ mathmap_dialog(void)
 	gtk_box_pack_start(GTK_BOX(table), vscrollbar, FALSE, FALSE, 0);
 	gtk_widget_show (vscrollbar);
 
-	/* User Curve */
+	/* User Values */
 
-	user_curve = gtk_gamma_curve_new();
-	gtk_widget_show(user_curve);
+	uservalues_scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(uservalues_scrolled_window),
+					GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	gtk_widget_show(uservalues_scrolled_window);
 
-	label = gtk_label_new("Curve");
+	uservalues_table = 0;
+
+	label = gtk_label_new("User Values");
 	gtk_widget_show(label);
-	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), user_curve, label, label);
-
-	gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(user_curve)->curve),
-			    0, USER_CURVE_POINTS - 1, 0, USER_CURVE_POINTS - 1);
-	for (i = 0; i < USER_CURVE_POINTS; ++i)
-	    vector[i] = mmvals.curve_points[i];
-	gtk_curve_set_vector(GTK_CURVE(GTK_GAMMA_CURVE(user_curve)->curve),
-			     USER_CURVE_POINTS, vector);
-	gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(user_curve)->curve), 0, 1, 0, 1);
+	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), uservalues_scrolled_window, label, label);
 
 	/* Examples */
 
@@ -1462,7 +1466,7 @@ mathmap_dialog(void)
 		       (GtkSignalFunc) dialog_about_callback,
 		       dialog);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
-   gtk_widget_show(button);
+    gtk_widget_show(button);
 
     /* Done */
 
@@ -1486,7 +1490,7 @@ mathmap_dialog(void)
 
 /*****/
 
-static void
+void
 dialog_update_preview(void)
 {
     double  left, right, bottom, top;
@@ -1496,7 +1500,7 @@ dialog_update_preview(void)
     guchar *p_ul, *p_lr, *p;
     gint check,check_0,check_1; 
 
-    update_curve();
+    update_uservals();
 
     previewing = fast_preview;
 
@@ -1561,7 +1565,7 @@ dialog_update_preview(void)
 		alphaf;
 
 	    currentX = x * imageWidth / preview_width - middleX;
-	    currentY = y * imageHeight / preview_height - middleY;
+	    currentY = -(y * imageHeight / preview_height - middleY);
 	    calc_ra();
 	    update_pixel_internals();
 	    result = EVAL_EXPR();
@@ -1687,11 +1691,11 @@ dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
     edge_behaviour_mode = *(int*)data;
     if (edge_behaviour_mode == edge_behaviour_color)
     {
-	gtk_widget_set_sensitive(edge_color_preview_button, 1);
+	gtk_widget_set_sensitive(edge_color_well, 1);
     }
     else
     {
-	gtk_widget_set_sensitive(edge_color_preview_button, 0);
+	gtk_widget_set_sensitive(edge_color_well, 0);
     }
 
     if (auto_preview)
@@ -1699,73 +1703,28 @@ dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
 }
 
 static void
-dialog_edge_color_show (void)
+dialog_edge_color_set (void)
 {
-    guchar buf[32 * 3];
+    gdouble color[4];
     int i;
 
-    for (i = 0; i < 32; ++i)
-    {
-	buf[3 * i + 0] = edge_color[0];
-	buf[3 * i + 1] = edge_color[1];
-	buf[3 * i + 2] = edge_color[2];
-    }
+    for (i = 0; i < 4; ++i)
+	color[i] = edge_color[i] / 255.0;
 
-    for (i = 0; i < 16; ++i)
-	gtk_preview_draw_row(GTK_PREVIEW(edge_color_preview), buf, 0, i, 32);
-    gtk_widget_draw(edge_color_preview, 0);
+    color_well_set_color(COLOR_WELL(edge_color_well), color);
 }
 
 static void
-color_select_cancel_callback (GtkWidget *widget, gpointer data)
+dialog_edge_color_changed (ColorWell *color_well, gpointer data)
 {
-    gtk_widget_destroy(GTK_WIDGET(color_selection_dialog));
-    color_selection_dialog = 0;
-}
-
-static void
-color_select_ok_callback (GtkWidget *widget, gpointer data)
-{
-    double color[4];
+    gdouble color[4];
     int i;
 
-    gtk_color_selection_get_color(GTK_COLOR_SELECTION(color_selection_dialog->colorsel), color);
+    color_well_get_color(color_well, color);
     for (i = 0; i < 4; ++i)
 	edge_color[i] = color[i] * 255.0;
-
-    gtk_widget_destroy(GTK_WIDGET(color_selection_dialog));
-    color_selection_dialog = 0;
-    dialog_edge_color_show();
-
     if (auto_preview)
 	dialog_update_preview();
-}
-
-static void
-dialog_edge_color_clicked (GtkWidget *widget, gpointer data)
-{
-    GtkWidget *dialog;
-    double color[4];
-    int i;
-
-    dialog = gtk_color_selection_dialog_new("Edge Color");
-    color_selection_dialog = GTK_COLOR_SELECTION_DIALOG(dialog);
-    gtk_color_selection_set_opacity(GTK_COLOR_SELECTION(color_selection_dialog->colorsel), 1);
-
-    gtk_widget_destroy(color_selection_dialog->help_button);
-    gtk_signal_connect(GTK_OBJECT(dialog), "destroy",
-		       (GtkSignalFunc)color_select_cancel_callback, 0);
-    gtk_signal_connect(GTK_OBJECT(color_selection_dialog->ok_button), "clicked",
-		       (GtkSignalFunc)color_select_ok_callback, 0);
-    gtk_signal_connect(GTK_OBJECT(color_selection_dialog->cancel_button), "clicked",
-		       (GtkSignalFunc)color_select_cancel_callback, 0);
-
-    for (i = 0; i < 4; ++i)
-	color[i] = (double)edge_color[i] / 255.0;
-    gtk_color_selection_set_color(GTK_COLOR_SELECTION(color_selection_dialog->colorsel), color);
-
-    gtk_window_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
-    gtk_widget_show(dialog);
 }
 
 /*****/
@@ -1823,7 +1782,6 @@ dialog_ok_callback (GtkWidget *widget, gpointer data)
 {
     if (generate_code())
     {
-	update_curve();
 	wint.run = TRUE;
 	gtk_widget_destroy(GTK_WIDGET(data));
     }

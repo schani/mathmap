@@ -188,6 +188,12 @@ macro_func_toRA (exprtree *arg)
     return arg;
 }
 
+exprtree*
+macro_func_curve (exprtree *arg)
+{
+    return make_userval("user_curve", "curve", arg);
+}
+
 void
 init_macros (void)
 {
@@ -224,4 +230,6 @@ init_macros (void)
 
     register_overloaded_macro("toXY", "xy:2=xy:2", macro_func_toXY);
     register_overloaded_macro("toRA", "ra:2=ra:2", macro_func_toRA);
+
+    register_overloaded_macro("curve", "nil:1=_:1", macro_func_curve);
 }

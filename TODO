@@ -1,6 +1,8 @@
+crash bei leerer expression->preview
 normalisierung von matrizen (matrix/determinante)
 inverse matrix
 pixel konvertieren schneller machen
+abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
 
 
 
@@ -16,10 +18,142 @@ origValXY(x+xshift, y+yshift)
 
 
 
+# curve bend
 origVal(xy/xy:[1,(curve((x+X)/W)-0.5)*4])
 
 
 
 
-
+# curve displace
 origVal(xy+xy:[0,(curve((x+X)/W)-0.5)*2*t*H])
+
+
+
+
+p = origVal(xy);
+if gray(p) > user_slider("cutoff",0,1) then
+    p
+else
+    user_color("color")
+end
+
+
+
+
+
+
+
+
+dist=if x == 0 then Y else if y == 0 then X else abs(ri:[min(abs(tan(a)*X),Y),min(abs(1/tan(a)*Y),X)]) end end;
+weight=1-curve(r/dist);
+#origVal(xy)*weight
+origVal(xy+xy:[X,Y])*(1-weight)
+#grayColor(weight)
+
+
+
+
+
+
+
+
+
+# make seamless
+ax=abs(x)/X;ay=abs(y)/Y;
+x1=max(0,ax-ay);
+y1=max(0,ay-ax);
+x2=min(1,ax+(1-ay));
+y2=min(1,ay+(1-ax));
+weight=1-(ax-x1)/(x2-x1);
+origVal(xy)*weight+origVal(xy+xy:[X,Y])*weight
+
+
+
+# make vertically seamless
+# Thanks to Martin Weber
+origValXY(x,y-sign(y)*Y)*abs(y)/Y+origVal(xy)*(1-(abs(y)/Y))
+
+# make horizontally seamless
+# Thanks to Martin Weber
+origValXY(x-sign(x)*X,y)*abs(x)/X+origVal(xy)*(1-(abs(x)/X))
+
+
+
+
+
+
+
+g = user_slider("granularity",0,50);
+nxy = xy/R*g;
+n = noise3([nxy[0],nxy[1],t*g]);
+grayColor(n)*0.5+0.5
+
+
+
+
+
+
+
+
+g = user_slider("granularity",0,50);
+nxy = xy/R*g;
+point = [nxy[0],nxy[1],t*g];
+offset = (point + 0.5) / user_slider("offset granularity",0,50);
+n1y = user_slider("n1y",0,10);
+n1z = user_slider("n1z",0,10);
+offset = [noise1(offset[0]),noise1(offset[1]),noise1(offset[2])] * user_slider("distortion",0,10);
+#grayColor(offset[0]*0.5+0.5)
+n = noise3(point+offset);
+grayColor(n)*0.5+0.5
+
+
+
+
+
+
+g = user_slider("granularity",0,50);
+nxy = xy/R*g;
+rz = user_slider("rz",0,10);
+gz = user_slider("gz",0,10);
+bz = user_slider("bz",0,10);
+rgba:[noise3([nxy[0,1],rz]),noise3([nxy[0,1],gz]),noise3([nxy[0,1],bz]),1]*0.5+0.5
+
+
+
+
+
+
+defun map ((nil:1)->nil:1 f, _:_ x)
+    construct(x.tag:x.length, lambda (nil:1 i) f(x[i]) end)
+end
+
+defun map ((nil:1, nil:1)->nil:1 f, T:L x, T:L y)
+    construct(x.tag:x.length, lambda (nil:1 i) f(x[i],y[i]) end)
+end
+
+defun __add (ri:2 a, ri:2 b)
+    ri:[a[0]+b[0],a[1]+b[1]]
+end
+
+defun __add (T:L a, _:1 b)
+    map(lambda (nil:1 x) x+b end, a)
+end
+
+defun __add (T:L a, T:L b)
+    map(lambda (nil:1 x, nil:1 y)
+            x+y
+        end, a, b)
+end
+
+defun __mul (ri:2 a, ri:2 b)
+    ri:[a[0]*b[0] - a[1]*b[1], a[0]*b[1] + b[0]*a[1]]
+end
+
+defun __div (ri:2 a, ri:2 b)
+    if b == ri:[0,0] then
+        ri:[0,0]
+    else
+        q = b[0] * b[0] + b[1] * b[1];
+        ri:[(a[0]*b[0] + a[1]*b[1]) / q, (-a[0]*b[1] + b[0]*a[1]) / q]
+    end
+end

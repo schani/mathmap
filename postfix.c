@@ -11,6 +11,7 @@
 #include "overload.h"
 #include "mathmap.h"
 #include "jump.h"
+#include "userval.h"
 
 #include "postfix.h"
 
@@ -147,6 +148,44 @@ stack_sub_assign (postfix_arg *arg)
 }
 
 void
+stack_userval_slider (postfix_arg *arg)
+{
+    stack[stackp].data[0] = arg->userval->v.slider.value;
+    stack[stackp].length = 1;
+    stack[stackp].number = nil_tag_number;
+    ++stackp;
+}
+
+void
+stack_userval_bool (postfix_arg *arg)
+{
+    stack[stackp].data[0] = arg->userval->v.bool.value;
+    stack[stackp].length = 1;
+    stack[stackp].number = nil_tag_number;
+    ++stackp;
+}
+
+void
+stack_userval_color (postfix_arg *arg)
+{
+    stack[stackp++] = arg->userval->v.color.value;
+}
+
+void
+stack_userval_curve (postfix_arg *arg)
+{
+    int index = stack[stackp - 1].data[0] * (USER_CURVE_POINTS - 1);
+
+    if (index < 0)
+	index = 0;
+    else if (index >= USER_CURVE_POINTS)
+	index = USER_CURVE_POINTS - 1;
+
+    stack[stackp - 1].data[0] = arg->userval->v.curve.values[index];
+    stack[stackp - 1].number = nil_tag_number;
+}
+
+void
 make_postfix_recursive (exprtree *tree)
 {
     switch (tree->type)
@@ -212,6 +251,24 @@ make_postfix_recursive (exprtree *tree)
 	    assert(tree->val.var->value.length != 0);
 	    expression[exprp].func = stack_push_user_var;
 	    expression[exprp].arg.user_var = tree->val.var;
+	    ++exprp;
+	    break;
+
+	case EXPR_USERVAL :
+	    if (tree->val.userval.userval->type == USERVAL_SLIDER)
+		expression[exprp].func = stack_userval_slider;
+	    else if (tree->val.userval.userval->type == USERVAL_BOOL)
+		expression[exprp].func = stack_userval_bool;
+	    else if (tree->val.userval.userval->type == USERVAL_COLOR)
+		expression[exprp].func = stack_userval_color;
+	    else if (tree->val.userval.userval->type == USERVAL_CURVE)
+	    {
+		make_postfix_recursive(tree->val.userval.args);
+		expression[exprp].func = stack_userval_curve;
+	    }
+	    else
+		assert(0);
+	    expression[exprp].arg.userval = tree->val.userval.userval;
 	    ++exprp;
 	    break;
 

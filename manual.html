@@ -1,0 +1,469 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>The MathMap GIMP Plug-In User's Manual</title>
+  </head>
+
+  <body>
+    <center><h1>The MathMap GIMP Plug-In User's Manual</h1></center>
+
+    <h2>The Type System</h2>
+
+    <blockquote>
+      <p>Every value in MathMap is a tagged tuple. This means it
+	consists of one or more numbers (currently stupidly limited to
+	9) and a symbolic tag. Colors, for example are represented by
+	tuples of length 4 with the tag <tt>rgba</tt> (for red, green,
+	blue, alpha). The value <tt>rgba:[1,0,0,1]</tt> for example,
+	represents the fully opaque color red.
+
+      <p>Single numbers are represented by tuples of length 1 with
+	the tag <tt>nil</tt> (which is the default tag). For sake of
+	simplicity, single numbers need not be written in tuple
+	syntax, i.e. <tt>3.1415</tt> is equivalent to
+	<tt>nil:[3.1415]</tt>.
+
+      <p>There are several other tuple tags which are used by
+	MathMap:
+
+      <table>
+	<tr><td><b>Symbol</b><td><b>Purpose</b></tr>
+	<tr><td><tt>nil</tt>  <td>Default tag</tr>
+	<tr><td><tt>rgba</tt> <td>Color</tr>
+	<tr><td><tt>ri</tt>   <td>Complex number</tr>
+	<tr><td><tt>xy</tt>   <td>Cartesian coordinate</tr>
+	<tr><td><tt>ra</tt>   <td>Polar coordinate</tr>
+	<tr><td><tt>m2x2</tt> <td>2x2 matrix</tr>
+	<tr><td><tt>m3x3</tt> <td>3x3 matrix</tr>
+      </table>
+
+      <p>In order for the tag system to make sense, operators and
+	functions are overloaded based on the types of their
+	arguments. In order for this to work at compile time, types
+	must be statically determined. This means that any expression
+	must have only one possible type, e.g. the expression <tt>if x
+	  then abc:[1,2,3] else xyz:[4,5] end</tt> is not valid.
+
+      <p>Tuple types are expressed in this manual in the form
+	<tt>T:L</tt> where <tt>T</tt> is the tag and <tt>L</tt> is the
+	length, e.g. <tt>rgba:[1,0,0,1]</tt> has the type
+	<tt>rbga:4</tt>.
+
+      <p>Elements of tuples can be extracted by the indexing
+	operator <tt>[]</tt>. The expression <tt>p[0]</tt>, for
+	example, extracts the first element of <tt>p</tt> and is of
+	type <tt>nil:1</tt>.
+
+    </blockquote>
+
+    <h2>Variables</h2>
+
+    <blockquote>
+      In order for the expression to refer to a pixel in the
+      original image, a few variables are set:
+
+      <dl>
+	<dt><tt>xy</tt> (<tt>xy:2</tt>)
+	<dd>The cartesian coordinate of the pixel.
+
+	<dt><tt>x</tt> (<tt>nil:1</tt>)
+	<dd>The first component of the cartesian coordinate of the pixel.
+
+	<dt><tt>y</tt> (<tt>nil:1</tt>)
+	<dd>The second component of the cartesian coordinate of the pixel.
+
+	<dt><tt>ra</tt> (<tt>ra:2</tt>)
+	<dd>The polar coordinate of the pixel.
+
+	<dt><tt>r</tt> (<tt>nil:1</tt>)
+	<dd>The first component of the polar coordinate of the pixel
+	  (<tt>0 &lt;= r &lt; 360</tt>).
+
+	<dt><tt>a</tt> (<tt>nil:1</tt>)
+	<dd>The second component of the polar coordinate of the pixel
+	  (the distance from the center).
+      </dl>
+
+      To make it easier to write expressions which depend on the
+      image size, a few additional variables are set:
+
+      <dl>
+	<dt><tt>wh</tt> (<tt>xy:2</tt>)
+	<dd>The size of the image.
+
+	<dt><tt>w</tt> (<tt>nil:1</tt>)
+	<dd>The width of the image.
+
+	<dt><tt>h</tt> (<tt>nil:1</tt>)
+	<dd>The height of the image.
+
+	<dt><tt>R</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>r</tt> for the image.
+
+	<dt><tt>XY</tt> (<tt>xy:2</tt>)
+	<dd>The biggest possible value (in both components) for
+	  <tt>xy</tt>.
+
+	<dt><tt>X</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>x</tt> for the image.
+
+	<dt><tt>Y</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>y</tt> for the image.
+      </dl>
+
+      For the purpose of animations an additional variable is set:
+
+      <dl>
+	<dt><tt>t</tt> (<tt>nil:1</tt>)
+	<dd>The time which is <tt>0 &lt;= t &lt; 1</tt>.
+	  If animation is disabled, the value of <tt>t</tt> can be chosen
+	  in the Settings tab. If you want to make animations loop, make sure that the
+	  images at <tt>t == 0</tt> and <tt>t == 1</tt> are the same.
+      </dl>
+
+    </blockquote>
+
+    <h2>Simple Examples</h2>
+
+    <blockquote>
+      <p>Using the function <tt>origVal</tt> it is possible to retrieve
+	values of the original image. To map the image to itself, the
+	following expressions can be used:
+
+      <ul>
+	<li><tt>origVal(xy)</tt>
+	<li><tt>origVal(ra)</tt>
+      </ul>
+
+      <p>A very simple transformation would be the translation of
+	the image which can be accomplished by:
+
+      <ul>
+	<li><tt>origVal(xy+xy:[0,10])</tt>
+      </ul>
+
+      <p>which moves the image 10 pixels to the left. If the same
+	thing is done with polar coordinates, the image is rotated by
+	10 degrees:
+
+      <ul>
+	<li><tt>origVal(ra+ra:[0,10])</tt>
+      </ul>
+
+      <p>These examples would, of course, not make a lot of sense,
+	but they should give you a feeling for how it works. The
+	plug-in contains a few <a href="stills.html">examples</a>, so
+	you can get an idea of what is possible with MathMap.
+
+    </blockquote>
+
+    <h2>Operators</h2>
+
+    <blockquote>
+      <p>MathMap operators are overloaded based on the types of
+	their arguments. Arithmetic operators work as expected on real
+	and on complex numbers. On tuples with the same length and tag
+	they perform their operation element-wise. If their second
+	argument is a tuple of length 1, they perform element-wise on
+	the left operand always using the same right operand.
+
+      <p>Relational and logical operators currently only work on
+	tuples with length 1.
+
+      <blockquote>
+	<dl>
+	  <dt><tt>+</tt>
+	  <dd>Addition
+
+	  <dt><tt>-</tt>
+	  <dd>Subtraction
+
+	  <dt><tt>*</tt>
+	  <dd>Multiplication
+
+	  <dt><tt>/</tt>
+	  <dd>Division
+
+	  <dt><tt>%</tt>
+	  <dd>Modulo. This also works with real numbers.
+
+	  <dt><tt>^</tt>
+	  <dd>Exponentation. Does not perform on two tuples of length
+	    greater 1.
+
+	  <dt><tt>-</tt> (unary)
+	  <dd>Arithmetic negation
+
+	  <dt><tt>==</tt>
+	  <dd>Gives <tt>1</tt> if the operands are equal,
+	    otherwise <tt>0</tt>.
+
+	  <dt><tt>!=</tt>
+	  <dd>Gives <tt>1</tt> if the operands are not equal, otherwise
+	    <tt>0</tt>.
+
+	  <dt><tt>&lt;=</tt>
+	  <dd>Gives <tt>1</tt> if the first operand is less or equal
+	    than the second, <tt>0</tt> otherwise.
+
+	  <dt><tt>&gt;=</tt>
+	  <dd>Gives <tt>1</tt> if the first operand is greater or equal
+	    than the second, <tt>0</tt> otherwise.
+
+	  <dt><tt>&lt;</tt>
+	  <dd>Gives <tt>1</tt> if the first operand is less
+	    than the second, <tt>0</tt> otherwise.
+
+	  <dt><tt>&gt;</tt>
+	  <dd>Gives <tt>1</tt> if the first operand is greater
+	    than the second, <tt>0</tt> otherwise.
+
+	  <dt><tt>||</tt>
+	  <dd>Returns <tt>1</tt> if at least one of the operands is not
+	    <tt>0</tt>, otherwise <tt>0</tt>.
+
+	  <dt><tt>&amp;&amp;</tt>
+	  <dd>Returns <tt>1</tt> if both of the operands is not <tt>0</tt>,
+	    otherwise <tt>0</tt>.
+
+	  <dt><tt>!</tt> (unary)
+	  <dd>Returns <tt>1</tt> if the operand is <tt>0</tt>, <tt>0</tt>
+	    otherwise.
+
+	  <dt><tt>;</tt>
+	  <dd>Evaluates both operands and gives the value of the second.
+	</dl>
+      </blockquote>
+    </blockquote>
+
+    <h2>Conditionals and Loops</h2>
+
+    <blockquote>
+      <p>Conditions are always expected to be tuples of length 1.
+
+      <blockquote>
+	<dl>
+	  <dt><tt>if <b>condition</b> then <b>consequence</b> end</tt>
+	  <dd>Returns the value of <tt><b>consequence</b></tt> if the value of
+	    <tt><b>condition</b></tt> is not <tt>0</tt>, <tt>0</tt> otherwise.
+	</dl>
+
+	<dl>
+	  <dt><tt>if <b>condition</b> then <b>consequence</b> else <b>alternative</b> end</tt>
+	  <dd>Returns the value of <tt><b>consequence</b></tt> if the value of
+	    <tt><b>condition</b></tt> is not <tt>0</tt>, otherwise the value of
+	    <tt><b>alternative</b></tt>.
+	</dl>
+
+	<dl>
+	  <dt><tt>while <b>invariant</b> do <b>body</b> end</tt>
+	  <dd>While <tt><b>invariant</b></tt> is not <tt>0</tt>, executes
+	    <tt><b>body</b></tt>, then returns <tt>0</tt>.
+	</dl>
+
+	<dl>
+	  <dt><tt>do <b>body</b> while <b>invariant</b> end</tt>
+	  <dd>Executes <tt><b>body</b></tt> until <tt><b>invariant</b></tt> is not equal
+	    <tt>0</tt>, then returns <tt>0</tt>.
+	</dl>
+      </blockquote>
+    </blockquote>
+
+    <h2>Built-in Functions</h2>
+
+    <blockquote>
+      <p>Trigonometric functions work with degrees. Functions work
+	on and return tuples of length 1 if not noted otherwise.
+
+      <dl>
+	<dt><tt>pmod(x,y)</tt>
+	<dd>Returns the modulo of <tt>x</tt> and <tt>y</tt> as a
+	  positive value, even if <tt>x</tt> is negative.
+
+	<dt><tt>dotp(x,y)</tt>
+	<dd>Returns the scalar (inner) product of <tt>x</tt> and
+	  <tt>y</tt>
+
+	<dt><tt>crossp(x,y)</tt>
+	<dd>Returns the cross (outer) product of <tt>x</tt> and
+	  <tt>y</tt>, which must both have the length 3.
+
+	<dt><tt>det(m)</tt>
+	<dd>Returns the determinant of matrix <tt>m</tt> which must
+	  be of type <tt>m2x2:4</tt> or <tt>m3x3:9</tt>.
+
+	<dt><tt>normalize(v)</tt>
+	<dd>Returns a vector with the same direction as <tt>v</tt>
+	  but with length 1. For example, <tt>normalize([2,0,0])</tt>
+	  yields <tt>[1,0,0]</tt>.
+
+	<dt><tt>sin(x)</tt>
+	<dd>Returns the sine of <tt>x</tt>.
+
+	<dt><tt>cos(x)</tt>
+	<dd>Returns the cosine of <tt>x</tt>.
+
+	<dt><tt>tan(x)</tt>
+	<dd>Returns the tangens of <tt>x</tt>.
+
+	<dt><tt>asin(x)</tt>
+	<dd>Returns the arc-sine of <tt>x</tt>.
+
+	<dt><tt>acos(x)</tt>
+	<dd>Returns the arc-cosine of <tt>x</tt>.
+
+	<dt><tt>atan(x)</tt>
+	<dd>Returns the arc-tangent of <tt>x</tt>.
+
+	<dt><tt>atan(x,y)</tt>
+	<dd>Returns the arc tangent of <tt>x</tt> and <tt>y</tt>
+	  which is the same as <tt>atan(y/x)</tt>, except that
+	  the signs of <tt>x</tt> and <tt>y</tt> are used to
+	  determine the quadrant of the result.
+
+	<dt><tt>abs(x)</tt>
+	<dd>Returns the absolute value of <tt>x</tt>.
+
+	<dt><tt>sign(x)</tt>
+	<dd>Returns <tt>-1</tt> if <tt>x &lt; 0</tt>, 0 if <tt>x = 0</tt>
+	  and <tt>1</tt> if <tt>x &gt; 0</tt>. Works on two tuples of the
+	  same arbitrary length.
+
+	<dt><tt>floor(x)</tt>
+	<dd>Returns the largest integer which is less or equal to
+	  <tt>x</tt>.
+
+	<dt><tt>min(x,y)</tt>
+	<dd>Returns x if <tt>x &lt; y</tt>, <tt>y</tt> otherwise. Works on
+	  two tuples of the same arbitrary length.
+
+	<dt><tt>max(x,y)</tt>
+	<dd>Returns x if <tt>x &gt; y</tt>, <tt>y</tt> otherwise. Works on
+	  two tuples of the same arbitrary length.
+
+	<dt><tt>sum(t)</tt>
+	<dd>Returns the sum of all elements of the tuple <tt>t</tt>.
+
+	<dt><tt>inintv(a,x,y)</tt>
+	<dd>Returns <tt>1</tt> if <tt>x &lt;= a &lt;= y</tt>, <tt>0</tt> otherwise.
+
+	<dt><tt>rand(x,y)</tt>
+	<dd>Returns a random number <tt>a</tt> with <tt>x &lt;= a &lt;= y</tt>. Successive
+	  random numbers are evenly distributed within the interval.
+
+	<dt><tt>red(p)</tt>
+	<dd>Returns the red component of
+	  <tt>p</tt>, which is <tt>0 &lt;= red(p) &lt;= 1</tt>.
+
+	<dt><tt>green(p)</tt>
+	<dd>Returns the green component of <tt>p</tt>, which is
+	  <tt>0 &lt;= green(p) &lt;= 1</tt>.
+
+	<dt><tt>blue(p)</tt>
+	<dd>Returns the blue component of <tt>p</tt>, which is
+	  <tt>0 &lt;= blue(p) &lt;= 1</tt>.
+
+	<dt><tt>alpha(p)</tt>
+	<dd>Returns the alpha component of <tt>p</tt>, which is
+	  <tt>0 &lt;= alpha(p) &lt;= 1</tt>.
+
+	<dt><tt>gray(p)</tt>
+	<dd>Returns the luminance of <tt>p</tt>, which is
+	  <tt>0 &lt;= gray(p) &lt;= 1</tt>.
+
+	<dt><tt>origVal(coord)</tt>
+	<dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
+	  <tt>coord</tt>. <tt>coord</tt> may be of type <tt>xy:2</tt>
+	  or <tt>ra:2</tt>.
+
+	<dt><tt>origValXY(x,y)</tt>
+	<dd>Returns the pixel value of the pixel at the cartesian
+	  position (<tt>x</tt>,<tt>y</tt>). This function is provided
+	  for compatibility.
+
+	<dt><tt>origValRA(r,a)</tt>
+	<dd>Returns the pixel value of the pixel at the polar
+	  position (<tt>r</tt>,<tt>a</tt>). This function is provided
+	  for compatibility.
+
+	<dt><tt>rgbColor(r,g,b)</tt>
+	<dd>Returns the <tt>rgba</tt> value of a pixel with red component
+	  <tt>r</tt>, green component <tt>g</tt>, blue component
+	  <tt>b</tt> and alpha component <tt>1</tt>. This function
+	  is provided for compatibility.
+
+	<dt><tt>rgbaColor(r,g,b,a)</tt>
+	<dd>Returns the <tt>rgba</tt> value of a pixel with red component
+	  <tt>r</tt>, green component <tt>g</tt>, blue component
+	  <tt>b</tt> and alpha component <tt>a</tt>. This function
+	  is provided for compatibility.
+
+	<dt><tt>grayColor(g)</tt>
+	<dd>Returns the <tt>rgba</tt> value of a pixel with luminance
+	  <tt>g</tt> and alpha component <tt>1</tt>.
+
+	<dt><tt>grayaColor(g,a)</tt>
+	<dd>Returns the <tt>rgba</tt> value of a pixel with luminance
+	  <tt>g</tt> and alpha component <tt>a</tt>.
+
+	<dt><tt>curve(x)</tt>
+	<dd>Returns the value of the user-defined curve at the value
+	  <tt>x</tt>. The curve is defined in the interval <tt>0</tt> to
+	  <tt>1</tt>. Its values are in the same interval. If <tt>x</tt> is
+	  outside the interval, it is clamped. This function is merely
+	  provided for compatibility reasons. It is semantically equivalent
+	  to <tt>user_curve("curve",x)</tt>.
+
+	<dt><tt>gradient(x)</tt>
+	<dd>Returns the value of the user-defined gradient at the
+	  value <tt>x</tt>. The gradient is defined in the interval
+	  <tt>0</tt> to <tt>1</tt>. Values outside this interval
+	  are clamped.
+      </dl>
+    </blockquote>
+
+    <h2>User Values</h2>
+
+    <blockquote>
+      <p>User values are values within the expression which are
+        specified through the graphical interface. Each user value
+        must have a name. User values sometimes take arguments, like
+        the <tt>user_slider</tt>, in this case to specify the range of
+        allowed values.
+
+      <dl>
+        <dt><tt>user_slider(name,minimum,maximum)</tt>
+	<dd>Returns a tuple of type <tt>nil:1</tt> corresponding to
+	  the chosen value in a slider with range <tt>minimum</tt> to
+	  <tt>maximum</tt>.
+
+	<dt><tt>user_bool(name)</tt>
+	<dd>Returns the tuple <tt>nil:[1]</tt> or <tt>nil:[0]</tt>
+	  depending on whether the user has activated a push button.
+
+	<dt><tt>user_color(name)</tt>
+	<dd>Returns a tuple of type <tt>rgba:4</tt> corresponding to
+	  the color the user has chosen in a color well.
+
+	<dt><tt>user_curve(name,x)</tt>
+	<dd>Returns a tuple of type <tt>nil:1</tt> corresponding to
+	  the value of a curve at position <tt>x</tt>. The curve is
+	  defined in the interval <tt>0</tt> to <tt>1</tt>. Its values
+	  are in the same interval. If <tt>x</tt> is outside the
+	  interval, it is clamped.
+      </dl>
+    </blockquote>
+
+    <h2>The Examples File</h2>
+
+    <blockquote>
+      MathMap looks for a file called <tt>mathmaprc</tt> in the
+      directories <tt>~/.gimp/</tt> and
+      <tt>/usr/local/share/gimp/</tt>. This file should contain
+      MathMap expressions which are then available for selection in
+      the 'Examples' tag. One such file is included in the distribution.
+      The format of the file is very
+      straightforward, so I won't document it here.
+    </blockquote>
+  </body>
+</html>

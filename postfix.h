@@ -5,12 +5,15 @@
 #include "vars.h"
 #include "internals.h"
 
+struct _userval_t;
+
 typedef union
 {
     int integer;
     tuple_t tuple;
     internal_t *internal;
     variable_t *user_var;
+    struct _userval_t *userval;
 } postfix_arg;
 
 typedef void (*stackfunc) (postfix_arg*);

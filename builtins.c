@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include <libgimp/gimp.h>
 
@@ -83,7 +84,7 @@ void
 getOrigValPixel (float x, float y, unsigned char *pixel)
 {
     x += originX + middleX;
-    y += originY + middleY;
+    y = -y + originY + middleY;
 
     if (!oversamplingEnabled)
     {
@@ -120,7 +121,7 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel)
     int i;
 
     x += middleX + originX;
-    y += middleY + originY;
+    y = -y + middleY + originY;
 
     x1 = floor(x);
     x2 = x1 + 1;
@@ -145,6 +146,116 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel)
 	    + pixel2[i] * p2fact
 	    + pixel3[i] * p3fact
 	    + pixel4[i] * p4fact;
+}
+
+#define MAX_LINEAR_DIM       10
+#define MAT(r,c)             (a[exch[r] * dim + (c)])
+#define RHS(r)               (b[exch[r]])
+
+void
+solve_linear_equations (int dim, float *a, float *b)
+{
+    float r[MAX_LINEAR_DIM];
+    int exch[MAX_LINEAR_DIM];
+    int i;
+
+    assert(dim <= MAX_LINEAR_DIM);
+
+    for (i = 0; i < dim; ++i)
+	exch[i] = i;
+
+    for (i = 0; i < dim - 1; ++i)
+    {
+	int p;
+
+	for (p = i; p < dim; ++p) /* find pivot element */
+	    if (MAT(p, i) != 0.0)
+		break;
+
+	if (p != dim)
+	{
+	    int j;
+
+	    if (p != i)
+	    {
+		int tmp;
+
+		tmp = exch[p];
+		exch[p] = exch[i];
+		exch[i] = tmp;
+	    }
+
+	    for (j = i + 1; j < dim; ++j)
+	    {
+		if (MAT(j, i) != 0.0)
+		{
+		    float f = MAT(i, i) / MAT(j, i);
+		    int k;
+
+		    MAT(j, i) = 0.0;
+		    for (k = i + 1; k < dim; ++k)
+			MAT(j, k) = MAT(j, k) * f - MAT(i, k);
+
+		    RHS(j) = RHS(j) * f - RHS(i);
+		}
+	    }
+	}
+    }
+
+    for (i = dim - 1; i >= 0; --i)
+    {
+	if (MAT(i, i) == 0.0)
+	    RHS(i) = 0.0;	/* this should be an error condition */
+	else
+	{
+	    int j;
+	    float v = 0.0;
+
+	    for (j = i + 1; j < dim; ++j)
+		v += MAT(i, j) * r[j];
+
+	    r[i] = (RHS(i) - v) / MAT(i, i);
+	}
+    }
+
+    for (i = 0; i < dim; ++i)
+	b[i] = r[i];
+
+    /*
+    if (dim == 2)
+    {
+	float r[2];
+
+	if (a[2] != 0)
+	{
+	    r[1] = (b[0] - a[0] * b[1] / a[2]) / (a[1] - a[3] * a[0] / a[2]);
+	    r[0] = (b[1] - a[3] * r[1]) / a[2];
+	}
+	else if (a[0] != 0)
+	{
+	    r[1] = (b[1] - a[2] * b[0] / a[0]) / (a[3] - a[1] * a[2] / a[0]);
+	    r[0] = (b[0] - a[1] * r[1]) / a[0];
+	}
+	else
+	    r[0] = r[1] = 0;
+
+	b[0] = r[0];
+	b[1] = r[1];
+    }
+    else
+	assert(0);
+    */
+
+    /*
+    integer n = dim;
+    integer nrhs = 1;
+    integer lda = dim;
+    integer ldb = dim;
+    integer info;
+    integer ipiv[dim];
+
+    sgesv_(&n, &nrhs, a, &lda, ipiv, b, &ldb, &info);
+    */
 }
 
 #include "builtins_interpreter.c"

@@ -48,6 +48,7 @@ typedef struct _overload_entry_t
     {
 	struct
 	{
+	    int sidefx;
 	    builtin_function_t builtin;
 	    generator_function_t generator;
 	} builtin;
@@ -71,8 +72,8 @@ overload_arg_t* new_overload_argument (binding_t *tag, binding_t *length, overlo
 void clear_bindings (void);
 binding_t* free_binding_with_name (const char *name);
 
-void register_overloaded_builtin (const char *name, const char *argstring, builtin_function_t func,
-				  generator_function_t gen);
+void register_overloaded_builtin (const char *name, const char *argstring, int sidefx,
+				  builtin_function_t func, generator_function_t gen);
 void register_overloaded_macro (const char *name, const char *argstring, macro_function_t func);
 
 overload_entry_t* overloaded_builtin_with_function (builtin_function_t function);

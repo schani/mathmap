@@ -9,6 +9,7 @@
 #include "tags.h"
 #include "builtins.h"
 #include "overload.h"
+#include "userval.h"
 
 GModule *module = 0;
 mathfunc_t eval_c_code = 0;
@@ -20,11 +21,8 @@ enumerate_tmpvars (exprtree *tree, int *nextone, int force, FILE *out)
 	tree->tmpvarnum = force;
     else
     {
-	int i;
-
 	tree->tmpvarnum = (*nextone)++;
-	for (i = 0; i < tree->result.length; ++i)
-	    fprintf(out, "float tmpvar_%d_%d;\n", tree->tmpvarnum, i);
+	fprintf(out, "float tmpvar_%d[%d];\n", tree->tmpvarnum, tree->result.length);
     }
 
     switch (tree->type)
@@ -32,6 +30,15 @@ enumerate_tmpvars (exprtree *tree, int *nextone, int force, FILE *out)
 	case EXPR_TUPLE_CONST :
 	case EXPR_INTERNAL :
 	case EXPR_VARIABLE :
+	    break;
+
+	case EXPR_USERVAL :
+	    {
+		exprtree *arg;
+
+		for (arg = tree->val.userval.args; arg != 0; arg = arg->next)
+		    enumerate_tmpvars(arg, nextone, -1, out);
+	    }
 	    break;
 
 	case EXPR_TUPLE :
@@ -103,7 +110,7 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
     {
 	case EXPR_TUPLE_CONST :
 	    for (i = 0; i < tree->val.tuple_const.length; ++i)
-		fprintf(out, "tmpvar_%d_%d = %f;\n", tree->tmpvarnum, i, tree->val.tuple_const.data[i]);
+		fprintf(out, "tmpvar_%d[%d] = %f;\n", tree->tmpvarnum, i, tree->val.tuple_const.data[i]);
 	    break;
 
 	case EXPR_TUPLE :
@@ -113,7 +120,7 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		for (i = 0, elem = tree->val.tuple.elems; elem != 0; ++i, elem = elem->next)
 		{
 		    gen_c_code_recursive(elem, out);
-		    fprintf(out, "tmpvar_%d_%d = tmpvar_%d_0;\n", tree->tmpvarnum, i, elem->tmpvarnum);
+		    fprintf(out, "tmpvar_%d[%d] = tmpvar_%d[0];\n", tree->tmpvarnum, i, elem->tmpvarnum);
 		}
 	    }
 	    break;
@@ -128,10 +135,10 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		    int index = tree->val.select.subscripts->val.tuple_const.data[i];
 
 		    if (index < 0 || index >= tree->val.select.tuple->result.length)
-			fprintf(out, "tmpvar_%d_%d = 0.0;\n",
+			fprintf(out, "tmpvar_%d[%d] = 0.0;\n",
 				tree->tmpvarnum, i);
 		    else
-			fprintf(out, "tmpvar_%d_%d = tmpvar_%d_%d;\n",
+			fprintf(out, "tmpvar_%d[%d] = tmpvar_%d[%d];\n",
 				tree->tmpvarnum, i,
 				tree->val.select.tuple->tmpvarnum, index);
 		}
@@ -151,28 +158,42 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 			int index = elem->val.tuple_const.data[0];
 
 			if (index < 0 || index >= tree->val.select.tuple->result.length)
-			    fprintf(out, "tmpvar_%d_%d = 0.0;\n",
+			    fprintf(out, "tmpvar_%d[%d] = 0.0;\n",
 				    tree->tmpvarnum, i);
 			else
-			    fprintf(out, "tmpvar_%d_%d = tmpvar_%d_%d;\n",
+			    fprintf(out, "tmpvar_%d[%d] = tmpvar_%d[%d];\n",
 				    tree->tmpvarnum, i,
 				    tree->val.select.tuple->tmpvarnum, index);
 		    }
 		    else
 		    {
-			int j;
-
 			gen_c_code_recursive(elem, out);
+			fprintf(out,
+				"{\n"
+				"    int index = tmpvar_%d[0];\n"
+				"\n"
+				"    if (index < 0 || index >= %d)\n"
+				"        tmpvar_%d[%d] = 0.0;\n"
+				"    else\n"
+				"        tmpvar_%d[%d] = tmpvar_%d[index];\n"
+				"}\n",
+				elem->tmpvarnum,
+				tree->val.select.tuple->result.length,
+				tree->tmpvarnum, i,
+				tree->tmpvarnum, i, tree->val.select.tuple->tmpvarnum);
+
+			/*
 			for (j = 1; j < tree->val.select.tuple->result.length; ++j)
 			    fprintf(out,
-				    "if (tmpvar_%d_0 < %d)\n"
-				    "    tmpvar_%d_%d = tmpvar_%d_%d;\n"
+				    "if (tmpvar_%d[0] < %d)\n"
+				    "    tmpvar_%d[%d] = tmpvar_%d[%d];\n"
 				    "else ",
 				    elem->tmpvarnum, j,
 				    tree->tmpvarnum, i, tree->val.select.tuple->tmpvarnum, j - 1);
-			fprintf(out, "tmpvar_%d_%d = tmpvar_%d_%d;\n",
+			fprintf(out, "tmpvar_%d[%d] = tmpvar_%d[%d];\n",
 				tree->tmpvarnum, i,
 				tree->val.select.tuple->tmpvarnum, tree->val.select.tuple->result.length - 1);
+			*/
 		    }
 
 		    elem = elem->next;
@@ -191,7 +212,7 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		    "tuple_t *tuple = (tuple_t*)%p;\n",
 		    &tree->val.internal->value);
 	    for (i = 0; i < tree->result.length; ++i)
-		fprintf(out, "tmpvar_%d_%d = tuple->data[%d];\n", tree->tmpvarnum, i, i);
+		fprintf(out, "tmpvar_%d[%d] = tuple->data[%d];\n", tree->tmpvarnum, i, i);
 	    fprintf(out, "}\n");
 	    break;
 
@@ -225,14 +246,52 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 
 	case EXPR_VARIABLE :
 	    for (i = 0; i < tree->result.length; ++i)
-		fprintf(out, "tmpvar_%d_%d = uservar_%s_%d;\n",
+		fprintf(out, "tmpvar_%d[%d] = uservar_%s[%d];\n",
 			tree->tmpvarnum, i, tree->val.var->name, i);
+	    break;
+
+	case EXPR_USERVAL :
+	    if (tree->val.userval.userval->type == USERVAL_SLIDER)
+		fprintf(out, "tmpvar_%d[0] = *(float*)%p;\n",
+			tree->tmpvarnum, &tree->val.userval.userval->v.slider.value);
+	    else if (tree->val.userval.userval->type == USERVAL_CURVE)
+	    {
+		gen_c_code_recursive(tree->val.userval.args, out);
+		fprintf(out,
+			"{\n"
+			"  int index = (int)(tmpvar_%d[0] * (%d - 1));\n"
+			"\n"
+			"  if (index < 0)\n"
+			"    index = 0;\n"
+			"  else if (index >= %d)\n"
+			"    index = %d - 1;\n"
+			"  tmpvar_%d[0] = ((float*)%p)[index];\n"
+			"}\n",
+			tree->val.userval.args->tmpvarnum, USER_CURVE_POINTS,
+			USER_CURVE_POINTS,
+			USER_CURVE_POINTS,
+			tree->tmpvarnum, tree->val.userval.userval->v.curve.values);
+	    }
+	    else if (tree->val.userval.userval->type == USERVAL_BOOL)
+		fprintf(out, "tmpvar_%d[0] = *(float*)%p;\n",
+			tree->tmpvarnum, &tree->val.userval.userval->v.bool.value);
+	    else if (tree->val.userval.userval->type == USERVAL_COLOR)
+		fprintf(out,
+			"{\n"
+			"  int i;\n"
+			"\n"
+			"  for (i = 0; i < 4; ++i)\n"
+			"    tmpvar_%d[i] = ((float*)%p)[i];\n"
+			"}\n",
+			tree->tmpvarnum, tree->val.userval.userval->v.color.value.data);
+	    else
+		assert(0);
 	    break;
 
 	case EXPR_ASSIGNMENT :
 	    gen_c_code_recursive(tree->val.assignment.value, out);
 	    for (i = 0; i < tree->result.length; ++i)
-		fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+		fprintf(out, "uservar_%s[%d] = tmpvar_%d[%d];\n",
 			tree->val.assignment.var->name, i, tree->val.assignment.value->tmpvarnum, i);
 	    break;
 
@@ -246,7 +305,7 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		    int index = tree->val.sub_assignment.subscripts->val.tuple_const.data[i];
 
 		    if (index >= 0 && index < tree->val.sub_assignment.var->type.length)
-			fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+			fprintf(out, "uservar_%s[%d] = tmpvar_%d[%d];\n",
 				tree->val.sub_assignment.var->name, index, tree->val.sub_assignment.value->tmpvarnum, i);
 		}
 	    }
@@ -265,24 +324,35 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 			int index = elem->val.tuple_const.data[0];
 
 			if (index >= 0 && index < tree->val.sub_assignment.var->type.length)
-			    fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+			    fprintf(out, "uservar_%s[%d] = tmpvar_%d[%d];\n",
 				    tree->val.sub_assignment.var->name, index, tree->val.sub_assignment.value->tmpvarnum, i);
 		    }
 		    else
 		    {
-			int j;
-
 			gen_c_code_recursive(elem, out);
+			fprintf(out,
+				"{\n"
+				"    int index = tmpvar_%d[0];\n"
+				"\n"
+				"    if (index >= 0 || index < %d)\n"
+				"        uservar_%s[index] = tmpvar_%d[%d];\n"
+				"}\n",
+				elem->tmpvarnum,
+				tree->val.sub_assignment.var->type.length,
+				tree->val.sub_assignment.var->name, tree->val.sub_assignment.value->tmpvarnum, i);
+
+			/*
 			for (j = 1; j < tree->val.sub_assignment.var->type.length; ++j)
 			    fprintf(out,
-				    "if (tmpvar_%d_0 < %d)\n"
-				    "    uservar_%s_%d = tmpvar_%d_%d;\n"
+				    "if (tmpvar_%d[0] < %d)\n"
+				    "    uservar_%s[%d] = tmpvar_%d[%d];\n"
 				    "else ",
 				    elem->tmpvarnum, j,
 				    tree->val.sub_assignment.var->name, j - 1, tree->val.sub_assignment.value->tmpvarnum, i);
-			fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+			fprintf(out, "uservar_%s[%d] = tmpvar_%d[%d];\n",
 				tree->val.sub_assignment.var->name, tree->val.sub_assignment.var->type.length - 1,
 				tree->val.sub_assignment.value->tmpvarnum, i);
+			*/
 		    }
 
 		    elem = elem->next;
@@ -299,7 +369,7 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 	case EXPR_IF_THEN :
 	    gen_c_code_recursive(tree->val.ifExpr.condition, out);
 	    fprintf(out,
-		    "if (tmpvar_%d_0 != 0.0)\n"
+		    "if (tmpvar_%d[0] != 0.0)\n"
 		    "{\n",
 		    tree->val.ifExpr.condition->tmpvarnum);
 	    gen_c_code_recursive(tree->val.ifExpr.consequent, out);
@@ -308,14 +378,14 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		    "else\n"
 		    "{\n");
 	    for (i = 0; i < tree->result.length; ++i)
-		fprintf(out, "    tmpvar_%d_%d = 0.0;\n", tree->tmpvarnum, i);
+		fprintf(out, "    tmpvar_%d[%d] = 0.0;\n", tree->tmpvarnum, i);
 	    fprintf(out, "}\n");
 	    break;
 
 	case EXPR_IF_THEN_ELSE :
 	    gen_c_code_recursive(tree->val.ifExpr.condition, out);
 	    fprintf(out,
-		    "if (tmpvar_%d_0 != 0.0)\n"
+		    "if (tmpvar_%d[0] != 0.0)\n"
 		    "{\n",
 		    tree->val.ifExpr.condition->tmpvarnum);
 	    gen_c_code_recursive(tree->val.ifExpr.consequent, out);
@@ -333,13 +403,13 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		    "{\n");
 	    gen_c_code_recursive(tree->val.whileExpr.invariant, out);
 	    fprintf(out,
-		    "if (tmpvar_%d_0 == 0.0)\n"
+		    "if (tmpvar_%d[0] == 0.0)\n"
 		    "    break;\n",
 		    tree->val.whileExpr.invariant->tmpvarnum);
 	    gen_c_code_recursive(tree->val.whileExpr.body, out);
 	    fprintf(out,
 		    "}\n"
-		    "tmpvar_%d_0 = 0.0;\n",
+		    "tmpvar_%d[0] = 0.0;\n",
 		    tree->tmpvarnum);
 	    break;
 
@@ -350,8 +420,8 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 	    gen_c_code_recursive(tree->val.whileExpr.body, out);
 	    gen_c_code_recursive(tree->val.whileExpr.invariant, out);
 	    fprintf(out,
-		    "} while (tmpvar_%d_0 != 0.0);\n"
-		    "tmpvar_%d_0 = 0.0;\n",
+		    "} while (tmpvar_%d[0] != 0.0);\n"
+		    "tmpvar_%d[0] = 0.0;\n",
 		    tree->val.whileExpr.invariant->tmpvarnum,
 		    tree->tmpvarnum);
 	    break;
@@ -381,6 +451,10 @@ gen_and_load_c_code (exprtree *tree)
 	    "#include <math.h>\n"
 	    "void getOrigValIntersamplePixel(float,float,unsigned char*);\n"
 	    "void getOrigValPixel(float,float,unsigned char*);\n"
+	    "float scnoise(float,float,float);\n"
+	    "float noise1(float);\n"
+	    "float noise3(float,float,float);\n"
+	    "float vlnoise3(float,float,float,float);\n"
 	    "typedef struct\n"
 	    "{\n"
 	    "    float data[%d];\n"
@@ -400,15 +474,14 @@ gen_and_load_c_code (exprtree *tree)
 	    "int dummy;\n");
 
     for (var = firstVariable; var != 0; var = var->next)
-	for (i = 0; i < var->type.length; ++i)
-	    fprintf(out, "float uservar_%s_%d;\n", var->name, i);
+	fprintf(out, "float uservar_%s[%d];\n", var->name, var->type.length);
 
     enumerate_tmpvars(tree, &numtmpvars, -1, out);
     gen_c_code_recursive(tree, out);
 
     for (i = 0; i < tree->result.length; ++i)
 	fprintf(out,
-		"stack[0].data[%d] = tmpvar_%d_%d;\n",
+		"stack[0].data[%d] = tmpvar_%d[%d];\n",
 		i, tree->tmpvarnum, i);
 
     fprintf(out,
@@ -418,7 +491,7 @@ gen_and_load_c_code (exprtree *tree)
 
     fclose(out);
 
-    system("gcc -O9 -g -c -fPIC -o /tmp/mathfunc.o /tmp/mathfunc.c");
+    system("gcc -O -g -c -fPIC -o /tmp/mathfunc.o /tmp/mathfunc.c");
     system("gcc -shared -o /tmp/mathfunc.so /tmp/mathfunc.o");
 
     module = g_module_open("/tmp/mathfunc.so", 0);

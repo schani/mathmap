@@ -6,9 +6,9 @@
     mercator = "origVal(xy*xy:[cos(90/Y*y+t*360),1])";
     pond = "origVal(ra+ra:[sin(r*20+t*360)*3,0])";
     "enhanced pond" = "origVal(ra+ra:[sin(500000/(r+100)+t*360)*7,0])";
-    "sea 1" = "origVal(xy+xy:[10*(X/H)*sin(t*360+2000*Y*(y+Y+60)^-1),0])";
-    "sea 2" = "origVal(xy+xy:[0,5*sin(t*360+2000*Y*(y+Y+60)^-1)])";
-    "sea 3" = "s=sin(t*360+2000*Y*(y+Y+60)^-1);\norigVal(xy+xy:[10*s,5*s])";
+    "sea 1" = "origVal(xy+xy:[10*(X/H)*sin(t*360+2000*Y*(-y+Y+60)^-1),0])";
+    "sea 2" = "origVal(xy+xy:[0,5*sin(t*360+2000*Y*(-y+Y+60)^-1)])";
+    "sea 3" = "s=sin(t*360+2000*Y*(-y+Y+60)^-1);\norigVal(xy+xy:[10*s,5*s])";
     "twirl 90" = "origVal(ra+ra:[0,(r/R-1)*(t-0.5)*360])";
     sphere = "p=r/(X*2);\norigValRA(r*(1-inintv(p,-0.5,0.5))+X/90*asin(inintv(p,-0.5,0.5)*r/X),a)";
     jitter = "origValRA(r,a+(a+t*8)%8-4)";
@@ -16,6 +16,7 @@
     fisheye = "origValRA(r^(2-t)/R^(1-t),a)";
     "center shake" = "origValXY(x+max(0,cos(x*2))*5*max(0,cos(y*2))*cos(y*10),y+max(0,cos(x*2))*5*max(0,cos(y*2))*cos(x*10))";
     "inverse Lambert azimuthal projection" = "# Thanks to Carlos A. Furuti\nc=2*asin(r/Y);\nphi =\n    if r == 0 then\n        0\n    else\n        asin(y*sin(c)/r)\n    end;\norigVal(xy:[atan(x*sin(c),r*cos(c))*X/180,phi*Y/90])";
+    "curve bend" = "alpha = user_slider(\"alpha\",0,360);\ndir = xy:[cos(alpha),sin(alpha)];\nndir = xy:[-dir[1],dir[0]];\np = xy / m2x2:[dir[0],-ndir[0],\n               dir[1],-ndir[1]];\npt = dir * p[0];\nvec = xy - pt;\ndist = -p[1] / R;\npos = 0.5 + p[0] / R / 2;\nlower = 1 / (user_curve(\"lower\",pos) * 4 - 2);\nupper = 1 / (user_curve(\"upper\",pos) * 4 - 2);\nf = lower + ((dist + 1) / 2) * (upper - lower);\norigVal(pt + ndir * f * R)";
   };
   Blur = {
     mosaic = "origVal(xy-xy%5)";
@@ -47,8 +48,8 @@
   };
   Map = {
     tile = "origVal((xy+XY)*2%WH-XY)";
-    sphere = "# Thanks to Herbert Poetzl\nrd=0.9*min(X,Y);\nif r>rd then\n    rgba:[0,0,0,0]\nelse\n    alpha=300; beta=120; gamma=t*360;\n    sa=sin(alpha);\n    sb=sin(beta);\n    ca=cos(alpha);\n    cb=cos(beta);\n    theta=a;\n    phi=acos(r/rd);\n    x0=cos(theta)*cos(phi);\n    y0=sin(theta)*cos(phi);\n    z0=sin(phi);\n    x1=ca*x0+sa*y0;\n    z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;\n    if z1 >= 0 || 1 then\n        y1=cb*-sa*x0+cb*ca*y0+sb*z0\n    else\n        z1=z1-2*cb*z0;\n        y1=cb*-sa*x0+cb*ca*y0-sb*z0\n    end;\n    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);\n    phi1=asin(z1);\n    origVal(xy:[((theta1*2+gamma)%360-180)/180*X,-phi1/90*Y])\nend";
-    "sphere with reflection" = "# Thanks to Herbert Poetzl\nrd=0.9*min(X,Y);\nif r>rd then\n    rgba:[0,0,0,0]\nelse\n    alpha=300; beta=80; gamma=t*360;\n    thetal=100; phil=45;\n    lv=normalize([1,1,2]);\n    sa=sin(alpha);\n    sb=sin(beta);\n    ca=cos(alpha);\n    cb=cos(beta);\n    theta=a;\n    phi=acos(r/rd);\n    m0=cos(phi);\n    x0=cos(theta)*m0;\n    y0=sin(theta)*m0;\n    z0=sin(phi);\n    x1=ca*x0+sa*y0;\n    m1=ca*y0-sa*x0;\n    z1=cb*z0-sb*m1;\n    y1=cb*m1+sb*z0;\n    diffq=dotp(lv,[x1,y1,z1]);\n    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);\n    phi1=asin(z1);\n    p=origVal(xy:[((theta1+gamma)%360-180)/180*X,-phi1/90*Y]);\n    p*(1-diffq)+rgba:[1,1,1,1]*diffq\nend";
+    sphere = "# Thanks to Herbert Poetzl\nrd=0.9*min(X,Y);\nif r>rd then\n    user_color(\"back\")\nelse\n    alpha=user_slider(\"alpha\",0,360);\n    beta=user_slider(\"beta\",0,360);\n    gamma=user_slider(\"gamma\",0,360);\n    sa=sin(alpha);\n    sb=sin(beta);\n    ca=cos(alpha);\n    cb=cos(beta);\n    theta=a;\n    phi=acos(r/rd);\n    x0=cos(theta)*cos(phi);\n    y0=sin(theta)*cos(phi);\n    z0=sin(phi);\n    x1=ca*x0+sa*y0;\n    z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;\n    if z1 >= 0 || 1 then\n        y1=cb*-sa*x0+cb*ca*y0+sb*z0\n    else\n        z1=z1-2*cb*z0;\n        y1=cb*-sa*x0+cb*ca*y0-sb*z0\n    end;\n    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);\n    phi1=asin(z1);\n    origVal(xy:[((theta1*2+gamma)%360-180)/180*X,-phi1/90*Y])\nend";
+    "sphere with reflection" = "# Thanks to Herbert Poetzl\nrd=0.9*min(X,Y);\nif r>rd then\n    user_color(\"back\")\nelse\n    alpha=user_slider(\"alpha\",0,360);\n    beta=user_slider(\"beta\",0,360);\n    gamma=user_slider(\"gamma\",0,360);\n    thetal=100; phil=45;\n    lv=normalize([user_slider(\"lx\",-1,1),user_slider(\"ly\",-1,1),user_slider(\"lz\",-1,1)]);\n    sa=sin(alpha);\n    sb=sin(beta);\n    ca=cos(alpha);\n    cb=cos(beta);\n    theta=a;\n    phi=acos(r/rd);\n    m0=cos(phi);\n    x0=cos(theta)*m0;\n    y0=sin(theta)*m0;\n    z0=sin(phi);\n    x1=ca*x0+sa*y0;\n    m1=ca*y0-sa*x0;\n    z1=cb*z0-sb*m1;\n    y1=cb*m1+sb*z0;\n    diffq=dotp(lv,[x1,y1,z1]);\n    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);\n    phi1=asin(z1);\n    p=origVal(xy:[((theta1+gamma)%360-180)/180*X,-phi1/90*Y]);\n    p*(1-diffq)+rgba:[1,1,1,1]*diffq\nend";
     mugl = "# Thanks to Herbert Poetzl\nsl=30;\nnx=floor(x/sl-0.5); ny=floor(y/sl-0.5);\nalpha=[0,0,0,0];\nradii=[0,0,0,0];\nphii=[0,0,0,0];\nxc=[0,0,0,0];\nyc=[0,0,0,0];\nnummugls=5;\nmuglwinkl=360/nummugls/2;\nheuslfaktor=sl/2;\ni=0; while i < 4 do\n    ix=nx+i%2;\n    iy=ny+floor(i/2);\n    xc[i]=(ix+0.5)*sl;\n    yc[i]=(iy+0.5)*sl;\n    alpha[i]=ix*10+iy*5;\n    kurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,pmod(alpha[i],360)];\n    phii[i]=kurde[1];\n    radii[i]=heuslfaktor/cos(abs(kurde[1]%(muglwinkl*2)-muglwinkl));\n    i = i + 1\nend;\ni=0;found=0;\nwhile !found && i<4 do\n    heuslkurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,alpha[i]];\n    if heuslkurde[0]<radii[i] then\n        found = 1\n    else\n        i=i+1\n    end\nend;\nif i >= 4 then\n    rgba:[0,0,1,1]\nelse\n    if heuslkurde[0] < radii[i]-1.5 then\n        origVal(toXY(heuslkurde)+xy:[xc[i],yc[i]])\n    else\n        rgba:[0,0,0,1]\n    end\nend";
   };
 }
