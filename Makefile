@@ -9,7 +9,7 @@ LIBFFM = -lffm
 # -------------------------------------------------------
 
 ifeq ($(CGEN),YES)
-CGEN_CC=-DCGEN_CC="\"gcc -O -g -c -fPIC -o\""
+CGEN_CC=-DCGEN_CC="\"gcc -O -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 
 CGEN_CFLAGS=-DUSE_CGEN $(CGEN_CC) $(CGEN_LD)
@@ -18,7 +18,7 @@ endif
 
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) -Wall -g `gtk-config --cflags`
+CFLAGS = -I. $(CGEN_CFLAGS) -Wall -O3 -g `gtk-config --cflags`
 CC = gcc
 
 OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o colorwell.o noise.o lispreader.o

@@ -139,3 +139,56 @@ lower = user_curve("lower",pos) * 2 - 0.5;
 upper = user_curve("upper",pos) * 2 - 0.5;
 f = ((dist + 1) / 2 - lower) / (upper - lower);
 origVal(pt + ndir * (f*2-1) * )R
+
+
+
+
+
+
+
+
+
+# fractal noise
+z = user_slider("z",0,10);
+depth = floor(user_slider("depth",1,10));
+pers = user_slider("persistence",0,1);
+g = user_slider("granularity",0,50);
+nxy = xy / R * g;
+xyz = [nxy[0],nxy[1],z];
+i = 1;
+sum = 0;
+max = 0;
+while i < depth + 1 do
+    sum = sum + noise(xyz*i) * (pers^i);
+    max = max + (pers ^ i);
+    i = i + 1
+end;
+grayColor(sum / (max * 2) + 0.5)
+
+
+
+
+
+
+
+
+
+# fractal noise displace
+z = user_slider("z",0,10);
+depth = floor(user_slider("depth",1,10));
+pers = user_slider("persistence",0,1);
+g = user_slider("granularity",0,50);
+strength = user_slider("strength",0,50);
+nxy = xy / R * g;
+xyz = [nxy[0],nxy[1],z];
+i = 1;
+sum = xy:[0,0];
+max = 0;
+while i < depth + 1 do
+    persi = pers ^ i;
+    sum = sum + xy:[noise(xyz*i),noise(xyz*i+[3.1415,2.71234,5.4322])] * persi;
+    max = max + persi;
+    i = i + 1
+end;
+val = sum / max;
+origVal(xy + val * strength)

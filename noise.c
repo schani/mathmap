@@ -38,19 +38,9 @@ float g[G_SIZE][3];
 int p[G_SIZE];
 
 static float
-wavelet (int i, int j, int k, float x, float y, float z)
+quick_wavelet (int i, int j, int k, float u, float v, float w, float sigma)
 {
-    float u, v, w;
-    float sigma;
-    int f;
-
-    u = x - i;
-    v = y - j;
-    w = z - k;
-
-    sigma = drop(u) * drop(v) * drop(w);
-
-    f = fold(i, j, k);
+    int f = fold(i, j, k);
 
     return sigma * (g[f][0] * u + g[f][1] * v + g[f][2] * w);
 }
@@ -59,6 +49,8 @@ float
 noise (float x, float y, float z)
 {
     int i, j, k;
+    float u, u1, v, v1, w, w1;
+    float dropu, dropu1, dropv, dropv1, dropw, dropw1;
 
     if (x < 0)
 	x = x + G_SIZE * ceil(-x / G_SIZE);
@@ -71,14 +63,22 @@ noise (float x, float y, float z)
     j = (int)floor(y);
     k = (int)floor(z);
 
-    return wavelet(i, j, k, x, y, z)
-	+ wavelet(i + 1, j, k, x, y, z)
-	+ wavelet(i, j + 1, k, x, y, z)
-	+ wavelet(i, j, k + 1, x, y, z)
-	+ wavelet(i + 1, j + 1, k, x, y, z)
-	+ wavelet(i + 1, j, k + 1, x, y, z)
-	+ wavelet(i, j + 1, k + 1, x, y, z)
-	+ wavelet(i + 1, j + 1, k + 1, x, y, z);
+    u = x - i; u1 = x - (i + 1);
+    v = y - j; v1 = y - (j + 1);
+    w = z - k; w1 = z - (k + 1);
+
+    dropu = drop(u); dropu1 = drop(u1);
+    dropv = drop(v); dropv1 = drop(v1);
+    dropw = drop(w); dropw1 = drop(w1);
+
+    return quick_wavelet(i, j, k, u, v, w, dropu * dropv * dropw)
+	+ quick_wavelet(i + 1, j, k, u1, v, w, dropu1 * dropv * dropw)
+	+ quick_wavelet(i, j + 1, k, u, v1, w, dropu * dropv1 * dropw)
+	+ quick_wavelet(i, j, k + 1, u, v, w1, dropu * dropv * dropw1)
+	+ quick_wavelet(i + 1, j + 1, k, u1, v1, w, dropu1 * dropv1 * dropw)
+	+ quick_wavelet(i + 1, j, k + 1, u1, v, w1, dropu1 * dropv * dropw1)
+	+ quick_wavelet(i, j + 1, k + 1, u, v1, w1, dropu * dropv1 * dropw1)
+	+ quick_wavelet(i + 1, j + 1, k + 1, u1, v1, w1, dropu1 * dropv1 * dropw1);
 }
 
 void
