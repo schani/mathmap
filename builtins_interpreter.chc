@@ -81,6 +81,7 @@
 \
 %<dq=">\
 %<prc=%'%'>\
+%<str=>\
 \
 %'#include "noise.h"'
 %'#include "mathmap.h"'

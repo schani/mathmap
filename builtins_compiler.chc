@@ -87,6 +87,7 @@
 \
 %<dq=\">\
 %<prc=%'%%'>\
+%<str=*>\
 \
 %'#include <stdio.h>'
 

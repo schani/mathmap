@@ -894,12 +894,12 @@
 )\
 
 %builtin(gradient,gradient,%'((rgba 4) (_ 1))',0,
-    int index = %arg(0,0) * %'(num_gradient_samples - 1)';
+    int index = %arg(0,0) * %'('%<str>num_gradient_samples - 1%')';
 
     if %'(index < 0)'
         index = 0;
-    else if %'(index >= num_gradient_samples)'
-        index = num_gradient_samples - 1;
+    else if %'('index >= %<str>num_gradient_samples%')'
+        index = %<str>num_gradient_samples - 1;
 
     %fornum(i,0,4,
         %result(%<i>) = gradient_samples[index].data[%val(%<i>)];

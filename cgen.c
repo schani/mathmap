@@ -37,6 +37,13 @@
 
 GModule *module = 0;
 mathfunc_t eval_c_code = 0;
+void (*initfunc) (void*, void*, void*, void*, void*, void*, void*, void*);
+
+extern tuple_t gradient_samples[];
+extern int num_gradient_samples;
+extern void (*getOrigValIntersamplePixel) (void);
+extern void (*getOrigValPixel) (void);
+extern void (*noise) (void);
 
 void
 enumerate_tmpvars (exprtree *tree, int *nextone, int force, FILE *out)
@@ -463,25 +470,33 @@ gen_and_load_c_code (exprtree *tree)
 	    "#endif\n"
 	    "double __complex__ cgamma (double __complex__ z);\n"
 #endif
-	    "void getOrigValIntersamplePixel(float,float,unsigned char*,int,int);\n"
-	    "void getOrigValPixel(float,float,unsigned char*,int,int);\n"
-	    "void convert_rgb_to_hsv (float *rgb, float *hsv);\n"
-	    "void convert_hsv_to_rgb (float *hsv, float *rgb);\n"
-	    "float noise(float,float,float);\n"
+	    "static void (*getOrigValIntersamplePixel)(float,float,unsigned char*,int,int);\n"
+	    "static void (*getOrigValPixel)(float,float,unsigned char*,int,int);\n"
+	    "static void (*convert_rgb_to_hsv)(float *rgb, float *hsv);\n"
+	    "static void (*convert_hsv_to_rgb)(float *hsv, float *rgb);\n"
+	    "static float (*noise)(float,float,float);\n"
 	    "typedef struct\n"
 	    "{\n"
 	    "    float data[%d];\n"
 	    "    int number;\n"
 	    "    int length;\n"
 	    "} tuple_t;\n"
-	    "extern double user_curve_values[];\n"
-	    "extern int user_curve_points;\n"
-	    "extern tuple_t gradient_samples[];\n"
-	    "extern int num_gradient_samples;\n"
+	    "static tuple_t *gradient_samples;\n"
+	    "static int *num_gradient_samples;\n"
 	    "typedef void (*builtin_function_t) (void*);\n"
-	    "extern tuple_t stack[];\n"
-	    "extern int stackp;\n\n", MAX_TUPLE_LENGTH);
+	    "static tuple_t *stack;\n\n", MAX_TUPLE_LENGTH);
     fprintf(out,
+	    "void mathmapinit (void *f1, void *f2, void *f3, void *f4, void *f5, void *v1, void *v2, void *s)\n"
+	    "{\n"
+	    "  getOrigValIntersamplePixel = f1;\n"
+	    "  getOrigValPixel = f2;\n"
+	    "  convert_rgb_to_hsv = f3;\n"
+	    "  convert_hsv_to_rgb = f4;\n"
+	    "  noise = f5;\n"
+	    "  gradient_samples = v1;\n"
+	    "  num_gradient_samples = v2;\n"
+	    "  stack = s;\n"
+	    "}\n"
 	    "tuple_t* mathmapfunc (void)\n"
 	    "{\n"
 	    "int dummy;\n");
@@ -519,6 +534,7 @@ gen_and_load_c_code (exprtree *tree)
     }
 
     assert(g_module_symbol(module, "mathmapfunc", (void**)&eval_c_code));
+    assert(g_module_symbol(module, "mathmapinit", (void**)&initfunc));
 
     unlink(buf);
 
@@ -529,6 +545,10 @@ gen_and_load_c_code (exprtree *tree)
     unlink(buf);
 
     free(buf);
+
+    initfunc(&getOrigValIntersamplePixel, &getOrigValPixel, &convert_rgb_to_hsv, &convert_hsv_to_rgb, &noise,
+	     &gradient_samples, &num_gradient_samples,
+	     stack);
 
     return TRUE;
 }
