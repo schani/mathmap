@@ -1,18 +1,14 @@
 normalisierung von matrizen (matrix/determinante)
 inverse matrix
-pdb scheisse kurden (repeat last filter sollt schon gehen)
 pixel konvertieren schneller machen
 
 
 
-
-
-c=2*asin(r/Y);
-phi = if r == 0 then 0
-                else asin(y * sin(c) / r) end;
-
-origVal (xy: [atan(x*sin(c), r*cos(c)) * X / 180,
-              phi * Y / 90])
+xspread = 50.0;
+yspread = 50.0;
+xshift = (1-t)*(xspread*curve(rand(0, 1)) - xspread/2);
+yshift = (1-t)*(yspread*curve(rand(0, 1)) - yspread/2);
+origValXY(x+xshift, y+yshift)
 
 
 
@@ -20,61 +16,10 @@ origVal (xy: [atan(x*sin(c), r*cos(c)) * X / 180,
 
 
 
-A=30;\npi360=3.1415926535/360;\nn=floor(r/9)+0.5;\nalpha=360/floor(360/(A/(pi360*(n-0.5)*81)));\norigVal(ra:[(n*A/(alpha*pi360))^0.5,a-a%alpha])
+origVal(xy/xy:[1,(curve((x+X)/W)-0.5)*4])
 
 
-rd=0.9*min(X,Y);
-if r>rd then
-    rgba:[0,0,0,0]
-else
-    alpha=300; beta=120; gamma=t*180;
-    sa=sin(alpha);
-    sb=sin(beta);
-    ca=cos(alpha);
-    cb=cos(beta);
-    theta=a;
-    phi=acos(r/rd);
-    x0=cos(theta)*cos(phi);
-    y0=sin(theta)*cos(phi);
-    z0=sin(phi);
-    x1=ca*x0+sa*y0;
-    z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;
-    if z1 >= 0 || 1 then
-        y1=cb*-sa*x0+cb*ca*y0+sb*z0
-    else
-        z1=z1-2*cb*z0;
-        y1=cb*-sa*x0+cb*ca*y0-sb*z0
-    end;
-    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);
-    phi1=asin(z1);
-    origVal(xy:[((theta1*2+gamma)%360-180)/180*X,-phi1/90*Y])
-end
 
-rd=0.9*min(X,Y);
-if r>rd then
-    rgba:[0,0,0,0]
-else
-    alpha=300; beta=80; gamma=t*360;
-    thetal=100; phil=45;
-    sa=sin(alpha);
-    sb=sin(beta);
-    ca=cos(alpha);
-    cb=cos(beta);
-    theta=a;
-    phi=acos(r/rd);
 
-    diffq=cos(theta-thetal)*cos(phi-phil);
 
-    m0=cos(phi);
-    x0=cos(theta)*m0;
-    y0=sin(theta)*m0;
-    z0=sin(phi);
-    x1=ca*x0+sa*y0;
-    m1=ca*y0-sa*x0;
-    z1=cb*z0-sb*m1;
-    y1=cb*m1+sb*z0;
-    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);
-    phi1=asin(z1);
-    p=origVal(xy:[((theta1+gamma)%360-180)/180*X,-phi1/90*Y]);
-    p*(1-diffq)+rgba:[1,1,1,1]*diffq
-end
+origVal(xy+xy:[0,(curve((x+X)/W)-0.5)*2*t*H])

@@ -1,3 +1,5 @@
+#ifdef USE_CGEN
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -430,3 +432,5 @@ gen_and_load_c_code (exprtree *tree)
 
     return TRUE;
 }
+
+#endif

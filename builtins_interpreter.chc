@@ -66,6 +66,6 @@ init_builtins (void)
 %foreach(b,%&builtins,
     register_overloaded_builtin%'('"%b{name}"%',' "%b{args}"%','
                                    builtin_%b{funcname}%','
-                                   %if(%bound(USE_CGEN),gen_%b{funcname},0)%');\n'
+                                   gen_%b{funcname}%');\n'
 )
 }

@@ -1,4 +1,4 @@
-MathMap 0.8
+MathMap 0.9
 -----------
 
 MathMap is a GIMP plug-in which allows distortion of images specified
@@ -14,17 +14,69 @@ The MathMap homepage can be found at
 
 It includes a user's manual as well as screenshots and examples.
 
+Changes since 0.8:
+
+  * Lots of bug fixes.
+  * Simplified build procedure.
+  * The parser is now a little more forgiving.
+  * Generalized tuple subscription.
+  * Tuple subscripts can now be assigned to (making morph obsolete).
+  * New/improved functions: det, crossp, atan, sum.
+
 Changes since 0.7:
 
   * Now runs under both GIMP 1.0 and GIMP 1.1.
-
   * Features a transparent MathMap->C compiler under GIMP 1.1 boosting
     performance by a factor 2 to 8.
-
   * Simple vector and matrix algebra.
-
   * Pixels outside the image can now be either wrapped or given any
     color (including transparency).
+
+Changes since 0.6
+
+  * Implemented the tagged tuples type system. This is major feature! 
+  * Implemented better error handling by borrowing a piece of code
+    from the current development tree of chpp.
+
+Changes since 0.5
+
+  * Alpha channel now shows up in the preview (thanks to Andy Thomas). 
+  * Added the exponentation operator (^). 
+
+Changes since 0.4
+
+  * Completely redesigned the dialog. 
+  * Added a curve widget which allows the user to intuitively specify
+    a function which can be accessed from the expression (curve). 
+  * Added the function gradient which accesses the user-defined
+    gradient.
+  * Made it possible to change the parameter t when not animating. 
+  * Implemented a fast-preview option. 
+  * Put the examples into a file which is displayed in a tree widget. 
+  * Expressions are now edited in a text widget, which allows for
+    multi-line expressions.
+  * Moved the plug-in to Filters/Generic, so as to conform to the new
+    menu hierarchy.
+
+Changes since 0.3
+
+  * Added syntactic sugar for some functions (especially logical
+    operators).
+  * Added a pow function. 
+  * Support for alpha layer. 
+  * Support for grayscale images. 
+  * Animation capability. 
+
+Changes since 0.2
+
+  * if is now a language-level construct. 
+  * I have introduced while and do-while loops. 
+
+Changes since 0.1
+
+  * Fixed the bug that caused it to crash after the first preview.
+  * Added a few more functions: red, green, blue and rgbColor. 
+  * Added the assignment (=) and the sequence operator (;). 
 
 ----
 Mark Probst

@@ -26,7 +26,8 @@ extern double user_curve_values[];
 extern int user_curve_points;
 extern tuple_t gradient_samples[];
 extern int num_gradient_samples;
-extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_mode;
+extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_reflect;
+extern int edge_behaviour_mode;
 extern unsigned char edge_color[4];
 
 builtin *firstBuiltin = 0;
@@ -51,6 +52,17 @@ get_pixel (int x, int y, guchar *pixel)
 	    y = y % wholeImageHeight + wholeImageHeight;
 	else if (y >= wholeImageHeight)
 	    y %= wholeImageHeight;
+    }
+    else if (edge_behaviour_mode == edge_behaviour_reflect)
+    {
+	if (x < 0)
+	    x = -x % wholeImageWidth;
+	else if (x >= wholeImageWidth)
+	    x = (wholeImageWidth - 1) - (x % wholeImageWidth);
+	if (y < 0)
+	    y = -y % wholeImageHeight;
+	else if (y >= wholeImageHeight)
+	    y = (wholeImageHeight - 1) - (y % wholeImageHeight);
     }
 
     if (previewing)

@@ -10,7 +10,7 @@
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
  *
- * Version 0.9
+ * Version 0.10
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#define MATHMAP_VERSION "0.10"
 
 
 #include <sys/param.h>
@@ -151,6 +153,7 @@ static void dialog_close_callback(GtkWidget *widget, gpointer data);
 static void dialog_ok_callback(GtkWidget *widget, gpointer data);
 static void dialog_cancel_callback(GtkWidget *widget, gpointer data);
 static void dialog_help_callback(GtkWidget *widget, gpointer data);
+static void dialog_about_callback(GtkWidget *widget, gpointer data);
 static void dialog_tree_changed (GtkTree *tree);
 
 /***** Variables *****/
@@ -236,7 +239,10 @@ double currentX,
 int intersamplingEnabled,
     oversamplingEnabled,
     animationEnabled = 1;
-int edge_behaviour_color = 1, edge_behaviour_wrap = 2, edge_behaviour_mode = 1;
+int edge_behaviour_color = 1,
+    edge_behaviour_wrap = 2,
+    edge_behaviour_reflect = 3;
+int edge_behaviour_mode = 1;
 unsigned char edge_color[4] = { 0, 0, 0, 0 };
 double user_curve_values[USER_CURVE_POINTS];
 int num_gradient_samples = NUM_GRADIENT_SAMPLES;
@@ -428,7 +434,6 @@ run(char    *name,
 	    /* Possibly retrieve data */
 
 	    gimp_get_data("plug_in_mathmap", &mmvals);
-	    printf("expression is %s\n", mmvals.expression);
 	    break;
 
 	default:
@@ -828,6 +833,7 @@ mathmap_get_pixel(int x, int y, guchar *pixel)
     guchar *p;
     int     i;
 
+    /*
     if (edge_behaviour_mode == edge_behaviour_wrap)
     {
 	if (x < 0)
@@ -839,13 +845,29 @@ mathmap_get_pixel(int x, int y, guchar *pixel)
 	else if (y >= wholeImageHeight)
 	    y %= wholeImageHeight;
     }
+    else if (edge_behaviour_mode == edge_behaviour_reflect)
+    {
+	if (x < 0)
+	    x = -x % wholeImageWidth;
+	else if (x >= wholeImageWidth)
+	    x = (wholeImageWidth - 1) - (x % wholeImageWidth);
+	if (y < 0)
+	    y = -y % wholeImageHeight;
+	else if (y >= wholeImageHeight)
+	    y = (wholeImageHeight - 1) - (y % wholeImageHeight);
+    }
     else
+    {
+    */
 	if ((x < 0) || (x >= img_width) || (y < 0) || (y >= img_height))
 	{
 	    for (i = 0; i < outputBPP; ++i)
 		pixel[i] = edge_color[i];
 	    return;
 	}
+	/*
+    }
+	*/
 
     newcol    = x / tile_width; /* The compiler should optimize this */
     newcoloff = x % tile_width;
@@ -1191,7 +1213,7 @@ mathmap_dialog(void)
 
 	    /* Edge Behaviour */
 
-	    table = gtk_table_new(2, 2, FALSE);
+	    table = gtk_table_new(2, 3, FALSE);
 	    gtk_container_border_width(GTK_CONTAINER(table), 6);
 	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 
@@ -1230,6 +1252,15 @@ mathmap_dialog(void)
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
 				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_wrap);
+		gtk_widget_show(toggle);
+
+	        /* Reflect */
+
+	        toggle = gtk_radio_button_new_with_label(edge_group, "Reflect");
+		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_reflect);
 		gtk_widget_show(toggle);
 
 	    /* Animation */
@@ -1372,7 +1403,7 @@ mathmap_dialog(void)
 	gtk_signal_connect(GTK_OBJECT(root_tree), "selection_changed",
 			   (GtkSignalFunc)dialog_tree_changed,
 			   (gpointer)NULL);
-#if GTK_MINOR_VERSION < 1
+#if GTK_MAJOR_VERSION < 1 || (GTK_MAJOR_VERSION == 1 && GTK_MINOR_VERSION < 1)
 	gtk_container_add(GTK_CONTAINER(table), root_tree);
 #else
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(table), root_tree);
@@ -1424,6 +1455,14 @@ mathmap_dialog(void)
 		       dialog);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
     gtk_widget_show(button);
+
+    button = gtk_button_new_with_label("About");
+    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+		       (GtkSignalFunc) dialog_about_callback,
+		       dialog);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
+   gtk_widget_show(button);
 
     /* Done */
 
@@ -1650,12 +1689,10 @@ dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
     {
 	gtk_widget_set_sensitive(edge_color_preview_button, 1);
     }
-    else if (edge_behaviour_mode == edge_behaviour_wrap)
+    else
     {
 	gtk_widget_set_sensitive(edge_color_preview_button, 0);
     }
-    else
-	assert(0);
 
     if (auto_preview)
 	dialog_update_preview();
@@ -1808,6 +1845,16 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 {
     
 } /* dialog_help_callback */
+
+/*****/
+
+static void
+dialog_about_callback (GtkWidget *widget, gpointer data)
+{
+    gimp_message("MathMap " MATHMAP_VERSION "\n"
+		 "written by\n"
+		 "Mark Probst <schani@unix.cslab.tuwien.ac.at>");
+} /* dialog_about_callback */
 
 /*****/
 

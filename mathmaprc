@@ -15,6 +15,7 @@
     "circular slice" = "origValRA(r,a+(r+t*6)%6-3)";
     fisheye = "origValRA(r^(2-t)/R^(1-t),a)";
     "center shake" = "origValXY(x+max(0,cos(x*2))*5*max(0,cos(y*2))*cos(y*10),y+max(0,cos(x*2))*5*max(0,cos(y*2))*cos(x*10))";
+    "inverse Lambert azimuthal projection" = "# Thanks to Carlos A. Furuti\nc=2*asin(r/Y);\nphi =\n    if r == 0 then\n        0\n    else\n        asin(y*sin(c)/r)\n    end;\norigVal(xy:[atan(x*sin(c),r*cos(c))*X/180,phi*Y/90])";
   };
   Blur = {
     mosaic = "origVal(xy-xy%5)";
