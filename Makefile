@@ -11,11 +11,11 @@ HAVE_COMPLEX = YES
 
 # if you want to build the command line version instead of the GIMP
 # plug-in, uncomment the following line
-CMDLINE = YES
+#CMDLINE = YES
 
 # if you build the command line version and want to have movie
 # (quicktime) support, uncomment the following line
-MOVIES = YES
+#MOVIES = YES
 
 # if you are building on linux/alpha and have libffm, uncomment the
 # following line
@@ -50,7 +50,7 @@ COMPLEX_CHPPFLAGS = -DHAVE_COMPLEX
 endif
 
 ifeq ($(CMDLINE),YES)
-CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `glib-config --cflags` -DCMDLINE
+CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -O3 `glib-config --cflags` -DCMDLINE
 LDFLAGS = $(LIBFFM) `glib-config --libs gmodule` -lm -ljpeg -lpng
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -59,7 +59,7 @@ endif
 else
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
+CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -O3 `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
 LDFLAGS = $(LIBFFM) `gimp-config --libs`
 endif
 
