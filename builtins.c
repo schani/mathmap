@@ -14,7 +14,6 @@ extern gint preview_width, preview_height;
 extern guchar *fast_image_source;
 extern int imageWidth,
     imageHeight,
-    outputBPP,
     previewing;
 extern gint sel_x1, sel_y1,
     sel_width, sel_height;
@@ -60,9 +59,9 @@ get_pixel (int x, int y, guchar *pixel)
 	y = (y - sel_y1) * preview_height / sel_height;
 
 	if (x < 0 || x > preview_width || y < 0 || y >= preview_height)
-	    memcpy(pixel, edge_color, outputBPP);
+	    memcpy(pixel, edge_color, 4);
 	else
-	    memcpy(pixel, fast_image_source + (x + y * preview_width) * outputBPP, outputBPP);
+	    memcpy(pixel, fast_image_source + (x + y * preview_width) * 4, 4);
     }
     else
 	mathmap_get_pixel(x, y, pixel);

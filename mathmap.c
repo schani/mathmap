@@ -637,16 +637,19 @@ write_tuple_to_pixel (tuple_t *tuple, guchar *dest)
 
     tuple_to_color(tuple, &redf, &greenf, &bluef, &alphaf);
 
-    dest[0] = redf * 255;
-    if (outputBPP == 2)
-	dest[1] = alphaf * 255;
-    else if (outputBPP >= 3)
+    if (outputBPP == 1 || outputBPP == 2)
+	dest[0] = (0.299 * redf + 0.587 * greenf + 0.114 * bluef) * 255;
+    else if (outputBPP == 3 || outputBPP == 4)
     {
+	dest[0] = redf * 255;
 	dest[1] = greenf * 255;
 	dest[2] = bluef * 255;
-	if (outputBPP == 4)
-	    dest[3] = alphaf * 255;
     }
+    else
+	assert(0);
+
+    if (outputBPP == 2 || outputBPP == 4)
+	dest[outputBPP - 1] = alphaf * 255;
 }
 
 /*****/
@@ -858,10 +861,18 @@ mathmap_get_pixel(int x, int y, guchar *pixel)
 
     p = the_tile->data + the_tile->bpp * (the_tile->ewidth * newrowoff + newcoloff);
 
-    for (i = inputBPP; i; i--)
-	*pixel++ = *p++;
-    for (i = inputBPP; i < outputBPP; ++i)
-	*pixel++ = 255;
+    if (inputBPP == 1 || inputBPP == 2)
+	pixel[0] = pixel[1] = pixel[2] = p[0];
+    else if (inputBPP == 3 || inputBPP == 4)
+	for (i = 0; i < 3; ++i)
+	    pixel[i] = p[i];
+    else
+	assert(0);
+
+    if (inputBPP == 1 || inputBPP == 3)
+	pixel[3] = 255;
+    else
+	pixel[3] = p[inputBPP - 1];
 }
 
 /*****/
@@ -873,7 +884,7 @@ build_fast_image_source (void)
     int x,
 	y;
 
-    p = fast_image_source = g_malloc(preview_width * preview_height * inputBPP);
+    p = fast_image_source = g_malloc(preview_width * preview_height * 4);
 
     for (y = 0; y < preview_height; ++y)
     {
@@ -881,7 +892,7 @@ build_fast_image_source (void)
 	{
 	    mathmap_get_pixel(sel_x1 + x * sel_width / preview_width,
 			      sel_y1 + y * sel_height / preview_height, p);
-	    p += inputBPP;
+	    p += 4;
 	}
     }
 }
@@ -1511,6 +1522,9 @@ dialog_update_preview(void)
 	    update_pixel_internals();
 	    result = EVAL_EXPR();
 	    tuple_to_color(result, &redf, &greenf, &bluef, &alphaf);
+
+	    if (inputBPP < 2)
+		redf = greenf = bluef = 0.299 * redf + 0.587 * greenf + 0.114 * bluef;
 
 	    p_ul[0] = redf * 255;
 	    p_ul[1] = greenf * 255;

@@ -132,6 +132,21 @@ stack_assign (postfix_arg *arg)
 }
 
 void
+stack_sub_assign (postfix_arg *arg)
+{
+    int i;
+
+    for (i = 0; i < stack[stackp - 1].length; ++i)
+    {
+	int index = (int)stack[stackp - 1].data[i];
+
+	if (index >= 0 && index < arg->user_var->value.length)
+	    arg->user_var->value.data[index] = stack[stackp - 2].data[i];
+    }
+    --stackp;
+}
+
+void
 make_postfix_recursive (exprtree *tree)
 {
     switch (tree->type)
@@ -205,6 +220,15 @@ make_postfix_recursive (exprtree *tree)
 
 	    expression[exprp].func = stack_assign;
 	    expression[exprp].arg.user_var = tree->val.assignment.var;
+	    ++exprp;
+	    break;
+
+	case EXPR_SUB_ASSIGNMENT :
+	    make_postfix_recursive(tree->val.sub_assignment.value);
+	    make_postfix_recursive(tree->val.sub_assignment.subscripts);
+
+	    expression[exprp].func = stack_sub_assign;
+	    expression[exprp].arg.user_var = tree->val.sub_assignment.var;
 	    ++exprp;
 	    break;
 
@@ -377,6 +401,8 @@ output_postfix (void)
 	    printf("push_user_var %s\n", expression[i].arg.user_var->name);
 	else if (expression[i].func == stack_assign)
 	    printf("sto %s\n", expression[i].arg.user_var->name);
+	else if (expression[i].func == stack_sub_assign)
+	    printf("substo %s\n", expression[i].arg.user_var->name);
 	else
 	{
 	    overload_entry_t *entry = overloaded_builtin_with_function(expression[i].func);

@@ -60,7 +60,12 @@ enumerate_tmpvars (exprtree *tree, int *nextone, int force, FILE *out)
 	    break;
 
 	case EXPR_ASSIGNMENT :
-	    enumerate_tmpvars(tree->val.assignment.value, nextone, -1, out);
+	    enumerate_tmpvars(tree->val.assignment.value, nextone, tree->tmpvarnum, out);
+	    break;
+
+	case EXPR_SUB_ASSIGNMENT :
+	    enumerate_tmpvars(tree->val.sub_assignment.subscripts, nextone, -1, out);
+	    enumerate_tmpvars(tree->val.sub_assignment.value, nextone, tree->tmpvarnum, out);
 	    break;
 
 	case EXPR_SEQUENCE :
@@ -227,6 +232,61 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 	    for (i = 0; i < tree->result.length; ++i)
 		fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
 			tree->val.assignment.var->name, i, tree->val.assignment.value->tmpvarnum, i);
+	    break;
+
+	case EXPR_SUB_ASSIGNMENT :
+	    gen_c_code_recursive(tree->val.sub_assignment.value, out);
+
+	    if (tree->val.sub_assignment.subscripts->type == EXPR_TUPLE_CONST)
+	    {
+		for (i = 0; i < tree->result.length; ++i)
+		{
+		    int index = tree->val.sub_assignment.subscripts->val.tuple_const.data[i];
+
+		    if (index >= 0 && index < tree->val.sub_assignment.var->type.length)
+			fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+				tree->val.sub_assignment.var->name, index, tree->val.sub_assignment.value->tmpvarnum, i);
+		}
+	    }
+	    else
+	    {
+		exprtree *elem;
+
+		assert(tree->val.sub_assignment.subscripts->type == EXPR_TUPLE);
+
+		elem = tree->val.sub_assignment.subscripts->val.tuple.elems;
+		i = 0;
+		while (elem != 0)
+		{
+		    if (elem->type == EXPR_TUPLE_CONST)
+		    {
+			int index = elem->val.tuple_const.data[0];
+
+			if (index >= 0 && index < tree->val.sub_assignment.var->type.length)
+			    fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+				    tree->val.sub_assignment.var->name, index, tree->val.sub_assignment.value->tmpvarnum, i);
+		    }
+		    else
+		    {
+			int j;
+
+			gen_c_code_recursive(elem, out);
+			for (j = 1; j < tree->val.sub_assignment.var->type.length; ++j)
+			    fprintf(out,
+				    "if (tmpvar_%d_0 < %d)\n"
+				    "    uservar_%s_%d = tmpvar_%d_%d;\n"
+				    "else ",
+				    elem->tmpvarnum, j,
+				    tree->val.sub_assignment.var->name, j - 1, tree->val.sub_assignment.value->tmpvarnum, i);
+			fprintf(out, "uservar_%s_%d = tmpvar_%d_%d;\n",
+				tree->val.sub_assignment.var->name, tree->val.sub_assignment.var->type.length - 1,
+				tree->val.sub_assignment.value->tmpvarnum, i);
+		    }
+
+		    elem = elem->next;
+		    ++i;
+		}
+	    }
 	    break;
 
 	case EXPR_SEQUENCE :

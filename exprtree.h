@@ -60,6 +60,12 @@ typedef struct _exprtree
 	} assignment;
 	struct
 	{
+	    variable_t *var;
+	    struct _exprtree *subscripts;
+	    struct _exprtree *value;
+	} sub_assignment;
+	struct
+	{
 	    struct _exprtree *condition;
 	    struct _exprtree *consequent;
 	    struct _exprtree *alternative;
@@ -83,20 +89,21 @@ typedef struct _exprtree
     struct _exprtree *next;
 } exprtree;
 
-#define EXPR_TUPLE_CONST   1
-#define EXPR_FUNC          2
-#define EXPR_INTERNAL      3
-#define EXPR_SEQUENCE      4
-#define EXPR_ASSIGNMENT    5
-#define EXPR_VARIABLE      6
-#define EXPR_IF_THEN       7
-#define EXPR_IF_THEN_ELSE  8
-#define EXPR_WHILE         9
-#define EXPR_DO_WHILE     10
-#define EXPR_TUPLE        11
-#define EXPR_SELECT       12
-#define EXPR_CAST         13
-#define EXPR_CONVERT      14
+#define EXPR_TUPLE_CONST     1
+#define EXPR_FUNC            2
+#define EXPR_INTERNAL        3
+#define EXPR_SEQUENCE        4
+#define EXPR_ASSIGNMENT      5
+#define EXPR_VARIABLE        6
+#define EXPR_IF_THEN         7
+#define EXPR_IF_THEN_ELSE    8
+#define EXPR_WHILE           9
+#define EXPR_DO_WHILE       10
+#define EXPR_TUPLE          11
+#define EXPR_SELECT         12
+#define EXPR_CAST           13
+#define EXPR_CONVERT        14
+#define EXPR_SUB_ASSIGNMENT 15
 
 exprtree* make_number (float num);
 exprtree* make_range (int first, int last);
@@ -108,6 +115,7 @@ exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */
 exprtree* make_function (const char *name, exprtree *args);
 exprtree* make_sequence (exprtree *left, exprtree *right);
 exprtree* make_assignment (char *name, exprtree *value); /* should use variable_t instead */
+exprtree* make_sub_assignment (char *name, exprtree *subscripts, exprtree *value);
 exprtree* make_if_then (exprtree *condition, exprtree *consequent);
 exprtree* make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternative);
 exprtree* make_while (exprtree *invariant, exprtree *body);

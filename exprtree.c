@@ -302,6 +302,34 @@ make_assignment (char *name, exprtree *value)
 }
 
 exprtree*
+make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
+{
+    exprtree *tree = alloc_exprtree();
+    tuple_info_t info;
+    variable_t *var = lookup_variable(name, &info);
+
+    if (var == 0)
+    {
+	sprintf(error_string, "Undefined variable %s.", name);
+	JUMP(0);
+    }
+
+    if (subscripts->result.length != value->result.length)
+    {
+	sprintf(error_string, "Lhs does not match rhs in sub assignment.");
+	JUMP(0);
+    }
+
+    tree->type = EXPR_SUB_ASSIGNMENT;
+    tree->val.sub_assignment.var = var;
+    tree->val.sub_assignment.subscripts = subscripts;
+    tree->val.sub_assignment.value = value;
+    tree->result = value->result;
+
+    return tree;
+}
+
+exprtree*
 make_if_then (exprtree *condition, exprtree *consequent)
 {
     exprtree *tree = alloc_exprtree();

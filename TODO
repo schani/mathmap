@@ -1,24 +1,18 @@
-kreuzprodukt
-determinante
 normalisierung von matrizen (matrix/determinante)
 inverse matrix
-x[y]=z syntax (morph is scheisse)
-v[0,1] = v[1,0]
 pdb scheisse kurden (repeat last filter sollt schon gehen)
+pixel konvertieren schneller machen
 
 
-num=(gray(origVal(xy+xy:[-1,-1]))>0.5)+
-    (gray(origVal(xy+xy:[-1,0]))>0.5)+
-    (gray(origVal(xy+xy:[-1,1]))>0.5)+
-    (gray(origVal(xy+xy:[0,-1]))>0.5)+
-    (gray(origVal(xy+xy:[0,1]))>0.5)+
-    (gray(origVal(xy+xy:[1,-1]))>0.5)+
-    (gray(origVal(xy+xy:[1,0]))>0.5)+
-    (gray(origVal(xy+xy:[1,1]))>0.5);
-val=gray(origVal(xy))>0.5;
-rgba:[0,0,0,1]+rgba:[1,1,1,0]*if num==2 then val else if num==3 then 1 else 0 end end
 
 
+
+c=2*asin(r/Y);
+phi = if r == 0 then 0
+                else asin(y * sin(c) / r) end;
+
+origVal (xy: [atan(x*sin(c), r*cos(c)) * X / 180,
+              phi * Y / 90])
 
 
 

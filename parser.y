@@ -40,7 +40,9 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | T_FLOAT             { $<exprtree>$ = $<exprtree>1; }
        | T_IDENT             { $<exprtree>$ = make_var($<ident>1); }
        | '[' exprlist ']'    { $<exprtree>$ = make_tuple($<exprtree>2); }
-       | expr '[' subscripts ']' { $<exprtree>$ = make_select($<exprtree>1, make_tuple($<exprtree>3)); }
+       | T_IDENT '[' subscripts ']'
+                             { $<exprtree>$ = make_select(make_var($<ident>1), make_tuple($<exprtree>3)); }
+       | '(' expr ')' '[' subscripts ']' { $<exprtree>$ = make_select($<exprtree>2, make_tuple($<exprtree>5)); }
        | T_IDENT ':' expr    { $<exprtree>$ = make_cast($<ident>1, $<exprtree>3); }
        | T_IDENT T_CONVERT expr { $<exprtree>$ = make_convert($<ident>1, $<exprtree>3); }
        | expr '+' expr       { $<exprtree>$ = make_function("__add",
@@ -82,6 +84,8 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | T_IDENT '(' arglist ')'
                              { $<exprtree>$ = make_function($<ident>1, $<exprtree>3); }
        | T_IDENT '=' expr    { $<exprtree>$ = make_assignment($<ident>1, $<exprtree>3); }
+       | T_IDENT '[' subscripts ']' '=' expr
+                             { $<exprtree>$ = make_sub_assignment($<ident>1, make_tuple($<exprtree>3), $<exprtree>6); }
        | expr ';' expr       { $<exprtree>$ = make_sequence($<exprtree>1, $<exprtree>3); }
        | T_IF expr T_THEN expr end
                              { $<exprtree>$ = make_if_then($<exprtree>2, $<exprtree>4); }
