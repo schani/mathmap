@@ -1,19 +1,34 @@
+MathMap 0.14
+============
+
 MathMap is a plug-in for The GIMP and a standalone command-line
 utility for image and animation manipulation.
 
-It was designed and written by Mark Probst.
-
 The newest version is always available from the MathMap home-page:
 
-	http://www.complang.tuwien.ac.at/~schani/mathmap/
+    http://www.complang.tuwien.ac.at/schani/mathmap/
+
+I plan to release a version 1.0 of MathMap soon and to this end have
+decided not to add any more nontrivial features, but instead focus on
+bug fixing.  So please, if you encounter any problems, mail me, and
+I'll try to fix them as best I can.  (Of course that doesn't mean that
+feature contributions are discouraged - on the contrary!  It's just
+that I probably won't integrate them until version 1.0 is out.)
 
 See INSTALL on how to build and install MathMap.
 
-If you have any suggestions, bug reports, criticism or even
-contributions, don't hesitate mailing me.
+See doc/language.html for a language tutorial with nice pictures (very
+useful if you are new to MathMap) and doc/reference.html for a
+language reference.
 
-Note: The GIMP plug-in version of MathMap only works with GIMP 1.1.26
-and up.
+If you have any suggestions, bug reports, criticism or even
+contributions, don't hesitate to mail me.
+
+Note: The command line version of MathMap is not very thoroughly
+tested and has probably lots of bugs.  The QuickTime Movie support in
+the command line version is ancient and has not been tested at all for
+this release, so it will probably not work.  Please report any
+problems you have with it.
 
 ---
 Mark Probst

@@ -27,7 +27,7 @@
 #include "vars.h"
 #include "internals.h"
 
-#define STACKSIZE     256
+#define POSTFIX_STACKSIZE     256
 
 struct _userval_info_t;
 struct _mathmap_invocation_t;

@@ -102,7 +102,7 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
                              { $<exprtree>$ = make_function("__neg", $<exprtree>2); }
        | '!' expr %prec UNARY
                              { $<exprtree>$ = make_function("__not", $<exprtree>2); }
-       | '(' expr ')'        { $<exprtree>$ = $<exprtree>2; };
+       | '(' expr ')'        { $<exprtree>$ = $<exprtree>2; }
        | T_IDENT '(' arglist ')'
                              { $<exprtree>$ = make_function($<ident>1, $<exprtree>3); }
        | T_IDENT '(' T_STRING ')'

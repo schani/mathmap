@@ -4,7 +4,7 @@
  * MathMap
  *
  * Copyright (C) 2000 Hans Lundmark
- * Copyright (C) 2002 Mark Probst
+ * Copyright (C) 2002-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,6 @@
 #ifndef __SPEC_FUNC_H__
 #define __SPEC_FUNC_H__
 
-gsl_complex cgamma (gsl_complex z);
+complex float cgamma (complex float z);
 
 #endif

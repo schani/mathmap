@@ -1,5 +1,5 @@
-MathMap 0.13
-------------
+MathMap 0.14
+============
 
 MathMap is a GIMP plug-in and a standalone command-line tool which
 allows distortion of images and animations specified by mathematical
@@ -11,9 +11,24 @@ of still images and of animations.
 
 The MathMap homepage can be found at
 
-    http://www.complang.tuwien.ac.at/~schani/mathmap/
+    http://www.complang.tuwien.ac.at/schani/mathmap/
 
-It includes a user's manual as well as screenshots and examples.
+It features a user's manual as well as screenshots and examples.
+
+Changes since 0.13:
+
+  * Compiles and runs with both GIMP 1.2 and GIMP 2.0.
+  * Comes with a Language Tutorial!
+  * Lots of new and improved examples.
+  * Features a new compiler, which doesn't yet generate better code
+    than the old one, but offers a much better platform for future
+    improvements.
+  * MathMap now automatically uses the compiler and if that doesn't
+    work, falls back to the interpreter without user intervention.
+  * All functions now use radians instead of degrees (which is The
+    Right Thing).
+  * Compiles on MacOS X (tested with GIMP 1.2 on Fink).
+  * Bug fixes.
 
 Changes since 0.12:
 

@@ -35,6 +35,7 @@
         printf%'('%<dq>%<prc>f %<dq>%',' %arg(0,%<i>)%')';
     )
     printf%'('%<dq>]\n%<dq>%')';
+    %reslength() = 1;
 )\
 
 #! ----- arithmetic
@@ -52,6 +53,7 @@
 %builtin(__add,add_1_ri,%'((ri 2) (T 1) (ri 2))',0,
     %result(0) = %arg(0,0) + %arg(1,0);
     %result(1) =             %arg(1,1);
+    %reslength() = 2;
 )\
 
 %builtin(__add,add_1,%'((T 1) (T 1) (T 1))',0,
@@ -83,6 +85,7 @@
 %builtin(__sub,sub_1_ri,%'((ri 2) (T 1) (ri 2))',0,
     %result(0) = %arg(0,0) - %arg(1,0);
     %result(1) =           - %arg(1,1);
+    %reslength() = 2;
 )\
 
 %builtin(__sub,sub_1,%'((T 1) (T 1) (T 1))',0,
@@ -118,8 +121,10 @@
 )\
 
 %builtin(__mul,mul_1_ri,%'((ri 2) (T 1) (ri 2))',0,
-    %result(0) = %arg(0,0) * %arg(1,0);
-    %result(1) = %arg(0,0) * %arg(1,1);
+    float r = %arg(0,0);
+    %result(0) = r * %arg(1,0);
+    %result(1) = r * %arg(1,1);
+    %reslength() = 2;
 )\
 
 %define(matmult,n,
@@ -172,10 +177,12 @@
 
 %builtin(__mul,mul_m2x2v2,%'((T 2) (m2x2 4) (T 2))',0,
     %matvecmul(2)
+    %reslength() = 2;
 )\
 
 %builtin(__mul,mul_m3x3v3,%'((T 3) (m3x3 9) (T 3))',0,
     %matvecmul(3)
+    %reslength() = 3;
 )\
 
 %builtin(__mul,mul_1,%'((T 1) (T 1) (T 1))',0,
@@ -211,8 +218,9 @@
 )\
 
 %builtin(__div,div_1_ri,%'((ri 2) (T 1) (ri 2))',0,
-    double %'x,y,tmp';
+    double %'x,y,r,tmp';
 
+    r = %arg(0,0);
     x = %arg(1,0);
     y = %arg(1,1);
     tmp = x * x + y * y;
@@ -224,9 +232,10 @@
     }
     else
     {
-        %result(0) =   %arg(0,0) * x / tmp;
-        %result(1) = - %arg(0,0) * y / tmp;
+        %result(0) =   r * x / tmp;
+        %result(1) = - r * y / tmp;
     }
+    %reslength() = 2;
 )\
 
 %builtin(__div,div_v2m2x2,%'((nil 2) (_ 2) (m2x2 4))',0,
@@ -330,6 +339,7 @@
         sum += %arg(0,%<i>);
     )
     %result(0) = sum;
+    %reslength() = 1;
 )\
 
 #! ----- vector functions
@@ -352,6 +362,7 @@
 
 %builtin(det,det_m2x2,%'((nil 1) (m2x2 4))',0,
     %result(0) = %arg(0,0) * %arg(0,3) - %arg(0,1) * %arg(0,2);
+    %reslength() = 1;
 )\
 
 %builtin(det,det_m3x3,%'((nil 1) (m3x3 9))',0,
@@ -361,6 +372,7 @@
                  - %arg(0,2) * %arg(0,4) * %arg(0,6)
                  - %arg(0,0) * %arg(0,5) * %arg(0,7)
                  - %arg(0,1) * %arg(0,3) * %arg(0,8);
+    %reslength() = 1;
 )\
 
 %builtin(normalize,normalize,%'((T L) (T L))',0,
@@ -550,6 +562,7 @@
 
 %builtin(arg,arg_ri,%'((nil 1) (ri 2))',0,
     %result(0) = gsl_complex_arg%'('%make_complex(%arg(0,0),%arg(0,1))%')';
+    %reslength() = 1;
 )\
 
 %builtin(conj,conj_ri,%'((ri 2) (ri 2))',0,
@@ -680,6 +693,7 @@
     %forarglength(1,i,
         %result(%<i>) = %'('1 - l%')' * %arg(1,%<i>) + l * %arg(2,%<i>);
     )
+    %reslength() = %arglength(2);
 )\
 
 %builtin(lerp,lerp_n,%'((T L) (_ L) (T L) (T L))',0,
@@ -876,4 +890,5 @@
 
 %builtin(noise,noise,%'((nil 1) (_ 3))',0,
     %result(0) = noise%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
+    %reslength() = 1;
 )\

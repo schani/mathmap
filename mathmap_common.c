@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -90,6 +90,13 @@ free_invocation (mathmap_invocation_t *invocation)
 		case USERVAL_GRADIENT :
 		    free(invocation->uservals[info->index].v.gradient.values);
 		    break;
+
+#ifdef GIMP
+		case USERVAL_IMAGE :
+		    if (invocation->uservals[info->index].v.image.index > 0)
+			free_input_drawable(invocation->uservals[info->index].v.image.index);
+		    break;
+#endif
 	    }
 	}
 	free(invocation->uservals);
@@ -166,7 +173,7 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, char *template_filename)
+compile_mathmap (char *expression, FILE *template)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     static int try_compiler = 1;
@@ -185,6 +192,10 @@ compile_mathmap (char *expression, char *template_filename)
     mathmap->exprtree = 0;
 
     init_internals(mathmap);
+
+#ifdef GIMP
+    register_image(&mathmap->userval_infos, INPUT_IMAGE_USERVAL_NAME);
+#endif
 
     the_mathmap = mathmap;
 
@@ -208,7 +219,7 @@ compile_mathmap (char *expression, char *template_filename)
 	}
 
 	if (try_compiler)
-	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename);
+	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template);
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{
@@ -251,7 +262,16 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->mathfunc = 0;
 
     invocation->uservals = instantiate_uservals(mathmap->userval_infos);
+#ifdef GIMP
+    /* this is the original image */
+    assert(mathmap->num_uservals > 0
+	   && mathmap->userval_infos->type == USERVAL_IMAGE
+	   && strcmp(mathmap->userval_infos->name, INPUT_IMAGE_USERVAL_NAME) == 0);
+    invocation->uservals[0].v.image.index = 0;
+#endif
+
     invocation->variables = instantiate_variables(mathmap->variables);
+
     invocation->internals = instantiate_internals(mathmap->internals);
 
     invocation->antialiasing = 0;
@@ -293,7 +313,7 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->num_rows_finished = 0;
 
     if (!mathmap->is_native)
-	invocation->stack = (tuple_t*)malloc(STACKSIZE * sizeof(tuple_t));
+	invocation->stack = (tuple_t*)malloc(POSTFIX_STACKSIZE * sizeof(tuple_t));
     else
 	invocation->stack = 0;
 
@@ -390,7 +410,8 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
 	    q += invocation->row_stride;
 
-	    invocation->num_rows_finished = row + 1;
+	    if (!invocation->supersampling)
+		invocation->num_rows_finished = row + 1;
 	}
     }
 }
@@ -440,9 +461,11 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 			    + line3[(col+1)*invocation->output_bpp+i]) / 6;
 		p += invocation->output_bpp;
 	    }
+	    memcpy(line1, line3, (img_width + 1) * invocation->output_bpp);
+
 	    q += invocation->row_stride;
 
-	    memcpy(line1, line3, (img_width + 1) * invocation->output_bpp);
+	    invocation->num_rows_finished = row + 1;
 	}
 
 	free(line1);

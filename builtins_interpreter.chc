@@ -34,6 +34,10 @@
     }%'\n'
 )\
 \
+%define(arglength,argnum,
+    invocation->stack[invocation->stackp - %curnumargs + %eval(%argnum)].length
+)\
+\
 %defspecial(forarglength,argnum,name,code,
 %locals(varname,
     %<varname=i_%newtmpnum()>\

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,13 +32,13 @@
 #include "vars.h"
 #include "cgen.h"
 #include "postfix.h"
+#include "color.h"
 
 #ifdef GIMP
 #include <libgimp/gimp.h>
 #endif
 
-#define MATHMAP_DATE          "March 2002"
-#define MATHMAP_VERSION       "0.14"
+#define MATHMAP_DATE          "April 2004"
 
 typedef struct _mathmap_t
 {
@@ -66,7 +66,11 @@ typedef struct _mathmap_t
  */
 extern mathmap_t *the_mathmap;
 
-#define EDGE_BEHAVIOUR_COLOR          1
+#ifndef OPENSTEP
+extern color_t gradient_samples[USER_GRADIENT_POINTS];
+#endif
+
+#define EDGE_BEHAVIOUR_COLOR          1	/* all three used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
 
@@ -84,7 +88,7 @@ typedef struct _mathmap_invocation_t
     int output_bpp;
 
     int edge_behaviour;
-    guchar edge_color[4];
+    color_t edge_color;
 
     int current_frame;
     int origin_x, origin_y;
@@ -123,7 +127,7 @@ void free_mathmap (mathmap_t *mathmap);
 void free_invocation (mathmap_invocation_t *invocation);
 
 int check_mathmap (char *expression);
-mathmap_t* compile_mathmap (char *expression, char *template_filename);
+mathmap_t* compile_mathmap (char *expression, FILE *template);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
 
@@ -131,8 +135,8 @@ void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathma
 
 void update_image_internals (mathmap_invocation_t *invocation);
 
-void mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel);
-void mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y, guchar *pixel);
+color_t mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y);
+color_t mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y);
 
 #ifdef GIMP
 void user_value_changed (void);
@@ -140,6 +144,17 @@ void user_value_changed (void);
 int alloc_input_drawable (GimpDrawable *drawable);
 void free_input_drawable (int index);
 GimpDrawable* get_input_drawable (int index);
+
+/* GIMP 1.2/2.0 compatiblity macros */
+#ifndef GIMP2
+#define DRAWABLE_ID(d)     ((d)->id)
+#define gimp_image_undo_group_start       gimp_undo_push_group_start
+#define gimp_image_undo_group_end         gimp_undo_push_group_end
+#define gimp_drawable_set_name            gimp_layer_set_name
+#else
+#define DRAWABLE_ID(d)     ((d)->drawable_id)
+#endif
+
 #endif
 
 #endif

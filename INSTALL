@@ -1,11 +1,16 @@
+Installing MathMap
+==================
+
 Edit the Makefile if necessary.  These are, amongst more obscure
-things, the reasons why you might have to do this:
+things, these reasons why you might have to do this:
+
+  * You want to build for GIMP 1.2 instead of the new GIMP 2.0.
+
+  * You are building on MacOS X.  This is only tested with GIMP 1.2 on
+    Fink.
 
   * You are building on an Alpha. If you don't know what an Alpha is,
     this does not apply to you.
-
-  * You don't have a gcc/glibc system. If you use a recent Linux
-    distribution, this does not apply to you.
 
   * If you want to build the command line version instead of the GIMP
     plug-in.  For additional animation support, you must have
@@ -19,7 +24,11 @@ After you are finished with the Makefile, just type
 
 	make
 
-It should compile on most systems.
+It should compile on most systems.  If it does not work, the most probable
+cause is that you do not have either the GIMP development package or the GSL
+library installed.  Consult the documentation of your Linux distribution or
+whatever you have on how to install packages.  The packages you're looking for
+are probably called something like "gimp-devel" and "gsl-devel" or just "gsl".
 
 If you want to install mathmap on your account, type
 
@@ -29,6 +38,8 @@ If you have compiled the plug-in version and want to install the
 national language translations, become root and type
 
 	make install-mos
+
+If you have any problems with this process, feel free to contact me.
 
 ---
 Mark Probst

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002 Mark Probst
+ * Copyright (C) 2002-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,14 +25,17 @@
 /*
  * $$l -> MAX_TUPLE_LENGTH
  * $$g -> GIMP ? 1 : 0
+ * $$2 -> GIMP2 ? 1 : 0
  * $$m -> mathmap code
  * $$p -> USER_CURVE_POINTS
  * $$q -> USER_GRADIENT_POINTS
  * $$o -> OPENSTEP
+ * $$a -> has altivec
  */
 
 #include <stdlib.h>
 #include <math.h>
+#include <complex.h>
 
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))
@@ -42,6 +45,12 @@
 #endif
 
 #define M_PI		3.14159265358979323846	/* pi */
+
+#define EDGE_BEHAVIOUR_COLOR          1
+#define EDGE_BEHAVIOUR_WRAP           2
+#define EDGE_BEHAVIOUR_REFLECT        3
+
+#define USERVAL_IMAGE       7
 
 typedef struct
 {
@@ -71,7 +80,11 @@ typedef struct _userval_t
 	struct
 	{
 #if !$o
+#if !$2
 	    unsigned char button_value[4];
+#else
+	    struct { double r, g, b, a; } button_value;
+#endif
 #endif
 	    color_t value;
 	} color;
@@ -139,7 +152,7 @@ typedef struct _mathmap_invocation_t
     int output_bpp;
 
     int edge_behaviour;
-    unsigned char edge_color[4];
+    color_t edge_color;
 
     int current_frame;
     int origin_x, origin_y;
@@ -164,34 +177,192 @@ typedef struct _mathmap_invocation_t
 
 typedef void (*mathfunc_t) (mathmap_invocation_t*, int, int, unsigned char*);
 
-extern void get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame);
-extern void get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame);
-extern void convert_rgb_to_hsv (float *rgb, float *hsv);
-extern void convert_hsv_to_rgb (float *hsv, float *rgb);
-extern float noise (float, float, float);
-
-typedef struct
+#if $o
+static color_t
+get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, int drawable_index, int frame)
 {
-    double dat[2];
-} gsl_complex;
+    int x, y;
+    int width, height;
+    userval_t *userval;
 
-gsl_complex gsl_complex_div (gsl_complex a, gsl_complex b);  /* r=a/b */
-gsl_complex gsl_complex_sqrt (gsl_complex z);  /* r=sqrt(z) */
-gsl_complex gsl_complex_pow (gsl_complex a, gsl_complex b);  /* r=a^b */
-gsl_complex gsl_complex_exp (gsl_complex a);    /* r=exp(a) */
-gsl_complex gsl_complex_log (gsl_complex a);    /* r=log(a) (base e) */
-gsl_complex gsl_complex_sin (gsl_complex a);  /* r=sin(a) */
-gsl_complex gsl_complex_cos (gsl_complex a);  /* r=cos(a) */
-gsl_complex gsl_complex_tan (gsl_complex a);  /* r=tan(a) */
-gsl_complex gsl_complex_arcsin (gsl_complex a);  /* r=arcsin(a) */
-gsl_complex gsl_complex_arccos (gsl_complex a);  /* r=arccos(a) */
-gsl_complex gsl_complex_arctan (gsl_complex a);  /* r=arctan(a) */
-gsl_complex gsl_complex_sinh (gsl_complex a);  /* r=sinh(a) */
-gsl_complex gsl_complex_cosh (gsl_complex a);  /* r=coshh(a) */
-gsl_complex gsl_complex_tanh (gsl_complex a);  /* r=tanh(a) */
-gsl_complex gsl_complex_arcsinh (gsl_complex a);  /* r=arcsinh(a) */
-gsl_complex gsl_complex_arccosh (gsl_complex a);  /* r=arccosh(a) */
-gsl_complex gsl_complex_arctanh (gsl_complex a);  /* r=arctanh(a) */
+    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
+	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
+	return MAKE_RGBA_COLOR(255,255,255,255); /* illegal image */
+
+    userval = &invocation->uservals[drawable_index];
+
+    x = floor(_x + userval->v.image.middle_x);
+    y = floor(-_y + userval->v.image.middle_y);
+
+    width = userval->v.image.width;
+    height = userval->v.image.height;
+    
+    if (invocation->edge_behaviour == EDGE_BEHAVIOUR_WRAP)
+    {
+	if (x < 0)
+	    x = x % width + width;
+	else if (x >= width)
+	    x %= width;
+	if (y < 0)
+	    y = y % height + height;
+	else if (y >= height)
+	    y %= height;
+    }
+    else if (invocation->edge_behaviour == EDGE_BEHAVIOUR_REFLECT)
+    {
+	if (x < 0)
+	    x = -x % width;
+	else if (x >= width)
+	    x = (width - 1) - (x % width);
+	if (y < 0)
+	    y = -y % height;
+	else if (y >= height)
+	    y = (height - 1) - (y % height);
+    }
+    else
+    {
+	if (x < 0 || x >= width || y < 0 || y >= height)
+	    return *(color_t*)invocation->edge_color;
+    }
+
+    return *(color_t*)(userval->v.image.data + 4 * x + y * userval->v.image.row_stride);
+}
+
+extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+
+#if $a
+typedef union
+{
+  unsigned int a[4];
+  vector unsigned int v;
+} uint_vector;
+
+typedef union
+{
+  float a[4];
+  vector float v;
+} float_vector;
+
+static color_t
+get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+{
+    int width, height;
+    userval_t *userval;
+    float cx, cy;
+    color_t *img_data;
+    int row_stride;
+
+    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
+	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
+	return MAKE_RGBA_COLOR(255,255,255,255); /* illegal image */
+
+    userval = &invocation->uservals[drawable_index];
+
+    cx = x + userval->v.image.middle_x;
+    cy = -y + userval->v.image.middle_y;
+
+    width = userval->v.image.width;
+    height = userval->v.image.height;
+
+    if (cx < 0 || cx >= width - 1
+	|| cy < 0 || cy >= height - 1)
+	return get_orig_val_intersample_pixel(invocation, x, y, drawable_index, frame);
+
+    img_data = userval->v.image.data;
+    row_stride = userval->v.image.row_stride >> 2; /* assuming row_stride is multiple of 4 */
+
+    {
+	vector float one_one = (vector float)(1.0, 1.0, 0.0, 0.0);
+	vector unsigned char pv_x0x0x1x1 =
+	    (vector unsigned char)(0,1,2,3,0,1,2,3,16,17,18,19,16,17,18,19);
+	vector unsigned char pv_y0y1y0y1 =
+	    (vector unsigned char)(4,5,6,7,20,21,22,23,4,5,6,7,20,21,22,24);
+	vector unsigned int zero = (vector unsigned int)(0,0,0,0);
+	vector unsigned char c_mask =
+	    (vector unsigned char)(0,0,0,255,0,0,0,255,0,0,0,255,0,0,0,255);
+
+	color_t __attribute__((aligned(16))) color;
+	float_vector cxy_u;
+	vector float cxy, cxy0, cxyd0, cxyd1;
+	vector unsigned int pxy0;
+	uint_vector pxy0_u;
+	vector float cxd0xd0xd1xd1, cyd0yd1yd0yd1;
+	vector float fs;
+	unsigned int i00;
+	uint_vector cs_u;
+	vector signed char cs;
+	vector signed short cs_h;
+	vector float c00, c01, c10, c11;
+	vector float c;
+	vector unsigned int ci;
+
+	cxy_u.a[0] = cx;
+	cxy_u.a[1] = cy;
+
+	cxy = cxy_u.v;
+
+	cxy0 = vec_floor(cxy);
+	cxyd1 = vec_sub(cxy, cxy0);
+	cxyd0 = vec_sub(one_one, cxyd1);
+
+	pxy0 = vec_ctu(cxy0, 0);
+	pxy0_u.v = pxy0;
+
+	cxd0xd0xd1xd1 = vec_perm(cxyd0, cxyd1, pv_x0x0x1x1);
+	cyd0yd1yd0yd1 = vec_perm(cxyd0, cxyd1, pv_y0y1y0y1);
+
+	fs = vec_madd(cxd0xd0xd1xd1, cyd0yd1yd0yd1, (vector float)zero);
+
+	i00 = pxy0_u.a[0] + pxy0_u.a[1] * row_stride;
+
+	cs_u.a[0] = img_data[i00];
+	cs_u.a[1] = img_data[i00 + 1];
+	cs_u.a[2] = img_data[i00 + row_stride];
+	cs_u.a[3] = img_data[i00 + row_stride + 1];
+
+	cs = (vector signed char)cs_u.v;
+
+	cs_h = vec_unpackh(cs);
+	c00 = vec_ctf(vec_and(vec_unpackh(cs_h),
+			      (vector signed int)c_mask), 0);
+	c10 = vec_ctf(vec_and(vec_unpackl(cs_h),
+			      (vector signed int)c_mask), 0);
+
+	cs_h = vec_unpackl(cs);
+	c01 = vec_ctf(vec_and(vec_unpackh(cs_h),
+			      (vector signed int)c_mask), 0);
+	c11 = vec_ctf(vec_and(vec_unpackl(cs_h),
+			      (vector signed int)c_mask), 0);
+
+	c = vec_madd(c00, vec_splat(fs, 0), (vector float)zero);
+	c = vec_madd(c01, vec_splat(fs, 1), c);
+	c = vec_madd(c10, vec_splat(fs, 2), c);
+	c = vec_madd(c11, vec_splat(fs, 3), c);
+
+	ci = (vector unsigned int)vec_cts(c, 0);
+
+	ci = (vector unsigned int)vec_packs(vec_packs(ci, zero),
+					    (vector unsigned short)zero);
+	      
+	vec_ste(ci, 0, &color);
+
+	return color;
+    }
+	
+}
+#else
+static color_t
+get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+{
+    return get_orig_val_intersample_pixel(invocation, x, y, drawable_index, frame);
+}
+#endif
+#else
+extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+#endif
+
+extern float noise (float, float, float);
 
 struct _gsl_vector;
 typedef struct _gsl_vector gsl_vector;
@@ -209,7 +380,7 @@ void gsl_vector_set (gsl_vector * v, const size_t i, double x);
 
 int gsl_linalg_HH_solve (gsl_matrix * A, const gsl_vector * b, gsl_vector * x);
 
-gsl_complex cgamma (gsl_complex z);
+complex float cgamma (complex float z);
 
 #define ADD(a,b)              ((a)+(b))
 #define SUB(a,b)              ((a)-(b))
@@ -224,10 +395,7 @@ gsl_complex cgamma (gsl_complex z);
 #define NOT(a)                (!(a))
 #define PRINT(a)              (printf("%f ", (float)(a)), 0)
 #define NEWLINE()             (printf("\n"))
-#define ORIG_VAL(x,y,d,f)     ({ unsigned char p[4]; get_orig_val_pixel_func(invocation, (x), (y), p, (d), (f)); MAKE_RGBA_COLOR(p[0], p[1], p[2], p[3]); })
-#define COMPLEX(r,i)          ((gsl_complex){{(r), (i)}})
-#define C_REAL(z)             ((z).dat[0])
-#define C_IMAG(z)             ((z).dat[1])
+#define COMPLEX(r,i)          ((r) + (i) * I)
 #define MAKE_M2X2(a,b,c,d)           ({ gsl_matrix *m = gsl_matrix_alloc(2,2); \
                                         gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,1,0,(c)); gsl_matrix_set(m,1,1,(d)); m; })
 #define MAKE_M3X3(a,b,c,d,e,f,g,h,i) ({ gsl_matrix *m = gsl_matrix_alloc(3,3); \
@@ -249,6 +417,7 @@ gsl_complex cgamma (gsl_complex z);
 #define USERVAL_COLOR(x)      (invocation->uservals[(x)].v.color.value)
 #define USERVAL_GRADIENT(x,p) (invocation->uservals[(x)].v.gradient.values[(int)(MAX(0, MIN(1, (p))) * ($q - 1))])
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
+#define ORIG_VAL(x,y,d,f)     get_orig_val_pixel_func(invocation, (x), (y), (d), (f))
 
 #if $o
 #define RED_FLOAT(c)          (((RED(c)*(ALPHA(c)+1))>>8)/255.0)
@@ -278,7 +447,7 @@ gsl_complex cgamma (gsl_complex z);
 void
 mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
-    void (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, unsigned char*, int, int);
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     int row, col;
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
@@ -296,10 +465,17 @@ mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsi
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, invocation->img_height);
 
+#if $o
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel_fast;
+#else
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
+#endif
 
     for (row = first_row; row < last_row; ++row)
     {
@@ -332,7 +508,8 @@ $m
 
 	q += invocation->row_stride;
 
-	invocation->num_rows_finished = row + 1;
+	if (!invocation->supersampling)
+	    invocation->num_rows_finished = row + 1;
     }
 }
 

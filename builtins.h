@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,6 +29,7 @@
 
 #include "tuples.h"
 #include "postfix.h"
+#include "color.h"
 
 struct _mathmap_invocation_t;
 struct _compvar_t;
@@ -55,6 +56,9 @@ void double_to_color (double val, unsigned int *red, unsigned int *green,
 
 void convert_rgb_to_hsv (float *rgb, float *hsv);
 void convert_hsv_to_rgb (float *hsv, float *rgb);
+
+color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
 
 void init_builtins (void);
 

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002 Mark Probst
+ * Copyright (C) 2002-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,12 +25,24 @@
 
 typedef unsigned int color_t;
 
-#define MAKE_RGBA_COLOR(r,g,b,a)            ((((color_t)(r))<<24)|(((color_t)(g))<<16)|(((color_t)(b))<<8)|((color_t)(a)))
+#define MAKE_RGBA_COLOR_UNSAFE(r,g,b,a)     ((((color_t)(r))<<24)|(((color_t)(g))<<16)|(((color_t)(b))<<8)|((color_t)(a)))
+#define MAKE_RGBA_COLOR(r,g,b,a)            MAKE_RGBA_COLOR_UNSAFE((color_t)(r)&0xff, (color_t)(g)&0xff, (color_t)(b)&0xff, (color_t)(a)&0xff)
+#define MAKE_RGBA_COLOR_FLOAT(r,g,b,a)      MAKE_RGBA_COLOR((int)((r)*255.0),(int)((g)*255.0),(int)((b)*255.0),(int)((a)*255.0))
+
 #define RED(c)                              ((c)>>24)
 #define GREEN(c)                            (((c)>>16)&0xff)
 #define BLUE(c)                             (((c)>>8)&0xff)
 #define ALPHA(c)                            ((c)&0xff)
 
+#define RED_FLOAT(c)                        (RED((c))/255.0)
+#define GREEN_FLOAT(c)                      (GREEN((c))/255.0)
+#define BLUE_FLOAT(c)                       (BLUE((c))/255.0)
+#define ALPHA_FLOAT(c)                      (ALPHA((c))/255.0)
+
+#define COLOR_ADD(a,b)                      (MAKE_RGBA_COLOR(RED((a))+RED((b)),GREEN((a))+GREEN((b)),BLUE((a))+BLUE((b)),ALPHA((a))+ALPHA((b))))
+#define COLOR_MUL_FLOAT(c,f)                (MAKE_RGBA_COLOR((color_t)(RED((c))*(f)),(color_t)(GREEN((c))*(f)),(color_t)(BLUE((c))*(f)),(color_t)(ALPHA((c))*(f))))
+
 #define COLOR_BLACK                         (MAKE_RGBA_COLOR(0,0,0,0xff))
+#define COLOR_WHITE                         (MAKE_RGBA_COLOR(0xff,0xff,0xff,0xff))
 
 #endif

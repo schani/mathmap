@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2002 Mark Probst
+;; Copyright (C) 2002-2004 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -57,139 +57,160 @@
     (incf *tmp-num*)
     name))
 
-(defparameter *ops* '((+v 2 "OP_ADD")
-		      (-v 2 "OP_SUB")
-		      (-v 1 "OP_NEG")
-		      (*v 2 "OP_MUL")
-		      (/v 2 "OP_DIV")
-		      (%v 2 "OP_MOD")
-		      (abs-v 1 "OP_ABS")))
+(defparameter *ops* '((+v 2 "OP_ADD" "~A = ~A + ~A")
+		      (-v 2 "OP_SUB" "~A = ~A - ~A")
+		      (-v 1 "OP_NEG" "~A = -~A")
+		      (*v 2 "OP_MUL" "~A = ~A * ~A")
+		      (/v 2 "OP_DIV" "~A = ~A / ~A")
+		      (%v 2 "OP_MOD" "~A = fmod(~A, ~A)")
+		      (abs-v 1 "OP_ABS" "~A = fabs(~A)")))
 
-(defparameter *primops* '((+ 2 "OP_ADD")
-			  (- 2 "OP_SUB")
-			  (- 1 "OP_NEG")
-			  (* 2 "OP_MUL")
-			  (/ 2 "OP_DIV")
-			  (% 2 "OP_MOD")
-			  (abs 2 "OP_ABS")
-			  (min 2 "OP_MIN")
-			  (max 2 "OP_MAX")
-			  (sqrt 1 "OP_SQRT")
-			  (hypot 2 "OP_HYPOT")
-			  (sin 1 "OP_SIN")
-			  (cos 1 "OP_COS")
-			  (tan 1 "OP_TAN")
-			  (asin 1 "OP_ASIN")
-			  (acos 1 "OP_ACOS")
-			  (atan 1 "OP_ATAN")
-			  (atan 2 "OP_ATAN2")
-			  (pow 2 "OP_POW")
-			  (exp 1 "OP_EXP")
-			  (log 1 "OP_LOG")
-			  (sinh 1 "OP_SINH")
-			  (cosh 1 "OP_COSH")
-			  (tanh 1 "OP_TANH")
-			  (asinh 1 "OP_ASINH")
-			  (acosh 1 "OP_ACOSH")
-			  (atanh 1 "OP_ATANH")
-			  (gamma 1 "OP_GAMMA")
-			  (floor 1 "OP_FLOOR")
-			  (= 2 "OP_EQ")
-			  (< 2 "OP_LESS")
-			  (<= 2 "OP_LEQ")
-			  (not 1 "OP_NOT")
-			  (orig-val 4 "OP_ORIG_VAL")
-			  (red 1 "OP_RED")
-			  (green 1 "OP_GREEN")
-			  (blue 1 "OP_BLUE")
-			  (alpha 1 "OP_ALPHA")
-			  (complex 2 "OP_COMPLEX")
-			  (c-real 1 "OP_C_REAL")
-			  (c-imag 1 "OP_C_IMAG")
-			  (c-sqrt 1 "OP_C_SQRT")
-			  (c-sin 1 "OP_C_SIN")
-			  (c-cos 1 "OP_C_COS")
-			  (c-tan 1 "OP_C_TAN")
-			  (c-asin 1 "OP_C_ASIN")
-			  (c-acos 1 "OP_C_ACOS")
-			  (c-atan 1 "OP_C_ATAN")
-			  (c-pow 2 "OP_C_POW")
-			  (c-exp 1 "OP_C_EXP")
-			  (c-log 1 "OP_C_LOG")
-			  (c-arg 1 "OP_C_ARG")
-			  (c-sinh 1 "OP_C_SINH")
-			  (c-cosh 1 "OP_C_COSH")
-			  (c-tanh 1 "OP_C_TANH")
-			  (c-asinh 1 "OP_C_ASINH")
-			  (c-acosh 1 "OP_C_ACOSH")
-			  (c-atanh 1 "OP_C_ATANH")
-			  (c-gamma 1 "OP_C_GAMMA")
-			  (make-m2x2 4 "OP_MAKE_M2X2")
-			  (make-m3x3 9 "OP_MAKE_M3X3")
-			  (free-matrix 1 "OP_FREE_MATRIX")
-			  (make-v2 2 "OP_MAKE_V2")
-			  (make-v3 3 "OP_MAKE_V3")
-			  (free-vector 1 "OP_FREE_VECTOR")
-			  (vector-nth 2 "OP_VECTOR_NTH")
-			  (solve-linear-2 2 "OP_SOLVE_LINEAR_2")
-			  (solve-linear-3 2 "OP_SOLVE_LINEAR_3")
-			  (noise 3 "OP_NOISE")
-			  (rand 2 "OP_RAND")))
+(defparameter *primops* '((+ 2 "OP_ADD" "~A = ~A + ~A")
+			  (- 2 "OP_SUB" "~A = ~A - ~A")
+			  (- 1 "OP_NEG" "~A = -~A")
+			  (* 2 "OP_MUL" "~A = ~A * ~A")
+			  (/ 2 "OP_DIV" "~A = ~A / ~A")
+			  (% 2 "OP_MOD" "~A = fmod(~A, ~A)")
+			  (abs 1 "OP_ABS" "~A = fabs(~A)")
+			  (min 2 "OP_MIN" "~A = ((~A < ~A) ? ~2:*~A : ~A)")
+			  (max 2 "OP_MAX" "~A = ((~A > ~A) ? ~2:*~A : ~A)")
+			  (sqrt 1 "OP_SQRT" "~A = sqrt(~A)")
+			  (hypot 2 "OP_HYPOT" "~A = hypot(~A, ~A)")
+			  (sin 1 "OP_SIN" "~A = sin(~A)")
+			  (cos 1 "OP_COS" "~A = cos(~A)")
+			  (tan 1 "OP_TAN" "~A = tan(~A)")
+			  (asin 1 "OP_ASIN" "~A = asin(~A)")
+			  (acos 1 "OP_ACOS" "~A = acos(~A)")
+			  (atan 1 "OP_ATAN" "~A = atan(~A)")
+			  (atan 2 "OP_ATAN2" "~A = atan2(~A, ~A)")
+			  (pow 2 "OP_POW" "~A = pow(~A, ~A)")
+			  (exp 1 "OP_EXP" "~A = exp(~A)")
+			  (log 1 "OP_LOG" "~A = log(~A)")
+			  (sinh 1 "OP_SINH" "~A = sinh(~A)")
+			  (cosh 1 "OP_COSH" "~A = cosh(~A)")
+			  (tanh 1 "OP_TANH" "~A = tanh(~A)")
+			  (asinh 1 "OP_ASINH" "~A = asinh(~A)")
+			  (acosh 1 "OP_ACOSH" "~A = acosh(~A)")
+			  (atanh 1 "OP_ATANH" "~A = atanh(~A)")
+			  (gamma 1 "OP_GAMMA" "~A = GAMMA(~A)")
+			  (floor 1 "OP_FLOOR" "~A = floor(~A)")
+			  (= 2 "OP_EQ" "~A = (~A == ~A)")
+			  (< 2 "OP_LESS" "~A = (~A < ~A)")
+			  (<= 2 "OP_LEQ" "~A = (~A <= ~A)")
+			  (not 1 "OP_NOT" "~A = !~A")
+			  (orig-val 4 "OP_ORIG_VAL" "({ if (invocation->antialiasing)~%~A = get_orig_val_intersample_pixel(invocation, ~A, ~A, ~A, ~A);~%else~%~@*~A = get_orig_val_pixel(invocation, ~A, ~A, ~A, ~A); })" color)
+			  (red 1 "OP_RED" "~A = RED_FLOAT(~A)")
+			  (green 1 "OP_GREEN" "~A = GREEN_FLOAT(~A)")
+			  (blue 1 "OP_BLUE" "~A = BLUE_FLOAT(~A)")
+			  (alpha 1 "OP_ALPHA" "~A = ALPHA_FLOAT(~A)")
+			  (complex 2 "OP_COMPLEX" "~A = (~A + ~A * I)" complex)
+			  (c-real 1 "OP_C_REAL" "~A = crealf(~A)" complex)
+			  (c-imag 1 "OP_C_IMAG" "~A = cimagf(~A)" complex)
+			  (c-sqrt 1 "OP_C_SQRT" "~A = csqrtf(~A)" complex)
+			  (c-sin 1 "OP_C_SIN" "~A = csinf(~A)" complex)
+			  (c-cos 1 "OP_C_COS" "~A = ccosf(~A)" complex)
+			  (c-tan 1 "OP_C_TAN" "~A = ctanf(~A)" complex)
+			  (c-asin 1 "OP_C_ASIN" "~A = casinf(~A)" complex)
+			  (c-acos 1 "OP_C_ACOS" "~A = cacosf(~A)" complex)
+			  (c-atan 1 "OP_C_ATAN" "~A = catanf(~A)" complex)
+			  (c-pow 2 "OP_C_POW" "~A = cpowf(~A, ~A)" complex)
+			  (c-exp 1 "OP_C_EXP" "~A = cexpf(~A)" complex)
+			  (c-log 1 "OP_C_LOG" "~A = clogf(~A)" complex)
+			  (c-arg 1 "OP_C_ARG" "~A = cargf(~A)" complex)
+			  (c-sinh 1 "OP_C_SINH" "~A = csinhf(~A)" complex)
+			  (c-cosh 1 "OP_C_COSH" "~A = ccoshf(~A)" complex)
+			  (c-tanh 1 "OP_C_TANH" "~A = ctanhf(~A)" complex)
+			  (c-asinh 1 "OP_C_ASINH" "~A = casinhf(~A)" complex)
+			  (c-acosh 1 "OP_C_ACOSH" "~A = cacoshf(~A)" complex)
+			  (c-atanh 1 "OP_C_ATANH" "~A = catanhf(~A)" complex)
+			  (c-gamma 1 "OP_C_GAMMA" "~A = cgamma(~A)" complex)
+			  (make-m2x2 4 "OP_MAKE_M2X2" "~A = MAKE_M2X2(~A, ~A, ~A, ~A)" m2x2)
+			  (make-m3x3 9 "OP_MAKE_M3X3" "~A = MAKE_M3X3(~A, ~A, ~A, ~A, ~A, ~A, ~A, ~A, ~A)" m3x3)
+			  (free-matrix 1 "OP_FREE_MATRIX" "~*gsl_matrix_free(~A)")
+			  (make-v2 2 "OP_MAKE_V2" "~A = MAKE_V2(~A, ~A)" v2)
+			  (make-v3 3 "OP_MAKE_V3" "~A = MAKE_V3(~A, ~A, ~A)" v3)
+			  (free-vector 1 "OP_FREE_VECTOR" "~*gsl_vector_free(~A)")
+			  (vector-nth 2 "OP_VECTOR_NTH" "~A = gsl_vector_get(~*~A, ~2:*~A)")
+			  (solve-linear-2 2 "OP_SOLVE_LINEAR_2" "~A = SOLVE_LINEAR_2(~A, ~A)" v2)
+			  (solve-linear-3 2 "OP_SOLVE_LINEAR_3" "~A = SOLVE_LINEAR_3(~A, ~A)" v3)
+			  (noise 3 "OP_NOISE" "~A = noise(~A, ~A, ~A)")
+			  (rand 2 "OP_RAND" "~A = RAND(~A, ~A)")))
 
-(defparameter *condops* '((= 2 "OP_EQ")
-			  (< 2 "OP_LESS")
-			  (<= 2 "OP_LEQ")))
+(defparameter *condops* '((= 2 "OP_EQ" "~A = (~A == ~A)")
+			  (< 2 "OP_LESS" "~A = (~A < ~A)")
+			  (<= 2 "OP_LEQ" "~A = (~A <= ~A)")))
 
 (defparameter *builtins* nil)
 
 (defmacro defbuiltin (overloaded-name name type args &rest body)
   `(setq *builtins* (cons (list ',overloaded-name ',name ',type ',args ',body) *builtins*)))
 
-(defun gen-builtin (overloaded-name name type args body)
-  (labels ((lookup-length (l)
+(defun gen-builtin (overloaded-name name type args body for-compiler-p)
+  (labels ((length-of-arg-pos (pos)
+	     (if for-compiler-p
+		 (format nil "arglengths[~A]" pos)
+		 (format nil "STK[STKP - ~A].length" (- (length args) pos))))
+	   (lookup-length (l)
 	     (if (var-symbol-p l)
-		 (format nil "arglengths[~A]" (position-if #'(lambda (a) (eq l (cadadr a))) args))
-		 (format nil "~A" l)))
+		 (let ((position (position-if #'(lambda (a) (eq l (cadadr a))) args)))
+		   (length-of-arg-pos position))
+		 l))
 	   (arg-pos (name)
 	     (position-if #'(lambda (a) (eq name (car a))) args))
 	   (lookup-arg (name)
 	     (let ((pos (arg-pos name)))
 	       (if (null pos)
 		   nil
-		   (values #'(lambda (n) (format nil "args[~A][~A]" pos n)) 'tuple (lookup-length (cadadr (nth pos args))))))))
+		   (values #'(lambda (n)
+			       (if for-compiler-p
+				   (format nil "args[~A][~A]" pos n)
+				   (format nil "STK[STKP - ~A].data[~A]" (- (length args) pos) n)))
+			   'tuple
+			   (lookup-length (cadadr (nth pos args)))))))
+	   (lookup-op (op num-args table)
+	     (find-if #'(lambda (o) (and (eq op (first o)) (= num-args (second o)))) table))
+	   (c-type (type)
+	     (second (assoc type '((nil "float") (color "color_t") (complex "complex float") (m2x2 "gsl_matrix *") (m3x3 "gsl_matrix *") (v2 "gsl_vector *") (v3 "gsl_vector *"))))))
     (let ((body (my-macroexpand body `((eval . eval)
 				       (+ . ,#'(lambda (&rest args) (reduce #'(lambda (a b) (list '+ a b)) args)))
 				       (* . ,#'(lambda (&rest args) (reduce #'(lambda (a b) (list '* a b)) args))))))
 	  (result-length (lookup-length (cadr type))))
-      ;; bindings are of the form (?name ?c-name primary nil) or
-      ;; (?name ?func tuple ?length) or (?name ?c-name counter nil)
+      ;; bindings are of the form (?name ?c-name primary nil ?c-type) or
+      ;; (?name ?func tuple ?length ?c-type) or (?name ?c-name counter nil ?c-type)
       (labels ((gen (stmt bindings)
 		 (labels ((lookup-var (name)
 			    (let ((var (assoc name bindings)))
 			      (if (null var)
 				  (lookup-arg name)
-				  (values (second var) (third var) (fourth var)))))
-			  (lookup-op (op num-args table)
-			    (third (find-if #'(lambda (o) (and (eq op (first o)) (= num-args (second o)))) table)))
+				  (values (second var) (third var) (fourth var) (fifth var)))))
 			  (make-allocated (name allocatedp)
-			    (if allocatedp
+			    (if (or allocatedp (not for-compiler-p))
 				""
 				(format nil "~A = make_temporary();~%" name)))
+			  ;; returns type, length, c-type
 			  (expr-type (expr)
 			    (case-match expr
 			      ((nth ?n ?expr)
-			       'primary)
+			       (multiple-value-bind (type length c-type)
+				   (expr-type expr)
+				 (values 'primary nil c-type)))
 			      ((make ?type . ?args)
 			       (values 'tuple (format nil "~A" (length args))))
 			      ((splat ?type ?primary)
-			       (values 'tuple (lookup-length (cadr type))))
+			       (multiple-value-bind (prim-type prim-length c-type)
+				   (expr-type primary)
+				 (values 'tuple (lookup-length (cadr type)) c-type)))
 			      ((sum ?expr)
 			       'primary)
 			      ((?op . ?args)
-			       (cond ((not (null (lookup-op op (length args) *ops*)))
+			       (cond ((member op '(and or not))
+				      'primary)
+				     ((not (null (lookup-op op (length args) *ops*)))
 				      (expr-type (first args)))
 				     ((not (null (lookup-op op (length args) *primops*)))
-				      'primary)
+				      (let ((op-entry (lookup-op op (length args) *primops*)))
+					(assert (not (null op-entry)))
+					(values 'primary nil (fifth op-entry))))
 				     (t
 				      (error "cannot determine type of expr ~A" expr))))
 			      (?val
@@ -198,20 +219,44 @@
 				     ((floatp val)
 				      'primary)
 				     ((symbolp val)
-				      (multiple-value-bind (name type length)
+				      (multiple-value-bind (name type length c-type)
 					  (lookup-var val)
 					(if (null name)
 					    (error "variable ~A not bound" val)
-					    (values type length))))
+					    (values type length c-type))))
 				     (t
 				      (error "cannot determine type of expr ~A" expr))))))
+			  (expr-decl (expr name)
+			    (multiple-value-bind (type length c-type)
+				(expr-type expr)
+			      (case type
+				(primary
+				 (if for-compiler-p
+				     (format nil "compvar_t *~A;" name)
+				     (format nil "~A ~A;" (c-type c-type) name)))
+				(tuple
+				 (if for-compiler-p
+				     (format nil "compvar_t *~A[~A];" name length)
+				     (format nil "~A ~A[~A];" (c-type c-type) name length)))
+				(t
+				 (error "cannot declare expr ~A of type ~A" expr type)))))
 			  (gen-op (op-name args lval allocatedp gen-sub)
 			    (let ((arg-names (mapcar #'(lambda (x) (make-tmp-name)) args)))
-			      (format nil "~A{~%compvar_t ~{*~A~^, ~};~%~{~A~}emit_assign(make_lhs(~A), make_op_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
-				      (make-allocated lval allocatedp)
-				      arg-names
-				      (mapcar #'(lambda (arg name) (funcall gen-sub arg name nil)) args arg-names)
-				      lval op-name arg-names)))
+			      (if for-compiler-p
+				  (format nil "~A{~%compvar_t ~{*~A~^, ~};~%~{~A~}emit_assign(make_lhs(~A), make_op_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
+					  (make-allocated lval allocatedp)
+					  arg-names
+					  (mapcar #'(lambda (arg name) (funcall gen-sub arg name nil)) args arg-names)
+					  lval op-name arg-names)
+				  (let ((subs (mappend #'(lambda (arg name)
+							   (multiple-value-bind (code type)
+							       (funcall gen-sub arg name nil)
+							     (list (c-type type) name code)))
+						       args arg-names)))
+				    (format nil "{~%~{~A ~A;~%~*~}~{~2*~A~}~A;~%}~%"
+					    subs
+					    subs
+					    (apply #'format nil op-name lval arg-names))))))
 			  (gen-primary (expr lval allocatedp)
 			    (case-match expr
 			      ((nth ?n ?expr)
@@ -224,48 +269,75 @@
 				     (assert (integerp n))
 				     (gen-expr-nth expr lval allocatedp n))))
 			      ((sum ?expr)
-			       (multiple-value-bind (type length)
+			       (multiple-value-bind (type length c-type)
 				   (expr-type expr)
 				 (assert (eq type 'tuple))
-				 (let ((t1 (make-tmp-name))
-				       (t2 (make-tmp-name))
-				       (ctr (make-tmp-name)))
-				   (format nil "if (~A == 1)~%{~%~A~%}~%else~%{~%compvar_t *~A, *~A;~%int ~A;~%~A~A~Aemit_assign(make_lhs(~A), make_op_rhs(OP_ADD, make_compvar_primary(~A), make_compvar_primary(~A)));~%for (~A = 2; ~A < ~A; ++~A)~%{~Aemit_assign(make_lhs(~A), make_op_rhs(OP_ADD, make_compvar_primary(~A), make_compvar_primary(~A)));~%}~%}~%"
-					   length (gen-expr-nth expr lval allocatedp "0")
-					   t1 t2 ctr ;declare t1, t2, ctr
-					   (make-allocated lval allocatedp)
-					   (gen-expr-nth expr t1 nil "0") ;t1 = expr(0)
-					   (gen-expr-nth expr t2 nil "1") ;t2 = expr(1)
-					   lval t1 t2 ;lval = t1 + t2
-					   ctr ctr length ctr ;for (ctr = 0; ctr < length; ++ctr)
-					   (gen-expr-nth expr t1 nil ctr) ;t1 = expr(ctr)
-					   lval	lval t1)))) ;lval = lval + t1
+				 (if for-compiler-p
+				     (let ((t1 (make-tmp-name))
+					   (t2 (make-tmp-name))
+					   (ctr (make-tmp-name)))
+				       (format nil "if (~A == 1)~%{~%~A~%}~%else~%{~%compvar_t *~A, *~A;~%int ~A;~%~A~A~Aemit_assign(make_lhs(~A), make_op_rhs(OP_ADD, make_compvar_primary(~A), make_compvar_primary(~A)));~%for (~A = 2; ~A < ~A; ++~A)~%{~Aemit_assign(make_lhs(~A), make_op_rhs(OP_ADD, make_compvar_primary(~A), make_compvar_primary(~A)));~%}~%}~%"
+					       length (gen-expr-nth expr lval allocatedp "0")
+					       t1 t2 ctr ;declare t1, t2, ctr
+					       (make-allocated lval allocatedp)
+					       (gen-expr-nth expr t1 nil "0") ;t1 = expr(0)
+					       (gen-expr-nth expr t2 nil "1") ;t2 = expr(1)
+					       lval t1 t2 ;lval = t1 + t2
+					       ctr ctr length ctr ;for (ctr = 0; ctr < length; ++ctr)
+					       (gen-expr-nth expr t1 nil ctr) ;t1 = expr(ctr)
+					       lval lval t1)) ;lval = lval + t1
+				     (let ((sum (make-tmp-name))
+					   (tmp (make-tmp-name)))
+				       (if (numberp length)
+					   (format nil "{~%float ~A = 0.0, ~A;~%~{~A~A += ~A;~%~}~A = ~A;~%}~%"
+						   sum tmp
+						   (mappend #'(lambda (n) (list (gen-expr-nth expr tmp nil n) sum tmp)) (integers-upto length))
+						   lval sum)
+					   (let ((ctr (make-tmp-name)))
+					     (format nil "{~%int ~A;~%float ~A = 0.0, ~A;~%for (~A = 0; ~A < ~A; ++~A)~%{~%~A~%~A += ~A;~%}~%~A = ~A;~%}~%"
+						     ctr sum tmp
+						     ctr ctr length ctr
+						     (gen-expr-nth expr tmp nil ctr)
+						     sum tmp
+						     lval sum)))))))
 			      ((?op . ?args)
-			       (let ((op-name (lookup-op op (length args) *primops*)))
-				 (if (not (null op-name))
-				     (gen-op op-name args lval allocatedp #'gen-primary)
+			       (let ((op-entry (lookup-op op (length args) *primops*)))
+				 (if (not (null op-entry))
+				     (values (gen-op (if for-compiler-p (third op-entry) (fourth op-entry))
+						     args lval allocatedp #'gen-primary)
+					     (fifth op-entry))
 				     (error "unknown primop ~A/~A" op (length args)))))
 			      (pi
-			       (format nil "~Aemit_assign(make_lhs(~A), make_float_const_rhs(M_PI));~%"
-				       (make-allocated lval allocatedp) lval))
+			       (if for-compiler-p
+				   (format nil "~Aemit_assign(make_lhs(~A), make_float_const_rhs(M_PI));~%"
+					   (make-allocated lval allocatedp) lval)
+				   (format nil "~A = M_PI;~%" lval)))
 			      (?val
 			       (cond ((integerp val)
-				      (format nil "~Aemit_assign(make_lhs(~A), make_int_const_rhs(~A));~%"
-					      (make-allocated lval allocatedp)
-					      lval val))
+				      (if for-compiler-p
+					  (format nil "~Aemit_assign(make_lhs(~A), make_int_const_rhs(~A));~%"
+						  (make-allocated lval allocatedp)
+						  lval val)
+					  (format nil "~A = ~A;~%" lval val)))
 				     ((floatp val)
-				      (format nil "~Aemit_assign(make_lhs(~A), make_float_const_rhs(~A));~%"
-					      (make-allocated lval allocatedp)
-					      lval val))
+				      (if for-compiler-p
+					  (format nil "~Aemit_assign(make_lhs(~A), make_float_const_rhs(~A));~%"
+						  (make-allocated lval allocatedp)
+						  lval val)
+					  (format nil "~A = ~A;~%" lval val)))
 				     ((symbolp val)
-				      (multiple-value-bind (name type length)
+				      (multiple-value-bind (name type length c-type)
 					  (lookup-var val)
 					(assert (eq type 'primary))
-					(if allocatedp
-					    (format nil "emit_assign(make_lhs(~A), make_compvar_rhs(~A));~%"
-						    lval name)
-					    (format nil "~A = ~A;~%"
-						    lval name))))
+					(values
+					 (if for-compiler-p
+					     (if allocatedp
+						 (format nil "emit_assign(make_lhs(~A), make_compvar_rhs(~A));~%"
+							 lval name)
+					       (format nil "~A = ~A;~%"
+						       lval name))
+					   (format nil "~A = ~A;~%" lval name))
+					 c-type)))
 				     (t
 				      (error "unknown primary ~A" expr))))
 			      (t
@@ -273,81 +345,105 @@
 			  (gen-expr-nth (expr lval allocatedp n)
 			    (case-match expr
 			      ((make ?type . ?args)
-			       (format nil "switch (~A)~%{~%~{case ~A :~%~Abreak;~%~}default :~%assert(0);~%}~%"
-				       n
-				       (mappend #'(lambda (i p) (list i (gen-primary p lval allocatedp))) (integers-upto (length args) ) args)))
+			       (if (or for-compiler-p (not (numberp n)))
+				   (format nil "switch (~A)~%{~%~{case ~A :~%~Abreak;~%~}default :~%assert(0);~%}~%"
+					   n
+					   (mappend #'(lambda (i p) (list i (gen-primary p lval allocatedp))) (integers-upto (length args)) args))
+				 (gen-primary (nth n args) lval allocatedp)))
 			      ((splat ?type ?primary)
 			       (gen-primary primary lval allocatedp))
 			      ((?op . ?args)
-			       (let ((op-name (lookup-op op (length args) *ops*)))
-				 (if (not (null op-name))
-				     (gen-op op-name args lval allocatedp #'(lambda (arg name allocatedp) (gen-expr-nth arg name allocatedp n)))
+			       (let ((op-entry (lookup-op op (length args) *ops*)))
+				 (if (not (null op-entry))
+				     (gen-op (if for-compiler-p (third op-entry) (fourth op-entry))
+					     args lval allocatedp #'(lambda (arg name allocatedp) (gen-expr-nth arg name allocatedp n)))
 				     (error "unknown op ~A" op))))
 			      (?var
 			       (if (symbolp var)
-				   (let ((arg-pos (position-if #'(lambda (x) (eq (car x) var)) args)))
-				     (if (not (null arg-pos))
-					 (if allocatedp
-					     (format nil "emit_assign(make_lhs(~A), make_compvar_rhs(args[~A][~A]));~%" lval arg-pos n)
-					     (format nil "~A = args[~A][~A];~%" lval arg-pos n))
-					 (error "unknown var ~A" var)))
-				   (error "unknown expr ~A" expr)))
+				   (multiple-value-bind (c-name-or-func type length c-type)
+				       (lookup-var var)
+				     (if (not (null c-name-or-func))
+					 (let ((code (if (stringp c-name-or-func)
+							 c-name-or-func
+							 (funcall c-name-or-func n))))
+					   (values
+					    (if (and allocatedp for-compiler-p)
+						(format nil "emit_assign(make_lhs(~A), make_compvar_rhs(~A));~%" lval code)
+					      (format nil "~A = ~A;~%" lval code))
+					    c-type))
+				       (error "unknown var ~A" var)))
+				 (error "unknown expr ~A" expr)))
 			      (t
 			       (error "unknown expr ~A" expr))))
 			  (gen-condition (expr lval allocatedp)
 			    (case-match expr
 			      ((and ?a ?b)
-			       (format nil "~A~Astart_if_cond(make_compvar_rhs(~A));~%~Aswitch_if_branch();~%end_if_cond();~%"
-				       (make-allocated lval allocatedp)
-				       (gen-condition a lval t)
-				       lval
-				       (gen-condition b lval t)))
+			       (if for-compiler-p
+				   (format nil "~A~Astart_if_cond(make_compvar_rhs(~A));~%~Aswitch_if_branch();~%end_if_cond();~%"
+					   (make-allocated lval allocatedp)
+					   (gen-condition a lval t)
+					   lval
+					   (gen-condition b lval t))
+				   (format nil "~Aif (~A)~%{~%~A}~%" (gen-condition a lval t) lval (gen-condition b lval t))))
 			      ((or ?a ?b)
-			       (format nil "~A~Astart_if_cond(make_compvar_rhs(~A));~%switch_if_branch();~%~Aend_if_cond();~%"
-				       (make-allocated lval allocatedp)
-				       (gen-condition a lval t)
-				       lval
-				       (gen-condition b lval t)))
+			       (if for-compiler-p
+				   (format nil "~A~Astart_if_cond(make_compvar_rhs(~A));~%switch_if_branch();~%~Aend_if_cond();~%"
+					   (make-allocated lval allocatedp)
+					   (gen-condition a lval t)
+					   lval
+					   (gen-condition b lval t))
+				   (format nil "~Aif (!~A)~%{~%~A}~%" (gen-condition a lval t) lval (gen-condition b lval t))))
 			      ((not ?x)
-			       (format nil "~Aemit_assign(make_lhs(~A), make_op_rhs(OP_NOT, make_compvar_primary(~A)));~%"
-				       (gen-condition x lval allocatedp)
-				       lval lval))
+			       (if for-compiler-p
+				   (format nil "~Aemit_assign(make_lhs(~A), make_op_rhs(OP_NOT, make_compvar_primary(~A)));~%"
+					   (gen-condition x lval allocatedp)
+					   lval lval)
+				   (format nil "~A~A = !~A;~%" (gen-condition x lval allocatedp) lval lval)))
 			      ((?op . ?args)
-			       (let ((op-name (lookup-op op (length args) *condops*)))
-				 (if (not (null op-name))
-				     (gen-op op-name args lval allocatedp #'gen-primary)
+			       (let ((op-entry (lookup-op op (length args) *condops*)))
+				 (if (not (null op-entry))
+				     (gen-op (if for-compiler-p (third op-entry) (fourth op-entry))
+					     args lval allocatedp #'gen-primary)
 				     (error "unknown condition op ~A" op))))
 			      (t
 			       (error "unknown condition ~A"))))
 			  (gen-expr (expr lval allocatedp length)
-			    (format nil "{~%int i;~%for (i = 0; i < ~A; ++i)~%{~%~A}~%}~%"
-				    length (gen-expr-nth expr (funcall lval "i") allocatedp "i")))
+			    (if (or for-compiler-p (not (numberp length)))
+				(let ((ctr (make-tmp-name)))
+				  (format nil "{~%int ~A;~%for (~A = 0; ~A < ~A; ++~A)~%{~%~A}~%}~%"
+					  ctr ctr ctr length ctr
+					  (gen-expr-nth expr (funcall lval ctr) allocatedp ctr)))
+				(format nil "~{~A~}"
+					(mapcar #'(lambda (i) (gen-expr-nth expr (funcall lval i) allocatedp i)) (integers-upto length)))))
 			  ;; returns a list which for each let
 			  ;; contains: (?decl ?code ?c-name primary
-			  ;; nil) for primaries and (?decl ?code ?func
-			  ;; tuple ?length) for tuples
+			  ;; nil ?c-type) for primaries and (?decl
+			  ;; ?code ?func tuple ?length ?c-type) for
+			  ;; tuples
 			  (gen-let (name val)
 			    (let ((c-name (make-tmp-name)))
-			      (multiple-value-bind (type length)
+			      (multiple-value-bind (type length c-type)
 				  (expr-type val)
 				(if (eq type 'primary)
-				    (list (format nil "compvar_t *~A;" c-name)
+				    (list (expr-decl val c-name)
 					  (gen-primary val c-name nil)
 					  c-name
 					  'primary
-					  nil)
+					  nil
+					  c-type)
 				    (let ((func #'(lambda (n) (format nil "~A[~A]" c-name n))))
-				      (list (format nil "compvar_t *~A[~A];" c-name length)
+				      (list (expr-decl val c-name)
 					    (gen-expr val func nil length)
 					    func
 					    'tuple
-					    length)))))))
+					    length
+					    c-type)))))))
 		   (case-match stmt
 		     ((set result ?rhs)
 		      (gen-expr rhs #'(lambda (n) (format nil "result[~A]" n)) t result-length))
 		     ((set (nth ?n result) ?rhs)
 		      (if (symbolp n)
-			  (multiple-value-bind (name type length)
+			  (multiple-value-bind (name type length c-type)
 			      (lookup-var n)
 			    (assert (eq type 'counter))
 			    (gen-primary rhs (format nil "result[~A]" name) t))
@@ -355,57 +451,78 @@
 			    (assert (integerp n))
 			    (gen-primary rhs (format nil "result[~A]" n) t))))
 		     ((set ?var ?rhs)
-		      (multiple-value-bind (name type length)
+		      (multiple-value-bind (name type length c-type)
 			  (lookup-var var)
 			(assert (eq type 'primary))
 			(gen-primary rhs name t)))
 		     ((forarglength ?val ?ctr . ?body)
-		      (let ((c-ctr (make-tmp-name))
-			    (pos (arg-pos val)))
-			(assert (not (null pos)))
-			(format nil "{~%int ~A;~%for (~A = 0; ~A < arglengths[~A]; ++~A)~%{~%~{~A~}}~%}~%"
+		      (let ((c-ctr (make-tmp-name)))
+			(assert (not (null (arg-pos val))))
+			(format nil "{~%int ~A;~%for (~A = 0; ~A < ~A; ++~A)~%{~%~{~A~}}~%}~%"
 				c-ctr
-				c-ctr c-ctr pos c-ctr
+				c-ctr c-ctr (length-of-arg-pos (arg-pos val)) c-ctr
 				(let ((bindings (cons (list ctr c-ctr 'counter nil) bindings)))
 				  (mapcar #'(lambda (s) (gen s bindings)) body)))))
 		     ((forget ?primary)
 		      (let ((dummy (make-tmp-name)))
-			(format nil "{~%compvar_t *~A;~%~A}~%"
-				dummy
+			(format nil "{~%~A~%~A}~%"
+				(expr-decl primary dummy)
 				(gen-primary primary dummy nil))))
 		     ((print ?arg)
-		      (let ((name (make-tmp-name))
-			    (dummy (make-tmp-name)))
-			(format nil "{~%compvar_t *~A, *~A = make_temporary();~%~Aemit_assign(make_lhs(~A), make_op_rhs(OP_PRINT, make_compvar_primary(~A)));~%}~%"
-				name dummy
-				(gen-primary arg name nil)
-				dummy name)))
+		      (let ((name (make-tmp-name)))
+			(if for-compiler-p
+			    (let ((dummy (make-tmp-name)))
+			      (format nil "{~%compvar_t *~A, *~A = make_temporary();~%~Aemit_assign(make_lhs(~A), make_op_rhs(OP_PRINT, make_compvar_primary(~A)));~%}~%"
+				      name dummy
+				      (gen-primary arg name nil)
+				      dummy name))
+			    (format nil "{~%~A~%~APRINT(~A);~%}~%"
+				    (expr-decl arg name)
+				    (gen-primary arg name nil)
+				    name))))
 		     ((newline)
-		      (let ((dummy (make-tmp-name)))
-			(format nil "{~%compvar_t *~A = make_temporary();~%emit_assign(make_lhs(~A), make_op_rhs(OP_NEWLINE));~%}~%"
-				dummy
-				dummy)))
+		      (if for-compiler-p
+			  (let ((dummy (make-tmp-name)))
+			    (format nil "{~%compvar_t *~A = make_temporary();~%emit_assign(make_lhs(~A), make_op_rhs(OP_NEWLINE));~%}~%"
+				    dummy
+				    dummy))
+			  (format nil "NEWLINE();~%")))
 		     ((progn . ?body)
 		      (reduce #'string-concat (mapcar #'(lambda (s) (gen s bindings)) body)))
 		     ((if ?condition ?consequent ?alternative)
 		      (let ((condition-name (make-tmp-name)))
-			(format nil "{~%compvar_t *~A;~%~Astart_if_cond(make_compvar_rhs(~A));~%~Aswitch_if_branch();~Aend_if_cond();~%}~%"
-				condition-name (gen-condition condition condition-name nil)
-				condition-name
-				(gen consequent bindings)
-				(gen alternative bindings))))
+			(if for-compiler-p
+			    (format nil "{~%~A~%~Astart_if_cond(make_compvar_rhs(~A));~%~Aswitch_if_branch();~Aend_if_cond();~%}~%"
+				    (expr-decl condition condition-name) (gen-condition condition condition-name nil)
+				    condition-name
+				    (gen consequent bindings)
+				    (gen alternative bindings))
+			    (format nil "{~%~A~%~Aif (~A)~%{~%~A}~%else~%{~%~A}~%}~%"
+				    (expr-decl condition condition-name)
+				    (gen-condition condition condition-name nil)
+				    condition-name
+				    (gen consequent bindings)
+				    (gen alternative bindings)))))
 		     ((let ?lets . ?body)
 		      (let ((lets (mapcar #'(lambda (l) (cons (car l) (gen-let (car l) (cadr l)))) lets)))
 			(format nil "{~%~{~A~%~}~%~{~A~%~}~{~A~}}~%"
 				(mapcar #'second lets)
 				(mapcar #'third lets)
-				(let ((bindings (append (mapcar #'(lambda (l) (list (first l) (fourth l) (fifth l) (sixth l))) lets)
+				(let ((bindings (append (mapcar #'(lambda (l) (list (first l) (fourth l) (fifth l) (sixth l) (seventh l))) lets)
 							bindings)))
 				  (mapcar #'(lambda (s) (gen s bindings)) body)))))))))
-	(format t "void~%gen_~A (compvar_t ***args, int *arglengths, compvar_t **result)~%{~%" (dcs name))
+	(if for-compiler-p
+	    (format t "void~%gen_~A (compvar_t ***args, int *arglengths, compvar_t **result)~%{~%" (dcs name))
+	    (format t "void~%builtin_~A (mathmap_invocation_t *invocation, postfix_arg *arg)~%{~%float result[MAX_TUPLE_LENGTH];~%" (dcs name)))
 	(dolist (stmt body)
 	  (princ (gen stmt nil)))
-	(format t "}~%~%")))))
+	(if for-compiler-p
+	    (format t "}~%~%")
+	    (format t "{~%int i;~%for (i = 0; i < ~A; ++i)~%STK[STKP - ~A].data[i] = result[i];~%}~%STK[STKP - ~A].length = ~A;~%STKP -= ~A;~%}~%~%"
+		    result-length (length args)
+		    (length args) result-length
+		    (1- (length args))))))))
+
 
 (defbuiltin "print" print (nil 1) ((val (_ _)))
   (forarglength val i
@@ -838,8 +955,9 @@
     (let ((div (- (nth i fu) (nth i fl))))
       (if (= div 0)
 	(set (nth i result) 0)
-	(set (nth i result) (* (/ (- (nth i a) (nth i fl)) div)
-			       (- (nth i tu) (nth i tl))))))))
+	(set (nth i result) (+ (* (/ (- (nth i a) (nth i fl)) div)
+				  (- (nth i tu) (nth i tl)))
+			       (nth i tl)))))))
 
 ;;; logic
 
@@ -977,13 +1095,13 @@
 		    (* (cos (nth 1 a)) (nth 0 a))
 		    (* (sin (nth 1 a)) (nth 0 a)))))
 
-(defbuiltin "toRA" toRA (ra 2) ((a (xy 2)))
-  (let ((r (hypot (nth 0 a) (nth 1 a))))
+(defbuiltin "toRA" toRA (ra 2) ((arg (xy 2)))
+  (let ((r (hypot (nth 0 arg) (nth 1 arg))))
     (if (= r 0)
 	(set result (make (ra 2) 0 0))
-	(let ((a (acos (/ (nth 0 a) r))))
+	(let ((a (acos (/ (nth 0 arg) r))))
 	  (set (nth 0 result) r)
-	  (if (< (nth 1 a) 0)
+	  (if (< (nth 1 arg) 0)
 	      (set (nth 1 result) (- (* 2 pi) a))
 	      (set (nth 1 result) a))))))
 
@@ -1012,11 +1130,8 @@
 (with-open-file (out "new_builtins.c" :direction :output :if-exists :supersede)
   (let ((*standard-output* out))
     (dolist (b (reverse *builtins*))
-      (gen-builtin (first b) (second b) (third b) (fourth b) (fifth b)))
-    (format t "~%")
-    (dolist (b (reverse *builtins*))
-      (format t "void builtin_~A (mathmap_invocation_t *invocation, postfix_arg *arg);~%"
-	      (dcs (second b))))
+      (gen-builtin (first b) (second b) (third b) (fourth b) (fifth b) nil)
+      (gen-builtin (first b) (second b) (third b) (fourth b) (fifth b) t))
     (format t "~%void~%init_builtins (void)~%{~%")
     (dolist (b (reverse *builtins*))
       (format t "register_overloaded_builtin(\"~A\", \"~A\", builtin_~A, gen_~A);~%"

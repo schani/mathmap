@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -40,8 +40,8 @@
 
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
+#include <libgimp/gimpui.h>
 #include <libgimp/gimpintl.h>
-#include <libgimp/gimpcolorbutton.h>
 
 #include "lispreader.h"
 #include "exprtree.h"
@@ -59,7 +59,7 @@
 #include "cgen.h"
 
 /***** Magic numbers *****/
-#define PREVIEW_SIZE 128
+#define PREVIEW_SIZE 192
 #define SCALE_WIDTH  200
 #define ENTRY_WIDTH  60
 
@@ -69,7 +69,7 @@
 #define CHECK_LIGHT ((int) (2.0 / 3.0 * 255))   
 
 
-#define DEFAULT_EXPRESSION      "origValXY(x+sin(y*10)*3,y+sin(x*10)*3)"
+#define DEFAULT_EXPRESSION      "origVal(xy*xy:[cos(pi/2/Y*y+t*2*pi),1])"
 #define DEFAULT_NUMBER_FRAMES   10
 
 #define FLAG_ANTIALIASING       1
@@ -78,8 +78,6 @@
 #define FLAG_PERIODIC           8
 
 #define MAX_EXPRESSION_LENGTH   8192
-
-#define NUM_GRADIENT_SAMPLES    1024
 
 /***** Types *****/
 
@@ -102,20 +100,29 @@ typedef struct {
     gint row;
     gint col;
     GimpTile *tile;
-    guchar *fast_image_source;
+    color_t *fast_image_source;
     int used;
 } input_drawable_t;
 
 /***** Prototypes *****/
 
 static void query (void);
-static void run (char       *name,
-		 int         nparams,
-		 GimpParam  *param,
-		 int        *nreturn_vals,
+#ifndef GIMP2
+static void run (char *name,
+		 int nparams,
+		 GimpParam *param,
+		 int *nreturn_vals,
 		 GimpParam **return_vals);
+#else
+static void run (const gchar *name,
+		 gint nparams,
+		 const GimpParam *param,
+		 gint *nreturn_vals,
+ 		 GimpParam **return_vals);
+#endif
 
-static void expression_copy (gchar *dest, gchar *src);
+
+static void expression_copy (gchar *dest, const gchar *src);
 
 static void do_mathmap (int frame_num, float t);
 static gint32 mathmap_layer_copy (gint32 layerID);
@@ -131,7 +138,11 @@ static gint mathmap_dialog (int);
 static void dialog_update_preview (void);
 static void dialog_scale_update (GtkAdjustment *adjustment, gint *value);
 static void dialog_t_update (GtkAdjustment *adjustment, gfloat *value);
+#ifndef GIMP2
 static void dialog_text_changed (void);
+#else
+static void dialog_text_changed (GtkTextBuffer * buffer, gpointer user_data);
+#endif
 static void dialog_text_update (void);
 static void dialog_antialiasing_update (GtkWidget *widget, gpointer data);
 static void dialog_supersampling_update (GtkWidget *widget, gpointer data);
@@ -142,12 +153,17 @@ static void dialog_edge_color_changed (GtkWidget *color_well, gpointer data);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_periodic_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
-static void dialog_close_callback (GtkWidget *widget, gpointer data);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
-static void dialog_cancel_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
+#ifndef GIMP2
 static void dialog_tree_changed (GtkTree *tree);
+#else
+static void dialog_tree_changed (GtkTreeSelection *tree, gpointer data);
+#endif
+#ifdef GIMP2
+static void dialog_response (GtkWidget *widget, gint response_id, gpointer data);
+#endif
 
 /***** Variables *****/
 
@@ -174,7 +190,11 @@ static mathmap_interface_t wint = {
 
 #define MAX_INPUT_DRAWABLES 64
 
+#ifndef GIMP2
 static GimpRunModeType run_mode;
+#else
+static GimpRunMode run_mode;
+#endif
 static gint32 image_id;
 static gint32 layer_id;
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
@@ -184,6 +204,8 @@ static gint tile_width, tile_height;
 gint sel_x1, sel_y1, sel_x2, sel_y2;
 gint sel_width, sel_height;
 gint preview_width, preview_height;
+
+static long num_pixels_requested = 0;
 
 GtkWidget *expression_entry = 0,
     *frame_table,
@@ -196,11 +218,15 @@ GtkColorSelectionDialog *color_selection_dialog;
 int img_width, img_height;
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
-int num_gradient_samples = NUM_GRADIENT_SAMPLES;
-tuple_t gradient_samples[NUM_GRADIENT_SAMPLES];
+color_t gradient_samples[USER_GRADIENT_POINTS];
 int output_bpp;
 int edge_behaviour_mode = EDGE_BEHAVIOUR_COLOR;
-guchar edge_color[4] = { 0, 0, 0, 0 };
+
+#ifndef GIMP2
+static guchar edge_color[4] = { 0, 0, 0, 0 };
+#else
+static GimpRGB edge_color = { 0.0, 0.0, 0.0, 0.0 };
+#endif
 
 mathmap_t *mathmap = 0;
 mathmap_invocation_t *invocation = 0;
@@ -210,7 +236,7 @@ mathmap_invocation_t *invocation = 0;
 /*****/
 
 static void
-expression_copy (gchar *dest, gchar *src)
+expression_copy (gchar *dest, const gchar *src)
 {
     strncpy(dest, src, MAX_EXPRESSION_LENGTH);
     dest[MAX_EXPRESSION_LENGTH - 1] = 0;
@@ -224,30 +250,47 @@ MAIN()
 
 /*****/
 
+static FILE*
+open_rc_file (const char *name)
+{
+    FILE *file;
+    gchar *mathmap_name = g_strconcat("mathmap", G_DIR_SEPARATOR_S, name, NULL);
+    gchar *filename;
+
+    assert(mathmap_name != 0);
+
+    filename = gimp_personal_rc_file(mathmap_name);
+    assert(filename != 0);
+    file = fopen(filename, "r");
+    g_free(filename);
+
+    if (file == 0)
+    {
+	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, mathmap_name, NULL);
+	assert(filename != 0);
+	file = fopen(filename, "r");
+	g_free(filename);
+    }
+
+    g_free(mathmap_name);
+
+    return file;
+}
+
+/*****/
+
 static lisp_object_t*
 read_rc_file (void)
 {
     static lisp_object_t *obj = 0;
 
-    gchar *filename;
     FILE *file;
     lisp_stream_t stream;
 
     if (obj != 0)
 	return obj;
 
-    filename = gimp_personal_rc_file("mathmaprc");
-    file = fopen(filename, "r");
-    g_free(filename);
-    if (file == 0)
-    {
-	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, "mathmaprc", NULL);
-	file = fopen(filename, "r");
-	g_free(filename);
-
-	if (file == 0)
-	    return 0;
-    }
+    file = open_rc_file("mathmaprc");
 
     obj = lisp_read(lisp_stream_init_file(&stream, file));
     fclose(file);
@@ -354,7 +397,7 @@ register_examples (void)
 }
 
 static char*
-expression_for_symbol (char *symbol, lisp_object_t *obj)
+expression_for_symbol (const char *symbol, lisp_object_t *obj)
 {
     for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
     {
@@ -443,8 +486,13 @@ query(void)
 
 /*****/
 
+#ifndef GIMP2
 static void
 run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **return_vals)
+#else
+static void
+run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals, GimpParam **return_vals)
+#endif
 {
     static GimpParam values[1];
 
@@ -485,7 +533,7 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     /* Get the active drawable info */
 
     input_drawables[0].drawable = gimp_drawable_get(param[2].data.d_drawable);
-    input_drawables[0].bpp = gimp_drawable_bpp(input_drawables[0].drawable->id);
+    input_drawables[0].bpp = gimp_drawable_bpp(DRAWABLE_ID(input_drawables[0].drawable));
     input_drawables[0].row = input_drawables[0].col = -1;
     input_drawables[0].tile = 0;
     input_drawables[0].fast_image_source = 0;
@@ -496,10 +544,10 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     tile_width = gimp_tile_width();
     tile_height = gimp_tile_height();
 
-    img_width = gimp_drawable_width(input_drawables[0].drawable->id);
-    img_height = gimp_drawable_height(input_drawables[0].drawable->id);
+    img_width = gimp_drawable_width(DRAWABLE_ID(input_drawables[0].drawable));
+    img_height = gimp_drawable_height(DRAWABLE_ID(input_drawables[0].drawable));
 
-    gimp_drawable_mask_bounds(input_drawables[0].drawable->id, &sel_x1, &sel_y1, &sel_x2, &sel_y2);
+    gimp_drawable_mask_bounds(DRAWABLE_ID(input_drawables[0].drawable), &sel_x1, &sel_y1, &sel_x2, &sel_y2);
 
     sel_width = sel_x2 - sel_x1;
     sel_height = sel_y2 - sel_y1;
@@ -569,8 +617,8 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     /* Mathmap the image */
 
     if ((status == GIMP_PDB_SUCCESS)
-	&& (gimp_drawable_is_rgb(input_drawables[0].drawable->id)
-	    || gimp_drawable_is_gray(input_drawables[0].drawable->id)))
+	&& (gimp_drawable_is_rgb(DRAWABLE_ID(input_drawables[0].drawable))
+	    || gimp_drawable_is_gray(DRAWABLE_ID(input_drawables[0].drawable))))
     {
 	int animation_enabled = mmvals.flags & FLAG_ANIMATION;
 
@@ -586,7 +634,7 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
 	{
 	    int frame;
 
-	    gimp_undo_push_group_start(image_id);
+	    gimp_image_undo_group_start(image_id);
 	    for (frame = 0; frame < mmvals.frames; ++frame)
 	    {
 		gint32 layer;
@@ -601,12 +649,12 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
 		    t = (double)frame / (double)(mmvals.frames - 1);
 		layer = mathmap_layer_copy(layer_id);
 		sprintf(layer_name, "Frame %d", frame + 1);
-		gimp_layer_set_name(layer, layer_name);
+		gimp_drawable_set_name(layer, layer_name);
 		output_drawable = gimp_drawable_get(layer);
 		do_mathmap(frame, t);
 		gimp_image_add_layer(image_id, layer, 0);
 	    }
-	    gimp_undo_push_group_end(image_id);
+	    gimp_image_undo_group_end(image_id);
 	}
 	else
 	{
@@ -629,6 +677,8 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     values[0].data.d_status = status;
 
     gimp_drawable_detach(input_drawables[0].drawable);
+
+    printf("%ld pixels requested\n", num_pixels_requested);
 } /* run */
 
 /*****/
@@ -662,11 +712,15 @@ update_gradient (void)
     gdouble *samples;
     int i;
 
-    samples = gimp_gradients_sample_uniform(num_gradient_samples);
+#ifndef GIMP2
+    samples = gimp_gradients_sample_uniform(USER_GRADIENT_POINTS);
+#else
+    samples = gimp_gradients_sample_uniform(USER_GRADIENT_POINTS, FALSE);
+#endif
 
-    for (i = 0; i < num_gradient_samples; ++i)
-	gradient_samples[i] = color_to_tuple(samples[i * 4 + 0], samples[i * 4 + 1],
-					     samples[i * 4 + 2], samples[i * 4 + 3]);
+    for (i = 0; i < USER_GRADIENT_POINTS; ++i)
+	gradient_samples[i] = MAKE_RGBA_COLOR_FLOAT(samples[i * 4 + 0], samples[i * 4 + 1],
+						    samples[i * 4 + 2], samples[i * 4 + 3]);
 }
 
 /*****/
@@ -677,6 +731,7 @@ generate_code (int current_frame, float current_t)
     if (expression_changed)
     {
 	mathmap_t *new_mathmap;
+	FILE *template;
 
 	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
@@ -684,7 +739,18 @@ generate_code (int current_frame, float current_t)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	new_mathmap = compile_mathmap(mmvals.expression, "new_template.c");
+	template = open_rc_file("new_template.c");
+	if (template == 0)
+	{
+	    sprintf(error_string, "Cannot read template file new_template.c");
+	    new_mathmap = 0;
+	}
+	else
+	{
+	    new_mathmap = compile_mathmap(mmvals.expression, template);
+
+	    fclose(template);
+	}
 
 	if (new_mathmap == 0)
 	{
@@ -712,14 +778,12 @@ generate_code (int current_frame, float current_t)
 		free_mathmap(mathmap);
 	    }
 
-	    /* FIXME: free old mathmap/invocation */
-
 	    mathmap = new_mathmap;
 	    invocation = new_invocation;
 
-	    update_userval_table();
-
 	    expression_changed = 0;
+
+	    update_userval_table();
 	}
     }
 
@@ -732,15 +796,17 @@ generate_code (int current_frame, float current_t)
 	invocation->current_t = current_t;
 
 	invocation->edge_behaviour = edge_behaviour_mode;
-	memcpy(invocation->edge_color, edge_color, sizeof(edge_color));
+#ifndef GIMP2
+	invocation->edge_color = MAKE_RGBA_COLOR(edge_color[0], edge_color[1], edge_color[2], edge_color[3]);
+#else
+	invocation->edge_color = MAKE_RGBA_COLOR_FLOAT(edge_color.r, edge_color.g, edge_color.b, edge_color.a);
+#endif
 
 	update_image_internals(invocation);
     }
 
     return invocation != 0;
 }
-
-/*****/
 
 /*****/
 
@@ -771,7 +837,7 @@ alloc_input_drawable (GimpDrawable *drawable)
 	return -1;
 
     input_drawables[i].drawable = drawable;
-    input_drawables[i].bpp = gimp_drawable_bpp(drawable->id);
+    input_drawables[i].bpp = gimp_drawable_bpp(DRAWABLE_ID(drawable));
     input_drawables[i].row = -1;
     input_drawables[i].col = -1;
     input_drawables[i].tile = 0;
@@ -820,8 +886,6 @@ do_mathmap (int frame_num, float current_t)
     assert(invocation != 0);
 
     previewing = 0;
-
-    invocation->output_bpp = gimp_drawable_bpp(output_drawable->id);
 
     if (generate_code(frame_num, current_t))
     {
@@ -910,7 +974,7 @@ do_mathmap (int frame_num, float current_t)
 		invocation->origin_x = dest_rgn.x - sel_x1;
 		invocation->origin_y = dest_rgn.y - sel_y1;
 		invocation->scale_x = invocation->scale_y = 1.0;
-		invocation->output_bpp = output_bpp;
+		invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
 		call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
 
@@ -944,32 +1008,35 @@ do_mathmap (int frame_num, float current_t)
 	unref_tiles();
 
 	gimp_drawable_flush(output_drawable);
-	gimp_drawable_merge_shadow(output_drawable->id, TRUE);
-	gimp_drawable_update(output_drawable->id, sel_x1, sel_y1, sel_width, sel_height);
+	gimp_drawable_merge_shadow(DRAWABLE_ID(output_drawable), TRUE);
+	gimp_drawable_update(DRAWABLE_ID(output_drawable), sel_x1, sel_y1, sel_width, sel_height);
     }
 } /* mathmap */
 
 /*****/
 
-void
-mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel)
+color_t
+mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y)
 {
     gint newcol, newrow;
     gint newcoloff, newrowoff;
     guchar *p;
-    int i;
     input_drawable_t *drawable;
+    guchar r, g, b, a;
 
-    if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES || !input_drawables[drawable_index].used
-	|| x < 0 || x >= img_width
+    ++num_pixels_requested;
+
+    if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
+	return invocation->edge_color;
+
+    assert(input_drawables[drawable_index].used);
+
+    if (x < 0 || x >= img_width
 	|| y < 0 || y >= img_height)
-    {
-	for (i = 0; i < 4; ++i)
-	    pixel[i] = edge_color[i];
-	return;
-    }
+	return invocation->edge_color;
 
     drawable = &input_drawables[drawable_index];
+    assert(drawable->used);
 
     newcol = x / tile_width;
     newcoloff = x % tile_width;
@@ -992,41 +1059,45 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int fra
     p = drawable->tile->data + drawable->tile->bpp * (drawable->tile->ewidth * newrowoff + newcoloff);
 
     if (drawable->bpp == 1 || drawable->bpp == 2)
-	pixel[0] = pixel[1] = pixel[2] = p[0];
+	r = g = b = p[0];
     else if (drawable->bpp == 3 || drawable->bpp == 4)
-	for (i = 0; i < 3; ++i)
-	    pixel[i] = p[i];
+    {
+	r = p[0];
+	g = p[1];
+	b = p[2];
+    }
     else
 	assert(0);
 
     if (drawable->bpp == 1 || drawable->bpp == 3)
-	pixel[3] = 255;
+	a = 255;
     else
-	pixel[3] = p[drawable->bpp - 1];
+	a = p[drawable->bpp - 1];
+
+    return MAKE_RGBA_COLOR(r, g, b, a);
 }
 
-void
-mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y, guchar *pixel)
+color_t
+mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y)
 {
     input_drawable_t *drawable;
 
-    if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES || !input_drawables[drawable_index].used
-	|| x < 0 || x >= preview_width
-	|| y < 0 || y >= preview_height)
-    {
-	int i;
+    if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
+	return invocation->edge_color;
 
-	for (i = 0; i < output_bpp; ++i)
-	    pixel[i] = edge_color[i];
-	return;
-    }
+    assert(input_drawables[drawable_index].used);
+
+    if (x < 0 || x >= preview_width
+	|| y < 0 || y >= preview_height)
+	return invocation->edge_color;
 
     drawable = &input_drawables[drawable_index];
+    assert(drawable->used);
 
     if (drawable->fast_image_source == 0)
 	build_fast_image_source(drawable);
 
-    memcpy(pixel, drawable->fast_image_source + (x + y * preview_width) * 4, 4);
+    return drawable->fast_image_source[x + y * preview_width];
 }
 
 /*****/
@@ -1034,71 +1105,98 @@ mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, in
 static void
 build_fast_image_source (input_drawable_t *drawable)
 {
-    guchar *p;
+    color_t *p;
     int x, y;
 
     assert(drawable->fast_image_source == 0);
 
-    p = drawable->fast_image_source = g_malloc(preview_width * preview_height * 4);
+    p = drawable->fast_image_source = g_malloc(preview_width * preview_height * sizeof(color_t));
 
     for (y = 0; y < preview_height; ++y)
-    {
 	for (x = 0; x < preview_width; ++x)
-	{
-	    mathmap_get_pixel(invocation,
-			      drawable - input_drawables, 0,
-			      sel_x1 + x * sel_width / preview_width,
-			      sel_y1 + y * sel_height / preview_height, p);
-	    p += 4;
-	}
-    }
+	    drawable->fast_image_source[x + y * preview_width] =
+		mathmap_get_pixel(invocation,
+				  drawable - input_drawables, 0,
+				  sel_x1 + x * sel_width / preview_width,
+				  sel_y1 + y * sel_height / preview_height);
 }
 
 /*****/
 
+#ifndef GIMP2
 static GtkWidget*
 tree_from_lisp_object (GtkWidget *root_item, lisp_object_t *obj)
+#else
+static void
+tree_from_lisp_object (GtkTreeStore *store,
+		       GtkTreeIter *parent, lisp_object_t *obj)
+#endif
 {
+#ifndef GIMP2
     GtkWidget *tree = gtk_tree_new();
 
     if (root_item != 0)
 	gtk_tree_item_set_subtree(GTK_TREE_ITEM(root_item), tree);
+#endif
 
     for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
     {
 	lisp_object_t *vars[2];
+#ifndef GIMP2
 	GtkWidget *item = 0;
-
-	assert(lisp_type(obj) == LISP_TYPE_CONS);
+#else
+	GtkTreeIter iter;
+#endif
 
 	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
 	{
+#ifndef GIMP2
 	    item = gtk_tree_item_new_with_label(lisp_string(vars[0]));
 	    gtk_tree_append(GTK_TREE(tree), item);
 	    gtk_widget_show(item);
+
 	    tree_from_lisp_object(item, vars[1]);
+#else
+	    gtk_tree_store_append(store, &iter, parent);
+	    gtk_tree_store_set(store, &iter, 0, lisp_string(vars[0]), -1);
+
+	    tree_from_lisp_object(store, &iter, vars[1]);
+#endif
 	}
 	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
 	{
+#ifndef GIMP2
 	    item = gtk_tree_item_new_with_label(lisp_string(vars[0]));
 	    gtk_tree_append(GTK_TREE(tree), item);
 	    gtk_widget_show(item);
 	    gtk_object_set_user_data(GTK_OBJECT(item),
 				     strcpy((char*)malloc(strlen(lisp_string(vars[1])) + 1),
 					    lisp_string(vars[1])));
+#else
+	    gtk_tree_store_append(store, &iter, parent);
+	    gtk_tree_store_set(store, &iter, 0, lisp_string(vars[0]),
+			       1, lisp_string(vars[1]), -1);
+#endif
 	}
 	else
+	{
+	    fprintf(stderr, "illegal expression: ");
+	    lisp_dump(obj, stderr);
 	    assert(0);
+	}
     }
 
+#ifndef GIMP2
     gtk_widget_show(tree);
 
     if (root_item != 0)
 	gtk_tree_item_expand(GTK_TREE_ITEM(root_item));
 
     return tree;
+#endif
 }
 
+#ifndef GIMP2
 static GtkWidget*
 read_tree_from_rc (void)
 {
@@ -1117,6 +1215,46 @@ read_tree_from_rc (void)
 
     return tree;
 }
+#else
+static GtkWidget*
+read_tree_from_rc (void)
+{
+    GtkTreeStore *store;
+    GtkCellRenderer *renderer;
+    GtkTreeViewColumn *column;
+    GtkTreeSelection *selection;
+    GtkWidget *tree;
+    lisp_object_t *obj;
+
+    /* model */
+    store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+
+    obj = read_rc_file();
+    if(obj)
+    {
+    	tree_from_lisp_object(store, NULL, obj);
+    	lisp_free(obj);
+    }
+
+    /* view */
+    tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+    gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
+    g_signal_connect(G_OBJECT(selection), "changed",
+		     G_CALLBACK(dialog_tree_changed),
+		     (gpointer)NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes("Examples", renderer,
+		    				      "text", 0,
+						      NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+
+    gtk_widget_show(tree);
+
+    return tree;
+}
+#endif
 
 /*****/
 
@@ -1144,6 +1282,8 @@ update_userval_table (void)
 
 /*****/
 
+#define RESPONSE_ABOUT 1
+
 static gint
 mathmap_dialog (int mutable_expression)
 {
@@ -1166,20 +1306,20 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *notebook;
     GtkObject *adjustment;
     GSList *edge_group = 0;
-    gint        argc,
-	position = 0;
-    gchar     **argv;
-    guchar     *color_cube;
+#ifndef GIMP2
+    guchar *color_cube;
+    int position = 0;
+#else
+    guchar color_cube[4] = { 6, 6, 4, 24 };
+#endif
 
-    argc    = 1;
-    argv    = g_new(gchar *, 1);
-    argv[0] = g_strdup("mathmap");
-
-    gtk_init(&argc, &argv);
+    gimp_ui_init("mathmap", TRUE);
 
     gtk_preview_set_gamma(gimp_gamma());
     gtk_preview_set_install_cmap(gimp_install_cmap());
+#ifndef GIMP2
     color_cube = gimp_color_cube();
+#endif
     gtk_preview_set_color_cube(color_cube[0], color_cube[1], color_cube[2], color_cube[3]);
 
     gtk_widget_set_default_visual(gtk_preview_get_visual());
@@ -1187,13 +1327,44 @@ mathmap_dialog (int mutable_expression)
 
     wint.wimage = g_malloc(preview_width * preview_height * 3 * sizeof(guchar));
 
-    dialog = gtk_dialog_new();
-    gtk_window_set_title(GTK_WINDOW(dialog), "MathMap");
-    gtk_window_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
-    gtk_container_border_width(GTK_CONTAINER(dialog), 0);
+#ifndef GIMP2
+    dialog = gimp_dialog_new ("MathMap", "mathmap",
+			      NULL, NULL,
+			      GTK_WIN_POS_MOUSE,
+			      FALSE, TRUE, FALSE,
+
+			      _("OK"), dialog_ok_callback,
+			      NULL, NULL, NULL, TRUE, FALSE,
+			      _("Cancel"), gtk_widget_destroy,
+			      NULL, 1, NULL, FALSE, TRUE,
+			      _("About"), dialog_about_callback,
+			      NULL, NULL, NULL, FALSE, FALSE,
+			      _("Help"), dialog_help_callback,
+			      NULL, NULL, NULL, FALSE, FALSE,
+
+			      NULL);
+
     gtk_signal_connect(GTK_OBJECT(dialog), "destroy",
-		       (GtkSignalFunc) dialog_close_callback,
+		       (GtkSignalFunc) gtk_main_quit,
 		       NULL);
+#else
+    dialog = gimp_dialog_new("MathMap", "mathmap",
+			     NULL, 0,
+			     gimp_standard_help_func, "plug-in-mathmap",
+			     GTK_STOCK_HELP, GTK_RESPONSE_HELP,
+			     _("About"), RESPONSE_ABOUT,
+			     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+			     GTK_STOCK_OK, GTK_RESPONSE_OK,
+			     NULL);
+
+    g_signal_connect (dialog, "response",
+		      G_CALLBACK (dialog_response),
+		      NULL);
+
+    g_signal_connect (dialog, "destroy",
+		      G_CALLBACK (gtk_main_quit),
+		      NULL);
+#endif
 
     top_table = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), top_table, TRUE, TRUE, 0);
@@ -1323,7 +1494,13 @@ mathmap_dialog (int mutable_expression)
 				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_color);
 		gtk_widget_show(toggle);
 
-		edge_color_well = gimp_color_button_new(_("Edge Color"), 32, 16, edge_color, 4);
+#ifndef GIMP2
+		edge_color_well = gimp_color_button_new(_("Edge Color"), 32, 16,
+							edge_color, 4);
+#else
+		edge_color_well = gimp_color_button_new(_("Edge Color"), 32, 16,
+							&edge_color, GIMP_COLOR_AREA_SMALL_CHECKS);
+#endif
 		gtk_signal_connect(GTK_OBJECT(edge_color_well), "color_changed",
 				   (GtkSignalFunc)dialog_edge_color_changed, 0);
 		gtk_widget_show(edge_color_well);
@@ -1449,6 +1626,7 @@ mathmap_dialog (int mutable_expression)
 
 	if (mutable_expression)
 	{
+#ifndef GIMP2
 	    table = gtk_hbox_new(FALSE, 0);
 	    gtk_widget_show(table);
 
@@ -1461,17 +1639,55 @@ mathmap_dialog (int mutable_expression)
 			       (GtkSignalFunc)dialog_text_changed,
 			       (gpointer)NULL);
 	    gtk_text_set_editable(GTK_TEXT(expression_entry), TRUE);
+#else
+	    GtkTextBuffer *buffer;
+	    PangoFontDescription *font_desc;
+
+	    table = gtk_scrolled_window_new (NULL, NULL);
+	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(table),
+					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	    gtk_widget_show (table);
+
+	    expression_entry = gtk_text_view_new();
+	    gtk_container_add(GTK_CONTAINER(table), expression_entry);
+	    gtk_text_view_set_editable(GTK_TEXT_VIEW(expression_entry), TRUE);
+	    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(expression_entry),
+			    		GTK_WRAP_CHAR);
+#endif
+
+#ifndef GIMP2
 	    gtk_box_pack_start(GTK_BOX(table), expression_entry, TRUE, TRUE, 0);
 	    gtk_widget_show(expression_entry);
-	    /* gtk_text_freeze(GTK_TEXT(expression_entry)); */
 	    gtk_widget_realize(expression_entry);
-	    /* gtk_text_thaw(GTK_TEXT(expression_entry)); */
 	    gtk_editable_insert_text(GTK_EDITABLE(expression_entry), mmvals.expression,
 				     strlen(mmvals.expression), &position);
 
 	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT(expression_entry)->vadj);
 	    gtk_box_pack_start(GTK_BOX(table), vscrollbar, FALSE, FALSE, 0);
 	    gtk_widget_show (vscrollbar);
+#else
+	    gtk_widget_show(expression_entry);
+
+	    label = gtk_label_new(_("Expression"));
+	    gtk_widget_show(label);
+
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook),
+			    		  table, label, label);
+
+	    font_desc = pango_font_description_from_string("Courier 10");
+	    gtk_widget_modify_font(expression_entry, font_desc);
+	    pango_font_description_free(font_desc);
+
+	    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
+	    g_signal_connect(G_OBJECT(buffer), "changed",
+			     G_CALLBACK(dialog_text_changed),
+			     (gpointer)NULL);
+	    gtk_text_buffer_set_text(buffer, mmvals.expression,
+			    	     strlen(mmvals.expression));
+
+	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT_VIEW(expression_entry)->vadjustment);
+	    gtk_widget_realize(expression_entry);
+#endif
 	}
 
 	/* User Values */
@@ -1497,60 +1713,29 @@ mathmap_dialog (int mutable_expression)
 	    gtk_widget_show (table);
 
 	    root_tree = read_tree_from_rc();
+#ifndef GIMP2
 	    gtk_signal_connect(GTK_OBJECT(root_tree), "selection_changed",
 			       (GtkSignalFunc)dialog_tree_changed,
 			       (gpointer)NULL);
+#endif
 #if GTK_MAJOR_VERSION < 1 || (GTK_MAJOR_VERSION == 1 && GTK_MINOR_VERSION < 1)
 	    gtk_container_add(GTK_CONTAINER(table), root_tree);
 #else
 	    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(table), root_tree);
 #endif
+#ifndef GIMP2
 	    gtk_tree_set_selection_mode(GTK_TREE(root_tree), GTK_SELECTION_BROWSE);
 	    gtk_tree_set_view_lines(GTK_TREE(root_tree), FALSE);
 	    gtk_tree_set_view_mode(GTK_TREE(root_tree), FALSE);
+#else
+	    gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(root_tree)), GTK_SELECTION_BROWSE);
+#endif
 	    gtk_widget_show(root_tree);
 
 	    label = gtk_label_new(_("Examples"));
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
 	}
-
-    /* Buttons */
-
-    gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->action_area), 6);
-
-    button = gtk_button_new_with_label(_("OK"));
-    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) dialog_ok_callback,
-		       dialog);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
-    gtk_widget_grab_default(button);
-    gtk_widget_show(button);
-
-    button = gtk_button_new_with_label(_("Cancel"));
-    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) dialog_cancel_callback,
-		       dialog);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
-    gtk_widget_show(button);
-
-    button = gtk_button_new_with_label(_("Help"));
-    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) dialog_help_callback,
-		       dialog);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
-    gtk_widget_show(button);
-
-    button = gtk_button_new_with_label(_("About"));
-    GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) dialog_about_callback,
-		       dialog);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
-    gtk_widget_show(button);
 
     /* Done */
 
@@ -1559,8 +1744,14 @@ mathmap_dialog (int mutable_expression)
 
     gtk_widget_show(dialog);
 
+#ifndef GIMP2
     gtk_main();
     gdk_flush();
+#else
+    gtk_main();
+    gdk_flush();
+    /* gimp_dialog_run(GIMP_DIALOG(dialog)); */
+#endif
 
     unref_tiles();
 
@@ -1694,14 +1885,20 @@ dialog_t_update (GtkAdjustment *adjustment, gfloat *value)
 
 /*****/
 
+#ifndef GIMP2
 static void
 dialog_text_changed (void)
+#else
+static void
+dialog_text_changed (GtkTextBuffer *buffer, gpointer user_data)
+#endif
 {
     expression_changed = 1;
 }
 
 /*****/
 
+#ifndef GIMP2
 static void
 dialog_text_update (void)
 {
@@ -1717,6 +1914,22 @@ dialog_text_update (void)
 
     free(expression);
 } /* dialog_text_update */
+#else
+static void
+dialog_text_update (void)
+{
+    GtkTextBuffer * buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
+    GtkTextIter start, end;
+    gchar * expression;
+
+    gtk_text_buffer_get_bounds(buffer, &start, &end);
+    expression = gtk_text_buffer_get_text(buffer, &start, &end, TRUE);
+
+    expression_copy(mmvals.expression, expression);
+
+    g_free(expression);
+} /* dialog_text_update */
+#endif
 
 /*****/
 
@@ -1765,6 +1978,9 @@ dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
 static void
 dialog_edge_color_changed (GtkWidget *color_well, gpointer data)
 {
+#ifdef GIMP2
+    gimp_color_button_get_color(GIMP_COLOR_BUTTON(color_well), &edge_color);
+#endif
     if (auto_preview)
 	dialog_update_preview();
 }
@@ -1778,8 +1994,6 @@ dialog_antialiasing_update (GtkWidget *widget, gpointer data)
 
     if (GTK_TOGGLE_BUTTON(widget)->active)
 	mmvals.flags |= FLAG_ANTIALIASING;
-
-    expression_changed = 1;
 
     if (auto_preview)
 	dialog_update_preview();
@@ -1822,15 +2036,6 @@ dialog_preview_callback (GtkWidget *widget, gpointer data)
 /*****/
 
 static void
-dialog_close_callback (GtkWidget *widget, gpointer data)
-{
-    gtk_main_quit();
-} /* dialog_close_callback */
-
-
-/*****/
-
-static void
 dialog_ok_callback (GtkWidget *widget, gpointer data)
 {
     if (generate_code(0, 0))
@@ -1839,15 +2044,6 @@ dialog_ok_callback (GtkWidget *widget, gpointer data)
 	gtk_widget_destroy(GTK_WIDGET(data));
     }
 } /* dialog_ok_callback */
-
-
-/*****/
-
-static void
-dialog_cancel_callback (GtkWidget *widget, gpointer data)
-{
-    gtk_widget_destroy(GTK_WIDGET(data));
-} /* dialog_cancel_callback */
 
 /*****/
 
@@ -1895,6 +2091,39 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 
 /*****/
 
+#ifdef GIMP2
+static void
+dialog_response (GtkWidget *widget,
+                 gint response_id,
+                 gpointer data)
+{
+    switch (response_id)
+    {
+	case RESPONSE_ABOUT :
+	    dialog_about_callback(0, 0);
+	    break;
+
+	case GTK_RESPONSE_OK :
+	    dialog_ok_callback(0, widget);
+	    break;
+
+	case GTK_RESPONSE_CANCEL :
+	    gtk_widget_destroy(widget);
+	    break;
+
+	case GTK_RESPONSE_HELP :
+	    dialog_help_callback(0, 0);
+	    break;
+
+	default :
+	    assert(0);
+    }
+}
+#endif
+
+/****/
+
+#ifndef GIMP2
 static void
 dialog_tree_changed (GtkTree *tree)
 {
@@ -1926,3 +2155,35 @@ dialog_tree_changed (GtkTree *tree)
     if (auto_preview)
 	dialog_update_preview();
 }
+#else
+static void
+dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
+{
+    GtkTreeModel * model;
+    GtkTreeIter iter;
+
+    if (selection == 0)
+	return;
+
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+    {
+	GtkTextBuffer *buffer;
+	GValue value = { 0, };
+	const gchar *expression;
+
+	gtk_tree_model_get_value(model, &iter, 1, &value);
+	expression = g_value_get_string(&value);
+
+	if (expression == 0)
+	    return;
+
+	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
+	gtk_text_buffer_set_text(buffer, expression, strlen(expression));
+
+	expression_copy(mmvals.expression, expression);
+    }
+
+    if (auto_preview)
+	dialog_update_preview();
+}
+#endif

@@ -7,7 +7,22 @@
   <body>
     <h1>MathMap Examples</h1>
 
-    The following are examples of MathMap expressions, together with
+    You can find lots of examples of MathMap generated images at
+    the very interesting and well-written
+    <a href="http://www.mai.liu.se/~halun/complex/complex.html">page
+    about visualizing complex functions</a> by Hans Lundmark.
+
+    <p>Alexander Heide has used MathMap to <a
+    href="http://www.physik.uni-halle.de/~heide/crystal/crystal.html">transform
+    x-ray images of crystals</a>.
+
+    <p>Tom Rathborne has used MathMap to generate some very <a
+    href="http://www.aceldama.com/~tomr/papers/2001/mathmap-fractals/Paper.html">unusual
+    Mandelbrot fractal images</a>.
+
+    <hr>
+
+    <p>The following are examples of MathMap expressions, together with
     their effect on two images. The left one is an image of 
     <a href="http://members.theglobe.com/BeanBandi/gallery/Bridges.html">Elisa
     Bridges</a> (US Playmate of the Month December 1994), the right one is
@@ -20,37 +35,37 @@
 
     <hr>
     <pre>
-origVal(xy+xy:[sin(y*10),sin(x*10)]*3)
+origVal(xy+xy:[sin(y/6),sin(x/6)]*3)
 </pre>
     <img src="elisa_wave.jpg"><img src="grid_wave.jpg">
 
     <hr>
     <pre>
-origVal(xy+xy:[5*sign(cos(9*y)),5*sign(cos(9*x))])
+origVal(xy+xy:[5*sign(cos(y/6)),5*sign(cos(x/6))])
 </pre>
     <img src="elisa_slice.jpg"><img src="grid_slice.jpg">
 
     <hr>
     <pre>
-origVal(xy*xy:[cos(90/Y*y),1])
+origVal(xy*xy:[cos(pi/2/Y*y),1])
 </pre>
     <img src="elisa_mercator.jpg"><img src="grid_mercator.jpg">
 
     <hr> 
     <pre>
-origVal(ra+ra:[sin(r*20)*3,0])
+origVal(ra+ra:[sin(r/3)*3,0])
 </pre>
     <img src="elisa_pond.jpg"><img src="grid_pond.jpg">
 
     <hr> 
     <pre>
-origVal(ra+ra:[0,(r/R-1)*45])
+origVal(ra+ra:[0,-(r/R-1)*pi/5])
 </pre>
     <img src="elisa_twirl.jpg"><img src="grid_twirl.jpg">
 
     <hr> 
     <pre>
-origValRA(r,a+a%8-4)
+origValRA(r,a+a%0.14-0.07)
 </pre>
     <img src="elisa_jitter.jpg"><img src="grid_jitter.jpg">
 
@@ -83,7 +98,7 @@ rgbaColor(curve(red(p)),curve(green(p)),curve(blue(p)),alpha(p))
     As does this (there are actually two curves here and one slider).
 
     <pre>
-alpha = user_slider("alpha",0,360);
+alpha = user_slider("alpha",0,6.28318530);
 dir = xy:[cos(alpha),sin(alpha)];
 ndir = xy:[-dir[1],dir[0]];
 p = xy / m2x2:[dir[0],-ndir[0],
@@ -107,7 +122,7 @@ origVal(xy+xy:[rand(-3,3),rand(-3,3)])
     <hr> 
     <pre>
 p=origVal(xy);
-p=if inintv((a-9)%36,0,18) then p else -p+1 end;
+p=if inintv((a-(pi/20))%(pi/5),0,(pi/10)) then p else -p+1 end;
 if inintv(r%80,68,80) then p else -p+1 end
 </pre>
     <img src="elisa_darts.jpg"><img src="grid_darts.jpg">
@@ -119,7 +134,7 @@ rd=0.9*min(X,Y);
 if r>rd then
     rgba:[0,0,0,1]
 else
-    alpha=300; beta=120; gamma=t*360;
+    alpha=-(5/3)*pi; beta=(1/3)*pi; gamma=t*pi*2;
     sa=sin(alpha);
     sb=sin(beta);
     ca=cos(alpha);
@@ -137,9 +152,9 @@ else
         z1=z1-2*cb*z0;
         y1=cb*-sa*x0+cb*ca*y0-sb*z0
     end;
-    theta1=atan(-x1/y1)+(if y1>0 then 90 else 270 end);
+    theta1=atan(-x1/y1)+(if y1>0 then pi/2 else 3*pi/2 end);
     phi1=asin(z1);
-    origVal(xy:[((theta1*2+gamma)%360-180)/180*X,-phi1/90*Y])
+    origVal(xy:[((theta1*2+gamma)%(pi*2)-pi)/pi*X,-phi1/(pi/2)*Y])
 end
 </pre>
     <img src="elisa_sphere.jpg"><img src="grid_sphere.jpg">
@@ -150,19 +165,19 @@ end
     the grid, which has been MathMapped with the following expression:
 
     <pre>
-origVal(xy)*rgba:[1,1,1,0]+rgba:[0,0,0,sin((r-a*0.1)*10+t*360)*0.5+0.5]
+origVal(xy)*rgba:[1,1,1,0]+rgba:[0,0,0,sin((r-a*6)/6+t*2*pi)*0.5+0.5]
 </pre>
     <img src="elisa_grid_spiral.jpg">
 
     <hr>
     <pre>
-abs(rgba:[sin(15*r)+sin(15*a),sin(17*r)+sin(17*a),sin(19*r)+sin(19*a),2])*0.5
+abs(rgba:[sin(r/4)+sin(15*a),sin(r/3.5)+sin(17*a),sin(r/3)+sin(19*a),2])*0.5
 </pre>
     <img src="moire1.jpg">
 
     <hr>
     <pre>
-grayColor(sin(x*y)*0.5+0.5)
+grayColor(sin(x*y/180*pi)*0.5+0.5)
 </pre>
     <img src="moire2.jpg">
 
@@ -183,12 +198,5 @@ end;
 gradient(iter/32)
 </pre>
     <img src="mandelbrot.jpg">
-
-    <hr>
-    You can find some more examples of MathMap generated images at
-    the very interesting an well-written
-    <a href="http://www.mai.liu.se/~halun/complex/complex.html">page
-    about visualizing complex functions</a> by Hans Lundmark.
-
   </body>
 </html>

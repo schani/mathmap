@@ -250,6 +250,12 @@ macro_func_curve (exprtree *arg)
     return make_userval("user_curve", "curve", arg);
 }
 
+exprtree*
+macro_func_gradient (exprtree *arg)
+{
+    return make_userval("user_gradient", "gradient", arg);
+}
+
 void
 init_macros (void)
 {
@@ -298,4 +304,5 @@ init_macros (void)
     register_overloaded_macro("toRA", "((ra 2) (ra 2))", macro_func_toRA);
 
     register_overloaded_macro("curve", "((nil 1) (_ 1))", macro_func_curve);
+    register_overloaded_macro("gradient", "((rgba 4) (_ 1))", macro_func_gradient);
 }

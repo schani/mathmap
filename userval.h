@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,9 @@
 
 #ifdef GIMP
 #include <gtk/gtk.h>
+#ifdef GIMP2
+#include <libgimp/gimp.h>
+#endif
 #endif
 
 #include "tuples.h"
@@ -42,7 +45,7 @@
 #define USERVAL_COLOR       4
 #define USERVAL_CURVE       5
 #define USERVAL_GRADIENT    6
-#define USERVAL_IMAGE       7
+#define USERVAL_IMAGE       7	/* used in new_template.c */
 
 typedef struct _userval_info_t
 {
@@ -67,6 +70,10 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
+#ifdef GIMP
+#define INPUT_IMAGE_USERVAL_NAME         "_*_input_*_"
+#endif
+
 typedef struct _userval_t
 {
     int type;
@@ -80,7 +87,11 @@ typedef struct _userval_t
 	struct
 	{
 #ifndef OPENSTEP
+#ifndef GIMP2
 	    guchar button_value[4];
+#else
+	    GimpRGB button_value;
+#endif
 #endif
 	    color_t value;
 	} color;

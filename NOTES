@@ -1,0 +1,27 @@
+new files:
+  compiler.c    nur a paar sachen die eh disabled sind
+  userval.[ch]  dirty hack
+
+error: rot
+comment: grau
+keyword: dunkles blau
+internal: unaufdringliches purpur
+tag: schwarz
+builtin: blau
+int: gruen
+float: gruen
+string: dunkes gruen
+userval: blau
+variable: dunkles grau
+constant: helles gruen
+filter wave (image origVal)
+  origVal(xy+xy:[sin(y*10+t*360),sin(x*10+t*360)]*3)
+end
+
+filter blend (image back, image front, float alpha)
+  back(xy)*(1-alpha)+front(xy)*alpha
+end
+
+filter blendwave (image back, image front, float alpha)
+  blend(back, wave(front), alpha)
+end

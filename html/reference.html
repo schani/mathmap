@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 <html>
   <head>
-    <title>The MathMap GIMP Plug-In User's Manual</title>
+    <title>The MathMap Language Reference Manual</title>
   </head>
 
   <body>
@@ -142,7 +142,7 @@
 
       <dl>
         <dt><tt>pi</tt> (<tt>nil:1</tt>)
-        <dd>3.1418925635...</dd>
+        <dd>3.1415926535...</dd>
 
         <dt><tt>e</tt> (<tt>nil:1</tt>)
         <dd>Euler's constant 2.7182818284...</dd>
@@ -344,6 +344,14 @@
 	  <dd>Returns the value <tt>x</tt> converted from radians to
 	    degrees.
 
+	  <dt><tt>toRA(xy)</tt>
+	  <dd>Converts the cartesian coordinates <tt>xy</tt> (of type
+	    <tt>xy:2</tt>) to polar coordinates (of type <tt>ra:2</tt>).
+
+	  <dt><tt>toXY(ra)</tt>
+	  <dd>Converts the polar coordinates <tt>ra</tt> (of type
+	    <tt>ra:2</tt>) to cartesian coordinates (of type <tt>xy:2</tt>).
+
 	  <dt><tt>sin(x)</tt>
 	  <dd>Returns the sine of <tt>x</tt>.
 
@@ -403,6 +411,10 @@
           otherwise.
 
         <dl>
+	  <dt><tt>sqrt(x)</tt>
+	  <dd>Returns the square root of <tt>x</tt>.  Only works on real
+	  numbers.
+
 	  <dt><tt>exp(x)</tt>
 	  <dd>Returns <tt>e^x</tt>.  Works on real and complex numbers.
 
@@ -412,6 +424,7 @@
 
 	  <dt><tt>gamma(x)</tt>
           <dd>Returns the value of the gamma function for <tt>x</tt>.
+	    Works on real and complex numbers.
 
 	  <dt><tt>pmod(x,y)</tt>
 	  <dd>Returns the modulo of <tt>x</tt> and <tt>y</tt> as a
@@ -601,58 +614,6 @@
 	  ID of a user-selected image. The user may only select images
 	  having the same size as the input image.
       </dl>
-    </blockquote>
-
-    <h2>The Examples File</h2>
-
-    <blockquote>
-      MathMap looks for a file called <tt>mathmaprc</tt> in the
-      directories <tt>~/.gimp-1.2/</tt> and
-      <tt>/usr/local/share/gimp/</tt>. This file should contain
-      MathMap expressions which are then available for selection in
-      the 'Examples' tag. One such file is included in the distribution.
-      The format of the file is very
-      straightforward, so I won't document it here.
-    </blockquote>
-
-    <h2>The Command-Line MathMap</h2>
-
-    <blockquote>
-      <p>The command-line version of MathMap can, in addition to still
-        JPEG and PNG images, read and write movies in the MJPEG
-        Quicktime format.  Input images and movies are specified with
-        the <tt>-I</tt> and <tt>-M</tt> options.  To make a linear
-        interpolation halfway between two images, you can use the
-        following command line:
-
-      <p><tt>mathmap -I image1.png -I image2.png 'lerp(0.5,origVal(xy,image:0),origVal(xy,image:1))' out.png</tt>
-
-      <p>Note that as the second argument to <tt>origVal</tt> you have
-        to use the position of the input image at the command line,
-        beginning with <tt>0</tt> for the first argument to
-        <tt>-I</tt>.
-
-      <p>If you want to generate a movie, you have to use the
-        <tt>-f</tt> option to specify how many frames you want the
-        movie to have.  Within the expression the variables <tt>t</tt>
-        and <tt>frame</tt> indicate the position within the animation.
-        To create a movie with 10 frames, which fades softly from one
-        image to another, you can use this command line:
-
-      <p><tt>mathmap -f 10 -I image1.png -I image2.png 'lerp(1-t,origVal(xy,image:0),origVal(xy,image:1))' out.mov</tt>
-
-      <p>Input movies are handled in much the same way as input
-        images.  They must be specified on the command-line with the
-        <tt>-M</tt> option and are numbered alongside with input
-        images.  <tt>origVal</tt> takes an optional last argument,
-        which specifies the frame within the movie, beginning with
-        <tt>0</tt>.  To create a 10 frames movie which fades from one
-        movie to another, use
-
-      <p><tt>mathmap -f 10 -M movie1.png -M movie2.png 'lerp(1-t,origVal(xy,image:0,frame),origVal(xy,image:1,frame))' out.mov</tt>
-
-      <p>Input images and input movies can of course be combined.  It
-        is even possible to generate still images from movies.
     </blockquote>
   </body>
 </html>

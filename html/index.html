@@ -34,9 +34,86 @@
       <h3><a href="anims.html">Animations</a></h3>
     </blockquote>
 
+    <h2>Documentation</h2>
+
+    <blockquote>
+      <h2><a href="language.html">Language Tutorial</a></h2>
+
+      <h2><a href="reference.html">Language Reference</a></h2>
+    </blockquote>
+
+    <h2>Bugs and Deficiencies</h2>
+
+    <ul>
+      <li>The coordinate system is fixed: the origin is always at the
+	center of the image and a unit is always a pixel.
+
+      <li>Tuples are limited to a size of 9 in the interpreter.
+    </ul>
+
+<!--
+    <h2>What's to come</h2>
+
+    <ul>
+      <li>I'll try to fix all the bugs.</li>
+
+      <li>I'll let the user specify the coordinate system (origin, scale).
+
+      <li>I will make it possible for the user to modify the Examples
+	tree from within the plug-in in a user-friendly fashion.
+	
+      <li>I will add a few optimizations to the code generator.
+    </ul>
+-->
+
+    <h2>How you can contribute</h2>
+
+    <ul>
+      <li>Play around with MathMap. If you have any suggestions, mail
+        me. If you find any bugs, try to reproduce them and mail me
+	a bug report or, better yet, try to fix them yourself and mail
+	me a patch if you succeed.
+
+      <li>Write cool MathMap expressions and mail them to me.
+
+      <li>If you want a particular feature, mail me or implement it
+        yourself and send me the patch.
+    </ul>
+
+    <h2>Where to get it</h2>
+
+    <blockquote>
+      Get the source of version 0.14 <a href="mathmap-0.14.tar.gz">here</a>.
+      You'll need <tt>bison</tt> and <tt>flex</tt> in order to compile it
+      (both are included in any sane operating system distribution).
+      <b>Note:</b> Version 0.14 requires at least GIMP 1.2! The last version that
+      runs with GIMP 1.0 is <a href="mathmap-0.10.tar.gz">version 0.10</a>.
+    </blockquote>
+
+<!--
+    <h2><a name="mailinglist">Mailing List</a></h2>
+
+    <blockquote>
+      <a href="mailto:Eric Kidd <eric.kidd@pobox.com>">Eric Kidd</a> has set
+      up a mailing list for MathMap. To subscribe, send a mail to
+      <a href="mailto:majordomo@randomhacks.com">majordomo@randomhacks.com</a>
+      with the body <tt>subscribe mathmap-users</tt>.
+    </blockquote>
+-->
+
+    <h2>Legal Conditions</h2>
+
+    <blockquote>
+      The MathMap plug-in as well as this hypertext document are
+      provided under the terms of the <a href="COPYING">GNU General
+	Public Licence</a>.
+    </blockquote>
+
     <h2>News</h2>
 
     <blockquote>
+      <p><b>04-19-2004</b> Released version 0.14.
+
       <p><b>03-23-2001</b> Released version 0.13.
 
       <p><b>09-26-2000</b> Released version 0.12.
@@ -60,6 +137,30 @@
       <p><b>01-12-1998</b> Released version 0.4.
 
       <p><b>11-21-1997</b> Released version 0.3.
+
+      <h3>Changes since 0.13</h3>
+
+      <ul>
+        <li>Compiles and runs with both GIMP 1.2 and GIMP 2.0.
+
+	<li>Comes with a Language Tutorial!
+
+	<li>Lots of new and improved examples.
+
+	<li>Features a new compiler, which doesn't yet generate better code
+	  than the old one, but offers a much better platform for future
+          improvements.
+
+	<li>MathMap now automatically uses the compiler and if that doesn't
+          work, falls back to the interpreter without user intervention.
+
+	<li>All functions now use radians instead of degrees (which is The
+          Right Thing).
+
+	<li>Compiles on MacOS X (tested with GIMP 1.2 on Fink).
+
+	<li>Bug fixes.
+      </ul>
 
       <h3>Changes since 0.12</h3>
 
@@ -241,85 +342,10 @@
       </ul>
     </blockquote>
 
-    <h2><a href="manual.html">User's Manual</a></h2>
-
-    <h2>Bugs and Deficiencies</h2>
-
-    <ul>
-      <li>The coordinate system is fixed: the origin is always at the
-	center of the image and a unit is always a pixel.
-
-      <li>Tuples are limited to a size of 9 in the interpreter.
-    </ul>
-
-    <h2>What's to come</h2>
-
-    <ul>
-      <li>I'll try to fix all the bugs.</li>
-
-      <li>I'll let the user specify the coordinate system (origin, scale).
-
-      <li>I will make it possible for the user to modify the Examples
-	tree from within the plug-in in a user-friendly fashion.
-	
-      <li>I will add a few optimizations to the code generator.
-    </ul>
-
-    <h2>How you can contribute</h2>
-
-    <ul>
-      <li>Play around with MathMap. If you have any suggestions, mail
-        me. If you find any bugs, try to reproduce them and mail me
-	a bug report or, better yet, try to fix them yourself and mail
-	me a patch if you succeed.
-
-      <li>Write cool MathMap expressions and mail them to me.
-
-      <li>If you want a particular feature, mail me or implement it
-        yourself and send me the patch.
-
-      <li><b>Write a tutorial!</b> I believe the main reason why
-        MathMap is not widely used yet is that it's missing a cool
-        tutorial which teaches MathMap step-by-step. The reasons I'm
-        not writing it (which are of course mere digressions from the
-        fact that I'm just plain lazy :-)) is that I'm already far too
-        busy with coding and that I'm not a very good tutorial writer,
-        probably because I'm far too technical and thus have a skewed
-        perspective. Thus, if you understand MathMap and are not too
-        bad a writer, please consider writing a tutorial!
-    </ul>
-
-    <h2>Where to get it</h2>
-
-    <blockquote>
-      Get the source of version 0.13 <a href="mathmap-0.13.tar.gz">here</a>.
-      You'll need <tt>bison</tt> and <tt>flex</tt> in order to compile it
-      (both are included in any sane operating system distribution).
-      <b>Note:</b> Version 0.13 requires GIMP 1.2! The last version that
-      runs with GIMP 1.0 is <a href="mathmap-0.10.tar.gz">version 0.10</a>.
-    </blockquote>
-
-    <h2><a name="mailinglist">Mailing List</a></h2>
-
-    <blockquote>
-      <a href="mailto:Eric Kidd <eric.kidd@pobox.com>">Eric Kidd</a> has set
-      up a mailing list for MathMap. To subscribe, send a mail to
-      <a href="mailto:majordomo@randomhacks.com">majordomo@randomhacks.com</a>
-      with the body <tt>subscribe mathmap-users</tt>.
-    </blockquote>
-
-    <h2>Legal Conditions</h2>
-
-    <blockquote>
-      The MathMap plug-in as well as this hypertext document are
-      provided under the terms of the <a href="COPYING">GNU General
-	Public Licence</a>.
-    </blockquote>
-
     <h2>The Author</h2>
 
     <blockquote>
-      Check out <a href="/~schani/">other projects</a> I'm involved
+      Check out <a href="/schani/">other projects</a> I'm involved
       with!
     </blockquote>
 

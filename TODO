@@ -1,6 +1,21 @@
+sqrt for complex
+update screenshots
+rewrite HACKING
+
+
+
+
+
+
+unload c code in openstep
 library
-altivec origVal
 constant optimization
+
+
+
+
+
+
 
 
 macos:
@@ -415,18 +430,6 @@ st=15;p=clamp((x+X-t*W)/st+0.5,0,1);origVal(xy,image:0,frame)*(1-p)+origVal(xy,i
 
 
 
-# wobbly transition
-ns=user_slider("noise scale",0,100);
-np=user_slider("noise speed",0,10);
-bertl=user_slider("bertl",1,5);
-mt=t*4;
-pic1=user_image("input 1");
-pic2=user_image("input 2");
-nxy=xy/R*ns;
-xyn1=noise([nxy[0],nxy[1],mt*np*1.5])*sin(t*180);
-xyn2=noise([nxy[1],nxy[0],(mt+3)*np]);
-l=clamp(xyn1*sin((mt+xyn2)*360)*bertl+t,0,1);
-lerp(l,origVal(xy,pic1),origVal(xy,pic2))
 
 
 
@@ -436,15 +439,6 @@ lerp(l,origVal(xy,pic1),origVal(xy,pic2))
 
 
 
-g = user_slider("granularity",0,50);
-nxy = xy/R*g;
-z1 = user_slider("z1",0,10);
-z2 = user_slider("z2",0,10);
-w2 = user_slider("w2",0,1);
-f2 = user_slider("f2",1,10);
-thr = user_slider("threshold",-1,1);
-n=noise([nxy[0]/2,nxy[1],z1])+noise([nxy[0]/2*f2,nxy[1]*f2,z2])*w2;
-grayColor(if n >= thr then 1 else 0 end)
 
 
 
@@ -453,68 +447,40 @@ grayColor(if n >= thr then 1 else 0 end)
 
 
 
-# stenographische projektion
-# thanks to Alexander Heide <heide@ra.physik.uni-halle.de>
-xy0=xy:[user_slider("x center",0,2048)-X,
--(user_slider("y center",0,2048)-Y)];
-D=user_slider("distance",0,1024);
-s=user_slider("zoom",-1,1);
-pxy=(xy*10^-s)/min(X,Y);
-p=(dotp(pxy,pxy))^(1/2);
-back=user_bool("trans/back");
-xy1=pxy*(2*back-1)/p*D*tan(4*atan(p))+xy0;
-out=0;
-if back then
-  if p>tan(45/2) then out=1 end
-else
-  if p>1 || p=X-1 || abs(xy1[1])>=Y-1
-then grayColor(user_bool("black/white"))
-else origVal(xy1)
-end
 
 
 
-# umwaelzen
-# thanks to Alexander Heide <heide@ra.physik.uni-halle.de>
-x0=user_slider("x center",-1024,1024)-X;
-y0=-(user_slider("y center",-1024,1024)-Y);
 
-psi=user_slider("psi",0,180);
-theta=user_slider("theta",-180,180);
-rad=user_slider("radius",1,2048);
+craig kaplan:
 
-xs=-user_slider("x shift",-2048,2048);
-ys=-user_slider("y shift",-2048,2048);
-s=-user_slider("zoom",-1,1);
+Okay.  Well, part of the talk was about how some of Escher's
+patterns with shapes that diminish towards the centre of the
+plane are just mathematical transformations of simple
+Euclidean patterns.  I demonstrated this fact by carrying
+the transformation out on a couple of patterns.  You can see
+the results here:
 
-xy1=xy*10^s+xy:[xs,ys];
+        http://www.cgl.uwaterloo.ca/~csk/tmp/butterflies.png
+        http://www.cgl.uwaterloo.ca/~csk/tmp/butterflies_merc.png
+        http://www.cgl.uwaterloo.ca/~csk/tmp/snakes.jpg
+        http://www.cgl.uwaterloo.ca/~csk/tmp/snakes_merc.png
 
-pxy=xy1-xy:[x0,y0];
+For reference, the transformation is to put the coordinate 
+axes of the complex plane at the center of the circular picture
+and to pass the image through the function f(z)=log(z) in
+the complex plane.  More precisely, I used this function in 
+MathMap:
 
-pxy=pxy/rad;
-psq=pxy[0]^2+pxy[1]^2;
-xi=2*pxy[0]/(1+psq);
-eta=2*pxy[1]/(1+psq);
-zeta=(1-psq)/(1+psq);
+        y = y/H*360.0*1.6;
+        cy = cos( ay );
+        sy = sin( ay );
+        ax =-0.8+(x+X)/W*9;
+        ex = exp( ax );
+        mx = ex*cy;
+        my = ex*sy;
 
-xi1=cos(psi)*xi+sin(psi)*eta;
-eta1=-sin(psi)*xi+cos(psi)*eta;
-zeta1=zeta;
+        ssx = mx*3;
+        ssy = my*3;
 
-xi=xi1;
-eta=cos(theta)*eta1+sin(theta)*zeta1;
-zeta=-sin(theta)*eta1+cos(theta)*zeta1;
-
-xi1=cos(psi)*xi-sin(psi)*eta;
-eta1=sin(psi)*xi+cos(psi)*eta;
-zeta1=zeta;
-
-px=xi1/(1+zeta1)*rad+x0;
-py=eta1/(1+zeta1)*rad+y0;
-
-if (abs(px)>=X-1) || (abs(py)>=Y-1)
-then grayColor(user_bool("black/white"))
-else origVal(xy:[px,py])
-end
-
+        origVal( xy:[ssx+4,ssy-1] )
 

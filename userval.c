@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -240,19 +240,34 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
 
 		for (i = 0; i < USER_GRADIENT_POINTS; ++i)
 		{
-		    unsigned char v = i * 256 / USER_GRADIENT_POINTS;
+#ifdef CMDLINE
+		    val->v.gradient.values[i] = COLOR_BLACK;
+#else
+#ifndef OPENSTEP
+		    val->v.gradient.values[i] = gradient_samples[i];
+#else
+		    unsigned char v = i * 255 / USER_GRADIENT_POINTS;
 
-		    val->v.gradient.values[i] = MAKE_RGBA_COLOR(v, v, v, 0xff);
+		    val->v.gradient.values[i] = MAKE_RGBA_COLOR(v,v,v,255);
+#endif
+#endif
 		}
 	    }
 	    break;
 
 	case USERVAL_COLOR :
 #ifndef OPENSTEP
+#ifndef GIMP2
 	    val->v.color.button_value[0] =
 		val->v.color.button_value[1] =
 		val->v.color.button_value[2] = 0;
 	    val->v.color.button_value[3] = 255;
+#else
+	    val->v.color.button_value.r =
+		val->v.color.button_value.g =
+		val->v.color.button_value.b = 0.0;
+	    val->v.color.button_value.a = 1.0;
+#endif
 #endif
 
 	    val->v.color.value = COLOR_BLACK;
@@ -356,8 +371,18 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	case USERVAL_FLOAT_CONST :
 	case USERVAL_BOOL_CONST :
 	case USERVAL_COLOR :
-	case USERVAL_IMAGE :
 	    dst->v = src->v;
+	    break;
+
+	case USERVAL_IMAGE :
+#ifdef GIMP
+	    if (src->v.image.index > 0)
+		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
+	    else
+		dst->v = src->v;
+#else
+	    dst->v = src->v;
+#endif
 	    break;
 
 	case USERVAL_CURVE :
@@ -404,12 +429,18 @@ userval_bool_update (GtkToggleButton *button, userval_t *userval)
 static void
 userval_color_update (GtkWidget *color_well, userval_t *userval)
 {
-    int i;
-
+#ifndef GIMP2
     userval->v.color.value = MAKE_RGBA_COLOR(userval->v.color.button_value[0],
 					     userval->v.color.button_value[1],
 					     userval->v.color.button_value[2],
 					     userval->v.color.button_value[3]);
+#else
+    gimp_color_button_get_color(GIMP_COLOR_BUTTON(color_well), &userval->v.color.button_value);
+    userval->v.color.value = MAKE_RGBA_COLOR_FLOAT(userval->v.color.button_value.r,
+						   userval->v.color.button_value.g,
+						   userval->v.color.button_value.b,
+						   userval->v.color.button_value.a);
+#endif
 
     user_value_changed();
 }
@@ -433,8 +464,27 @@ static void
 user_image_update (gint32 id, userval_t *userval)
 {
     if (userval->v.image.index != -1)
+    {
+	if (get_input_drawable(userval->v.image.index) == gimp_drawable_get(id))
+	    return;
+
 	free_input_drawable(userval->v.image.index);
+    }
+
     userval->v.image.index = alloc_input_drawable(gimp_drawable_get(id));
+
+    user_value_changed();
+}
+
+static int
+make_table_entry_for_userval (userval_info_t *info)
+{
+    if (info->type == USERVAL_GRADIENT)
+	return 0;
+    if (info->type == USERVAL_IMAGE
+	&& strcmp(info->name, INPUT_IMAGE_USERVAL_NAME) == 0)
+	return 0;
+    return 1;
 }
 
 GtkWidget*
@@ -446,7 +496,8 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 
     i = 0;
     for (info = infos; info != 0; info = info->next)
-	++i;
+	if (make_table_entry_for_userval(info))
+	    ++i;
 
     if (i == 0)
 	return 0;
@@ -459,9 +510,12 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 	GtkWidget *widget = 0, *label;
 	GtkAttachOptions xoptions = GTK_FILL | GTK_EXPAND, yoptions = 0;
 
+	if (!make_table_entry_for_userval(info))
+	    continue;
+
 	label = gtk_label_new(info->name);
-	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, i, i + 1, 0, 0, 0, 0);
+	gtk_widget_show(label);
 
 	switch (info->type)
 	{
@@ -478,8 +532,6 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 				       &uservals[info->index]);
 		    widget = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
 		    gtk_scale_set_digits(GTK_SCALE(widget), 0);
-
-		    gtk_widget_show(widget);
 		}
 		break;
 
@@ -515,8 +567,6 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 			gtk_scale_set_digits(GTK_SCALE(widget), -exponent);
 		    else
 			gtk_scale_set_digits(GTK_SCALE(widget), 0);
-
-		    gtk_widget_show(widget);
 		}
 		break;
 
@@ -527,15 +577,17 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		gtk_signal_connect(GTK_OBJECT(widget), "toggled",
 				   (GtkSignalFunc)userval_bool_update,
 				   &uservals[info->index]);
-		gtk_widget_show(widget);
 		break;
 
 	    case USERVAL_COLOR :
+#ifndef GIMP2
 		widget = gimp_color_button_new(info->name, 32, 16, uservals[info->index].v.color.button_value, 4);
+#else
+		widget = gimp_color_button_new(info->name, 32, 16, &uservals[info->index].v.color.button_value, GIMP_COLOR_AREA_SMALL_CHECKS);
+#endif
 		gtk_signal_connect(GTK_OBJECT(widget), "color_changed",
 				   (GtkSignalFunc)userval_color_update,
 				   &uservals[info->index]);
-		gtk_widget_show(widget);
 		break;
 
 	    case USERVAL_CURVE :
@@ -547,7 +599,6 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 			vector[j] = uservals[info->index].v.curve.values[j] * (USER_CURVE_POINTS - 1);
 
 		    widget = gtk_gamma_curve_new();
-		    gtk_widget_show(widget);
 		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
 					0, USER_CURVE_POINTS - 1, 0, USER_CURVE_POINTS - 1);
 		    gtk_curve_set_vector(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
@@ -568,22 +619,28 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 			GimpDrawable *drawable = get_input_drawable(uservals[info->index].v.image.index);
 
 			if (drawable != 0)
-			    drawable_id = drawable->id;
+			    drawable_id = DRAWABLE_ID(drawable);
 		    }
 
 		    widget = gtk_option_menu_new();
 		    menu = gimp_drawable_menu_new(user_image_constrain, (GimpMenuCallback)user_image_update,
 						  &uservals[info->index], drawable_id);
 		    gtk_option_menu_set_menu(GTK_OPTION_MENU(widget), menu);
-		    gtk_widget_show(widget);
 		}
 		break;
+
+	    case USERVAL_GRADIENT :
+		assert(0);
 
 	    default :
 		assert(0);
 	}
 
-	gtk_table_attach(GTK_TABLE(table), widget, 1, 2, i, i + 1, xoptions, yoptions, 0, 0);
+	if (widget != 0)
+	{
+	    gtk_table_attach(GTK_TABLE(table), widget, 1, 2, i, i + 1, xoptions, yoptions, 0, 0);
+	    gtk_widget_show(widget);
+	}
 
 	uservals[info->index].widget = widget;
 

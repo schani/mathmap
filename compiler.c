@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002 Mark Probst
+ * Copyright (C) 2002-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -83,11 +83,13 @@ typedef struct _compvar_t
 } compvar_t;
 
 struct _statement_list_t;
+struct _statement_t;
 
 typedef struct _value_t
 {
     compvar_t *compvar;
     int index;			/* SSA index */
+    struct _statement_t *def;
     struct _statement_list_t *uses;
     int const_type;		/* defined in internals.h */
     struct _value_t *next;	/* next value for same compvar */
@@ -281,6 +283,7 @@ static int next_temp_number = 1;
 
 static statement_t *first_stmt = 0;
 static statement_t **emit_loc = &first_stmt;
+static statement_t dummy_stmt = { STMT_NIL, -1 };
 
 #define STMT_STACK_SIZE            64
 
@@ -301,7 +304,7 @@ free_pools (void)
 {
     int i;
 
-    printf("alloced %d pools\n", active_pool + 1);
+    /* printf("alloced %d pools\n", active_pool + 1); */
     for (i = 0; i <= active_pool; ++i)
 	free(pools[i]);
 
@@ -339,6 +342,12 @@ pool_alloc (int size)
     return p;
 }
 
+int
+op_index (operation_t *op)
+{
+    return op - ops;
+}
+
 #define alloc_stmt()               ((statement_t*)pool_alloc(sizeof(statement_t)))
 #define alloc_value()              ((value_t*)pool_alloc(sizeof(value_t)))
 #define alloc_rhs()                ((rhs_t*)pool_alloc(sizeof(rhs_t)))
@@ -364,6 +373,7 @@ make_temporary (void)
     val->compvar = compvar;	/* dummy value */
     val->index = -1;
     val->const_type = CONST_NONE;
+    val->def = &dummy_stmt;
     val->uses = 0;
     val->next = 0;
 
@@ -387,6 +397,7 @@ make_variable (variable_t *var, int n)
     val->compvar = compvar;
     val->index = -1;
     val->const_type = CONST_NONE;
+    val->def = &dummy_stmt;
     val->uses = 0;
     val->next = 0;
 
@@ -401,6 +412,7 @@ make_lhs (compvar_t *compvar)
     val->compvar = compvar;
     val->index = -1;
     val->const_type = CONST_NONE;
+    val->def = &dummy_stmt;
     val->uses = 0;
 
     val->next = compvar->values;
@@ -788,6 +800,8 @@ emit_stmt (statement_t *stmt)
 		    if (stmt->v.assign.rhs->v.op.args[i].type == PRIMARY_VALUE)
 			add_use(stmt->v.assign.rhs->v.op.args[i].v.value, stmt);
 	    }
+
+	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_PHI_ASSIGN :
@@ -797,6 +811,8 @@ emit_stmt (statement_t *stmt)
 	    if (stmt->v.assign.rhs2->type == RHS_PRIMARY
 		&& stmt->v.assign.rhs2->v.primary.type == PRIMARY_VALUE)
 		add_use(stmt->v.assign.rhs2->v.primary.v.value, stmt);
+
+	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_IF_COND :
@@ -852,7 +868,7 @@ start_if_cond (rhs_t *condition)
     stmt->v.if_cond.consequent = 0;
     stmt->v.if_cond.alternative = 0;
 
-    *emit_loc = stmt;
+    emit_stmt(stmt);
     stmt_stack[stmt_stackp++] = stmt;
 
     emit_loc = &stmt->v.if_cond.consequent;
@@ -952,6 +968,34 @@ end_while_loop (void)
 
     emit_loc = &stmt->next;
 }
+
+#define GAMMA(a)              (((a) > 171.0) ? 0.0 : gsl_sf_gamma((a)))
+#define PRINT(a)              (printf("%f ", (float)(a)), 0)
+#define NEWLINE()             (printf("\n"))
+#define MAKE_M2X2(a,b,c,d)           ({ gsl_matrix *m = gsl_matrix_alloc(2,2); \
+                                        gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,1,0,(c)); gsl_matrix_set(m,1,1,(d)); m; })
+#define MAKE_M3X3(a,b,c,d,e,f,g,h,i) ({ gsl_matrix *m = gsl_matrix_alloc(3,3); \
+                                        gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,0,2,(c)); \
+                                        gsl_matrix_set(m,1,0,(d)); gsl_matrix_set(m,1,1,(e)); gsl_matrix_set(m,1,2,(f)); \
+                                        gsl_matrix_set(m,2,0,(g)); gsl_matrix_set(m,2,1,(h)); gsl_matrix_set(m,2,2,(i)); m; })
+#define MAKE_V2(a,b)          ({ gsl_vector *v = gsl_vector_alloc(2); gsl_vector_set(v,0,(a)); gsl_vector_set(v,1,(b)); v; })
+#define MAKE_V3(a,b,c)        ({ gsl_vector *v = gsl_vector_alloc(3); gsl_vector_set(v,0,(a)); gsl_vector_set(v,1,(b)); gsl_vector_set(v,2,(c)); v; })
+#define SOLVE_LINEAR_2(m,v)   ({ gsl_vector *r = gsl_vector_alloc(2); gsl_linalg_HH_solve(m,v,r); r; })
+#define SOLVE_LINEAR_3(m,v)   ({ gsl_vector *r = gsl_vector_alloc(3); gsl_linalg_HH_solve(m,v,r); r; })
+#define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
+
+#define STK                   invocation->stack
+#define STKP                  invocation->stackp
+
+#include <complex.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_specfunc.h>
+
+#include "spec_func.h"
+#include "builtins.h"
+#include "noise.h"
 
 #include "new_builtins.c"
 
@@ -1794,7 +1838,80 @@ analyze_constants (void)
     */
 }
 
-value_list_t*
+static int
+is_color_def (statement_t *stmt, int op, value_t **value)
+{
+    if (stmt->type == STMT_ASSIGN
+	&& stmt->v.assign.rhs->type == RHS_OP
+	&& op_index(stmt->v.assign.rhs->v.op.op) == op
+	&& stmt->v.assign.rhs->v.op.args[0].type == PRIMARY_VALUE)
+    {
+	*value = stmt->v.assign.rhs->v.op.args[0].v.value;
+	return 1;
+    }
+    return 0;
+}
+
+static void
+optimize_make_color (statement_t *stmt)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		stmt = stmt->next;
+		break;
+
+	    case STMT_ASSIGN :
+		if (stmt->v.assign.rhs->type == RHS_OP
+		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_MAKE_COLOR)
+		{
+		    static int ops[] = { OP_RED, OP_GREEN, OP_BLUE, OP_ALPHA };
+
+		    value_t *vals[4];
+		    int i;
+
+		    for (i = 0; i < 4; ++i)
+			if (stmt->v.assign.rhs->v.op.args[i].type != PRIMARY_VALUE
+			    || !is_color_def(stmt->v.assign.rhs->v.op.args[i].v.value->def, ops[i], &vals[i]))
+			    break;
+
+		    if (i == 4 && vals[0] == vals[1] && vals[0] == vals[2] && vals[0] == vals[3]) /* successful? */
+		    {
+			for (i = 0; i < 4; ++i)
+			    remove_use(stmt->v.assign.rhs->v.op.args[i].v.value, stmt);
+
+			stmt->v.assign.rhs = make_value_rhs(vals[0]);
+			add_use(vals[0], stmt);
+		    }
+		}
+		stmt = stmt->next;
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		stmt = stmt->next;
+		break;
+
+	    case STMT_IF_COND :
+		optimize_make_color(stmt->v.if_cond.consequent);
+		optimize_make_color(stmt->v.if_cond.alternative);
+
+		stmt = skip_phis(stmt->next);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		optimize_make_color(stmt->v.while_loop.body);
+		stmt = stmt->next;
+		break;
+
+	    default :
+		assert(0);
+	}
+    }
+}
+
+static value_list_t*
 add_value_if_new (value_list_t *list, value_t *value)
 {
     value_list_t *l;
@@ -1808,6 +1925,127 @@ add_value_if_new (value_list_t *list, value_t *value)
     l->next = list;
 
     return l;
+}
+
+static void
+remove_values_from_rhs (statement_t *stmt, rhs_t *rhs, value_list_t **worklist)
+{
+    switch (rhs->type)
+    {
+	case RHS_PRIMARY :
+	    if (rhs->v.primary.type == PRIMARY_VALUE)
+	    {
+		remove_use(rhs->v.primary.v.value, stmt);
+		if (rhs->v.primary.v.value->uses == 0)
+		    *worklist = add_value_if_new(*worklist, rhs->v.primary.v.value);
+	    }
+	    break;
+
+	case RHS_OP :
+	    {
+		int i;
+
+		for (i = 0; i < rhs->v.op.op->num_args; ++i)
+		    if (rhs->v.op.args[i].type == PRIMARY_VALUE)
+		    {
+			remove_use(rhs->v.op.args[i].v.value, stmt);
+			if (rhs->v.op.args[i].v.value->uses == 0)
+			    *worklist = add_value_if_new(*worklist, rhs->v.op.args[i].v.value);
+		    }
+	    }
+	    break;
+    }
+}
+
+static void
+remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist)
+{
+    if ((stmt->v.assign.rhs->type == RHS_OP
+	 && !stmt->v.assign.rhs->v.op.op->is_pure)
+	|| (stmt->type == STMT_PHI_ASSIGN
+	    && stmt->v.assign.rhs2->type == RHS_OP
+	    && !stmt->v.assign.rhs2->v.op.op->is_pure))
+	return;
+
+    remove_values_from_rhs(stmt, stmt->v.assign.rhs, worklist);
+    if (stmt->type == STMT_PHI_ASSIGN)
+	remove_values_from_rhs(stmt, stmt->v.assign.rhs2, worklist);
+
+    stmt->type = STMT_NIL;
+}
+
+static void
+remove_dead_code_initially (statement_t *stmt, value_list_t **worklist)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN :
+		if (stmt->v.assign.lhs->uses == 0)
+		    remove_assign_stmt_if_pure(stmt, worklist);
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		if (stmt->v.assign.lhs->uses == 0)
+		    remove_assign_stmt_if_pure(stmt, worklist);
+		break;
+
+	    case STMT_IF_COND :
+		remove_dead_code_initially(stmt->v.if_cond.consequent, worklist);
+		remove_dead_code_initially(stmt->v.if_cond.alternative, worklist);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		remove_dead_code_initially(stmt->v.while_loop.entry, worklist);
+		remove_dead_code_initially(stmt->v.while_loop.body, worklist);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static void
+remove_dead_code_from_worklist (value_list_t *worklist, value_list_t **new_worklist)
+{
+    while (worklist != 0)
+    {
+	assert(worklist->value->uses == 0);
+
+	if (worklist->value->def->type == STMT_NIL)
+	    assert(worklist->value->def == &dummy_stmt);
+	else
+	{
+	    assert(worklist->value->def->type == STMT_ASSIGN
+		   || worklist->value->def->type == STMT_PHI_ASSIGN);
+
+	    remove_assign_stmt_if_pure(worklist->value->def, new_worklist);
+	}
+
+	worklist = worklist->next;
+    }
+}
+
+static void
+remove_dead_code (void)
+{
+    value_list_t *worklist = 0;
+
+    remove_dead_code_initially(first_stmt, &worklist);
+    do
+    {
+	value_list_t *new_worklist = 0;
+
+	remove_dead_code_from_worklist(worklist, &new_worklist);
+	worklist = new_worklist;
+    } while (worklist != 0);
 }
 
 /*
@@ -1901,7 +2139,7 @@ output_compvar_decl (FILE *out, compvar_t *compvar)
 		break;
 
 	    case TYPE_COMPLEX :
-		fputs("gsl_complex ", out);
+		fputs("complex float", out);
 		break;
 
 	    case TYPE_MATRIX :
@@ -2118,16 +2356,39 @@ output_c_code (FILE *out)
 #ifndef MAX
 #define	MAX(a,b)	(((a)<(b))?(b):(a))
 #endif
-#define	CGEN_CC		"cc -c -fPIC -o"
+#define	CGEN_CC		"cc -c -fPIC -faltivec -o"
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
+#ifdef OPENSTEP
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
+int
+has_altivec (void)
+{
+    int mib[2], gHasAltivec;
+    size_t len;
+
+    mib[0] = CTL_HW;
+    mib[1] = HW_VECTORUNIT;
+    len = sizeof(gHasAltivec);
+    sysctl(mib, 2, &gHasAltivec, &len, NULL, 0);
+
+    if (gHasAltivec)
+	printf("has altivec\n");
+    else
+	printf("no altivec\n");
+
+    return (gHasAltivec != 0);
+}
+#endif
+
 initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename)
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template)
 {
     static int last_mathfunc = 0;
 
-    FILE *template = fopen(template_filename, "r");
     FILE *out;
     int numtmpvars = 0, i;
     variable_t *var;
@@ -2145,11 +2406,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     next_stmt_index = 0;
     next_temp_number = 1;
 
-    if (template == 0)
-    {
-	fprintf(stderr, "cannot read template file %s\n", template_filename);
-	return 0;
-    }
+    assert(template != 0);
 
     gen_code(mathmap->exprtree, result, 0);
     {
@@ -2161,8 +2418,12 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 	emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
     }
     propagate_types();
+    /*
+    optimize_make_color(first_stmt);
     analyze_constants();
-    /* dump_code(first_stmt, 0); */
+    remove_dead_code();
+    */
+    dump_code(first_stmt, 0);
 
     buf = (char*)alloca(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
     assert(buf != 0);
@@ -2172,7 +2433,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     if (out == 0)
     {
 	fprintf(stderr, "cannot write temporary file %s\n", buf);
-	fclose(template);
 	return 0;
     }
 
@@ -2191,6 +2451,14 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 
 		case 'g' :
 #ifdef GIMP
+		    putc('1', out);
+#else
+		    putc('0', out);
+#endif
+		    break;
+
+		case '2' :
+#ifdef GIMP2
 		    putc('1', out);
 #else
 		    putc('0', out);
@@ -2217,6 +2485,14 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 #endif
 		    break;
 
+		case 'a' :
+#ifdef OPENSTEP
+		    putc(has_altivec() ? '1' : '0', out);
+#else
+		    putc('0', out);
+#endif
+		    break;
+
 		default :
 		    putc(c, out);
 		    break;
@@ -2227,7 +2503,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     }
 
     fclose(out);
-    fclose(template);
 
 #ifndef TEST
     sprintf(buf, "%s /tmp/mathfunc%d_%d.o /tmp/mathfunc%d_%d.c", CGEN_CC, pid, last_mathfunc, pid, last_mathfunc);
@@ -2258,15 +2533,13 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 
     assert(g_module_symbol(module, "mathmapinit", (void**)&initfunc));
 
-    unlink(buf);
+    /* unlink(buf); */
 
     sprintf(buf, "/tmp/mathfunc%d_%d.o", pid, last_mathfunc);
     unlink(buf);
 
-    /*
     sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, last_mathfunc);
-    unlink(buf);
-    */
+    /* unlink(buf); */
 
     *module_info = module;
 #else
@@ -2426,7 +2699,7 @@ init_compiler (void)
     init_op(OP_MUL, "MUL", 2, TYPE_PROP_MAX, 0, PURE);
     init_op(OP_DIV, "DIV", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_MOD, "MOD", 2, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_ABS, "abs", 1, TYPE_PROP_MAX, 0, PURE);
+    init_op(OP_ABS, "fabs", 1, TYPE_PROP_MAX, 0, PURE);
     init_op(OP_MIN, "MIN", 2, TYPE_PROP_MAX, 0, PURE);
     init_op(OP_MAX, "MAX", 2, TYPE_PROP_MAX, 0, PURE);
     init_op(OP_SQRT, "sqrt", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
@@ -2461,25 +2734,25 @@ init_compiler (void)
     init_op(OP_BLUE, "BLUE_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_ALPHA, "ALPHA_FLOAT", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
     init_op(OP_COMPLEX, "COMPLEX", 2, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_REAL, "C_REAL", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_C_IMAG, "C_IMAG", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_C_SQRT, "gsl_complex_sqrt", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_SIN, "gsl_complex_sin", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_COS, "gsl_complex_cos", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_TAN, "gsl_complex_tan", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ASIN, "gsl_complex_asin", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ACOS, "gsl_complex_acos", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ATAN, "gsl_complex_atan", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_POW, "gsl_complex_pow", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_EXP, "gsl_complex_exp", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_LOG, "gsl_complex_log", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ARG, "gsl_complex_arg", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
-    init_op(OP_C_SINH, "gsl_complex_sinh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_COSH, "gsl_complex_cosh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_TANH, "gsl_complex_tanh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ASINH, "gsl_complex_asinh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ACOSH, "gsl_complex_acosh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
-    init_op(OP_C_ATANH, "gsl_complex_atanh", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_REAL, "crealf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_C_IMAG, "cimagf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_C_SQRT, "csqrtf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_SIN, "csinf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_COS, "ccosf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_TAN, "ctanf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ASIN, "casinf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ACOS, "cacosf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ATAN, "catanf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_POW, "cpowf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_EXP, "cexpf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_LOG, "clogf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ARG, "cargf", 1, TYPE_PROP_CONST, TYPE_FLOAT, PURE);
+    init_op(OP_C_SINH, "csinhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_COSH, "ccoshf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_TANH, "ctanhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ASINH, "casinhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ACOSH, "cacoshf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
+    init_op(OP_C_ATANH, "catanhf", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_C_GAMMA, "cgamma", 1, TYPE_PROP_CONST, TYPE_COMPLEX, PURE);
     init_op(OP_MAKE_M2X2, "MAKE_M2X2", 4, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);
     init_op(OP_MAKE_M3X3, "MAKE_M3X3", 9, TYPE_PROP_CONST, TYPE_MATRIX, NONPURE);

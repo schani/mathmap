@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2004 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -87,8 +87,8 @@ static int num_input_drawables = 0;
 mathmap_t *mathmap;
 mathmap_invocation_t *invocation;
 
-void
-mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel)
+color_t
+mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y)
 {
     guchar *p;
     int i;
@@ -98,11 +98,7 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int fra
 	|| x < 0 || x >= invocation->img_width
 	|| y < 0 || y >= invocation->img_height
 	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
-    {
-	for (i = 0; i < 4; ++i)
-	    pixel[i] = invocation->edge_color[i];
-	return;
-    }
+	return invocation->edge_color;
 
     drawable = &input_drawables[drawable_index];
 
@@ -162,9 +158,7 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int fra
 
     p = drawable->cache_entries[frame]->data + 3 * (invocation->img_width * y + x);
 
-    for (i = 0; i < 3; ++i)
-	pixel[i] = p[i];
-    pixel[3] = 255;
+    return MAKE_RGBA_COLOR(p[0], p[1], p[2], 255);
 }
 
 void
@@ -195,8 +189,7 @@ usage (void)
 int
 main (int argc, char *argv[])
 {
-    guchar *output, *dest;
-    int row, col;
+    guchar *output;
     int i;
     int num_frames = 1;
 #ifdef MOVIES
@@ -206,6 +199,7 @@ main (int argc, char *argv[])
 #endif
     int antialiasing = 0, supersampling = 0;
     int img_width, img_height;
+    FILE *template;
 
     for (;;)
     {
@@ -242,7 +236,7 @@ main (int argc, char *argv[])
 	    case 256 :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
-		       "Copyright (C) 1997-2002 Mark Probst\n"
+		       "Copyright (C) 1997-2004 Mark Probst\n"
 		       "\n"
 		       "This program is free software; you can redistribute it and/or modify\n"
 		       "it under the terms of the GNU General Public License as published by\n"
@@ -335,7 +329,11 @@ main (int argc, char *argv[])
 	cache[0].drawable_index = 0;
 	cache[0].frame = 0;
 	cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
-	assert(cache[0].data != 0);
+	if (cache[0].data == 0)
+	{
+	    fprintf(stderr, "Error: could not load image `%s'.", input_drawables[0].v.image_filename);
+	    exit(1);
+	}
 	cache[0].timestamp = current_time;
 	input_drawables[0].cache_entries[0] = &cache[0];
     }
@@ -356,10 +354,16 @@ main (int argc, char *argv[])
 	}
 #endif
 
-    mathmap = compile_mathmap(argv[optind], "new_template.c");
+    template = fopen("new_template.c", "r");
+    if (template == 0)
+    {
+	fprintf(stderr, "Error: could not open template file new_template.c.\n");
+	exit(1);
+    }
+    mathmap = compile_mathmap(argv[optind], template);
     if (mathmap == 0)
     {
-	printf("%s\n", error_string);
+	fprintf(stderr, "Error: %s\n", error_string);
 	exit(1);
     }
 
@@ -395,83 +399,7 @@ main (int argc, char *argv[])
 
 	update_image_internals(invocation);
 
-	dest = output;
-
-	if (supersampling)
-	{
-	    /*
-	    guchar *line1, *line2, *line3;
-
-	    line1 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
-	    line2 = (guchar*)malloc(img_width * invocation->output_bpp);
-	    line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
-
-	    for (col = 0; col <= img_width; ++col)
-	    {
-		invocation->current_x = col - invocation->middle_y;
-		invocation->current_y = invocation->middle_y;
-		calc_ra(invocation);
-		update_pixel_internals(invocation);
-		write_tuple_to_pixel(call_invocation(invocation), line1 + col * invocation->output_bpp, invocation->output_bpp);
-	    }
-
-	    for (row = 0; row < img_height; ++row)
-	    {
-		for (col = 0; col < img_width; ++col)
-		{
-		    invocation->current_x = col + 0.5 - invocation->middle_x;
-		    invocation->current_y = -(row + 0.5 - invocation->middle_y);
-		    calc_ra(invocation);
-		    update_pixel_internals(invocation);
-		    write_tuple_to_pixel(call_invocation(invocation), line2 + col * invocation->output_bpp, invocation->output_bpp);
-		}
-		for (col = 0; col <= img_width; ++col)
-		{
-		    invocation->current_x = col - invocation->middle_x;
-		    invocation->current_y = -(row + 1.0 - invocation->middle_y);
-		    calc_ra(invocation);
-		    update_pixel_internals(invocation);
-		    write_tuple_to_pixel(call_invocation(invocation), line3 + col * invocation->output_bpp, invocation->output_bpp);
-		}
-	    
-		for (col = 0; col < img_width; ++col)
-		{
-		    int i;
-
-		    for (i = 0; i < invocation->output_bpp; ++i)
-			dest[i] = (line1[col*invocation->output_bpp+i]
-				   + line1[(col+1)*invocation->output_bpp+i]
-				   + 2*line2[col*invocation->output_bpp+i]
-				   + line3[col*invocation->output_bpp+i]
-				   + line3[(col+1)*invocation->output_bpp+i]) / 6;
-		    dest += invocation->output_bpp;
-		}
-
-		memcpy(line1, line3, (img_width + 1) * invocation->output_bpp);
-		++current_time;
-	    }
-	    */
-	}
-	else
-	{
-	    call_invocation(invocation, 0, img_height, output);
-
-	    /*
-	    for (row = 0; row < img_height; row++)
-	    {
-		for (col = 0; col < img_width; col++)
-		{
-		    invocation->current_x = col - invocation->middle_x;
-		    invocation->current_y = -(row - invocation->middle_y);
-		    calc_ra(invocation);
-		    update_pixel_internals(invocation);
-		    write_tuple_to_pixel(call_invocation(invocation), dest, invocation->output_bpp);
-		    dest += invocation->output_bpp;
-		}
-		++current_time;
-	    }
-	    */
-	}
+	call_invocation(invocation, 0, img_height, output);
 
 #ifdef MOVIES
 	if (generate_movie)
@@ -486,7 +414,7 @@ main (int argc, char *argv[])
     if (generate_movie)
 	quicktime_close(output_movie);
     else
-#endif MOVIES
+#endif
 	write_image(argv[optind + 1], img_width, img_height, output, IMAGE_FORMAT_PNG);
 
     return 0;
