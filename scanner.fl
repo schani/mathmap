@@ -38,6 +38,7 @@ else                        return T_ELSE;
 end                         return T_END;
 while                       return T_WHILE;
 do                          return T_DO;
+xor                         return T_XOR;
 [a-zA-Z_][a-zA-Z0-9_]*      {
 			        strncpy(mmlval.ident, mmtext, MAX_IDENT_LENGTH);
 				mmlval.ident[MAX_IDENT_LENGTH] = '\0';

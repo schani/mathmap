@@ -2,6 +2,10 @@
 # comment the following line
 CGEN = YES
 
+# if you do not have the __complex__ type and complex.h header (i.e. if you do
+# not have gcc and glibc), comment the following line
+HAVE_COMPLEX = YES
+
 # if you want to build the command line version instead of the GIMP plug-in,
 # uncomment the following line
 #CMDLINE = YES
@@ -20,19 +24,24 @@ CGEN_CFLAGS=-DUSE_CGEN $(CGEN_CC) $(CGEN_LD)
 CGEN_LDFLAGS=-Wl,--export-dynamic
 endif
 
+ifeq ($(HAVE_COMPLEX),YES)
+COMPLEX_CFLAGS = -DHAVE_COMPLEX
+CHPPFLAGS = -DHAVE_COMPLEX
+endif
+
 ifeq ($(CMDLINE),YES)
-CFLAGS = -I. $(CGEN_CFLAGS) -Wall -O3 -g `glib-config --cflags` -DCMDLINE
+CFLAGS = -I. $(CGEN_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `glib-config --cflags` -DCMDLINE
 LDFLAGS = $(LIBFFM) `glib-config --libs gmodule` -lm -ljpeg -lpng
 else
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP
+CFLAGS = -I. $(CGEN_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP
 LDFLAGS = $(LIBFFM) `gimp-config --libs`
 endif
 
 CC = gcc
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o noise.o lispreader.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o noise.o lispreader.o spec_func.o
 
 ifeq ($(CMDLINE),YES)
 OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o
@@ -58,10 +67,10 @@ scanner.c : scanner.fl parser.h
 builtins.o : builtins.c builtins.h builtins_interpreter.c
 
 builtins_interpreter.c : builtins_interpreter.chc builtins.chc
-	chpp builtins_interpreter.chc >builtins_interpreter.c
+	chpp $(CHPPFLAGS) builtins_interpreter.chc >builtins_interpreter.c
 
 builtins_compiler.c : builtins_compiler.chc builtins.chc
-	chpp builtins_compiler.chc >builtins_compiler.c
+	chpp $(CHPPFLAGS) builtins_compiler.chc >builtins_compiler.c
 
 install : mathmap
 	gimptool --install-bin mathmap

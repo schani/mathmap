@@ -21,6 +21,14 @@
 #!
 
 #include list.chh
+
+#ifdef HAVE_COMPLEX
+%'#include <complex.h>'
+#endif
+%'#include "spec_func.h"'
+
+#! ----- debugging
+
 %builtin(print,print,%'((nil 1) (_ _))',1,
     printf%'('%<dq>[%<dq>%')';
     %forarglength(0,i,
@@ -29,9 +37,21 @@
     printf%'('%<dq>]\n%<dq>%')';
 )\
 
+#! ----- arithmetic
+
 %builtin(__add,add_ri,%'((ri 2) (ri 2) (ri 2))',0,
     %result(0) = %arg(0,0) + %arg(1,0);
     %result(1) = %arg(0,1) + %arg(1,1);
+)\
+
+%builtin(__add,add_ri_1,%'((ri 2) (ri 2) (T 1))',0,
+    %result(0) = %arg(0,0) + %arg(1,0);
+    %result(1) = %arg(0,1);
+)\
+
+%builtin(__add,add_1_ri,%'((ri 2) (T 1) (ri 2))',0,
+    %result(0) = %arg(0,0) + %arg(1,0);
+    %result(1) =             %arg(1,1);
 )\
 
 %builtin(__add,add_1,%'((T 1) (T 1) (T 1))',0,
@@ -51,8 +71,18 @@
 )\
 
 %builtin(__sub,sub_ri,%'((ri 2) (ri 2) (ri 2))',0,
-    %result(0) = %arg(0,0) + %arg(1,0);
-    %result(1) = %arg(0,1) + %arg(1,1);
+    %result(0) = %arg(0,0) - %arg(1,0);
+    %result(1) = %arg(0,1) - %arg(1,1);
+)\
+
+%builtin(__sub,sub_ri_1,%'((ri 2) (ri 2) (T 1))',0,
+    %result(0) = %arg(0,0) - %arg(1,0);
+    %result(1) = %arg(0,1);
+)\
+
+%builtin(__sub,sub_1_ri,%'((ri 2) (T 1) (ri 2))',0,
+    %result(0) = %arg(0,0) - %arg(1,0);
+    %result(1) =           - %arg(1,1);
 )\
 
 %builtin(__sub,sub_1,%'((T 1) (T 1) (T 1))',0,
@@ -71,6 +101,12 @@
     )
 )\
 
+%builtin(__neg,neg,%'((T L) (T L))',0,
+    %forarglength(0,i,
+        %result(%<i>) = -%arg(0,%<i>);
+    )
+)\
+
 %builtin(__mul,mul_ri,%'((ri 2) (ri 2) (ri 2))',0,
     float r1 = %arg(0,0);
     float r2 = %arg(1,0);
@@ -79,6 +115,11 @@
 
     %result(0) = r1 * r2 - c1 * c2;
     %result(1) = r1 * c2 + r2 * c1;
+)\
+
+%builtin(__mul,mul_1_ri,%'((ri 2) (T 1) (ri 2))',0,
+    %result(0) = %arg(0,0) * %arg(1,0);
+    %result(1) = %arg(0,0) * %arg(1,1);
 )\
 
 %define(matmult,n,
@@ -153,6 +194,15 @@
     )
 )\
 
+#ifdef HAVE_COMPLEX
+#! Use library version of complex division for better numerics / Hans L
+%builtin(__div,div_ri,%'((ri 2) (ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = %'(' %arg(0,0) + %arg(0,1) * I %')' / %'(' %arg(1,0) + %arg(1,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#else
 %builtin(__div,div_ri,%'((ri 2) (ri 2) (ri 2))',0,
     float r1 = %arg(0,0);
     float r2 = %arg(1,0);
@@ -168,6 +218,26 @@
     {
         %result(0) = %'(r1 * r2 + c1 * c2) / (r2 * r2 + c2 * c2)';
         %result(1) = %'(-r1 * c2 + r2 * c1) / (r2 * r2 + c2 * c2)';
+    }
+)\
+#endif
+
+%builtin(__div,div_1_ri,%'((ri 2) (T 1) (ri 2))',0,
+    double %'x,y,tmp';
+
+    x = %arg(1,0);
+    y = %arg(1,1);
+    tmp = x * x + y * y;
+
+    if %'(tmp == 0)'
+    {
+        %result(0) = 0.0;
+        %result(1) = 0.0;
+    }
+    else
+    {
+        %result(0) =   %arg(0,0) * x / tmp;
+        %result(1) = - %arg(0,0) * y / tmp;
     }
 )\
 
@@ -255,6 +325,31 @@
     %result(0) = mod;
 )\
 
+#ifdef HAVE_COMPLEX
+%builtin(sqrt,sqrt_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cpow%'(' %arg(0,0) + %arg(0,1) * I %',' 0.5 %')';
+#!    csqrt seems to give strange results on the negative imaginary axis!? / Hans L
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(sqrt,sqrt_1,%'((T 1) (T 1))',0,
+    %result(0) = sqrt%'('%arg(0,0)%')';
+)\
+
+%builtin(sum,sum,%'((T 1) (T L))',0,
+    float sum = 0.0;
+
+    %forarglength(0,i,
+        sum += %arg(0,%<i>);
+    )
+    %result(0) = sum;
+)\
+
+#! ----- vector functions
+
 %builtin(dotp,dotp,%'((nil 1) (T L) (T L))',0,
     float sum = 0.0;
 
@@ -299,73 +394,9 @@
     )
 )\
 
-%builtin(__neg,neg,%'((T L) (T L))',0,
-    %forarglength(0,i,
-        %result(%<i>) = -%arg(0,%<i>);
-    )
-)\
-
-%builtin(sin,sin,%'((T 1) (T 1))',0,
-    %result(0) = sin%'('%arg(0,0) * M_PI / 180.0%')';
-)\
-
-%builtin(cos,cos,%'((T 1) (T 1))',0,
-    %result(0) = cos%'('%arg(0,0) * M_PI / 180.0%')';
-)\
-
-%builtin(tan,tan,%'((T 1) (T 1))',0,
-    %result(0) = tan%'('%arg(0,0) * M_PI / 180.0%')';
-)\
-
-%builtin(asin,asin,%'((T 1) (T 1))',0,
-    if %'('%arg(0,0) < -1.0 || %arg(0,0) > 1.0%')'
-    {
-        %result(0) = 0.0;
-    }
-    else
-    {
-        %result(0) = asin%'('%arg(0,0)%')' * 180.0 / M_PI;
-    }
-)\
-
-%builtin(acos,acos,%'((T 1) (T 1))',0,
-    if %'('%arg(0,0) < -1.0 || %arg(0,0) > 1.0%')'
-    {
-        %result(0) = 0.0;
-    }
-    else
-    {
-        %result(0) = acos%'('%arg(0,0)%')' * 180.0 / M_PI;
-    }
-)\
-
-%builtin(atan,atan,%'((T 1) (T 1))',0,
-    %result(0) = atan%'('%arg(0,0)%')' * 180.0 / M_PI;
-)\
-
-%builtin(atan,atan2,%'((T 1) (T 1) (T 1))',0,
-    %result(0) = atan2%'('%arg(0,0)%','%arg(1,0)%')' * 180.0 / M_PI;
-)\
-
-%builtin(__pow,pow_1,%'((T 1) (T 1) (T 1))',0,
-    %result(0) = pow%'('%arg(0,0)%',' %arg(1,0)%')';
-)\
-
-%builtin(__pow,pow_s,%'((T L) (T L) (_ 1))',0,
-    %forarglength(0,i,
-        %result(%<i>) = pow%'('%arg(0,%<i>)%',' %arg(1,0)%')';
-    )
-)\
-
-%builtin(exp,exp,%'((T 1) (T 1))',0,
-    %result(0) = exp%'('%arg(0,0)%')';
-)\
-
+#! Use library function hypot instead of sqrt for better numerics / Hans L
 %builtin(abs,abs_ri,%'((nil 1) (ri 2))',0,
-    float r = %arg(0,0);
-    float i = %arg(0,1);
-
-    %result(0) = sqrt%'(r * r + i * i)';
+    %result(0) = hypot%'(' %arg(0,0) %',' %arg(0,1) %')';
     %reslength() = 1;
 )\
 
@@ -378,6 +409,281 @@
         %result(%<i>) = fabs%'('%arg(0,%<i>)%')';
     )
 )\
+
+#! ----- trigonometry
+
+#ifdef HAVE_COMPLEX
+%builtin(sin,sin_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = csin%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(sin,sin,%'((T 1) (T 1))',0,
+    %result(0) = sin%'('%arg(0,0) * M_PI / 180.0%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(cos,cos_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = ccos%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(cos,cos,%'((T 1) (T 1))',0,
+    %result(0) = cos%'('%arg(0,0) * M_PI / 180.0%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(tan,tan_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = ctan%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(tan,tan,%'((T 1) (T 1))',0,
+    %result(0) = tan%'('%arg(0,0) * M_PI / 180.0%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(asin,asin_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = casin%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(asin,asin,%'((T 1) (T 1))',0,
+    if %'('%arg(0,0) < -1.0 || %arg(0,0) > 1.0%')'
+    {
+        %result(0) = 0.0;
+    }
+    else
+    {
+        %result(0) = asin%'('%arg(0,0)%')' * 180.0 / M_PI;
+    }
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(acos,acos_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cacos%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(acos,acos,%'((T 1) (T 1))',0,
+    if %'('%arg(0,0) < -1.0 || %arg(0,0) > 1.0%')'
+    {
+        %result(0) = 0.0;
+    }
+    else
+    {
+        %result(0) = acos%'('%arg(0,0)%')' * 180.0 / M_PI;
+    }
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(atan,atan_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = catan%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(atan,atan,%'((T 1) (T 1))',0,
+    %result(0) = atan%'('%arg(0,0)%')' * 180.0 / M_PI;
+)\
+
+%builtin(atan,atan2,%'((T 1) (T 1) (T 1))',0,
+    %result(0) = atan2%'('%arg(0,0)%','%arg(1,0)%')' * 180.0 / M_PI;
+)\
+
+#! ----- exp and friends
+
+#ifdef HAVE_COMPLEX
+%builtin(__pow,pow_ri_1,%'((ri 2) (ri 2) (T 1))',0,
+    double __complex__ tmp;
+    tmp = cpow%'(' %arg(0,0) + %arg(0,1) * I %',' %arg(1,0) %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+
+%builtin(__pow,pow_ri,%'((ri 2) (ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cpow%'(' %arg(0,0) + %arg(0,1) * I %',' %arg(1,0) + %arg(1,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+
+%builtin(__pow,pow_1_ri,%'((ri 2) (T 1) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cpow%'(' %arg(0,0) %',' %arg(1,0) + %arg(1,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(__pow,pow_1,%'((T 1) (T 1) (T 1))',0,
+    %result(0) = pow%'('%arg(0,0)%',' %arg(1,0)%')';
+)\
+
+%builtin(__pow,pow_s,%'((T L) (T L) (_ 1))',0,
+    %forarglength(0,i,
+        %result(%<i>) = pow%'('%arg(0,%<i>)%',' %arg(1,0)%')';
+    )
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(exp,exp_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cexp%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(exp,exp_1,%'((T 1) (T 1))',0,
+    %result(0) = exp%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+#! -PI < Im log(z) <= PI
+%builtin(log,log_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = clog%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(log,log_1,%'((T 1) (T 1))',0,
+    if %'('%arg(0,0) <= 0.0 %')'
+    {
+        %result(0) = 0.0;
+    }
+    else
+    {
+        %result(0) = log%'('%arg(0,0)%')';
+    }
+)\
+
+#! ----- complex
+
+#ifdef HAVE_COMPLEX
+%builtin(arg,arg_ri,%'((nil 1) (ri 2))',0,
+    %result(0) = carg%'(' %arg(0,0) + %arg(0,1) * I %')';
+)\
+#endif
+
+%builtin(conj,conj_ri,%'((ri 2) (ri 2))',0,
+    %result(0) = %arg(0,0);
+    %result(1) = -%arg(0,1);
+)\
+
+#! ----- hyperbolic
+
+#ifdef HAVE_COMPLEX
+%builtin(sinh,sinh_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = csinh%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(sinh,sinh_1,%'((T 1) (T 1))',0,
+    %result(0) = sinh%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(cosh,cosh_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = ccosh%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(cosh,cosh_1,%'((T 1) (T 1))',0,
+    %result(0) = cosh%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(tanh,tanh_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = ctanh%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(tanh,tanh_1,%'((T 1) (T 1))',0,
+    %result(0) = tanh%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(asinh,asinh_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = casinh%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(asinh,asinh_1,%'((T 1) (T 1))',0,
+    %result(0) = asinh%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(acosh,acosh_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cacosh%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(acosh,acosh_1,%'((T 1) (T 1))',0,
+    %result(0) = acosh%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(atanh,atanh_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = catanh%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(atanh,atanh_1,%'((T 1) (T 1))',0,
+    %result(0) = atanh%'('%arg(0,0)%')';
+)\
+
+#ifdef HAVE_COMPLEX
+%builtin(gamma,gamma_ri,%'((ri 2) (ri 2))',0,
+    double __complex__ tmp;
+    tmp = cgamma%'(' %arg(0,0) + %arg(0,1) * I %')';
+    %result(0) = %'creal(tmp)';
+    %result(1) = %'cimag(tmp)';
+)\
+#endif
+
+%builtin(gamma,gamma_1,%'((T 1) (T 1))',0,
+    %result(0) = gamma%'('%arg(0,0)%')';
+)\
+
+#! ----- floor and friends
 
 %builtin(floor,floor,%'((T 1) (T 1))',0,
     %result(0) = floor%'('%arg(0,0)%')';
@@ -458,14 +764,7 @@
     )
 )\
 
-%builtin(sum,sum,%'((T 1) (T L))',0,
-    float sum = 0.0;
-
-    %forarglength(0,i,
-        sum += %arg(0,%<i>);
-    )
-    %result(0) = sum;
-)\
+#! ----- logic
 
 %builtin(__not,not,%'((T 1) (T 1))',0,
     if %'('%arg(0,0) != 0%')'
@@ -487,6 +786,15 @@
     else
         %result(0) = 0.0;
 )\
+
+%builtin(__xor,xor,%'((T 1) (T 1) (T 1))',0,
+    if %'(('%arg(0,0) && !%arg(1,0)%') || ('!%arg(0,0) && %arg(1,0)%'))'
+        %result(0) = 1.0;
+    else
+        %result(0) = 0.0;
+)\
+
+#! ----- comparison
 
 %builtin(__equal,equal,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) == %arg(1,0)%')'
@@ -537,9 +845,7 @@
         %result(0) = 0.0;
 )\
 
-%builtin(rand,rand,%'((T 1) (T 1) (T 1))',1,
-    %result(0) = %'(random() / (double)0x7fffffff)' * %'('%arg(1,0) - %arg(0,0)%')' + %arg(0,0);
-)\
+#! ----- origval
 
 %builtin(origVal,origValXY,%'((rgba 4) (xy 2) (image 1))',0,
     unsigned char pixel[4];
@@ -563,6 +869,8 @@
     %reslength() = 4;
 )\
 
+#! ----- colors
+
 %builtin(gray,gray,%'((nil 1) (rgba 4))',0,
     %result(0) = 0.299 * %arg(0,0) + 0.587 * %arg(0,1) + 0.114 * %arg(0,2);
     %reslength() = 1;
@@ -582,9 +890,29 @@
     %reslength() = 4;
 )\
 
-%builtin(noise,noise,%'((nil 1) (_ 3))',0,
-    %result(0) = noise%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
+%builtin(toHSVA,toHSVA,%'((hsva 4) (rgba 4))',0,
+    float rgb[3] = { %arg(0,0)%',' %arg(0,1)%',' %arg(0,2) };
+    float hsv[3];
+
+    %'convert_rgb_to_hsv(rgb, hsv)';
+    %result(0) = hsv[0];
+    %result(1) = hsv[1];
+    %result(2) = hsv[2];
+    %result(3) = %arg(0,3);
 )\
+
+%builtin(toRGBA,toRGBA,%'((rgba 4) (hsva 4))',0,
+    float hsv[3] = { %arg(0,0)%',' %arg(0,1)%',' %arg(0,2) };
+    float rgb[3];
+
+    %'convert_hsv_to_rgb(hsv, rgb)';
+    %result(0) = rgb[0];
+    %result(1) = rgb[1];
+    %result(2) = rgb[2];
+    %result(3) = %arg(0,3);
+)\
+
+#! ----- coordinates
 
 %builtin(toXY,toXY,%'((xy 2) (ra 2))',0,
     double x%',' y;
@@ -596,13 +924,14 @@
     %result(1) = y;
 )\
 
+#! Use library function hypot instead of sqrt for better numerics / Hans L
 %builtin(toRA,toRA,%'((ra 2) (xy 2))',0,
     double %'x, y, r, a';
 
     x = %arg(0,0);
     y = %arg(0,1);
 
-    r = sqrt%'(x * x + y * y)';
+    r = hypot%'(x, y)';
     if %'(r == 0)'
         a = 0.0;
     else
@@ -613,4 +942,14 @@
 
     %result(0) = r;
     %result(1) = a;
+)\
+
+#! ----- noise
+
+%builtin(rand,rand,%'((T 1) (T 1) (T 1))',1,
+    %result(0) = %'(random() / (double)0x7fffffff)' * %'('%arg(1,0) - %arg(0,0)%')' + %arg(0,0);
+)\
+
+%builtin(noise,noise,%'((nil 1) (_ 3))',0,
+    %result(0) = noise%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
 )\

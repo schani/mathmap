@@ -50,4 +50,11 @@ void free_input_drawable (int index);
 GDrawable* get_input_drawable (int index);
 #endif
 
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 #endif

@@ -456,8 +456,14 @@ gen_and_load_c_code (exprtree *tree)
 
     fprintf(out,
 	    "#include <math.h>\n"
+#ifdef HAVE_COMPLEX
+	    "#include <complex.h>\n"
+	    "double __complex__ cgamma (double __complex__ z);\n"
+#endif
 	    "void getOrigValIntersamplePixel(float,float,unsigned char*,int);\n"
 	    "void getOrigValPixel(float,float,unsigned char*,int);\n"
+	    "void convert_rgb_to_hsv (float *rgb, float *hsv);\n"
+	    "void convert_hsv_to_rgb (float *hsv, float *rgb);\n"
 	    "float noise(float,float,float);\n"
 	    "typedef struct\n"
 	    "{\n"

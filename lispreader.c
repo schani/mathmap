@@ -1,4 +1,4 @@
-/* $Id: lispreader.c 211 2000-08-26 16:41:07Z schani $ */
+/* $Id: lispreader.c 212 2000-09-11 00:43:43Z schani $ */
 /*
  * lispreader.c
  *
@@ -39,7 +39,7 @@
 #define TOKEN_TRUE                    8
 #define TOKEN_FALSE                   9
 
-#define MAX_TOKEN_LENGTH           1024
+#define MAX_TOKEN_LENGTH           4096	/* should be dynamic */
 
 static char token_string[MAX_TOKEN_LENGTH + 1] = "";
 static int token_length = 0;

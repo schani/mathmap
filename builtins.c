@@ -275,6 +275,92 @@ solve_linear_equations (int dim, float *a, float *b)
     */
 }
 
+void
+convert_rgb_to_hsv (float *rgb, float *hsv)
+{
+    float max = MAX(rgb[0], MAX(rgb[1], rgb[2]));
+    float min = MIN(rgb[0], MIN(rgb[1], rgb[2]));
+
+    hsv[2] = max;
+
+    if (max != 0)
+	hsv[1] = (max - min) / max;
+    else
+	hsv[1] = 0.0;
+
+    if (hsv[1] == 0.0)
+	hsv[0] = 0.0;		/* actually undefined */
+    else
+    {
+	float delta = max - min;
+
+	if (rgb[0] == max)
+	    hsv[0] = (rgb[1] - rgb[2]) / delta;
+	else if (rgb[1] == max)
+	    hsv[0] = 2 + (rgb[2] - rgb[0]) / delta;
+	else
+	    hsv[0] = 4 + (rgb[0] - rgb[1]) / delta;
+
+	hsv[0] /= 6.0;
+
+	if (hsv[0] < 0.0)
+	    hsv[0] += 1.0;
+    }
+}
+
+void
+convert_hsv_to_rgb (float *hsv, float *rgb)
+{
+    if (hsv[1] == 0.0)
+	rgb[0] = rgb[1] = rgb[2] = hsv[2];
+    else
+    {
+	float h = hsv[0];
+	float f, p, q, t;
+	int i;
+
+	if (h >= 1.0)
+	    h = 0.0;
+	h *= 6.0;
+
+	i = floor(h);
+	f = h - i;
+	p = hsv[2] * (1 - hsv[1]);
+	q = hsv[2] * (1 - (hsv[1] * f));
+	t = hsv[2] * (1 - (hsv[1] * (1 - f)));
+
+	switch (i)
+	{
+	    case 0 :
+		rgb[0] = hsv[2]; rgb[1] = t; rgb[2] = p;
+		break;
+
+	    case 1 :
+		rgb[0] = q; rgb[1] = hsv[2]; rgb[2] = p;
+		break;
+
+	    case 2 :
+		rgb[0] = p; rgb[1] = hsv[2]; rgb[2] = t;
+		break;
+
+	    case 3 :
+		rgb[0] = p; rgb[1] = q; rgb[2] = hsv[2];
+		break;
+
+	    case 4 :
+		rgb[0] = t; rgb[1] = p; rgb[2] = hsv[2];
+		break;
+
+	    case 5 :
+		rgb[0] = hsv[2]; rgb[1] = p; rgb[2] = q;
+		break;
+
+	    default :
+		assert(0);
+	}
+    }
+}
+
 #include "builtins_interpreter.c"
 
 builtin_function_t

@@ -65,7 +65,7 @@ calc_ra (void)
 	double x = currentX,
 	    y = currentY;
 
-	currentR = sqrt(x * x + y * y);
+	currentR = hypot(x, y);
 	if (currentR == 0.0)
 	    currentA = 0.0;
 	else

@@ -50,6 +50,9 @@ double color_to_double (unsigned int red, unsigned int green,
 void double_to_color (double val, unsigned int *red, unsigned int *green,
 		      unsigned int *blue, unsigned int *alpha);
 
+void convert_rgb_to_hsv (float *rgb, float *hsv);
+void convert_hsv_to_rgb (float *hsv, float *rgb);
+
 builtin_function_t builtin_with_name (const char *name);
 
 void init_builtins (void);

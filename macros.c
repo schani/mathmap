@@ -113,6 +113,12 @@ macro_var_big_h (exprtree *args)
 }
 
 exprtree*
+macro_var_big_i (exprtree *args)
+{
+    return make_cast("ri", make_tuple(exprlist_append(make_number(0.0), make_number(1.0))));
+}
+
+exprtree*
 macro_var_pi (exprtree *args)
 {
     return make_number(M_PI);
@@ -245,6 +251,7 @@ init_macros (void)
     register_variable_macro("W", macro_var_big_w, make_tuple_info(nil_tag_number, 1));
     register_variable_macro("H", macro_var_big_h, make_tuple_info(nil_tag_number, 1));
 
+    register_variable_macro("I", macro_var_big_i, make_tuple_info(ri_tag_number, 2));
     register_variable_macro("pi", macro_var_pi, make_tuple_info(nil_tag_number, 1));
     register_variable_macro("e", macro_var_e, make_tuple_info(nil_tag_number, 1));
 

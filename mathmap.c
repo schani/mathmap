@@ -66,14 +66,7 @@
 #define EVAL_EXPR     eval_postfix
 #endif
 
-/***** Macros *****/
-
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-
-
 /***** Magic numbers *****/
-
 #define PREVIEW_SIZE 128
 #define SCALE_WIDTH  200
 #define ENTRY_WIDTH  60
@@ -90,6 +83,7 @@
 #define FLAG_INTERSAMPLING      1
 #define FLAG_OVERSAMPLING       2
 #define FLAG_ANIMATION          4
+#define FLAG_PERIODIC           8
 
 #define MAX_EXPRESSION_LENGTH   8192
 
@@ -129,8 +123,6 @@ static void run(char    *name,
 		int     *nreturn_vals,
 		GParam **return_vals);
 
-static void init_internals (void);
-
 static void expression_copy (gchar *dest, gchar *src);
 
 static void mathmap (int frame_num);
@@ -156,6 +148,7 @@ static void dialog_edge_behaviour_update (GtkWidget *widget, gpointer data);
 static void dialog_edge_color_changed (ColorWell *color_well, gpointer data);
 static void dialog_edge_color_set (void);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
+static void dialog_periodic_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 static void dialog_close_callback (GtkWidget *widget, gpointer data);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
@@ -175,10 +168,10 @@ GPlugInInfo PLUG_IN_INFO = {
 
 
 static mathmap_vals_t mmvals = {
-	FLAG_INTERSAMPLING,      /* flags */
-	DEFAULT_NUMBER_FRAMES,   /* frames */
-	0.0,                     /* t */
-	DEFAULT_EXPRESSION       /* expression */
+	FLAG_INTERSAMPLING | FLAG_PERIODIC, /* flags */
+	DEFAULT_NUMBER_FRAMES,	/* frames */
+	0.0,			/* t */
+	DEFAULT_EXPRESSION	/* expression */
 }; /* mmvals */
 
 static mathmap_interface_t wint = {
@@ -330,9 +323,10 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 		{ PARAM_INT32,      "run_mode",         "Interactive, non-interactive" },
 		{ PARAM_IMAGE,      "image",            "Input image" },
 		{ PARAM_DRAWABLE,   "drawable",         "Input drawable" },
-		{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
+		{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate 8: Periodic" },
 		{ PARAM_INT32,      "frames",           "Number of frames" },
-		{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" }
+		{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" },
+		{ PARAM_STRING,     "expression",       "The expression" }
 	    };
 	    static GParamDef *return_vals  = NULL;
 	    static int nargs = sizeof(args) / sizeof(args[0]);
@@ -347,7 +341,7 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 				   "distortions can be constructed. Even animations can be generated.",
 				   "Mark Probst",
 				   "Mark Probst",
-				   "April 2000, " MATHMAP_VERSION,
+				   "September 2000, " MATHMAP_VERSION,
 				   menu,
 				   "RGB*, GRAY*",
 				   PROC_PLUG_IN,
@@ -559,6 +553,26 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
     preview_width  = MAX(pwidth, 2);  /* Min size is 2 */
     preview_height = MAX(pheight, 2);
 
+    imageWidth = sel_width;
+    imageW = imageWidth;
+    imageHeight = sel_height;
+    imageH = imageHeight;
+
+    middleX = imageWidth / 2.0;
+    middleY = imageHeight / 2.0;
+
+    if (middleX > imageWidth - middleX)
+	imageX = middleX;
+    else
+	imageX = imageWidth - middleX;
+
+    if (middleY > imageHeight - middleY)
+	imageY = middleY;
+    else
+	imageY = imageHeight - middleY;
+    
+    imageR = hypot(imageX, imageY);
+
     init_builtins();
     init_tags();
     init_internals();
@@ -585,13 +599,15 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 	case RUN_NONINTERACTIVE:
 	    /* Make sure all the arguments are present */
 
-	    if (nparams != 5)
+	    if (nparams != 7)
 		status = STATUS_CALLING_ERROR;
 
 	    if (status == STATUS_SUCCESS)
 	    {
-		expression_copy(mmvals.expression, param[3].data.d_string);
-		mmvals.flags = param[4].data.d_int32;
+		mmvals.flags = param[3].data.d_int32;
+		mmvals.frames = param[4].data.d_int32;
+		mmvals.param_t = param[5].data.d_float;
+		expression_copy(mmvals.expression, param[6].data.d_string);
 	    }
 
 	    break;
@@ -634,7 +650,12 @@ run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_
 		gint32 layer;
 		char layerName[100];
 
-		currentT = (double)frameNum / (double)mmvals.frames;
+		if (mmvals.flags & FLAG_PERIODIC)
+		    currentT = (double)frameNum / (double)mmvals.frames;
+		else if (mmvals.frames < 2)
+		    currentT = 0.0;
+		else
+		    currentT = (double)frameNum / (double)(mmvals.frames - 1);
 		layer = mathmap_layer_copy(layer_id);
 		sprintf(layerName, "Frame %d", frameNum + 1);
 		gimp_layer_set_name(layer, layerName);
@@ -856,26 +877,6 @@ mathmap (int frame_num)
 
 	gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
 			    TRUE, TRUE);
-
-	imageWidth = sel_width;
-	imageW = imageWidth;
-	imageHeight = sel_height;
-	imageH = imageHeight;
-
-	middleX = imageWidth / 2.0;
-	middleY = imageHeight / 2.0;
-
-	if (middleX > imageWidth - middleX)
-	    imageX = middleX;
-	else
-	    imageX = imageWidth - middleX;
-
-	if (middleY > imageHeight - middleY)
-	    imageY = middleY;
-	else
-	    imageY = imageHeight - middleY;
-    
-	imageR = sqrt(imageX * imageX + imageY * imageY);
 
 	progress     = 0;
 	max_progress = sel_width * sel_height;
@@ -1382,7 +1383,7 @@ mathmap_dialog (int mutable_expression)
 
 	    /* Animation */
 	    
-	    table = gtk_table_new(3, 1, FALSE);
+	    table = gtk_table_new(4, 1, FALSE);
 	    gtk_container_border_width(GTK_CONTAINER(table), 6);
 	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
@@ -1437,11 +1438,23 @@ mathmap_dialog (int mutable_expression)
 		gtk_widget_show(frame_table);
 		gtk_widget_set_sensitive(frame_table, mmvals.flags & FLAG_ANIMATION);
 
+		/* Periodic */
+
+	        alignment = gtk_alignment_new(0, 0, 0, 0);
+		toggle = gtk_check_button_new_with_label("Periodic");
+		gtk_container_add(GTK_CONTAINER(alignment), toggle);
+		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle), mmvals.flags & FLAG_PERIODIC);
+		gtk_table_attach(GTK_TABLE(table), alignment, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+				   (GtkSignalFunc)dialog_periodic_update, 0);
+		gtk_widget_show(toggle);
+		gtk_widget_show(alignment);
+
 		/* t */
 
 		t_table = gtk_table_new(1, 2, FALSE);
 		gtk_table_set_col_spacings(GTK_TABLE(t_table), 4);
-		gtk_table_attach(GTK_TABLE(table), t_table, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+		gtk_table_attach(GTK_TABLE(table), t_table, 0, 1, 4, 5, GTK_FILL, 0, 0, 0);
 
 		label = gtk_label_new("Parameter t");
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
@@ -1644,7 +1657,7 @@ dialog_update_preview(void)
     else
 	imageY = imageHeight - middleY;
     
-    imageR = sqrt(imageX * imageX + imageY * imageY);
+    imageR = hypot(imageX, imageY);
 
     if (generate_code())
     {
@@ -1862,6 +1875,17 @@ dialog_animation_update (GtkWidget *widget, gpointer data)
 /*****/
 
 static void
+dialog_periodic_update (GtkWidget *widget, gpointer data)
+{
+    mmvals.flags &= ~FLAG_PERIODIC;
+
+    if (GTK_TOGGLE_BUTTON(widget)->active)
+	mmvals.flags |= FLAG_PERIODIC;
+}
+
+/*****/
+
+static void
 dialog_preview_callback (GtkWidget *widget, gpointer data)
 {
     update_gradient();
@@ -1912,7 +1936,7 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 			      &proc_blurb, &proc_help, 
 			      &proc_author, &proc_copyright, &proc_date,
 			      &proc_type, &nparams, &nreturn_vals,
-			      &params, &return_vals)) 
+			      &params, &return_vals))
 	gimp_run_procedure ("extension_web_browser", &baz,
 			    PARAM_INT32, RUN_NONINTERACTIVE,
 			    PARAM_STRING, MATHMAP_MANUAL_URL,

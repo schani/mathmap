@@ -44,7 +44,7 @@ extern exprtree *theExprtree;
 
 %left ';'
 %right '='
-%left T_OR T_AND
+%left T_OR T_AND T_XOR
 %left T_EQUAL '<' '>' T_LESSEQUAL T_GREATEREQUAL T_NOTEQUAL
 %left '+' '-'
 %left '*' '/' '%'
@@ -97,6 +97,8 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | expr T_OR expr      { $<exprtree>$ = make_function("__or",
 							    exprlist_append($<exprtree>1, $<exprtree>3)); }
        | expr T_AND expr     { $<exprtree>$ = make_function("__and",
+							    exprlist_append($<exprtree>1, $<exprtree>3)); }
+       | expr T_XOR expr     { $<exprtree>$ = make_function("__xor",
 							    exprlist_append($<exprtree>1, $<exprtree>3)); }
        | '-' expr %prec UNARY
                              { $<exprtree>$ = make_function("__neg", $<exprtree>2); }

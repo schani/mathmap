@@ -266,7 +266,7 @@ main (int argc, char *argv[])
     else
 	imageY = img_height - middleY;
     
-    imageR = sqrt(imageX * imageX + imageY * imageY);
+    imageR = hypot(imageX, imageY);
 
     currentT = 0.0;
 
