@@ -3,7 +3,7 @@
 /*
  * jump.c
  *
- * chpp
+ * MathMap
  *
  * Copyright (C) 1998 Mark Probst
  *

@@ -27,8 +27,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define MATHMAP_VERSION "0.11"
+#define MATHMAP_VERSION       "0.11"
 
+#define MATHMAP_MANUAL_URL    "http://www.complang.tuwien.ac.at/~schani/mathmap/manual.html"
 
 #include <sys/param.h>
 #include <math.h>
@@ -37,6 +38,7 @@
 #include <assert.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
@@ -142,9 +144,9 @@ static void build_fast_image_source (input_drawable_t *drawable);
 static void update_userval_table (void);
 
 static void update_gradient (void);
-static gint mathmap_dialog(void);
-static void dialog_scale_update(GtkAdjustment *adjustment, gint *value);
-static void dialog_t_update(GtkAdjustment *adjustment, gfloat *value);
+static gint mathmap_dialog (int);
+static void dialog_scale_update (GtkAdjustment *adjustment, gint *value);
+static void dialog_t_update (GtkAdjustment *adjustment, gfloat *value);
 static void dialog_text_changed (void);
 static void dialog_text_update (void);
 static void dialog_intersampling_update (GtkWidget *widget, gpointer data);
@@ -156,11 +158,11 @@ static void dialog_edge_color_changed (ColorWell *color_well, gpointer data);
 static void dialog_edge_color_set (void);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
-static void dialog_close_callback(GtkWidget *widget, gpointer data);
-static void dialog_ok_callback(GtkWidget *widget, gpointer data);
-static void dialog_cancel_callback(GtkWidget *widget, gpointer data);
-static void dialog_help_callback(GtkWidget *widget, gpointer data);
-static void dialog_about_callback(GtkWidget *widget, gpointer data);
+static void dialog_close_callback (GtkWidget *widget, gpointer data);
+static void dialog_ok_callback (GtkWidget *widget, gpointer data);
+static void dialog_cancel_callback (GtkWidget *widget, gpointer data);
+static void dialog_help_callback (GtkWidget *widget, gpointer data);
+static void dialog_about_callback (GtkWidget *widget, gpointer data);
 static void dialog_tree_changed (GtkTree *tree);
 
 /***** Variables *****/
@@ -267,6 +269,187 @@ MAIN()
 
 /*****/
 
+static lisp_object_t*
+read_rc_file (void)
+{
+    static lisp_object_t *obj = 0;
+
+    gchar *filename;
+    FILE *file;
+    lisp_stream_t stream;
+
+    if (obj != 0)
+	return obj;
+
+    filename = gimp_personal_rc_file("mathmaprc");
+    file = fopen(filename, "r");
+    g_free(filename);
+    if (file == 0)
+    {
+	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, "mathmaprc", NULL);
+	file = fopen(filename, "r");
+	g_free(filename);
+
+	if (file == 0)
+	    return 0;
+    }
+
+    obj = lisp_read(lisp_stream_init_file(&stream, file));
+    fclose(file);
+
+    return obj;
+}
+
+static void
+register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
+{
+    int symbol_prefix_len = strlen(symbol_prefix);
+    int menu_prefix_len = strlen(menu_prefix);
+
+    for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
+    {
+	lisp_object_t *vars[2];
+	int is_group = 0;
+	lisp_object_t *name_obj, *data;
+	char *symbol, *menu;
+	int i;
+	int name_len;
+
+	assert(lisp_type(obj) == LISP_TYPE_CONS);
+
+	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
+	    is_group = 1;
+	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
+	    is_group = 0;
+	else
+	    assert(0);
+
+	name_obj = vars[0];
+	data = vars[1];
+
+	name_len = strlen(lisp_string(name_obj));
+
+	symbol = g_malloc(symbol_prefix_len + name_len + 2);
+	strcpy(symbol, symbol_prefix);
+	strcat(symbol, "_");
+	strcat(symbol, lisp_string(name_obj));
+
+	menu = g_malloc(menu_prefix_len + name_len + 2);
+	strcpy(menu, menu_prefix);
+	strcat(menu, "/");
+	strcat(menu, lisp_string(name_obj));
+
+	for (i = symbol_prefix_len + 1; i < symbol_prefix_len + 1 + name_len; ++i)
+	    if (symbol[i] == ' ')
+		symbol[i] = '_';
+	    else
+		symbol[i] = tolower(symbol[i]);
+
+	if (is_group)
+	    register_lisp_obj(data, symbol, menu);
+	else
+	{
+	    static GParamDef args[] = {
+		{ PARAM_INT32,      "run_mode",         "Interactive, non-interactive" },
+		{ PARAM_IMAGE,      "image",            "Input image" },
+		{ PARAM_DRAWABLE,   "drawable",         "Input drawable" },
+		{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
+		{ PARAM_INT32,      "frames",           "Number of frames" },
+		{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" }
+	    };
+	    static GParamDef *return_vals  = NULL;
+	    static int nargs = sizeof(args) / sizeof(args[0]);
+	    static int nreturn_vals = 0;
+
+	    fprintf(stderr, "registering %s (%s)\n", symbol, menu);
+
+	    gimp_install_procedure(symbol,
+				   "Generate an image using a mathematical expression.",
+				   "Generates an image by means of a mathematical expression. The expression "
+				   "can also refer to the data of an original image. Thus, arbitrary "
+				   "distortions can be constructed. Even animations can be generated.",
+				   "Mark Probst",
+				   "Mark Probst",
+				   "April 2000, " MATHMAP_VERSION,
+				   menu,
+				   "RGB*, GRAY*",
+				   PROC_PLUG_IN,
+				   nargs,
+				   nreturn_vals,
+				   args,
+				   return_vals);
+	}
+
+	g_free(menu);
+	g_free(symbol);
+    }
+}
+
+static void
+register_examples (void)
+{
+    lisp_object_t *obj = read_rc_file();
+
+    if (obj == 0)
+	return;
+
+    register_lisp_obj(obj, "mathmap", "<Image>/Filters/Generic/MathMap");
+    lisp_free(obj);
+}
+
+static char*
+expression_for_symbol (char *symbol, lisp_object_t *obj)
+{
+    for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
+    {
+	lisp_object_t *vars[2];
+	int is_group = 0;
+	char *name;
+	int i;
+	int name_len;
+
+	assert(lisp_type(obj) == LISP_TYPE_CONS);
+
+	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
+	    is_group = 1;
+	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
+	    is_group = 0;
+	else
+	    assert(0);
+
+	name = lisp_string(vars[0]);
+	name_len = strlen(name);
+
+	if (name_len > strlen(symbol))
+	    continue;
+	if ((!is_group && name_len != strlen(symbol))
+	    || (is_group && name_len == strlen(symbol)))
+	    continue;
+	if (is_group && symbol[name_len] != '_')
+	    continue;
+
+	for (i = 0; i < name_len; ++i)
+	    if ((name[i] == ' ' && symbol[i] != '_')
+		|| (name[i] != ' ' && symbol[i] != tolower(name[i])))
+		break;
+
+	if (i == name_len)
+	{
+	    if (is_group)
+	    {
+		char *exp = expression_for_symbol(symbol + name_len + 1, vars[1]);
+
+		if (exp != 0)
+		    return exp;
+	    }
+	    else
+		return lisp_string(vars[1]);
+	}
+    }
+
+    return 0;
+}
+
 static void
 query(void)
 {
@@ -278,11 +461,10 @@ query(void)
 	{ PARAM_INT32,      "frames",           "Number of frames" },
 	{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" },
 	{ PARAM_STRING,     "expression",       "MathMap expression" }
-    }; /* args */
-
+    };
     static GParamDef *return_vals  = NULL;
-    static int        nargs        = sizeof(args) / sizeof(args[0]);
-    static int        nreturn_vals = 0;
+    static int nargs = sizeof(args) / sizeof(args[0]);
+    static int nreturn_vals = 0;
 
     gimp_install_procedure("plug_in_mathmap",
 			   "Generate an image using a mathematical expression.",
@@ -291,31 +473,44 @@ query(void)
 			   "distortions can be constructed. Even animations can be generated.",
 			   "Mark Probst",
 			   "Mark Probst",
-			   "January 1998, 0.5",
-			   "<Image>/Filters/Generic/MathMap",
+			   "April 2000, " MATHMAP_VERSION,
+			   "<Image>/Filters/Generic/MathMap/MathMap",
 			   "RGB*, GRAY*",
 			   PROC_PLUG_IN,
 			   nargs,
 			   nreturn_vals,
 			   args,
 			   return_vals);
-} /* query */
 
+    register_examples();
+}
 
 /*****/
 
 static void
-run(char    *name,
-    int      nparams,
-    GParam  *param,
-    int     *nreturn_vals,
-    GParam **return_vals)
+run (char *name, int nparams, GParam *param, int *nreturn_vals, GParam **return_vals)
 {
     static GParam values[1];
 
-    GStatusType   status;
-    double        xhsiz, yhsiz;
-    int           pwidth, pheight;
+    GStatusType status;
+    double xhsiz, yhsiz;
+    int pwidth, pheight;
+
+    int mutable_expression = 1;
+
+    fprintf(stderr, "started as %s\n", name);
+    if (strncmp(name, "mathmap_", 8) == 0)
+    {
+	char *exp = expression_for_symbol(name + 8, read_rc_file());
+
+	fprintf(stderr, "found %s\n", exp);
+
+	if (exp != 0)
+	{
+	    strcpy(mmvals.expression, exp);
+	    mutable_expression = 0;
+	}
+    }
 
     status   = STATUS_SUCCESS;
     run_mode = param[0].data.d_int32;
@@ -323,11 +518,11 @@ run(char    *name,
     image_id = param[1].data.d_int32;
     layer_id = gimp_image_get_active_layer(image_id);
 
-    values[0].type          = PARAM_STATUS;
+    values[0].type = PARAM_STATUS;
     values[0].data.d_status = status;
 
     *nreturn_vals = 1;
-    *return_vals  = values;
+    *return_vals = values;
 
     /* Get the active drawable info */
 
@@ -399,13 +594,13 @@ run(char    *name,
 	case RUN_INTERACTIVE:
 	    /* Possibly retrieve data */
 
-	    gimp_get_data("plug_in_mathmap", &mmvals);
+	    gimp_get_data(name, &mmvals);
 
 	    /* Get information from the dialog */
 
 	    update_gradient();
 
-	    if (!mathmap_dialog())
+	    if (!mathmap_dialog(mutable_expression))
 		return;
 
 	    break;
@@ -427,7 +622,7 @@ run(char    *name,
 	case RUN_WITH_LAST_VALS:
 	    /* Possibly retrieve data */
 
-	    gimp_get_data("plug_in_mathmap", &mmvals);
+	    gimp_get_data(name, &mmvals);
 	    break;
 
 	default:
@@ -486,7 +681,7 @@ run(char    *name,
 	/* Store data */
 
 	if (run_mode == RUN_INTERACTIVE)
-	    gimp_set_data("plug_in_mathmap", &mmvals, sizeof(mathmap_vals_t));
+	    gimp_set_data(name, &mmvals, sizeof(mathmap_vals_t));
     } else if (status == STATUS_SUCCESS)
 	status = STATUS_EXECUTION_ERROR;
 
@@ -610,7 +805,7 @@ generate_code (void)
 
     if (expression_changed)
     {
-	if (run_mode == RUN_INTERACTIVE)
+	if (run_mode == RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
 
 	theExprtree = 0;
@@ -1058,33 +1253,18 @@ tree_from_lisp_object (GtkWidget *root_item, lisp_object_t *obj)
 static GtkWidget*
 read_tree_from_rc (void)
 {
-    gchar *filename;
     GtkWidget *tree;
-    FILE *file;
-    lisp_stream_t stream;
-    lisp_object_t *obj;
+    lisp_object_t *obj = read_rc_file();
 
-    filename = gimp_personal_rc_file("mathmaprc");
-    file = fopen(filename, "r");
-    g_free(filename);
-    if (file == 0)
+    if (obj == 0)
     {
-	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, "mathmaprc", NULL);
-	file = fopen(filename, "r");
-	g_free(filename);
-	if (file == 0)
-	{
-	    tree = gtk_tree_new();
-	    gtk_widget_show(tree);
-	    return tree;
-	}
+	tree = gtk_tree_new();
+	gtk_widget_show(tree);
+	return tree;
     }
 
-    obj = lisp_read(lisp_stream_init_file(&stream, file));
     tree = tree_from_lisp_object(0, obj);
     lisp_free(obj);
-
-    fclose(file);
 
     return tree;
 }
@@ -1116,7 +1296,7 @@ update_userval_table (void)
 /*****/
 
 static gint
-mathmap_dialog (void)
+mathmap_dialog (int mutable_expression)
 {
     GtkWidget *dialog;
     GtkWidget *top_table, *middle_table;
@@ -1403,29 +1583,32 @@ mathmap_dialog (void)
 
         /* Expression */
 
-        table = gtk_hbox_new(FALSE, 0);
-	gtk_widget_show(table);
+	if (mutable_expression)
+	{
+	    table = gtk_hbox_new(FALSE, 0);
+	    gtk_widget_show(table);
 
-	label = gtk_label_new("Expression");
-	gtk_widget_show(label);
-	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
+	    label = gtk_label_new("Expression");
+	    gtk_widget_show(label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
 
-	expression_entry = gtk_text_new(NULL, NULL);
-	gtk_signal_connect(GTK_OBJECT(expression_entry), "changed",
-			   (GtkSignalFunc)dialog_text_changed,
-			   (gpointer)NULL);
-	gtk_text_set_editable(GTK_TEXT(expression_entry), TRUE);
-	gtk_box_pack_start(GTK_BOX(table), expression_entry, TRUE, TRUE, 0);
-	gtk_widget_show(expression_entry);
-	/* gtk_text_freeze(GTK_TEXT(expression_entry)); */
-	gtk_widget_realize(expression_entry);
-	/* gtk_text_thaw(GTK_TEXT(expression_entry)); */
-	gtk_editable_insert_text(GTK_EDITABLE(expression_entry), mmvals.expression,
-				 strlen(mmvals.expression), &position);
+	    expression_entry = gtk_text_new(NULL, NULL);
+	    gtk_signal_connect(GTK_OBJECT(expression_entry), "changed",
+			       (GtkSignalFunc)dialog_text_changed,
+			       (gpointer)NULL);
+	    gtk_text_set_editable(GTK_TEXT(expression_entry), TRUE);
+	    gtk_box_pack_start(GTK_BOX(table), expression_entry, TRUE, TRUE, 0);
+	    gtk_widget_show(expression_entry);
+	    /* gtk_text_freeze(GTK_TEXT(expression_entry)); */
+	    gtk_widget_realize(expression_entry);
+	    /* gtk_text_thaw(GTK_TEXT(expression_entry)); */
+	    gtk_editable_insert_text(GTK_EDITABLE(expression_entry), mmvals.expression,
+				     strlen(mmvals.expression), &position);
 
-	vscrollbar = gtk_vscrollbar_new(GTK_TEXT(expression_entry)->vadj);
-	gtk_box_pack_start(GTK_BOX(table), vscrollbar, FALSE, FALSE, 0);
-	gtk_widget_show (vscrollbar);
+	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT(expression_entry)->vadj);
+	    gtk_box_pack_start(GTK_BOX(table), vscrollbar, FALSE, FALSE, 0);
+	    gtk_widget_show (vscrollbar);
+	}
 
 	/* User Values */
 
@@ -1442,28 +1625,31 @@ mathmap_dialog (void)
 
 	/* Examples */
 
-	table = gtk_scrolled_window_new (NULL, NULL);
-	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(table),
-					GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	gtk_widget_show (table);
+	if (mutable_expression)
+	{
+	    table = gtk_scrolled_window_new (NULL, NULL);
+	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(table),
+					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	    gtk_widget_show (table);
 
-	root_tree = read_tree_from_rc();
-	gtk_signal_connect(GTK_OBJECT(root_tree), "selection_changed",
-			   (GtkSignalFunc)dialog_tree_changed,
-			   (gpointer)NULL);
+	    root_tree = read_tree_from_rc();
+	    gtk_signal_connect(GTK_OBJECT(root_tree), "selection_changed",
+			       (GtkSignalFunc)dialog_tree_changed,
+			       (gpointer)NULL);
 #if GTK_MAJOR_VERSION < 1 || (GTK_MAJOR_VERSION == 1 && GTK_MINOR_VERSION < 1)
-	gtk_container_add(GTK_CONTAINER(table), root_tree);
+	    gtk_container_add(GTK_CONTAINER(table), root_tree);
 #else
-	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(table), root_tree);
+	    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(table), root_tree);
 #endif
-	gtk_tree_set_selection_mode(GTK_TREE(root_tree), GTK_SELECTION_BROWSE);
-	gtk_tree_set_view_lines(GTK_TREE(root_tree), FALSE);
-	gtk_tree_set_view_mode(GTK_TREE(root_tree), FALSE);
-	gtk_widget_show(root_tree);
+	    gtk_tree_set_selection_mode(GTK_TREE(root_tree), GTK_SELECTION_BROWSE);
+	    gtk_tree_set_view_lines(GTK_TREE(root_tree), FALSE);
+	    gtk_tree_set_view_mode(GTK_TREE(root_tree), FALSE);
+	    gtk_widget_show(root_tree);
 
-	label = gtk_label_new("Examples");
-	gtk_widget_show(label);
-	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
+	    label = gtk_label_new("Examples");
+	    gtk_widget_show(label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
+	}
 
     /* Buttons */
 
@@ -1503,6 +1689,9 @@ mathmap_dialog (void)
     gtk_widget_show(button);
 
     /* Done */
+
+    if (!mutable_expression)
+	dialog_update_preview();
 
     gtk_widget_show(dialog);
 
@@ -1829,7 +2018,28 @@ dialog_cancel_callback (GtkWidget *widget, gpointer data)
 static void
 dialog_help_callback (GtkWidget *widget, gpointer data)
 {
-    
+    char *proc_blurb, *proc_help, *proc_author, *proc_copyright, *proc_date;
+    int proc_type, nparams, nreturn_vals;
+    GParamDef *params, *return_vals;
+    gint baz;
+
+    if (gimp_query_procedure ("extension_web_browser",
+			      &proc_blurb, &proc_help, 
+			      &proc_author, &proc_copyright, &proc_date,
+			      &proc_type, &nparams, &nreturn_vals,
+			      &params, &return_vals)) 
+	gimp_run_procedure ("extension_web_browser", &baz,
+			    PARAM_INT32, RUN_NONINTERACTIVE,
+			    PARAM_STRING, MATHMAP_MANUAL_URL,
+			    PARAM_INT32, 1,
+			    PARAM_END);
+    else 
+    {
+	gchar *message = g_strdup_printf("See %s", MATHMAP_MANUAL_URL);
+
+	gimp_message(message);
+	g_free(message);
+    }                                            
 } /* dialog_help_callback */
 
 /*****/

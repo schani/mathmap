@@ -1,3 +1,25 @@
+#!
+#! builtins.chc
+#!
+#! mathmap
+#!
+#! Copyright (C) 1997-2000 Mark Probst
+#!
+#! This program is free software; you can redistribute it and/or
+#! modify it under the terms of the GNU General Public License
+#! as published by the Free Software Foundation; either version 2
+#! of the License, or (at your option) any later version.
+#!
+#! This program is distributed in the hope that it will be useful,
+#! but WITHOUT ANY WARRANTY; without even the implied warranty of
+#! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#! GNU General Public License for more details.
+#!
+#! You should have received a copy of the GNU General Public License
+#! along with this program; if not, write to the Free Software
+#! Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#!
+
 #include list.chh
 %builtin(print,print,%'((nil 1) (_ _))',1,
     printf%'('%<dq>[%<dq>%')';
@@ -556,20 +578,8 @@
     %reslength() = 4;
 )\
 
-%builtin(scnoise,scnoise,%'((nil 1) (_ 3))',0,
-    %result(0) = scnoise%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
-)\
-
-%builtin(noise3,noise3,%'((nil 1) (_ 3))',0,
-    %result(0) = noise3%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
-)\
-
-%builtin(noise1,noise1,%'((T 1) (T 1))',0,
-    %result(0) = noise1%'('%arg(0,0)%')';
-)\
-
-%builtin(vlnoise3,vlnoise3,%'((nil 1) (_ 3) (_ 1))',0,
-    %result(0) = vlnoise3%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%',' %arg(1,0)%')';
+%builtin(noise,noise,%'((nil 1) (_ 3))',0,
+    %result(0) = noise%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
 )\
 
 %builtin(toXY,toXY,%'((xy 2) (ra 2))',0,

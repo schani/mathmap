@@ -35,6 +35,7 @@
 	<tr><td><tt>ra</tt>   <td>Polar coordinate</tr>
 	<tr><td><tt>m2x2</tt> <td>2x2 matrix</tr>
 	<tr><td><tt>m3x3</tt> <td>3x3 matrix</tr>
+	<tr><td><tt>image</tt><td>Image ID</tr>
       </table>
 
       <p>In order for the tag system to make sense, operators and
@@ -338,8 +339,17 @@
 	  two tuples of the same arbitrary length.
 
 	<dt><tt>max(x,y)</tt>
-	<dd>Returns x if <tt>x &gt; y</tt>, <tt>y</tt> otherwise. Works on
+	<dd>Returns <tt>x</tt> if <tt>x &gt; y</tt>, <tt>y</tt> otherwise. Works on
 	  two tuples of the same arbitrary length.
+
+	<dt><tt>clamp(x,l,u)</tt>
+	<dd>Clamps each element of <tt>x</tt> to be between the corresponding
+	  elements of <tt>l</tt> and <tt>u</tt> and returns the result. All
+	  three tuples must have the same tag and the same arbitrary length.
+
+	<dt><tt>lerp(t,a,b)</tt>
+        <dd>Returns <tt>a*(1-t)+b*t</tt>. <tt>t</tt> must have length 1. <tt>a</tt>
+	  and <tt>b</tt> must have the same tag and the same arbitrary length.
 
 	<dt><tt>sum(t)</tt>
 	<dd>Returns the sum of all elements of the tuple <tt>t</tt>.
@@ -350,6 +360,11 @@
 	<dt><tt>rand(x,y)</tt>
 	<dd>Returns a random number <tt>a</tt> with <tt>x &lt;= a &lt;= y</tt>. Successive
 	  random numbers are evenly distributed within the interval.
+
+	<dt><tt>noise(coord)</tt>
+	<dd>Returns the value of a solid noise function at coordinate <tt>coord</tt>.
+	  <tt>coord</tt> must have length 3. The returned value is in the interval
+	  -1 to 1.
 
 	<dt><tt>red(p)</tt>
 	<dd>Returns the red component of
@@ -375,6 +390,13 @@
 	<dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
 	  <tt>coord</tt>. <tt>coord</tt> may be of type <tt>xy:2</tt>
 	  or <tt>ra:2</tt>.
+
+	<dt><tt>origVal(coord,image)</tt>
+	<dd>Returns the <tt>rgba</tt> value of the pixel at coordinate
+	  <tt>coord</tt> in the image <tt>image</tt>. <tt>coord</tt> may
+	  be of type <tt>xy:2</tt> or <tt>ra:2</tt>. <tt>image</tt> must
+	  be of type <tt>image:1</tt> and must be a value returned by
+	  <tt>user_image</tt>.
 
 	<dt><tt>origValXY(x,y)</tt>
 	<dd>Returns the pixel value of the pixel at the cartesian
@@ -451,6 +473,11 @@
 	  defined in the interval <tt>0</tt> to <tt>1</tt>. Its values
 	  are in the same interval. If <tt>x</tt> is outside the
 	  interval, it is clamped.
+
+	<dt><tt>user_image(name)</tt>
+        <dd>Returns a tuple of type <tt>image:1</tt> containing the
+	  ID of a user-selected image. The user may only select images
+	  having the same size as the input image.
       </dl>
     </blockquote>
 
@@ -458,7 +485,7 @@
 
     <blockquote>
       MathMap looks for a file called <tt>mathmaprc</tt> in the
-      directories <tt>~/.gimp/</tt> and
+      directories <tt>~/.gimp-1.1/</tt> and
       <tt>/usr/local/share/gimp/</tt>. This file should contain
       MathMap expressions which are then available for selection in
       the 'Examples' tag. One such file is included in the distribution.

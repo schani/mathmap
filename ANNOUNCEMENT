@@ -1,4 +1,4 @@
-MathMap 0.10
+MathMap 0.11
 ------------
 
 MathMap is a GIMP plug-in which allows distortion of images specified
@@ -10,9 +10,19 @@ allows the generation of still images but also of animations.
 
 The MathMap homepage can be found at
 
-    http://www.unix.cslab.tuwien.ac.at/~schani/mathmap/
+    http://www.complang.tuwien.ac.at/~schani/mathmap/
 
 It includes a user's manual as well as screenshots and examples.
+
+Changed since 0.10:
+
+  * Requires at least GIMP 1.1.
+  * More than one input image can be specified!!!
+  * MathMap now registers all examples in the PDB.
+  * Several new/improved examples.
+  * New/improved functions: lerp, clamp, noise.
+  * Some internal changes.
+  * Fixes some bugs.
 
 Changes since 0.9:
 
@@ -95,4 +105,4 @@ Changes since 0.1
 
 ----
 Mark Probst
-schani@unix.cslab.tuwien.ac.at
+schani@complang.tuwien.ac.at
