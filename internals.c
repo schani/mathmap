@@ -29,7 +29,7 @@
 static internal_t *first = 0;
 
 internal_t*
-register_internal (const char *name, int number, int length)
+register_internal (const char *name, int number, int length, int can_be_precomputed)
 {
     internal_t *internal = (internal_t*)malloc(sizeof(internal_t));
 
@@ -38,6 +38,7 @@ register_internal (const char *name, int number, int length)
     internal->value.number = number;
     internal->value.length = length;
     internal->next = first;
+    internal->can_be_precomputed = can_be_precomputed;
     first = internal;
 
     return internal;

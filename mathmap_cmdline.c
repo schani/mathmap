@@ -28,6 +28,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef MOVIES
+#include <quicktime.h>
+#endif
+
 #include "getopt.h"
 
 #include "exprtree.h"
@@ -57,15 +61,39 @@
 
 extern int mmparse (void);
 
-typedef struct {
+typedef struct
+{
+    int drawable_index;
+    int frame;
     guchar *data;
-    gint bpp;
-    int used;
+    int timestamp;
+} cache_entry_t;
+
+static int cache_size = 8;
+static cache_entry_t *cache = 0;
+static int current_time = 0;
+
+#define DRAWABLE_IMAGE     1
+#define DRAWABLE_MOVIE     2
+
+typedef struct
+{
+    int type;
+    cache_entry_t **cache_entries;
+    int num_frames;
+    union
+    {
+	char *image_filename;
+#ifdef MOVIES
+	quicktime_t *movie;
+#endif
+    } v;
 } input_drawable_t;
 
 #define MAX_INPUT_DRAWABLES 64
 
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
+static int num_input_drawables = 0;
 
 exprtree *theExprtree = 0;
 
@@ -79,15 +107,16 @@ int num_gradient_samples = 1;
 tuple_t gradient_samples[1];
 
 void
-mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel)
+mathmap_get_pixel (int drawable_index, int frame, int x, int y, guchar *pixel)
 {
     guchar *p;
     int i;
     input_drawable_t *drawable;
 
-    if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES || !input_drawables[drawable_index].used
+    if (drawable_index < 0 || drawable_index >= num_input_drawables
 	|| x < 0 || x >= img_width
-	|| y < 0 || y >= img_height)
+	|| y < 0 || y >= img_height
+	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
     {
 	for (i = 0; i < outputBPP; ++i)
 	    pixel[i] = edge_color[i];
@@ -96,8 +125,67 @@ mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel)
 
     drawable = &input_drawables[drawable_index];
 
-    p = drawable->data + drawable->bpp * (img_width * y + x);
+    if (drawable->cache_entries[frame] == 0)
+    {
+	int lru_index = -1;
 
+	for (i = 0; i < cache_size; ++i)
+	    if (cache[i].drawable_index < 0)
+	    {
+		lru_index = i;
+		break;
+	    }
+	    else
+		if (lru_index < 0 || cache[i].timestamp < cache[lru_index].timestamp)
+		    lru_index = i;
+
+	if (cache[lru_index].drawable_index >= 0)
+	    input_drawables[cache[lru_index].drawable_index].cache_entries[cache[lru_index].frame] = 0;
+
+	if (drawable->type == DRAWABLE_IMAGE)
+	{
+	    int width, height;
+
+	    if (cache[lru_index].data != 0)
+		free(cache[lru_index].data);
+
+	    cache[lru_index].data = read_image(drawable->v.image_filename, &width, &height);
+	    assert(width == img_width && height == img_height);
+	}
+#ifdef MOVIES
+	else
+	{
+	    guchar **rows = (guchar**)malloc(sizeof(guchar*) * img_height);
+
+	    if (cache[lru_index].data == 0)
+		cache[lru_index].data = (guchar*)malloc(img_width * img_height * 3);
+
+	    for (i = 0; i < img_height; ++i)
+		rows[i] = cache[lru_index].data + i * img_width * 3;
+
+	    quicktime_set_video_position(drawable->v.movie, frame, 0);
+	    quicktime_decode_video(drawable->v.movie, rows, 0);
+
+	    free(rows);
+	}
+#endif
+
+	cache[lru_index].drawable_index = drawable_index;
+	cache[lru_index].frame = frame;
+	cache[lru_index].timestamp = current_time;
+
+	drawable->cache_entries[frame] = &cache[lru_index];
+    }
+    else
+	drawable->cache_entries[frame]->timestamp = current_time;
+
+    p = drawable->cache_entries[frame]->data + 3 * (img_width * y + x);
+
+    for (i = 0; i < 3; ++i)
+	pixel[i] = p[i];
+    pixel[3] = 255;
+
+    /*
     if (drawable->bpp == 1 || drawable->bpp == 2)
 	pixel[0] = pixel[1] = pixel[2] = p[0];
     else if (drawable->bpp == 3 || drawable->bpp == 4)
@@ -109,7 +197,8 @@ mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel)
     if (drawable->bpp == 1 || drawable->bpp == 3)
 	pixel[3] = 255;
     else
-	pixel[3] = p[drawable->bpp - 1];
+        pixel[3] = p[drawable->bpp - 1];
+    */
 }
 
 int
@@ -162,7 +251,7 @@ usage (void)
 	   "      print out version number\n"
 	   "  mathmap --help\n"
 	   "      print this help text\n"
-	   "  mathmap [option ...] <expression> <outimage> <inimage> ...\n"
+	   "  mathmap [option ...] <expression> <outimage>\n"
 	   "      transform one or more <inimage>s with <expression> and write\n"
 	   "      the result image to <outimage>\n"
 	   "Options:\n"
@@ -178,6 +267,12 @@ main (int argc, char *argv[])
     guchar *output, *dest;
     int row, col;
     int i;
+    int generate_movie = 0;
+    int num_frames = 1;
+#ifdef MOVIES
+    quicktime_t *output_movie;
+    guchar **rows;
+#endif
 
     intersamplingEnabled = 0;
     oversamplingEnabled = 0;
@@ -190,12 +285,18 @@ main (int argc, char *argv[])
 		{ "help", no_argument, 0, 257 },
 		{ "intersampling", no_argument, 0, 'i' },
 		{ "oversampling", no_argument, 0, 'o' },
+		{ "frames", required_argument, 0, 'f' },
+		{ "cache", required_argument, 0, 'c' },
+		{ "image", required_argument, 0, 'I' },
+#ifdef MOVIES
+		{ "movie", required_argument, 0, 'M' },
+#endif
 		{ 0, 0, 0, 0 }
 	    };
 
 	int option, option_index;
 
-	option = getopt_long(argc, argv, "io", long_options, &option_index);
+	option = getopt_long(argc, argv, "iof:I:M:", long_options, &option_index);
 
 	if (option == -1)
 	    break;
@@ -205,7 +306,7 @@ main (int argc, char *argv[])
 	    case 256 :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
-		       "Copyright (C) 1997-2000 Mark Probst\n"
+		       "Copyright (C) 1997-2001 Mark Probst\n"
 		       "\n"
 		       "This program is free software; you can redistribute it and/or modify\n"
 		       "it under the terms of the GNU General Public License as published by\n"
@@ -233,10 +334,46 @@ main (int argc, char *argv[])
 	    case 'o' :
 		oversamplingEnabled = 1;
 		break;
+
+	    case 'f' :
+		generate_movie = 1;
+		num_frames = atoi(optarg);
+		assert(num_frames > 0);
+		break;
+
+	    case 'c' :
+		cache_size = atoi(optarg);
+		assert(cache_size > 0);
+		break;
+
+	    case 'I' :
+		input_drawables[num_input_drawables].type = DRAWABLE_IMAGE;
+		input_drawables[num_input_drawables].cache_entries = (cache_entry_t**)malloc(sizeof(cache_entry_t*));
+		input_drawables[num_input_drawables].cache_entries[0] = 0;
+		input_drawables[num_input_drawables].num_frames = 1;
+		input_drawables[num_input_drawables].v.image_filename = optarg;
+		++num_input_drawables;
+		break;
+
+#ifdef MOVIES
+	    case 'M' :
+		input_drawables[num_input_drawables].type = DRAWABLE_MOVIE;
+		input_drawables[num_input_drawables].v.movie = quicktime_open(optarg, 1, 0);
+		assert(input_drawables[num_input_drawables].v.movie != 0);
+		assert(quicktime_video_tracks(input_drawables[num_input_drawables].v.movie));
+		assert(quicktime_video_depth(input_drawables[num_input_drawables].v.movie, 0) == 24);
+		input_drawables[num_input_drawables].num_frames = quicktime_video_length(input_drawables[num_input_drawables].v.movie, 0);
+		input_drawables[num_input_drawables].cache_entries
+		    = (cache_entry_t**)malloc(sizeof(cache_entry_t*) * input_drawables[num_input_drawables].num_frames);
+		for (i = 0; i < input_drawables[num_input_drawables].num_frames; ++i)
+		    input_drawables[num_input_drawables].cache_entries[i] = 0;
+		++num_input_drawables;
+		break;
+#endif
 	}
     }
 
-    if (argc - optind < 3)
+    if (argc - optind != 2)
     {
 	usage();
 	return 1;
@@ -248,26 +385,40 @@ main (int argc, char *argv[])
     init_macros();
     init_noise();
 
-    for (i = 0; i < argc - optind - 2; ++i)
+    assert(num_input_drawables > 0);
+
+    cache = (cache_entry_t*)malloc(sizeof(cache_entry_t) * cache_size);
+    for (i = 0; i < cache_size; ++i)
     {
-	int width, height;
-
-	input_drawables[i].data = read_image(argv[optind + i + 1], &width, &height);
-	assert(input_drawables[i].data != 0);
-
-	if (i == 0)
-	{
-	    img_width = width;
-	    img_height = height;
-	}
-	else
-	{
-	    assert(img_width == width && img_height == height);
-	}
-
-	input_drawables[i].bpp = 3;
-	input_drawables[i].used = 1;
+	cache[i].drawable_index = -1;
+	cache[i].data = 0;
     }
+
+    if (input_drawables[0].type == DRAWABLE_IMAGE)
+    {
+	cache[0].drawable_index = 0;
+	cache[0].frame = 0;
+	cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
+	assert(cache[0].data != 0);
+	cache[0].timestamp = current_time;
+	input_drawables[0].cache_entries[0] = &cache[0];
+    }
+#ifdef MOVIES
+    else
+    {
+	img_width = quicktime_video_width(input_drawables[0].v.movie, 0);
+	img_height = quicktime_video_height(input_drawables[0].v.movie, 0);
+    }
+#endif
+
+#ifdef MOVIES
+    for (i = 1; i < num_input_drawables; ++i)
+	if (input_drawables[i].type == DRAWABLE_MOVIE)
+	{
+	    assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
+	    assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
+	}
+#endif
 
     outputBPP = 3;
     originX = originY = 0;
@@ -290,8 +441,6 @@ main (int argc, char *argv[])
     
     imageR = hypot(imageX, imageY);
 
-    currentT = 0.0;
-
     if (!generate_code(argv[optind]))
     {
 	printf("%s\n", error_string);
@@ -301,77 +450,115 @@ main (int argc, char *argv[])
     output = (guchar*)malloc(outputBPP * img_width * img_height);
     assert(output != 0);
 
-    dest = output;
-
-    if (oversamplingEnabled)
+#ifdef MOVIES
+    if (generate_movie)
     {
-	guchar *line1, *line2, *line3;
+	output_movie = quicktime_open(argv[optind + 1], 0, 1);
+	assert(output_movie != 0);
 
-	line1 = (guchar*)malloc((img_width + 1) * outputBPP);
-	line2 = (guchar*)malloc(img_width * outputBPP);
-	line3 = (guchar*)malloc((img_width + 1) * outputBPP);
+	quicktime_set_video(output_movie, 1, img_width, img_height, 25, QUICKTIME_JPEG);
+	assert(quicktime_supported_video(output_movie, 0));
+	quicktime_seek_start(output_movie);
 
-	for (col = 0; col <= img_width; ++col)
+	rows = (guchar**)malloc(sizeof(guchar*) * img_height);
+	for (i = 0; i < img_height; ++i)
+	    rows[i] = output + img_width * outputBPP * i;
+    }
+#endif
+
+    for (current_frame = 0; current_frame < num_frames; ++current_frame)
+    {
+	currentT = (float)current_frame / (float)num_frames;
+
+	update_image_internals();
+
+	dest = output;
+
+	if (oversamplingEnabled)
 	{
-	    currentX = col - middleX;
-	    currentY = middleY;
-	    calc_ra();
-	    update_pixel_internals();
-	    write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
-	}
+	    guchar *line1, *line2, *line3;
 
-	for (row = 0; row < img_height; ++row)
-	{
-	    for (col = 0; col < img_width; ++col)
-	    {
-		currentX = col + 0.5 - middleX;
-		currentY = -(row + 0.5 - middleY);
-		calc_ra();
-		update_pixel_internals();
-		write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
-	    }
+	    line1 = (guchar*)malloc((img_width + 1) * outputBPP);
+	    line2 = (guchar*)malloc(img_width * outputBPP);
+	    line3 = (guchar*)malloc((img_width + 1) * outputBPP);
+
 	    for (col = 0; col <= img_width; ++col)
 	    {
 		currentX = col - middleX;
-		currentY = -(row + 1.0 - middleY);
+		currentY = middleY;
 		calc_ra();
 		update_pixel_internals();
-		write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
+		write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
 	    }
+
+	    for (row = 0; row < img_height; ++row)
+	    {
+		for (col = 0; col < img_width; ++col)
+		{
+		    currentX = col + 0.5 - middleX;
+		    currentY = -(row + 0.5 - middleY);
+		    calc_ra();
+		    update_pixel_internals();
+		    write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
+		}
+		for (col = 0; col <= img_width; ++col)
+		{
+		    currentX = col - middleX;
+		    currentY = -(row + 1.0 - middleY);
+		    calc_ra();
+		    update_pixel_internals();
+		    write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
+		}
 	    
-	    for (col = 0; col < img_width; ++col)
-	    {
-		int i;
+		for (col = 0; col < img_width; ++col)
+		{
+		    int i;
 
-		for (i = 0; i < outputBPP; ++i)
-		    dest[i] = (line1[col*outputBPP+i]
-			       + line1[(col+1)*outputBPP+i]
-			       + 2*line2[col*outputBPP+i]
-			       + line3[col*outputBPP+i]
-			       + line3[(col+1)*outputBPP+i]) / 6;
-		dest += outputBPP;
+		    for (i = 0; i < outputBPP; ++i)
+			dest[i] = (line1[col*outputBPP+i]
+				   + line1[(col+1)*outputBPP+i]
+				   + 2*line2[col*outputBPP+i]
+				   + line3[col*outputBPP+i]
+				   + line3[(col+1)*outputBPP+i]) / 6;
+		    dest += outputBPP;
+		}
+
+		memcpy(line1, line3, (img_width + 1) * outputBPP);
+		++current_time;
 	    }
-
-	    memcpy(line1, line3, (img_width + 1) * outputBPP);
 	}
-    }
-    else
-    {
-	for (row = 0; row < img_height; row++)
+	else
 	{
-	    for (col = 0; col < img_width; col++)
+	    for (row = 0; row < img_height; row++)
 	    {
-		currentX = col - middleX;
-		currentY = -(row - middleY);
-		calc_ra();
-		update_pixel_internals();
-		write_tuple_to_pixel(EVAL_EXPR(), dest);
-		dest += outputBPP;
+		for (col = 0; col < img_width; col++)
+		{
+		    currentX = col - middleX;
+		    currentY = -(row - middleY);
+		    calc_ra();
+		    update_pixel_internals();
+		    write_tuple_to_pixel(EVAL_EXPR(), dest);
+		    dest += outputBPP;
+		}
+		++current_time;
 	    }
 	}
+
+#ifdef MOVIES
+	if (generate_movie)
+	{
+	    fprintf(stderr, "writing frame %d\n", current_frame);
+	    assert(quicktime_encode_video(output_movie, rows, 0) == 0);
+	}
+#endif
     }
 
-    write_image(argv[argc - 1], img_width, img_height, output, IMAGE_FORMAT_PNG);
+#ifdef MOVIES
+    if (generate_movie)
+	quicktime_close(output_movie);
+    else
+#endif MOVIES
+	write_image(argv[optind + 1], img_width, img_height, output, IMAGE_FORMAT_PNG);
 
     return 0;
 }

@@ -10,6 +10,8 @@ things, the reasons why you might have to do this:
   * If you want to build the command line version instead of the GIMP
     plug-in.
 
+  * You don't have gettext or do not want localization.
+
 After you are finished with the Makefile, just type
 
 	make
@@ -19,6 +21,11 @@ It should compile on most systems.
 If you want to install mathmap on your account, type
 
 	make install
+
+If you have compiled the plug-in version and want to install the
+national language translations, become root and type
+
+	make install-mos
 
 ---
 Mark Probst

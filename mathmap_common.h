@@ -29,7 +29,7 @@
 
 #include "tuples.h"
 
-#define MATHMAP_VERSION       "0.12"
+#define MATHMAP_VERSION       "0.13"
 
 void calc_ra (void);
 void init_internals (void);
@@ -41,7 +41,7 @@ void write_tuple_to_pixel (tuple_t *tuple, guchar *dest);
 extern double currentX, currentY, currentR, currentA, currentT;
 extern double imageR, imageX, imageY, imageW, imageH;
 extern double middleX, middleY;
-extern int originX, originY;
+extern int originX, originY, current_frame;
 
 extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_reflect;
 extern int edge_behaviour_mode;

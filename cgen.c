@@ -458,10 +458,13 @@ gen_and_load_c_code (exprtree *tree)
 	    "#include <math.h>\n"
 #ifdef HAVE_COMPLEX
 	    "#include <complex.h>\n"
+	    "#ifndef M_PI\n"
+	    "#define M_PI 3.14159265358979323846\n"
+	    "#endif\n"
 	    "double __complex__ cgamma (double __complex__ z);\n"
 #endif
-	    "void getOrigValIntersamplePixel(float,float,unsigned char*,int);\n"
-	    "void getOrigValPixel(float,float,unsigned char*,int);\n"
+	    "void getOrigValIntersamplePixel(float,float,unsigned char*,int,int);\n"
+	    "void getOrigValPixel(float,float,unsigned char*,int,int);\n"
 	    "void convert_rgb_to_hsv (float *rgb, float *hsv);\n"
 	    "void convert_hsv_to_rgb (float *hsv, float *rgb);\n"
 	    "float noise(float,float,float);\n"

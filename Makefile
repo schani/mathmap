@@ -2,6 +2,9 @@
 # following line
 CGEN = YES
 
+# if you don't have GNU libc, uncomment the following line
+#ONLY_ANSI = YES
+
 # if you do not have the __complex__ type and complex.h header
 # (i.e. if you do not have gcc and glibc), comment the following line
 HAVE_COMPLEX = YES
@@ -10,9 +13,20 @@ HAVE_COMPLEX = YES
 # plug-in, uncomment the following line
 #CMDLINE = YES
 
+# if you build the command line version and want to have movie
+# (quicktime) support, uncomment the following line
+#MOVIES = YES
+
 # if you are building on linux/alpha and have libffm, uncomment the
 # following line
 LIBFFM = -lffm
+
+# if you do not want localization (relevant for plug-in version only),
+# comment the following line
+ENABLE_NLS = YES
+
+# directory where the localization files should be installed in
+LOCALEDIR = /usr/local/share/locale
 
 # you should not need to change anything beyond this line
 # -------------------------------------------------------
@@ -25,19 +39,33 @@ CGEN_CFLAGS=-DUSE_CGEN $(CGEN_CC) $(CGEN_LD)
 CGEN_LDFLAGS=-Wl,--export-dynamic
 endif
 
+ifeq ($(ONLY_ANSI),YES)
+ANSI_CFLAGS = -DONLY_ANSI
+ANSI_CHPPFLAGS = -DONLY_ANSI
+endif
+
 ifeq ($(HAVE_COMPLEX),YES)
 COMPLEX_CFLAGS = -DHAVE_COMPLEX
-CHPPFLAGS = -DHAVE_COMPLEX
+COMPLEX_CHPPFLAGS = -DHAVE_COMPLEX
 endif
 
 ifeq ($(CMDLINE),YES)
-CFLAGS = -I. $(CGEN_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `glib-config --cflags` -DCMDLINE
+CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `glib-config --cflags` -DCMDLINE
 LDFLAGS = $(LIBFFM) `glib-config --libs gmodule` -lm -ljpeg -lpng
+ifeq ($(MOVIES),YES)
+CFLAGS += -I/usr/local/include/quicktime -DMOVIES
+LDFLAGS += -lquicktime -lpthread -lz
+endif
 else
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP
+CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
 LDFLAGS = $(LIBFFM) `gimp-config --libs`
+endif
+
+ifeq ($(ENABLE_NLS),YES)
+NLS_CFLAGS = -DENABLE_NLS
+MOS = fr.mo
 endif
 
 CC = gcc
@@ -56,6 +84,9 @@ mathmap : $(OBJECTS)
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
 
+%.mo : %.po
+	msgfmt -o $@ $<
+
 parser.c parser.h : parser.y
 	bison -p mm -d parser.y
 	mv parser.tab.c parser.c
@@ -68,14 +99,19 @@ scanner.c : scanner.fl parser.h
 builtins.o : builtins.c builtins.h builtins_interpreter.c
 
 builtins_interpreter.c : builtins_interpreter.chc builtins.chc
-	chpp $(CHPPFLAGS) builtins_interpreter.chc >builtins_interpreter.c
+	chpp $(ANSI_CHPPFLAGS) $(COMPLEX_CHPPFLAGS) builtins_interpreter.chc >builtins_interpreter.c
 
 builtins_compiler.c : builtins_compiler.chc builtins.chc
-	chpp $(CHPPFLAGS) builtins_compiler.chc >builtins_compiler.c
+	chpp $(ANSI_CHPPFLAGS) $(COMPLEX_CHPPFLAGS) builtins_compiler.chc >builtins_compiler.c
 
 install : mathmap
 	gimptool --install-bin mathmap
 	if [ ! -f $(HOME)/$(GIMPDIR)/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/ ; fi
+
+install-mos : $(MOS)
+	if [ ! -d $(LOCALEDIR)/fr ] ; then mkdir $(LOCALEDIR)/fr ; fi
+	if [ ! -d $(LOCALEDIR)/fr/LC_MESSAGES ] ; then mkdir $(LOCALEDIR)/fr/LC_MESSAGES ; fi
+	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
 	rm -f *~ *.o mathmap scanner.c parser.[ch] parser.output core

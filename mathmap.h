@@ -41,7 +41,7 @@ extern int originX, originY, img_width, img_height;
 void dialog_update_preview (void);
 #endif
 
-void mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel);
+void mathmap_get_pixel (int drawable_index, int frame, int x, int y, guchar *pixel);
 void mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel);
 
 #ifdef GIMP
@@ -55,6 +55,10 @@ GimpDrawable* get_input_drawable (int index);
 #endif
 #ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef M_PI
+#define M_PI     3.14159265358979323846
 #endif
 
 #endif

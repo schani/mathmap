@@ -685,9 +685,11 @@
 )\
 #endif
 
+#ifndef ONLY_ANSI
 %builtin(gamma,gamma_1,%'((T 1) (T 1))',0,
     %result(0) = gamma%'('%arg(0,0)%')';
 )\
+#endif
 
 #! ----- floor and friends
 
@@ -862,10 +864,10 @@
 
 #! ----- origval
 
-%builtin(origVal,origValXY,%'((rgba 4) (xy 2) (image 1))',0,
+%builtin(origVal,origValXY,%'((rgba 4) (xy 2) (image 1) (nil 1))',0,
     unsigned char pixel[4];
 
-    getOrigValPixel%'('%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%')';
+    getOrigValPixel%'('%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%','%arg(2,0)%')';
 
     %fornum(i,0,4,
         %result(%<i>) = pixel[%val(%<i>)] / 255.0;
@@ -873,10 +875,10 @@
     %reslength() = 4;
 )\
 
-%builtin(origValIntersample,origValXYIntersample,%'((rgba 4) (xy 2) (image 1))',0,
+%builtin(origValIntersample,origValXYIntersample,%'((rgba 4) (xy 2) (image 1) (nil 1))',0,
     unsigned char pixel[4];
 
-    getOrigValIntersamplePixel%'('%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%')';
+    getOrigValIntersamplePixel%'('%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%','%arg(2,0)%')';
 
     %fornum(i,0,4,
         %result(%<i>) = pixel[%val(%<i>)] / 255.0;
@@ -962,7 +964,7 @@
 #! ----- noise
 
 %builtin(rand,rand,%'((T 1) (T 1) (T 1))',1,
-    %result(0) = %'(random() / (double)0x7fffffff)' * %'('%arg(1,0) - %arg(0,0)%')' + %arg(0,0);
+    %result(0) = %'(rand() / (double)RAND_MAX)' * %'('%arg(1,0) - %arg(0,0)%')' + %arg(0,0);
 )\
 
 %builtin(noise,noise,%'((nil 1) (_ 3))',0,

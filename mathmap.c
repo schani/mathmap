@@ -10,7 +10,7 @@
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
  *
- * Version 0.12
+ * Version 0.13
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
+#include <libgimp/gimpintl.h>
 
 #include "lispreader.h"
 #include "exprtree.h"
@@ -470,6 +471,9 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     int mutable_expression = 1;
 
     fprintf(stderr, "started as %s\n", name);
+
+    INIT_LOCALE("mathmap");
+
     if (strncmp(name, "mathmap_", 8) == 0)
     {
 	char *exp = expression_for_symbol(name + 8, read_rc_file());
@@ -643,29 +647,30 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
 
 	if (animationEnabled)
 	{
-	    int frameNum;
-
-	    for (frameNum = 0; frameNum < mmvals.frames; ++frameNum)
+	    gimp_undo_push_group_start(image_id);
+	    for (current_frame = 0; current_frame < mmvals.frames; ++current_frame)
 	    {
 		gint32 layer;
 		char layerName[100];
 
 		if (mmvals.flags & FLAG_PERIODIC)
-		    currentT = (double)frameNum / (double)mmvals.frames;
+		    currentT = (double)current_frame / (double)mmvals.frames;
 		else if (mmvals.frames < 2)
 		    currentT = 0.0;
 		else
-		    currentT = (double)frameNum / (double)(mmvals.frames - 1);
+		    currentT = (double)current_frame / (double)(mmvals.frames - 1);
 		layer = mathmap_layer_copy(layer_id);
-		sprintf(layerName, "Frame %d", frameNum + 1);
+		sprintf(layerName, "Frame %d", current_frame + 1);
 		gimp_layer_set_name(layer, layerName);
 		output_drawable = gimp_drawable_get(layer);
-		mathmap(frameNum);
+		mathmap(current_frame);
 		gimp_image_add_layer(image_id, layer, 0);
 	    }
+	    gimp_undo_push_group_end(image_id);
 	}
 	else
 	{
+	    current_frame = 0;
 	    currentT = mmvals.param_t;
 	    output_drawable = input_drawables[0].drawable;
 	    mathmap(-1);
@@ -755,7 +760,7 @@ generate_code (void)
 
 	    if (theExprtree->result.number != rgba_tag_number || theExprtree->result.length != 4)
 	    {
-		sprintf(error_string, "The expression must have the result type rgba:4.");
+		sprintf(error_string, _("The expression must have the result type rgba:4."));
 		JUMP(1);
 	    }
 
@@ -882,9 +887,9 @@ mathmap (int frame_num)
 	max_progress = sel_width * sel_height;
 
 	if (frame_num >= 0)
-	    sprintf(progress_info, "Mathmapping frame %d...", frame_num + 1);
+	    sprintf(progress_info, _("Mathmapping frame %d..."), frame_num + 1);
 	else
-	    strcpy(progress_info, "Mathmapping...");
+	    strcpy(progress_info, _("Mathmapping..."));
 	gimp_progress_init(progress_info);
 
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
@@ -990,7 +995,7 @@ mathmap (int frame_num)
 /*****/
 
 void
-mathmap_get_pixel(int drawable_index, int x, int y, guchar *pixel)
+mathmap_get_pixel(int drawable_index, int frame, int x, int y, guchar *pixel)
 {
     gint newcol, newrow;
     gint newcoloff, newrowoff;
@@ -1083,7 +1088,7 @@ build_fast_image_source (input_drawable_t *drawable)
     {
 	for (x = 0; x < preview_width; ++x)
 	{
-	    mathmap_get_pixel(drawable - input_drawables,
+	    mathmap_get_pixel(drawable - input_drawables, 0,
 			      sel_x1 + x * sel_width / preview_width,
 			      sel_y1 + y * sel_height / preview_height, p);
 	    p += 4;
@@ -1247,7 +1252,7 @@ mathmap_dialog (int mutable_expression)
     gtk_container_add(GTK_CONTAINER(frame), wint.preview);
     gtk_widget_show(wint.preview);
 
-    button = gtk_button_new_with_label("Preview");
+    button = gtk_button_new_with_label(_("Preview"));
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 		       (GtkSignalFunc)dialog_preview_callback, 0);
     gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
@@ -1283,7 +1288,7 @@ mathmap_dialog (int mutable_expression)
 
                 /* Intersampling */
 
-		toggle = gtk_check_button_new_with_label("Intersampling");
+		toggle = gtk_check_button_new_with_label(_("Intersampling"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
 					    mmvals.flags & FLAG_INTERSAMPLING);
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
@@ -1293,7 +1298,7 @@ mathmap_dialog (int mutable_expression)
 
 		/* Oversampling */
 	    
-		toggle = gtk_check_button_new_with_label("Oversampling");
+		toggle = gtk_check_button_new_with_label(_("Oversampling"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
 					    mmvals.flags & FLAG_OVERSAMPLING);
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
@@ -1317,7 +1322,7 @@ mathmap_dialog (int mutable_expression)
 
 	        /* Auto Preview */
 
-	        toggle = gtk_check_button_new_with_label("Auto Preview");
+	        toggle = gtk_check_button_new_with_label(_("Auto Preview"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle), auto_preview);
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
@@ -1326,7 +1331,7 @@ mathmap_dialog (int mutable_expression)
 
 	        /* Fast Preview */
 
-		toggle = gtk_check_button_new_with_label("Fast Preview");
+		toggle = gtk_check_button_new_with_label(_("Fast Preview"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle), fast_preview);
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
@@ -1339,7 +1344,7 @@ mathmap_dialog (int mutable_expression)
 	    gtk_container_border_width(GTK_CONTAINER(table), 6);
 	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 
-	    frame = gtk_frame_new("Edge Behaviour");
+	    frame = gtk_frame_new(_("Edge Behaviour"));
 	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
 	    gtk_container_add(GTK_CONTAINER(frame), table);
 	    gtk_table_attach(GTK_TABLE(middle_table), frame, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
@@ -1349,7 +1354,7 @@ mathmap_dialog (int mutable_expression)
 
 	        /* Color */
 
-	        toggle = gtk_radio_button_new_with_label(edge_group, "Color");
+	        toggle = gtk_radio_button_new_with_label(edge_group, _("Color"));
 		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
@@ -1365,7 +1370,7 @@ mathmap_dialog (int mutable_expression)
 
 	        /* Wrap */
 
-	        toggle = gtk_radio_button_new_with_label(edge_group, "Wrap");
+	        toggle = gtk_radio_button_new_with_label(edge_group, _("Wrap"));
 		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
@@ -1374,7 +1379,7 @@ mathmap_dialog (int mutable_expression)
 
 	        /* Reflect */
 
-	        toggle = gtk_radio_button_new_with_label(edge_group, "Reflect");
+	        toggle = gtk_radio_button_new_with_label(edge_group, _("Reflect"));
 		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
@@ -1403,7 +1408,7 @@ mathmap_dialog (int mutable_expression)
 	        /* Animation Toggle */
 
 	        alignment = gtk_alignment_new(0, 0, 0, 0);
-		toggle = gtk_check_button_new_with_label("Animate");
+		toggle = gtk_check_button_new_with_label(_("Animate"));
 		gtk_container_add(GTK_CONTAINER(alignment), toggle);
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
 					    mmvals.flags & FLAG_ANIMATION);
@@ -1419,7 +1424,7 @@ mathmap_dialog (int mutable_expression)
 		gtk_table_set_col_spacings(GTK_TABLE(frame_table), 4);
 		gtk_table_attach(GTK_TABLE(table), frame_table, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 
-		label = gtk_label_new("Frames");
+		label = gtk_label_new(_("Frames"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		gtk_table_attach(GTK_TABLE(frame_table), label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 		adjustment = gtk_adjustment_new(mmvals.frames, 2, 100, 1.0, 1.0, 0.0);
@@ -1441,7 +1446,7 @@ mathmap_dialog (int mutable_expression)
 		/* Periodic */
 
 	        alignment = gtk_alignment_new(0, 0, 0, 0);
-		toggle = gtk_check_button_new_with_label("Periodic");
+		toggle = gtk_check_button_new_with_label(_("Periodic"));
 		gtk_container_add(GTK_CONTAINER(alignment), toggle);
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle), mmvals.flags & FLAG_PERIODIC);
 		gtk_table_attach(GTK_TABLE(table), alignment, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
@@ -1456,7 +1461,7 @@ mathmap_dialog (int mutable_expression)
 		gtk_table_set_col_spacings(GTK_TABLE(t_table), 4);
 		gtk_table_attach(GTK_TABLE(table), t_table, 0, 1, 4, 5, GTK_FILL, 0, 0, 0);
 
-		label = gtk_label_new("Parameter t");
+		label = gtk_label_new(_("Parameter t"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		gtk_table_attach(GTK_TABLE(t_table), label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 		adjustment = gtk_adjustment_new(mmvals.param_t, 0.0, 1.0, 0.01, 0.1, 0.0);
@@ -1475,7 +1480,7 @@ mathmap_dialog (int mutable_expression)
 		gtk_widget_show(t_table);
 		gtk_widget_set_sensitive(t_table, !(mmvals.flags & FLAG_ANIMATION));
 
-	label = gtk_label_new("Settings");
+	label = gtk_label_new(_("Settings"));
 	gtk_widget_show(label);
 	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), middle_table, label, label);
 
@@ -1486,7 +1491,7 @@ mathmap_dialog (int mutable_expression)
 	    table = gtk_hbox_new(FALSE, 0);
 	    gtk_widget_show(table);
 
-	    label = gtk_label_new("Expression");
+	    label = gtk_label_new(_("Expression"));
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
 
@@ -1517,7 +1522,7 @@ mathmap_dialog (int mutable_expression)
 
 	uservalues_table = 0;
 
-	label = gtk_label_new("User Values");
+	label = gtk_label_new(_("User Values"));
 	gtk_widget_show(label);
 	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), uservalues_scrolled_window, label, label);
 
@@ -1544,7 +1549,7 @@ mathmap_dialog (int mutable_expression)
 	    gtk_tree_set_view_mode(GTK_TREE(root_tree), FALSE);
 	    gtk_widget_show(root_tree);
 
-	    label = gtk_label_new("Examples");
+	    label = gtk_label_new(_("Examples"));
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
 	}
@@ -1553,7 +1558,7 @@ mathmap_dialog (int mutable_expression)
 
     gtk_container_border_width(GTK_CONTAINER(GTK_DIALOG(dialog)->action_area), 6);
 
-    button = gtk_button_new_with_label("OK");
+    button = gtk_button_new_with_label(_("OK"));
     GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 		       (GtkSignalFunc) dialog_ok_callback,
@@ -1562,7 +1567,7 @@ mathmap_dialog (int mutable_expression)
     gtk_widget_grab_default(button);
     gtk_widget_show(button);
 
-    button = gtk_button_new_with_label("Cancel");
+    button = gtk_button_new_with_label(_("Cancel"));
     GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 		       (GtkSignalFunc) dialog_cancel_callback,
@@ -1570,7 +1575,7 @@ mathmap_dialog (int mutable_expression)
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
     gtk_widget_show(button);
 
-    button = gtk_button_new_with_label("Help");
+    button = gtk_button_new_with_label(_("Help"));
     GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 		       (GtkSignalFunc) dialog_help_callback,
@@ -1578,7 +1583,7 @@ mathmap_dialog (int mutable_expression)
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->action_area), button, TRUE, TRUE, 0);
     gtk_widget_show(button);
 
-    button = gtk_button_new_with_label("About");
+    button = gtk_button_new_with_label(_("About"));
     GTK_WIDGET_SET_FLAGS(button, GTK_CAN_DEFAULT);
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 		       (GtkSignalFunc) dialog_about_callback,
@@ -1945,7 +1950,7 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 			   GIMP_PDB_END);
     else 
     {
-	gchar *message = g_strdup_printf("See %s", MATHMAP_MANUAL_URL);
+	gchar *message = g_strdup_printf(_("See %s"), MATHMAP_MANUAL_URL);
 
 	gimp_message(message);
 	g_free(message);
@@ -1957,9 +1962,13 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 static void
 dialog_about_callback (GtkWidget *widget, gpointer data)
 {
-    gimp_message("MathMap " MATHMAP_VERSION "\n"
-		 "written by\n"
-		 "Mark Probst <schani@complang.tuwien.ac.at>");
+    gchar *message = g_strdup_printf("Mathmap %s\n%s",
+				     MATHMAP_VERSION,
+				     _("written by\n"
+				       "Mark Probst <schani@complang.tuwien.ac.at>"));
+
+    gimp_message(message);
+    g_free(message);
 } /* dialog_about_callback */
 
 /*****/

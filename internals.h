@@ -33,11 +33,13 @@ typedef struct _internal_t
 {
     char name[MAX_INTERNAL_LENGTH + 1];
     tuple_t value;
-    int is_used;
     struct _internal_t *next;
+
+    unsigned int is_used : 1;
+    unsigned int can_be_precomputed : 1;
 } internal_t;
 
-internal_t* register_internal (const char *name, int number, int length);
+internal_t* register_internal (const char *name, int number, int length, int can_be_precomputed);
 internal_t* lookup_internal (const char *name, tuple_info_t *type);
 void internals_clear_used (void);
 

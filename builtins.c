@@ -26,7 +26,9 @@
 #include <stdio.h>
 #include <assert.h>
 
+#ifdef GIMP
 #include <libgimp/gimp.h>
+#endif
 
 #include "builtins.h"
 #include "postfix.h"
@@ -56,10 +58,10 @@ extern unsigned char edge_color[4];
 
 builtin *firstBuiltin = 0;
 
-void mathmap_get_pixel (int drawable_index, int x, int y, unsigned char *pixel);
+void mathmap_get_pixel (int drawable_index, int frame, int x, int y, unsigned char *pixel);
 
 static void
-get_pixel (int x, int y, guchar *pixel, int drawable_index)
+get_pixel (int x, int y, guchar *pixel, int drawable_index, int frame)
 { 
     if (edge_behaviour_mode == edge_behaviour_wrap)
     {
@@ -94,11 +96,11 @@ get_pixel (int x, int y, guchar *pixel, int drawable_index)
     }
     else
 #endif
-	mathmap_get_pixel(drawable_index, x, y, pixel);
+	mathmap_get_pixel(drawable_index, frame, x, y, pixel);
 }
 
 void
-getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index)
+getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index, int frame)
 {
     x += originX + middleX;
     y = -y + originY + middleY;
@@ -109,11 +111,11 @@ getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index)
 	y += 0.5;
     }
 
-    get_pixel(floor(x), floor(y), pixel, drawable_index);
+    get_pixel(floor(x), floor(y), pixel, drawable_index, frame);
 }
 
 void
-getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable_index)
+getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable_index, int frame)
 {
     int x1,
 	x2,
@@ -153,10 +155,10 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable
     p3fact = x2fact * y1fact;
     p4fact = x2fact * y2fact;
 
-    get_pixel(x1, y1, pixel1, drawable_index);
-    get_pixel(x1, y2, pixel2, drawable_index);
-    get_pixel(x2, y1, pixel3, drawable_index);
-    get_pixel(x2, y2, pixel4, drawable_index);
+    get_pixel(x1, y1, pixel1, drawable_index, frame);
+    get_pixel(x1, y2, pixel2, drawable_index, frame);
+    get_pixel(x2, y1, pixel3, drawable_index, frame);
+    get_pixel(x2, y2, pixel4, drawable_index, frame);
 
     for (i = 0; i < 4; ++i)
 	pixel[i] = pixel1[i] * p1fact

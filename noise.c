@@ -28,7 +28,7 @@
 
 #define G_SIZE         256
 
-#define frandom()      (random() / (float)0x7fffffff)
+#define frandom()      (rand() / (float)RAND_MAX)
 #define sfrandom()     (frandom() * 2.0 - 1.0)
 
 #define fold(i,j,k)    (p[(p[(p[(i) % G_SIZE] + (j)) % G_SIZE] + (k)) % G_SIZE])

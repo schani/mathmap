@@ -25,9 +25,11 @@
 #include <assert.h>
 #include <math.h>
 
+#ifdef GIMP
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
+#endif
 
 #include "mathmap.h"
 #include "userval.h"

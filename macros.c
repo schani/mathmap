@@ -134,7 +134,8 @@ exprtree*
 macro_func_origVal (exprtree *args)
 {
     return make_function("origVal", exprlist_append(make_function("toXY", args),
-						    make_cast("image", make_number(0))));
+						    exprlist_append(make_cast("image", make_number(0)),
+								    make_number(0))));
 }
 
 exprtree*
@@ -144,7 +145,30 @@ macro_func_origValImage (exprtree *args)
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  args->next)));
+								  exprlist_append(args->next,
+										  make_number(0)))));
+}
+
+exprtree*
+macro_func_origValFrame (exprtree *args)
+{
+    variable_t *tmpvar = new_temporary_variable(args->result);
+
+    return make_sequence(make_assignment(tmpvar->name, args),
+			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
+								  exprlist_append(make_cast("image", make_number(0)),
+										  args->next))));
+}
+
+exprtree*
+macro_func_origValImageFrame (exprtree *args)
+{
+    variable_t *tmpvar = new_temporary_variable(args->result);
+
+    return make_sequence(make_assignment(tmpvar->name, args),
+			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
+								  exprlist_append(args->next,
+										  args->next->next))));
 }
 
 exprtree*
@@ -257,10 +281,18 @@ init_macros (void)
 
     register_overloaded_macro("origVal", "((rgba 4) (xy 2))", macro_func_origVal);
     register_overloaded_macro("origVal", "((rgba 4) (ra 2))", macro_func_origVal);
+    register_overloaded_macro("origVal", "((rgba 4) (xy 2) (nil 1))", macro_func_origValFrame);
+    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (nil 1))", macro_func_origValFrame);
+    register_overloaded_macro("origVal", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
     register_overloaded_macro("origVal", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
+    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (image 1) (nil 1))", macro_func_origValImageFrame);
     register_overloaded_macro("origValIntersample", "((rgba 4) (xy 2))", macro_func_origVal);
     register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2))", macro_func_origVal);
+    register_overloaded_macro("origValIntersample", "((rgba 4) (xy 2) (nil 1))", macro_func_origValFrame);
+    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2) (nil 1))", macro_func_origValFrame);
+    register_overloaded_macro("origValIntersample", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
     register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
+    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2) (image 1) (nil 1))", macro_func_origValImageFrame);
     register_overloaded_macro("origValXY", "((rgba 4) (T 1) (T 1))", macro_func_origValXY);
     register_overloaded_macro("origValRA", "((rgba 4) (T 1) (T 1))", macro_func_origValRA);
 

@@ -83,6 +83,7 @@
 %<prc=%'%'>\
 \
 %'#include "noise.h"'
+%'#include "mathmap.h"'
 
 #include builtins.chc
 

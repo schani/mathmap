@@ -288,3 +288,71 @@ while i < n do
     i = i + 1
 end;
 origVal(xy+dispxy)
+
+
+
+
+
+
+# radial displace
+# tomr@aceldama.com
+origVal(ra:[r+t*user_slider("MaxR",0,32)*((2*gray(origVal(xy,user_image("Radial"))))-1),a+t*user_slider("MaxA",0,360)*((2*gray(origVal(xy,user_image("Angle"))))-1)])
+
+
+
+
+
+
+# frame diff
+(origVal(xy,frame)-origVal(xy,frame-1))/2+rgba:[1/2,1/2,1/2,1]
+
+
+
+
+# fade
+origVal(xy,image:0,frame)*(1-t)+origVal(xy,image:1,frame)*t
+
+
+
+
+
+
+
+
+
+# movie spiral
+q=sin((r-a*0.1)*10+t*5*360)*0.5+0.5;
+origVal(xy,image:0,frame)*(1-q)+origVal(xy,image:1,frame)*q
+
+
+
+
+
+
+
+
+
+# pink ball
+p=toHSVA(origVal(xy));
+hg=0.9647;
+dh=min(abs(p[0]-hg),abs(p[0]-(hg-1)));
+ds=p[1]-0.6941;
+if dh*dh+ds*ds < 0.05 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end
+
+
+
+
+# yellow ball
+p=toHSVA(origVal(xy));
+dh=p[0]-0.2;
+ds=p[1]-0.65;
+if dh*dh+ds*ds < 0.01 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end
+
+
+
+
+# green ball
+p=toHSVA(origVal(xy));
+dh=p[0]-0.3725;
+ds=p[1]-0.7;
+if dh*dh < 0.003 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end

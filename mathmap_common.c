@@ -45,7 +45,8 @@ double currentX,
     middleX,
     middleY;
 int originX,
-    originY;
+    originY,
+    current_frame;
 
 int edge_behaviour_color = 1,
     edge_behaviour_wrap = 2,
@@ -79,12 +80,13 @@ calc_ra (void)
 void
 init_internals (void)
 {
-    xy_internal = register_internal("xy", xy_tag_number, 2);
-    ra_internal = register_internal("ra", ra_tag_number, 2);
-    register_internal("t", nil_tag_number, 1);
-    register_internal("XY", xy_tag_number, 2);
-    register_internal("WH", xy_tag_number, 2);
-    register_internal("R", nil_tag_number, 1);
+    xy_internal = register_internal("xy", xy_tag_number, 2, 0);
+    ra_internal = register_internal("ra", ra_tag_number, 2, 0);
+    register_internal("t", nil_tag_number, 1, 1);
+    register_internal("XY", xy_tag_number, 2, 1);
+    register_internal("WH", xy_tag_number, 2, 1);
+    register_internal("R", nil_tag_number, 1, 1);
+    register_internal("frame", nil_tag_number, 1, 1);
 }
 
 void
@@ -106,6 +108,9 @@ update_image_internals (void)
     
     internal = lookup_internal("R", &dummy);
     internal->value.data[0] = imageR;
+
+    internal = lookup_internal("frame", &dummy);
+    internal->value.data[0] = current_frame;
 }
 
 void
