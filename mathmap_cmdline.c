@@ -251,14 +251,21 @@ usage (void)
 	   "      print out version number\n"
 	   "  mathmap --help\n"
 	   "      print this help text\n"
-	   "  mathmap [option ...] <expression> <outimage>\n"
-	   "      transform one or more <inimage>s with <expression> and write\n"
-	   "      the result image to <outimage>\n"
+	   "  mathmap [option ...] <expression> <outfile>\n"
+	   "      transform one or more inputs with <expression> and write\n"
+	   "      the result to <outfile>\n"
 	   "Options:\n"
+	   "  -I, --image=FILENAME        input image FILENAME\n"
+#ifdef MOVIES
+	   "  -M, --movie=FILENAME        input movie FILENAME\n"
+	   "  -f, --frames=NUM            output movie has NUM frames\n"
+#endif
 	   "  -i, --intersampling         use intersampling\n"
 	   "  -o, --oversampling          use oversampling\n"
+	   "  -c, --cache=NUM             cache NUM input images (default %d)\n"
 	   "\n"
-	   "Report bug reports and suggestions to schani@complang.tuwien.ac.at\n");
+	   "Report bugs and suggestions to schani@complang.tuwien.ac.at\n",
+	   cache_size);
 }
 
 int
@@ -267,9 +274,9 @@ main (int argc, char *argv[])
     guchar *output, *dest;
     int row, col;
     int i;
-    int generate_movie = 0;
     int num_frames = 1;
 #ifdef MOVIES
+    int generate_movie = 0;
     quicktime_t *output_movie;
     guchar **rows;
 #endif
@@ -285,10 +292,10 @@ main (int argc, char *argv[])
 		{ "help", no_argument, 0, 257 },
 		{ "intersampling", no_argument, 0, 'i' },
 		{ "oversampling", no_argument, 0, 'o' },
-		{ "frames", required_argument, 0, 'f' },
 		{ "cache", required_argument, 0, 'c' },
 		{ "image", required_argument, 0, 'I' },
 #ifdef MOVIES
+		{ "frames", required_argument, 0, 'f' },
 		{ "movie", required_argument, 0, 'M' },
 #endif
 		{ 0, 0, 0, 0 }
@@ -296,7 +303,13 @@ main (int argc, char *argv[])
 
 	int option, option_index;
 
-	option = getopt_long(argc, argv, "iof:I:M:", long_options, &option_index);
+	option = getopt_long(argc, argv, 
+#ifdef MOVIES
+			     "iof:I:M:c:", 
+#else
+			     "ioI:c:",
+#endif
+			     long_options, &option_index);
 
 	if (option == -1)
 	    break;
@@ -335,12 +348,6 @@ main (int argc, char *argv[])
 		oversamplingEnabled = 1;
 		break;
 
-	    case 'f' :
-		generate_movie = 1;
-		num_frames = atoi(optarg);
-		assert(num_frames > 0);
-		break;
-
 	    case 'c' :
 		cache_size = atoi(optarg);
 		assert(cache_size > 0);
@@ -356,6 +363,12 @@ main (int argc, char *argv[])
 		break;
 
 #ifdef MOVIES
+	    case 'f' :
+		generate_movie = 1;
+		num_frames = atoi(optarg);
+		assert(num_frames > 0);
+		break;
+
 	    case 'M' :
 		input_drawables[num_input_drawables].type = DRAWABLE_MOVIE;
 		input_drawables[num_input_drawables].v.movie = quicktime_open(optarg, 1, 0);

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2001 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,7 +34,6 @@
 #include "mathmap.h"
 #include "userval.h"
 #include "tags.h"
-#include "colorwell.h"
 
 static userval_t *first = 0;
 
@@ -176,6 +175,10 @@ register_color (const char *name)
 
     userval->v.color.value.number = rgba_tag_number;
     userval->v.color.value.length = 4;
+
+    userval->v.color.button_value[0] = userval->v.color.button_value[1] = userval->v.color.button_value[2] = 0;
+    userval->v.color.button_value[3] = 255;
+
     userval->v.color.value.data[0] = userval->v.color.value.data[1] = userval->v.color.value.data[2] = 0.0;
     userval->v.color.value.data[3] = 1.0;
 
@@ -247,14 +250,12 @@ userval_bool_update (GtkToggleButton *button, userval_t *userval)
 }
 
 static void
-userval_color_update (ColorWell *color_well, userval_t *userval)
+userval_color_update (GtkWidget *color_well, userval_t *userval)
 {
-    gdouble color[4];
     int i;
 
-    color_well_get_color(color_well, color);
     for (i = 0; i < 4; ++i)
-	userval->v.color.value.data[i] = color[i];
+	userval->v.color.value.data[i] = (float)userval->v.color.button_value[i] / 255.0;
 
     if (auto_preview)
 	dialog_update_preview();
@@ -354,14 +355,8 @@ make_userval_table (void)
 	}
 	else if (userval->type == USERVAL_COLOR)
 	{
-	    gdouble color[4];
-	    int j;
-
-	    widget = color_well_new();
-	    for (j = 0; j < 4; ++j)
-		color[j] = userval->v.color.value.data[j];
-	    color_well_set_color(COLOR_WELL(widget), color);
-	    gtk_signal_connect(GTK_OBJECT(widget), "color-changed",
+	    widget = gimp_color_button_new(userval->name, 32, 16, userval->v.color.button_value, 4);
+	    gtk_signal_connect(GTK_OBJECT(widget), "color_changed",
 			       (GtkSignalFunc)userval_color_update,
 			       userval);
 	    gtk_widget_show(widget);

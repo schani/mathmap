@@ -11,11 +11,11 @@ HAVE_COMPLEX = YES
 
 # if you want to build the command line version instead of the GIMP
 # plug-in, uncomment the following line
-#CMDLINE = YES
+CMDLINE = YES
 
 # if you build the command line version and want to have movie
 # (quicktime) support, uncomment the following line
-#MOVIES = YES
+MOVIES = YES
 
 # if you are building on linux/alpha and have libffm, uncomment the
 # following line

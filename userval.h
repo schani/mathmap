@@ -23,6 +23,8 @@
 #ifndef __USERVAL_H__
 #define __USERVAL_H__
 
+#include <glib.h>
+
 #ifdef GIMP
 #include <gtk/gtk.h>
 #endif
@@ -62,6 +64,7 @@ typedef struct _userval_t
 
 	struct
 	{
+	    guchar button_value[4];
 	    tuple_t value;
 	} color;
 

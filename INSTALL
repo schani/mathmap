@@ -1,4 +1,4 @@
-Edit the Makefile if necessary. These are, amongst more obscure
+Edit the Makefile if necessary.  These are, amongst more obscure
 things, the reasons why you might have to do this:
 
   * You are building on an Alpha. If you don't know what an Alpha is,
@@ -8,7 +8,10 @@ things, the reasons why you might have to do this:
     distribution, this does not apply to you.
 
   * If you want to build the command line version instead of the GIMP
-    plug-in.
+    plug-in.  For additional animation support, you must have
+    libquicktime installed, which you can get from this URL:
+
+      http://heroinewarrior.com/quicktime.php3
 
   * You don't have gettext or do not want localization.
 

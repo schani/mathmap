@@ -114,7 +114,7 @@
 	<dd>The biggest possible value for <tt>y</tt> for the image.
       </dl>
 
-      For the purpose of animations an additional variable is set:
+      For the purpose of animations two additional variable are set:
 
       <dl>
 	<dt><tt>t</tt> (<tt>nil:1</tt>)
@@ -123,6 +123,10 @@
 	Settings tab. If you want to make animations loop, set the
 	'Periodic' check-box in the Settings tab and make sure that the
 	images at <tt>t == 0</tt> and <tt>t == 1</tt> are the same.
+
+	<dt><tt>frame</tt> (<tt>nil:1</tt>)
+	<dd>The number of the current frame, beginning with <tt>0</tt>
+	for the first frame.
       </dl>
 
     </blockquote>
@@ -550,12 +554,52 @@
 
     <blockquote>
       MathMap looks for a file called <tt>mathmaprc</tt> in the
-      directories <tt>~/.gimp-1.1/</tt> and
+      directories <tt>~/.gimp-1.2/</tt> and
       <tt>/usr/local/share/gimp/</tt>. This file should contain
       MathMap expressions which are then available for selection in
       the 'Examples' tag. One such file is included in the distribution.
       The format of the file is very
       straightforward, so I won't document it here.
+    </blockquote>
+
+    <h2>The Command-Line MathMap</h2>
+
+    <blockquote>
+      <p>The command-line version of MathMap can, in addition to still
+        JPEG and PNG images, read and write movies in the MJPEG
+        Quicktime format.  Input images and movies are specified with
+        the <tt>-I</tt> and <tt>-M</tt> options.  To make a linear
+        interpolation halfway between two images, you can use the
+        following command line:
+
+      <p><tt>mathmap -I image1.png -I image2.png 'lerp(0.5,origVal(xy,image:0),origVal(xy,image:1))' out.png</tt>
+
+      <p>Note that as the second argument to <tt>origVal</tt> you have
+        to use the position of the input image at the command line,
+        beginning with <tt>0</tt> for the first argument to
+        <tt>-I</tt>.
+
+      <p>If you want to generate a movie, you have to use the
+        <tt>-f</tt> option to specify how many frames you want the
+        movie to have.  Within the expression the variables <tt>t</tt>
+        and <tt>frame</tt> indicate the position within the animation.
+        To create a movie with 10 frames, which fades softly from one
+        image to another, you can use this command line:
+
+      <p><tt>mathmap -f 10 -I image1.png -I image2.png 'lerp(1-t,origVal(xy,image:0),origVal(xy,image:1))' out.mov</tt>
+
+      <p>Input movies are handled in much the same way as input
+        images.  They must be specified on the command-line with the
+        <tt>-M</tt> option and are numbered alongside with input
+        images.  <tt>origVal</tt> takes an optional last argument,
+        which specifies the frame within the movie, beginning with
+        <tt>0</tt>.  To create a 10 frames movie which fades from one
+        movie to another, use
+
+      <p><tt>mathmap -f 10 -M movie1.png -M movie2.png 'lerp(1-t,origVal(xy,image:0,frame),origVal(xy,image:1,frame))' out.mov</tt>
+
+      <p>Input images and input movies can of course be combined.  It
+        is even possible to generate still images from movies.
     </blockquote>
   </body>
 </html>

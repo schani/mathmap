@@ -1,19 +1,26 @@
-MathMap 0.12
+MathMap 0.13
 ------------
 
-MathMap is a GIMP plug-in and command-line tool which allows
-distortion of images specified by mathematical formulae. For each
-pixel in the generated image, an expression is evaluated which should
-return a pixel value. The expression can either refer to a pixel in
-the source image or can generate pixels completely independent of the
-source. MathMap not only allows the generation of still images but
-also of animations.
+MathMap is a GIMP plug-in and a standalone command-line tool which
+allows distortion of images and animations specified by mathematical
+formulae.  For each pixel in the generated image, an expression is
+evaluated which should return a pixel value.  The expression can
+either refer to a pixel in the source image or can generate pixels
+completely independent of the source.  MathMap allows the generation
+of still images and of animations.
 
 The MathMap homepage can be found at
 
     http://www.complang.tuwien.ac.at/~schani/mathmap/
 
 It includes a user's manual as well as screenshots and examples.
+
+Changes since 0.12:
+
+  * The command-line version can now read and write animations in the
+    MJPEG Quicktime format.
+  * A french translation (thanks to Laurent Despeyroux).
+  * Bug fixes.
 
 Changes since 0.11:
 

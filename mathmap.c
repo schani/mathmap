@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2001 Mark Probst
  * schani@unix.cslab.tuwien.ac.at
  *
  * Plug-In structure based on:
