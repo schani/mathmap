@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -53,14 +53,6 @@
 #include "readimage.h"
 #include "writeimage.h"
 
-#ifdef USE_CGEN
-#define EVAL_EXPR     eval_c_code
-#else
-#define EVAL_EXPR     eval_postfix
-#endif
-
-extern int mmparse (void);
-
 typedef struct
 {
     int drawable_index;
@@ -95,31 +87,23 @@ typedef struct
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
 static int num_input_drawables = 0;
 
-exprtree *theExprtree = 0;
-
-char error_string[1024];
-
-int img_width, img_height;
-
-guchar edge_color[4] = { 0, 0, 0, 0 };
-
-int num_gradient_samples = 1;
-tuple_t gradient_samples[1];
+mathmap_t *mathmap;
+mathmap_invocation_t *invocation;
 
 void
-mathmap_get_pixel (int drawable_index, int frame, int x, int y, guchar *pixel)
+mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel)
 {
     guchar *p;
     int i;
     input_drawable_t *drawable;
 
     if (drawable_index < 0 || drawable_index >= num_input_drawables
-	|| x < 0 || x >= img_width
-	|| y < 0 || y >= img_height
+	|| x < 0 || x >= invocation->img_width
+	|| y < 0 || y >= invocation->img_height
 	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
     {
 	for (i = 0; i < 4; ++i)
-	    pixel[i] = edge_color[i];
+	    pixel[i] = invocation->edge_color[i];
 	return;
     }
 
@@ -150,18 +134,18 @@ mathmap_get_pixel (int drawable_index, int frame, int x, int y, guchar *pixel)
 		free(cache[lru_index].data);
 
 	    cache[lru_index].data = read_image(drawable->v.image_filename, &width, &height);
-	    assert(width == img_width && height == img_height);
+	    assert(width == invocation->img_width && height == invocation->img_height);
 	}
 #ifdef MOVIES
 	else
 	{
-	    guchar **rows = (guchar**)malloc(sizeof(guchar*) * img_height);
+	    guchar **rows = (guchar**)malloc(sizeof(guchar*) * invocation->img_height);
 
 	    if (cache[lru_index].data == 0)
-		cache[lru_index].data = (guchar*)malloc(img_width * img_height * 3);
+		cache[lru_index].data = (guchar*)malloc(invocation->img_width * invocation->img_height * 3);
 
-	    for (i = 0; i < img_height; ++i)
-		rows[i] = cache[lru_index].data + i * img_width * 3;
+	    for (i = 0; i < invocation->img_height; ++i)
+		rows[i] = cache[lru_index].data + i * invocation->img_width * 3;
 
 	    quicktime_set_video_position(drawable->v.movie, frame, 0);
 	    quicktime_decode_video(drawable->v.movie, rows, 0);
@@ -179,68 +163,11 @@ mathmap_get_pixel (int drawable_index, int frame, int x, int y, guchar *pixel)
     else
 	drawable->cache_entries[frame]->timestamp = current_time;
 
-    p = drawable->cache_entries[frame]->data + 3 * (img_width * y + x);
+    p = drawable->cache_entries[frame]->data + 3 * (invocation->img_width * y + x);
 
     for (i = 0; i < 3; ++i)
 	pixel[i] = p[i];
     pixel[3] = 255;
-
-    /*
-    if (drawable->bpp == 1 || drawable->bpp == 2)
-	pixel[0] = pixel[1] = pixel[2] = p[0];
-    else if (drawable->bpp == 3 || drawable->bpp == 4)
-	for (i = 0; i < 3; ++i)
-	    pixel[i] = p[i];
-    else
-	assert(0);
-
-    if (drawable->bpp == 1 || drawable->bpp == 3)
-	pixel[3] = 255;
-    else
-        pixel[3] = p[drawable->bpp - 1];
-    */
-}
-
-int
-generate_code (char *expr)
-{
-    static int result;
-
-    result = 1;
-
-    untag_uservals();
-
-    DO_JUMP_CODE {
-	clear_all_variables();
-	internals_clear_used();
-	scanFromString(expr);
-	mmparse();
-	endScanningFromString();
-
-	assert(theExprtree != 0);
-
-	if (theExprtree->result.number != rgba_tag_number || theExprtree->result.length != 4)
-	{
-	    sprintf(error_string, "The expression must have the result type rgba:4.");
-	    JUMP(1);
-	}
-
-#ifdef USE_CGEN
-	assert(gen_and_load_c_code(theExprtree));
-#else
-	make_postfix(theExprtree);
-	output_postfix();
-#endif
-    } WITH_JUMP_HANDLER {
-	result = 0;
-    } END_JUMP_HANDLER;
-
-    clear_untagged_uservals();
-    untag_uservals();
-
-    update_image_internals();
-
-    return result;
 }
 
 void
@@ -280,9 +207,8 @@ main (int argc, char *argv[])
     quicktime_t *output_movie;
     guchar **rows;
 #endif
-
-    intersamplingEnabled = 0;
-    oversamplingEnabled = 0;
+    int antialiasing = 0, supersampling = 0;
+    int img_width, img_height;
 
     for (;;)
     {
@@ -319,7 +245,7 @@ main (int argc, char *argv[])
 	    case 256 :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
-		       "Copyright (C) 1997-2001 Mark Probst\n"
+		       "Copyright (C) 1997-2002 Mark Probst\n"
 		       "\n"
 		       "This program is free software; you can redistribute it and/or modify\n"
 		       "it under the terms of the GNU General Public License as published by\n"
@@ -341,11 +267,11 @@ main (int argc, char *argv[])
 		return 0;
 
 	    case 'i' :
-		intersamplingEnabled = 1;
+		antialiasing = 1;
 		break;
 
 	    case 'o' :
-		oversamplingEnabled = 1;
+		supersampling = 1;
 		break;
 
 	    case 'c' :
@@ -394,7 +320,6 @@ main (int argc, char *argv[])
 
     init_builtins();
     init_tags();
-    init_internals();
     init_macros();
     init_noise();
 
@@ -433,35 +358,24 @@ main (int argc, char *argv[])
 	}
 #endif
 
-    outputBPP = 3;
-    originX = originY = 0;
-
-    imageW = img_width;
-    imageH = img_height;
-
-    middleX = img_width / 2.0;
-    middleY = img_height / 2.0;
-
-    if (middleX > img_width - middleX)
-	imageX = middleX;
-    else
-	imageX = img_width - middleX;
-
-    if (middleY > img_height - middleY)
-	imageY = middleY;
-    else
-	imageY = img_height - middleY;
-    
-    imageR = hypot(imageX, imageY);
-
-    if (!generate_code(argv[optind]))
+    mathmap = compile_mathmap(argv[optind]);
+    if (mathmap == 0)
     {
 	printf("%s\n", error_string);
 	exit(1);
     }
 
-    output = (guchar*)malloc(outputBPP * img_width * img_height);
+    invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
+
+    invocation->antialiasing = antialiasing;
+    invocation->supersampling = supersampling;
+
+    invocation->output_bpp = 3;
+
+    output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
     assert(output != 0);
+
+    init_invocation(invocation);
 
 #ifdef MOVIES
     if (generate_movie)
@@ -475,68 +389,68 @@ main (int argc, char *argv[])
 
 	rows = (guchar**)malloc(sizeof(guchar*) * img_height);
 	for (i = 0; i < img_height; ++i)
-	    rows[i] = output + img_width * outputBPP * i;
+	    rows[i] = output + img_width * invocation->output_bpp * i;
     }
 #endif
 
-    for (current_frame = 0; current_frame < num_frames; ++current_frame)
+    for (invocation->current_frame = 0; invocation->current_frame < num_frames; ++invocation->current_frame)
     {
-	currentT = (float)current_frame / (float)num_frames;
+	invocation->current_t = (float)invocation->current_frame / (float)num_frames;
 
-	update_image_internals();
+	update_image_internals(invocation);
 
 	dest = output;
 
-	if (oversamplingEnabled)
+	if (antialiasing)
 	{
 	    guchar *line1, *line2, *line3;
 
-	    line1 = (guchar*)malloc((img_width + 1) * outputBPP);
-	    line2 = (guchar*)malloc(img_width * outputBPP);
-	    line3 = (guchar*)malloc((img_width + 1) * outputBPP);
+	    line1 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
+	    line2 = (guchar*)malloc(img_width * invocation->output_bpp);
+	    line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 
 	    for (col = 0; col <= img_width; ++col)
 	    {
-		currentX = col - middleX;
-		currentY = middleY;
-		calc_ra();
-		update_pixel_internals();
-		write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
+		invocation->current_x = col - invocation->middle_y;
+		invocation->current_y = invocation->middle_y;
+		calc_ra(invocation);
+		update_pixel_internals(invocation);
+		write_tuple_to_pixel(call_invocation(invocation), line1 + col * invocation->output_bpp, invocation->output_bpp);
 	    }
 
 	    for (row = 0; row < img_height; ++row)
 	    {
 		for (col = 0; col < img_width; ++col)
 		{
-		    currentX = col + 0.5 - middleX;
-		    currentY = -(row + 0.5 - middleY);
-		    calc_ra();
-		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
+		    invocation->current_x = col + 0.5 - invocation->middle_x;
+		    invocation->current_y = -(row + 0.5 - invocation->middle_y);
+		    calc_ra(invocation);
+		    update_pixel_internals(invocation);
+		    write_tuple_to_pixel(call_invocation(invocation), line2 + col * invocation->output_bpp, invocation->output_bpp);
 		}
 		for (col = 0; col <= img_width; ++col)
 		{
-		    currentX = col - middleX;
-		    currentY = -(row + 1.0 - middleY);
-		    calc_ra();
-		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
+		    invocation->current_x = col - invocation->middle_x;
+		    invocation->current_y = -(row + 1.0 - invocation->middle_y);
+		    calc_ra(invocation);
+		    update_pixel_internals(invocation);
+		    write_tuple_to_pixel(call_invocation(invocation), line3 + col * invocation->output_bpp, invocation->output_bpp);
 		}
 	    
 		for (col = 0; col < img_width; ++col)
 		{
 		    int i;
 
-		    for (i = 0; i < outputBPP; ++i)
-			dest[i] = (line1[col*outputBPP+i]
-				   + line1[(col+1)*outputBPP+i]
-				   + 2*line2[col*outputBPP+i]
-				   + line3[col*outputBPP+i]
-				   + line3[(col+1)*outputBPP+i]) / 6;
-		    dest += outputBPP;
+		    for (i = 0; i < invocation->output_bpp; ++i)
+			dest[i] = (line1[col*invocation->output_bpp+i]
+				   + line1[(col+1)*invocation->output_bpp+i]
+				   + 2*line2[col*invocation->output_bpp+i]
+				   + line3[col*invocation->output_bpp+i]
+				   + line3[(col+1)*invocation->output_bpp+i]) / 6;
+		    dest += invocation->output_bpp;
 		}
 
-		memcpy(line1, line3, (img_width + 1) * outputBPP);
+		memcpy(line1, line3, (img_width + 1) * invocation->output_bpp);
 		++current_time;
 	    }
 	}
@@ -546,12 +460,12 @@ main (int argc, char *argv[])
 	    {
 		for (col = 0; col < img_width; col++)
 		{
-		    currentX = col - middleX;
-		    currentY = -(row - middleY);
-		    calc_ra();
-		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), dest);
-		    dest += outputBPP;
+		    invocation->current_x = col - invocation->middle_x;
+		    invocation->current_y = -(row - invocation->middle_y);
+		    calc_ra(invocation);
+		    update_pixel_internals(invocation);
+		    write_tuple_to_pixel(call_invocation(invocation), dest, invocation->output_bpp);
+		    dest += invocation->output_bpp;
 		}
 		++current_time;
 	    }

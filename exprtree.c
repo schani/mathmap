@@ -34,6 +34,8 @@
 #include "mathmap.h"
 #include "jump.h"
 
+char error_string[1024];
+
 extern double currentX,
     currentY,
     currentR,
@@ -93,12 +95,12 @@ make_var (const char *name)
     tuple_info_t info;
     exprtree *tree = 0;
 
-    if (lookup_internal(name, &info) != 0)
+    if (lookup_internal(the_mathmap->internals, name, &info) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_INTERNAL;
-	tree->val.internal = lookup_internal(name, &tree->result);
+	tree->val.internal = lookup_internal(the_mathmap->internals, name, &tree->result);
 	tree->result = info;
     }
     else if (lookup_variable_macro(name, &info) != 0)
@@ -107,12 +109,12 @@ make_var (const char *name)
 
 	tree = function(0);
     }
-    else if (lookup_variable(name, &info) != 0)
+    else if (lookup_variable(the_mathmap->variables, name, &info) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_VARIABLE;
-	tree->val.var = lookup_variable(name, &tree->result);
+	tree->val.var = lookup_variable(the_mathmap->variables, name, &tree->result);
 	tree->result = info;
     }
     else
@@ -275,19 +277,29 @@ make_function (const char *name, exprtree *args)
 
 	    if (is_constant && !entry->v.builtin.sidefx)
 	    {
+		tuple_t stack[32];
+		mathmap_t mathmap;
+		mathmap_invocation_t invocation;
+
 		tuple_t *result;
 		int i;
 
-		make_postfix(tree);
+		invocation.mathmap = &mathmap;
+
+		mathmap.expression = make_postfix(tree, &mathmap.exprlen);
+		invocation.stack = stack;
+
 		printf("foldings constants:\n");
-		output_postfix();
-		result = eval_postfix();
+		output_postfix(mathmap.expression, mathmap.exprlen);
+		result = eval_postfix(&invocation);
 
 		tree->type = EXPR_TUPLE_CONST;
 		for (i = 0; i < tree->result.length; ++i)
 		    tree->val.tuple_const.data[i] = result->data[i];
 		tree->val.tuple_const.number = tree->result.number;
 		tree->val.tuple_const.length = tree->result.length;
+
+		free(mathmap.expression);
 	    }
 	}
 	else if (entry->type == OVERLOAD_MACRO)
@@ -317,33 +329,63 @@ make_function (const char *name, exprtree *args)
 exprtree*
 make_userval (const char *type, const char *name, exprtree *args)
 {
-    userval_t *userval;
+    userval_info_t *info;
     exprtree *tree = alloc_exprtree();
 
-    if (strcmp(type, "user_slider") == 0)
+    if (strcmp(type, "user_int") == 0)
     {
 	float min, max;
 
 	if (exprlist_length(args) != 2)
 	{
-	    sprintf(error_string, "user_slider takes 2 arguments.");
+	    sprintf(error_string, "user_int takes 2 arguments.");
 	    JUMP(1);
 	}
 	if (args->type != EXPR_TUPLE_CONST || args->val.tuple_const.length != 1
 	    || args->next->type != EXPR_TUPLE_CONST || args->next->val.tuple_const.length != 1)
 	{
-	    sprintf(error_string, "user_slider min and max must be constants with length 1.");
+	    sprintf(error_string, "user_int min and max must be constants with length 1.");
 	    JUMP(1);
 	}
 
 	min = args->val.tuple_const.data[0];
 	max = args->next->val.tuple_const.data[0];
 
-	userval = register_slider(name, min, max);
+	info = register_int_const(&the_mathmap->userval_infos, name, min, max);
 
-	if (userval == 0)
+	if (info == 0)
 	{
-	    sprintf(error_string, "user_slider %s has a mismatch.", name);
+	    sprintf(error_string, "user_int %s has a mismatch.", name);
+	    JUMP(1);
+	}
+
+	tree->result.number = nil_tag_number;
+	tree->result.length = 1;
+    }
+    else if (strcmp(type, "user_float") == 0 || strcmp(type, "user_slider") == 0)
+    {
+	float min, max;
+
+	if (exprlist_length(args) != 2)
+	{
+	    sprintf(error_string, "%s takes 2 arguments.", type);
+	    JUMP(1);
+	}
+	if (args->type != EXPR_TUPLE_CONST || args->val.tuple_const.length != 1
+	    || args->next->type != EXPR_TUPLE_CONST || args->next->val.tuple_const.length != 1)
+	{
+	    sprintf(error_string, "%s min and max must be constants with length 1.", type);
+	    JUMP(1);
+	}
+
+	min = args->val.tuple_const.data[0];
+	max = args->next->val.tuple_const.data[0];
+
+	info = register_float_const(&the_mathmap->userval_infos, name, min, max);
+
+	if (info == 0)
+	{
+	    sprintf(error_string, "%s %s has a mismatch.", type, name);
 	    JUMP(1);
 	}
 
@@ -358,9 +400,9 @@ make_userval (const char *type, const char *name, exprtree *args)
 	    JUMP(1);
 	}
 
-	userval = register_bool(name);
+	info = register_bool(&the_mathmap->userval_infos, name);
 
-	if (userval == 0)
+	if (info == 0)
 	{
 	    sprintf(error_string, "user_bool %s has a mismatch.", name);
 	    JUMP(1);
@@ -377,9 +419,9 @@ make_userval (const char *type, const char *name, exprtree *args)
 	    JUMP(1);
 	}
 
-	userval = register_color(name);
+	info = register_color(&the_mathmap->userval_infos, name);
 
-	if (userval == 0)
+	if (info == 0)
 	{
 	    sprintf(error_string, "user_bool %s has a mismatch.", name);
 	    JUMP(1);
@@ -401,9 +443,9 @@ make_userval (const char *type, const char *name, exprtree *args)
 	    JUMP(1);
 	}
 
-	userval = register_curve(name);
+	info = register_curve(&the_mathmap->userval_infos, name);
 
-	if (userval == 0)
+	if (info == 0)
 	{
 	    sprintf(error_string, "user_curve %s has mismatch.", name);
 	    JUMP(1);
@@ -420,9 +462,9 @@ make_userval (const char *type, const char *name, exprtree *args)
 	    JUMP(1);
 	}
 
-	userval = register_image(name);
+	info = register_image(&the_mathmap->userval_infos, name);
 
-	if (userval == 0)
+	if (info == 0)
 	{
 	    sprintf(error_string, "user_image %s has a mismatch.", name);
 	    JUMP(1);
@@ -438,7 +480,7 @@ make_userval (const char *type, const char *name, exprtree *args)
     }
 
     tree->type = EXPR_USERVAL;
-    tree->val.userval.userval = userval;
+    tree->val.userval.info = info;
     tree->val.userval.args = args;
 
     return tree;
@@ -461,11 +503,11 @@ exprtree*
 make_assignment (char *name, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
-    variable_t *var = lookup_variable(name, &tree->result);
+    variable_t *var = lookup_variable(the_mathmap->variables, name, &tree->result);
 
     if (var == 0)
     {
-	var = register_variable(name, value->result);
+	var = register_variable(&the_mathmap->variables, name, value->result);
 	tree->result = value->result;
     }
 
@@ -487,7 +529,7 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
     tuple_info_t info;
-    variable_t *var = lookup_variable(name, &info);
+    variable_t *var = lookup_variable(the_mathmap->variables, name, &info);
 
     if (var == 0)
     {
@@ -579,6 +621,12 @@ make_do_while (exprtree *body, exprtree *invariant)
     tree->result = make_tuple_info(nil_tag_number, 1);
 
     return tree;
+}
+
+
+void
+free_exprtree (exprtree *tree)
+{
 }
 
 int

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,15 +23,18 @@
 #ifndef __CGEN_H__
 #define __CGEN_H__
 
-#include <glib.h>
+#include "gtypes.h"
 
 #include "tuples.h"
 #include "exprtree.h"
 
+struct _mathmap_t;
+struct _mathmap_invocation_t;
+
 typedef tuple_t* (*mathfunc_t) (void);
+typedef mathfunc_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
-extern mathfunc_t eval_c_code;
-
-gboolean gen_and_load_c_code (exprtree *tree);
+initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info);
+void unload_c_code (void *module_info);
 
 #endif

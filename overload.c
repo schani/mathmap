@@ -234,10 +234,6 @@ resolve_function_call (const char *name, function_arg_info_t *args, tuple_info_t
     overload_entry_t *entry;
     overload_arg_t *ovld_arg;
 
-    if (strcmp(name, "origVal") == 0)
-	if (intersamplingEnabled)
-	    name = "origValIntersample";
-
     for (func_arg = args; func_arg != 0; func_arg = func_arg->next)
 	++num_args;
 

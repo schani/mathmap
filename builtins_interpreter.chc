@@ -28,10 +28,10 @@
     %lappend(%&builtins,%hash(name,%eval(%name),funcname,%eval(%funcname),args,%eval(%args),sidefx,%eval(%sidefx)))\
     %<curnumargs=%[%llength(%ssplit(%'\\) \\(',%eval(%args))) - 1]>\
     void gen_%eval(%funcname) %'(FILE*, int*, int*, int)';
-    void builtin_%eval(%funcname) %'(postfix_arg *arg)'
+    void builtin_%eval(%funcname) %'(mathmap_invocation_t *invocation, postfix_arg *arg)'
     {
         %eval(%code)
-        stackp -= %[curnumargs - 1];
+        invocation->stackp -= %[curnumargs - 1];
     }%'\n'
 )\
 \
@@ -42,7 +42,7 @@
     {
         int %varname;
 
-        for %'('%varname = 0; %varname < stack[stackp - %[curnumargs - argnum]].length; ++%varname%')'
+        for %'('%varname = 0; %varname < invocation->stack[invocation->stackp - %curnumargs + %eval(%argnum)].length; ++%varname%')'
         {
             %eval(%code)
         }
@@ -64,15 +64,15 @@
 ))\
 \
 %define(result,index,
-    stack[stackp - %curnumargs].data[%index]
+    invocation->stack[invocation->stackp - %curnumargs].data[%index]
 )\
 \
 %define(reslength,
-    stack[stackp - %curnumargs].length
+    invocation->stack[invocation->stackp - %curnumargs].length
 )\
 \
 %define(arg,argnum,index,
-    stack[stackp - %[curnumargs - argnum]].data[%index]
+    invocation->stack[invocation->stackp - %[curnumargs - argnum]].data[%index]
 )\
 \
 %define(val,index,
@@ -94,13 +94,19 @@
 %'#include "mathmap.h"'
 
 void solve_linear_equations (int dim, float *a, float *b);
-void getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index, int frame);
-void getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable_index, int frame);
-extern int num_gradient_samples;
-extern tuple_t gradient_samples[];
+void get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame);
+void get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame);
+
+void
+get_orig_val_pixel_func (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame)
+{
+    if (invocation->antialiasing)
+        get_orig_val_intersample_pixel(invocation, x, y, pixel, drawable_index, frame);
+    else
+        get_orig_val_pixel(invocation, x, y, pixel, drawable_index, frame);
+}
 
 #include builtins.chc
-
 
 void
 init_builtins (void)

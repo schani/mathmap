@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -32,15 +32,19 @@
 typedef struct _internal_t
 {
     char name[MAX_INTERNAL_LENGTH + 1];
-    tuple_t value;
-    struct _internal_t *next;
+    tuple_info_t type;
+    int index;
 
     unsigned int is_used : 1;
     unsigned int can_be_precomputed : 1;
+
+    struct _internal_t *next;
 } internal_t;
 
-internal_t* register_internal (const char *name, int number, int length, int can_be_precomputed);
-internal_t* lookup_internal (const char *name, tuple_info_t *type);
-void internals_clear_used (void);
+internal_t* register_internal (internal_t **internals, const char *name, tuple_info_t type, int can_be_precomputed);
+internal_t* lookup_internal (internal_t *internals, const char *name, tuple_info_t *type);
+
+tuple_t* instantiate_internals (internal_t *internals);
+void free_internals (internal_t *internals);
 
 #endif

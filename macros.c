@@ -30,6 +30,7 @@
 #include "tags.h"
 #include "exprtree.h"
 #include "overload.h"
+#include "mathmap.h"
 
 #include "macros.h"
 
@@ -141,7 +142,7 @@ macro_func_origVal (exprtree *args)
 exprtree*
 macro_func_origValImage (exprtree *args)
 {
-    variable_t *tmpvar = new_temporary_variable(args->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
@@ -152,7 +153,7 @@ macro_func_origValImage (exprtree *args)
 exprtree*
 macro_func_origValFrame (exprtree *args)
 {
-    variable_t *tmpvar = new_temporary_variable(args->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
@@ -163,7 +164,7 @@ macro_func_origValFrame (exprtree *args)
 exprtree*
 macro_func_origValImageFrame (exprtree *args)
 {
-    variable_t *tmpvar = new_temporary_variable(args->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
@@ -222,7 +223,7 @@ macro_func_rgbaColor (exprtree *args)
 exprtree*
 macro_func_grayColor (exprtree *arg)
 {
-    variable_t *tmpvar = new_temporary_variable(arg->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, arg->result);
 
     return make_sequence(make_assignment(tmpvar->name, arg),
 			 make_cast("rgba",
@@ -235,7 +236,7 @@ macro_func_grayColor (exprtree *arg)
 exprtree*
 macro_func_grayaColor (exprtree *arg)
 {
-    variable_t *tmpvar = new_temporary_variable(arg->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, arg->result);
 
     return make_sequence(make_assignment(tmpvar->name, arg),
 			 make_cast("rgba",

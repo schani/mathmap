@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2001 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,218 +35,289 @@
 #include "userval.h"
 #include "tags.h"
 
-static userval_t *first = 0;
-
-static userval_t*
-alloc_and_register_userval (const char *name, int type)
+static userval_info_t*
+alloc_and_register_userval (userval_info_t **p, const char *name, int type)
 {
-    userval_t *userval = (userval_t*)malloc(sizeof(userval_t));
-    userval_t **p;
+    userval_info_t *info = (userval_info_t*)malloc(sizeof(userval_info_t));
 
-    strncpy(userval->name, name, MAX_IDENT_LENGTH);
-    userval->name[MAX_IDENT_LENGTH] = '\0';
+    strncpy(info->name, name, MAX_IDENT_LENGTH);
+    info->name[MAX_IDENT_LENGTH] = '\0';
+    info->type = type;
+    info->next = 0;
 
-    userval->type = type;
-
-    userval->tag = 1;
-
-    userval->next = 0;
-
-    p = &first;
+    info->index = 0;
     while (*p != 0)
-	p = &(*p)->next;
-    *p = userval;
-
-    return userval;
-}
-
-void
-untag_uservals (void)
-{
-    userval_t *userval;
-
-    for (userval = first; userval != 0; userval = userval->next)
-	userval->tag = 0;
-}
-
-void
-clear_untagged_uservals (void)
-{
-    userval_t **userval;
-
-    userval = &first;
-    while (*userval != 0)
     {
-	if (!(*userval)->tag)
-	{
-	    userval_t *p = *userval;
-
-	    *userval = (*userval)->next;
-
-#ifdef GIMP
-	    if (p->type == USERVAL_IMAGE && p->v.image.index != -1)
-		free_input_drawable(p->v.image.index);
-#endif
-
-	    free(p);
-	}
-	else
-	    userval = &(*userval)->next;
+	p = &(*p)->next;
+	++info->index;
     }
+    *p = info;
+
+    return info;
 }
 
-userval_t*
-lookup_userval (const char *name, int type)
+userval_info_t*
+lookup_userval (userval_info_t *infos, const char *name, int type)
 {
-    userval_t *userval;
+    userval_info_t *info;
 
-    for (userval = first; userval != 0; userval = userval->next)
-	if (userval->type == type && strcmp(name, userval->name) == 0)
-	    return userval;
+    for (info = infos; info != 0; info = info->next)
+	if (info->type == type && strcmp(name, info->name) == 0)
+	    return info;
 
     return 0;
 }
 
-userval_t*
-register_slider (const char *name, float min, float max)
+userval_info_t*
+register_int_const (userval_info_t **infos, const char *name, int min, int max)
 {
-    userval_t *userval;
+    userval_info_t *info;
 
-    userval = lookup_userval(name, USERVAL_SLIDER);
-    if (userval != 0 && userval->tag)
+    info = lookup_userval(*infos, name, USERVAL_INT_CONST);
+    if (info != 0)
     {
-	if (userval->v.slider.min == min && userval->v.slider.max == max)
-	    return userval;
+	if (info->v.int_const.min == min && info->v.int_const.max == max)
+	    return info;
 	return 0;
-    }
-    else if (userval != 0 && !userval->tag)
-    {
-	if (userval->v.slider.min != min || userval->v.slider.max != max)
-	{
-	    userval->v.slider.min = min;
-	    userval->v.slider.max = max;
-	    userval->v.slider.value = min;
-	}
-	userval->tag = 1;
     }
     else
     {
-	userval = alloc_and_register_userval(name, USERVAL_SLIDER);
-	userval->v.slider.min = min;
-	userval->v.slider.max = max;
-	userval->v.slider.value = min;
+	info = alloc_and_register_userval(infos, name, USERVAL_INT_CONST);
+	info->v.int_const.min = min;
+	info->v.int_const.max = max;
     }
 
-    return userval;
+    return info;
+}
+
+userval_info_t*
+register_float_const (userval_info_t **infos, const char *name, float min, float max)
+{
+    userval_info_t *info;
+
+    info = lookup_userval(*infos, name, USERVAL_FLOAT_CONST);
+    if (info != 0)
+    {
+	if (info->v.float_const.min == min && info->v.float_const.max == max)
+	    return info;
+	return 0;
+    }
+    else
+    {
+	info = alloc_and_register_userval(infos, name, USERVAL_FLOAT_CONST);
+	info->v.float_const.min = min;
+	info->v.float_const.max = max;
+    }
+
+    return info;
+}
+
+userval_info_t*
+register_bool (userval_info_t **infos, const char *name)
+{
+    userval_info_t *info;
+
+    info = lookup_userval(*infos, name, USERVAL_BOOL_CONST);
+    if (info != 0)
+	return info;
+
+    info = alloc_and_register_userval(infos, name, USERVAL_BOOL_CONST);
+
+    return info;
+}
+
+userval_info_t*
+register_color (userval_info_t **infos, const char *name)
+{
+    userval_info_t *info;
+
+    info = lookup_userval(*infos, name, USERVAL_COLOR);
+    if (info != 0)
+	return info;
+
+    info = alloc_and_register_userval(infos, name, USERVAL_COLOR);
+
+    return info;
+}
+
+userval_info_t*
+register_curve (userval_info_t **infos, const char *name)
+{
+    userval_info_t *info;
+
+    info = lookup_userval(*infos, name, USERVAL_CURVE);
+    if (info != 0)
+	return info;
+
+    info = alloc_and_register_userval(infos, name, USERVAL_CURVE);
+
+    return info;
+}
+
+userval_info_t*
+register_image (userval_info_t **infos, const char *name)
+{
+    userval_info_t *info;
+
+    info = lookup_userval(*infos, name, USERVAL_IMAGE);
+    if (info != 0)
+	return info;
+
+    info = alloc_and_register_userval(infos, name, USERVAL_IMAGE);
+
+    return info;
 }
 
 userval_t*
-register_bool (const char *name)
+instantiate_uservals (userval_info_t *infos)
 {
-    userval_t *userval;
+    int n;
+    userval_info_t *info;
+    userval_t *uservals;
 
-    userval = lookup_userval(name, USERVAL_BOOL);
-    if (userval != 0)
-    {
-	userval->tag = 1;
+    n = 0;
+    for (info = infos; info != 0; info = info->next)
+	++n;
 
-	return userval;
-    }
+    uservals = (userval_t*)malloc(n * sizeof(userval_t));
 
-    userval = alloc_and_register_userval(name, USERVAL_BOOL);
+    for (info = infos; info != 0; info = info->next)
+	switch (info->type)
+	{
+	    case USERVAL_INT_CONST :
+		uservals[info->index].v.int_const = info->v.int_const.min;
+		break;
 
-    return userval;
+	    case USERVAL_FLOAT_CONST :
+		uservals[info->index].v.float_const = info->v.float_const.min;
+		break;
+
+	    case USERVAL_BOOL_CONST :
+		uservals[info->index].v.bool_const = 0.0;
+		break;
+
+	    case USERVAL_CURVE :
+		{
+		    int i;
+
+		    uservals[info->index].v.curve.values = (float*)malloc(USER_CURVE_POINTS * sizeof(float));
+
+		    for (i = 0; i < USER_CURVE_POINTS; ++i)
+			uservals[info->index].v.curve.values[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
+		}
+		break;
+
+	    case USERVAL_GRADIENT :
+		uservals[info->index].v.gradient.values = (float(*)[4])malloc(USER_GRADIENT_POINTS * 4 * sizeof(float));
+		break;
+
+	    case USERVAL_COLOR :
+		uservals[info->index].v.color.value.number = rgba_tag_number;
+		uservals[info->index].v.color.value.length = 4;
+
+		uservals[info->index].v.color.button_value[0] =
+		    uservals[info->index].v.color.button_value[1] =
+		    uservals[info->index].v.color.button_value[2] = 0;
+		uservals[info->index].v.color.button_value[3] = 255;
+
+		uservals[info->index].v.color.value.data[0] =
+		    uservals[info->index].v.color.value.data[1] =
+		    uservals[info->index].v.color.value.data[2] = 0.0;
+		uservals[info->index].v.color.value.data[3] = 1.0;
+		break;
+
+	    case USERVAL_IMAGE :
+		uservals[info->index].v.image.index = -1;
+		break;
+	}
+
+    return uservals;
 }
 
-userval_t*
-register_color (const char *name)
+void
+free_uservals (userval_t *uservals, userval_info_t *infos)
 {
-    userval_t *userval;
+    userval_info_t *info;
 
-    userval = lookup_userval(name, USERVAL_COLOR);
-    if (userval != 0)
+    for (info = infos; info != 0; info = info->next)
     {
-	userval->tag = 1;
+	switch (info->type)
+	{
+	    case USERVAL_CURVE :
+		free(uservals[info->index].v.curve.values);
+		break;
 
-	return userval;
+	    case USERVAL_GRADIENT :
+		break;
+
+	    case USERVAL_IMAGE :
+#ifdef GIMP
+		if (uservals[info->index].v.image.index != -1)
+		    free_input_drawable(uservals[info->index].v.image.index);
+#endif
+		break;
+	}
     }
-
-    userval = alloc_and_register_userval(name, USERVAL_COLOR);
-
-    userval->v.color.value.number = rgba_tag_number;
-    userval->v.color.value.length = 4;
-
-    userval->v.color.button_value[0] = userval->v.color.button_value[1] = userval->v.color.button_value[2] = 0;
-    userval->v.color.button_value[3] = 255;
-
-    userval->v.color.value.data[0] = userval->v.color.value.data[1] = userval->v.color.value.data[2] = 0.0;
-    userval->v.color.value.data[3] = 1.0;
-
-    return userval;
 }
 
-userval_t*
-register_curve (const char *name)
+void
+free_userval_infos (userval_info_t *infos)
 {
-    userval_t *userval;
-    int i;
-
-    userval = lookup_userval(name, USERVAL_CURVE);
-    if (userval != 0)
-    {
-	userval->tag = 1;
-
-	return userval;
-    }
-
-    userval = alloc_and_register_userval(name, USERVAL_CURVE);
-
-    for (i = 0; i < USER_CURVE_POINTS; ++i)
-	userval->v.curve.values[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
-
-    return userval;
+    /* FIXME */
 }
 
-userval_t*
-register_image (const char *name)
+void
+copy_userval (userval_t *dst, userval_t *src, int type)
 {
-    userval_t *userval;
-
-    userval = lookup_userval(name, USERVAL_IMAGE);
-    if (userval != 0)
+    switch (type)
     {
-	userval->tag = 1;
+	case USERVAL_INT_CONST :
+	case USERVAL_FLOAT_CONST :
+	case USERVAL_BOOL_CONST :
+	case USERVAL_COLOR :
+	case USERVAL_IMAGE :
+	    dst->v = src->v;
+	    break;
 
-	return userval;
+	case USERVAL_CURVE :
+	    memcpy(dst->v.curve.values, src->v.curve.values, USER_CURVE_POINTS * sizeof(float));
+	    break;
+
+	case USERVAL_GRADIENT :
+	    memcpy(dst->v.gradient.values, src->v.gradient.values, USER_GRADIENT_POINTS * sizeof(float));
+	    break;
+
+	default :
+	    assert(0);
     }
-
-    userval = alloc_and_register_userval(name, USERVAL_IMAGE);
-
-    userval->v.image.index = -1;
-
-    return userval;
 }
 
 #ifdef GIMP
 static void
-userval_slider_update (GtkAdjustment *adjustment, userval_t *userval)
+userval_int_update (GtkAdjustment *adjustment, userval_t *userval)
 {
-    userval->v.slider.value = adjustment->value;
+    userval->v.int_const = adjustment->value;
 
-    if (auto_preview)
-	dialog_update_preview();
+    user_value_changed();
+}
+
+static void
+userval_float_update (GtkAdjustment *adjustment, userval_t *userval)
+{
+    userval->v.float_const = adjustment->value;
+
+    user_value_changed();
 }
 
 static void
 userval_bool_update (GtkToggleButton *button, userval_t *userval)
 {
     if (gtk_toggle_button_get_active(button))
-	userval->v.bool.value = 1.0;
+	userval->v.bool_const = 1.0;
     else
-	userval->v.bool.value = 0.0;
+	userval->v.bool_const = 0.0;
 
-    if (auto_preview)
-	dialog_update_preview();
+    user_value_changed();
 }
 
 static void
@@ -257,9 +328,10 @@ userval_color_update (GtkWidget *color_well, userval_t *userval)
     for (i = 0; i < 4; ++i)
 	userval->v.color.value.data[i] = (float)userval->v.color.button_value[i] / 255.0;
 
-    if (auto_preview)
-	dialog_update_preview();
+    user_value_changed();
 }
+
+extern int img_width, img_height; /* from mathmap.c */
 
 static gint
 user_image_constrain (gint32 image_id, gint32 drawable_id, gpointer data)
@@ -283,14 +355,14 @@ user_image_update (gint32 id, userval_t *userval)
 }
 
 GtkWidget*
-make_userval_table (void)
+make_userval_table (userval_info_t *infos, userval_t *uservals)
 {
     int i;
-    userval_t *userval;
+    userval_info_t *info;
     GtkWidget *table;
 
     i = 0;
-    for (userval = first; userval != 0; userval = userval->next)
+    for (info = infos; info != 0; info = info->next)
 	++i;
 
     if (i == 0)
@@ -299,111 +371,138 @@ make_userval_table (void)
     table = gtk_table_new(i, 2, FALSE);
 
     i = 0;
-    for (userval = first; userval != 0; userval = userval->next)
+    for (info = infos; info != 0; info = info->next)
     {
 	GtkWidget *widget = 0, *label;
 	GtkAttachOptions xoptions = GTK_FILL | GTK_EXPAND, yoptions = 0;
 
-	label = gtk_label_new(userval->name);
+	label = gtk_label_new(info->name);
 	gtk_widget_show(label);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, i, i + 1, 0, 0, 0, 0);
 
-	if (userval->type == USERVAL_SLIDER)
+	switch (info->type)
 	{
-	    GtkObject *adjustment;
-	    float range = userval->v.slider.max - userval->v.slider.min;
-	    int exponent, j;
-	    float increment;
+	    case USERVAL_INT_CONST :
+		{
+		    GtkObject *adjustment;
 
-	    j = exponent = (int)(floor(log10(range)) - 3);
-	    increment = 1.0;
-	    while (j > 0)
-	    {
-		increment *= 10.0;
-		--j;
-	    }
-	    while (j < 0)
-	    {
-		increment /= 10.0;
-		++j;
-	    }
+		    adjustment = gtk_adjustment_new(uservals[info->index].v.int_const,
+						    info->v.int_const.min,
+						    info->v.int_const.max,
+						    1, 10, 0.0);
+		    gtk_signal_connect(adjustment, "value_changed",
+				       (GtkSignalFunc)userval_int_update,
+				       &uservals[info->index]);
+		    widget = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+		    gtk_scale_set_digits(GTK_SCALE(widget), 0);
 
-	    adjustment = gtk_adjustment_new(userval->v.slider.value,
-					    userval->v.slider.min,
-					    userval->v.slider.max,
-					    increment, increment * 10, 0.0);
-	    gtk_signal_connect(adjustment, "value_changed",
-			       (GtkSignalFunc)userval_slider_update,
-			       userval);
-	    widget = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
-	    if (exponent < 0)
-		gtk_scale_set_digits(GTK_SCALE(widget), -exponent);
-	    else
-		gtk_scale_set_digits(GTK_SCALE(widget), 0);
+		    gtk_widget_show(widget);
+		}
+		break;
 
-	    gtk_widget_show(widget);
+	    case USERVAL_FLOAT_CONST :
+		{
+		    GtkObject *adjustment;
+		    float range = info->v.float_const.max - info->v.float_const.min;
+		    int exponent, j;
+		    float increment;
+
+		    j = exponent = (int)(floor(log10(range)) - 3);
+		    increment = 1.0;
+		    while (j > 0)
+		    {
+			increment *= 10.0;
+			--j;
+		    }
+		    while (j < 0)
+		    {
+			increment /= 10.0;
+			++j;
+		    }
+
+		    adjustment = gtk_adjustment_new(uservals[info->index].v.float_const,
+						    info->v.float_const.min,
+						    info->v.float_const.max,
+						    increment, increment * 10, 0.0);
+		    gtk_signal_connect(adjustment, "value_changed",
+				       (GtkSignalFunc)userval_float_update,
+				       &uservals[info->index]);
+		    widget = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+		    if (exponent < 0)
+			gtk_scale_set_digits(GTK_SCALE(widget), -exponent);
+		    else
+			gtk_scale_set_digits(GTK_SCALE(widget), 0);
+
+		    gtk_widget_show(widget);
+		}
+		break;
+
+	    case USERVAL_BOOL_CONST :
+		widget = gtk_check_button_new();
+		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
+					     uservals[info->index].v.bool_const != 0.0);
+		gtk_signal_connect(GTK_OBJECT(widget), "toggled",
+				   (GtkSignalFunc)userval_bool_update,
+				   &uservals[info->index]);
+		gtk_widget_show(widget);
+		break;
+
+	    case USERVAL_COLOR :
+		widget = gimp_color_button_new(info->name, 32, 16, uservals[info->index].v.color.button_value, 4);
+		gtk_signal_connect(GTK_OBJECT(widget), "color_changed",
+				   (GtkSignalFunc)userval_color_update,
+				   &uservals[info->index]);
+		gtk_widget_show(widget);
+		break;
+
+	    case USERVAL_CURVE :
+		{
+		    gfloat vector[USER_CURVE_POINTS];
+		    int j;
+
+		    for (j = 0; j < USER_CURVE_POINTS; ++j)
+			vector[j] = uservals[info->index].v.curve.values[j] * (USER_CURVE_POINTS - 1);
+
+		    widget = gtk_gamma_curve_new();
+		    gtk_widget_show(widget);
+		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
+					0, USER_CURVE_POINTS - 1, 0, USER_CURVE_POINTS - 1);
+		    gtk_curve_set_vector(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
+					 USER_CURVE_POINTS, vector);
+		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve), 0, 1, 0, 1);
+
+		    yoptions = GTK_FILL | GTK_EXPAND;
+		}
+		break;
+
+	    case USERVAL_IMAGE :
+		{
+		    GtkWidget *menu;
+		    gint32 drawable_id = -1;
+
+		    if (uservals[info->index].v.image.index != -1)
+		    {
+			GimpDrawable *drawable = get_input_drawable(uservals[info->index].v.image.index);
+
+			if (drawable != 0)
+			    drawable_id = drawable->id;
+		    }
+
+		    widget = gtk_option_menu_new();
+		    menu = gimp_drawable_menu_new(user_image_constrain, (GimpMenuCallback)user_image_update,
+						  &uservals[info->index], drawable_id);
+		    gtk_option_menu_set_menu(GTK_OPTION_MENU(widget), menu);
+		    gtk_widget_show(widget);
+		}
+		break;
+
+	    default :
+		assert(0);
 	}
-	else if (userval->type == USERVAL_BOOL)
-	{
-	    widget = gtk_check_button_new();
-	    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
-					 userval->v.bool.value != 0.0);
-	    gtk_signal_connect(GTK_OBJECT(widget), "toggled",
-			       (GtkSignalFunc)userval_bool_update,
-			       userval);
-	    gtk_widget_show(widget);
-	}
-	else if (userval->type == USERVAL_COLOR)
-	{
-	    widget = gimp_color_button_new(userval->name, 32, 16, userval->v.color.button_value, 4);
-	    gtk_signal_connect(GTK_OBJECT(widget), "color_changed",
-			       (GtkSignalFunc)userval_color_update,
-			       userval);
-	    gtk_widget_show(widget);
-	}
-	else if (userval->type == USERVAL_CURVE)
-	{
-	    gfloat vector[USER_CURVE_POINTS];
-	    int j;
-
-	    for (j = 0; j < USER_CURVE_POINTS; ++j)
-		vector[j] = userval->v.curve.values[j] * (USER_CURVE_POINTS - 1);
-
-	    widget = gtk_gamma_curve_new();
-	    gtk_widget_show(widget);
-	    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
-				0, USER_CURVE_POINTS - 1, 0, USER_CURVE_POINTS - 1);
-	    gtk_curve_set_vector(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
-				 USER_CURVE_POINTS, vector);
-	    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve), 0, 1, 0, 1);
-
-	    yoptions = GTK_FILL | GTK_EXPAND;
-	}
-	else if (userval->type == USERVAL_IMAGE)
-	{
-	    GtkWidget *menu;
-	    gint32 drawable_id = -1;
-
-	    if (userval->v.image.index != -1)
-	    {
-		GimpDrawable *drawable = get_input_drawable(userval->v.image.index);
-
-		if (drawable != 0)
-		    drawable_id = drawable->id;
-	    }
-
-	    widget = gtk_option_menu_new();
-	    menu = gimp_drawable_menu_new(user_image_constrain, (GimpMenuCallback)user_image_update,
-					  userval, drawable_id);
-	    gtk_option_menu_set_menu(GTK_OPTION_MENU(widget), menu);
-	    gtk_widget_show(widget);
-	}
-	else
-	    assert(0);
 
 	gtk_table_attach(GTK_TABLE(table), widget, 1, 2, i, i + 1, xoptions, yoptions, 0, 0);
 
-	userval->widget = widget;
+	uservals[info->index].widget = widget;
 
 	++i;
     }
@@ -412,18 +511,16 @@ make_userval_table (void)
 
     return table;
 }
-#endif
 
 void
-update_uservals (void)
+update_uservals (userval_info_t *infos, userval_t *uservals)
 {
-    userval_t *userval;
+    userval_info_t *info;
 
-    for (userval = first; userval != 0; userval = userval->next)
-    {
-#ifdef GIMP
-	if (userval->type == USERVAL_CURVE)
-	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(userval->widget)->curve), USER_CURVE_POINTS, userval->v.curve.values);
-#endif
-    }
+    for (info = infos; info != 0; info = info->next)
+	if (info->type == USERVAL_CURVE)
+	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(uservals[info->index].widget)->curve),
+				 USER_CURVE_POINTS,
+				 uservals[info->index].v.curve.values);
 }
+#endif

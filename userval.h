@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@
 #ifndef __USERVAL_H__
 #define __USERVAL_H__
 
-#include <glib.h>
+#include "gtypes.h"
 
 #ifdef GIMP
 #include <gtk/gtk.h>
@@ -33,34 +33,46 @@
 #include "exprtree.h"
 
 #define USER_CURVE_POINTS       1024
+#define USER_GRADIENT_POINTS    1024
 
-#define USERVAL_SLIDER      1
-#define USERVAL_BOOL        2
-#define USERVAL_COLOR       3
-#define USERVAL_CURVE       4
-#define USERVAL_IMAGE       5
+#define USERVAL_INT_CONST   1
+#define USERVAL_FLOAT_CONST 2
+#define USERVAL_BOOL_CONST  3
+#define USERVAL_COLOR       4
+#define USERVAL_CURVE       5
+#define USERVAL_GRADIENT    6
+#define USERVAL_IMAGE       7
 
-typedef struct _userval_t
+typedef struct _userval_info_t
 {
     ident name;
     int type;
-#ifdef GIMP
-    GtkWidget *widget;
-#endif
-    int tag;
+    int index;
+
     union
     {
 	struct
 	{
-	    float min;
-	    float max;
-	    float value;
-	} slider;
-
+	    int min;
+	    int max;
+	} int_const;
 	struct
 	{
-	    float value;
-	} bool;
+	    float min;
+	    float max;
+	} float_const;
+    } v;
+
+    struct _userval_info_t *next;
+} userval_info_t;
+
+typedef struct _userval_t
+{
+    union
+    {
+	int int_const;
+	float float_const;
+	float bool_const;
 
 	struct
 	{
@@ -70,32 +82,43 @@ typedef struct _userval_t
 
 	struct
 	{
-	    float values[USER_CURVE_POINTS];
+	    float *values;
 	} curve;
+
+	struct
+	{
+	    float (*values)[4];
+	} gradient;
 
 	struct
 	{
 	    int index;
 	} image;
     } v;
-    struct _userval_t *next;
-} userval_t;
-
-void untag_uservals (void);
-void clear_untagged_uservals (void);
-
-userval_t* lookup_userval (const char *name, int type);
-
-userval_t* register_slider (const char *name, float min, float max);
-userval_t* register_bool (const char *name);
-userval_t* register_color (const char *name);
-userval_t* register_curve (const char *name);
-userval_t* register_image (const char *name);
 
 #ifdef GIMP
-GtkWidget* make_userval_table (void);
+    GtkWidget *widget;
 #endif
+} userval_t;
 
-void update_uservals (void);
+userval_info_t* lookup_userval (userval_info_t *infos, const char *name, int type);
+
+userval_info_t* register_int_const (userval_info_t **infos, const char *name, int min, int max);
+userval_info_t* register_float_const (userval_info_t **infos, const char *name, float min, float max);
+userval_info_t* register_bool (userval_info_t **infos, const char *name);
+userval_info_t* register_color (userval_info_t **infos, const char *name);
+userval_info_t* register_curve (userval_info_t **infos, const char *name);
+userval_info_t* register_image (userval_info_t **infos, const char *name);
+
+userval_t* instantiate_uservals (userval_info_t *infos);
+void free_uservals (userval_t *uservals, userval_info_t *infos);
+void free_userval_infos (userval_info_t *infos);
+
+void copy_userval (userval_t *dst, userval_t *src, int type);
+
+#ifdef GIMP
+GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
+void update_uservals (userval_info_t *infos, userval_t *uservals);
+#endif
 
 #endif

@@ -2,15 +2,15 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2001 Mark Probst
- * schani@unix.cslab.tuwien.ac.at
+ * Copyright (C) 1997-2002 Mark Probst
+ * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
  *   Whirl plug-in --- distort an image into a whirlpool
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
  *
- * Version 0.13
+ * Version 0.14
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define MATHMAP_MANUAL_URL    "http://www.complang.tuwien.ac.at/~schani/mathmap/manual.html"
+#define MATHMAP_MANUAL_URL    "http://www.complang.tuwien.ac.at/schani/mathmap/manual.html"
 
 #include <sys/param.h>
 #include <math.h>
@@ -61,12 +61,6 @@
 #endif
 #include "mathmap_common.h"
 
-#ifdef USE_CGEN
-#define EVAL_EXPR     eval_c_code
-#else
-#define EVAL_EXPR     eval_postfix
-#endif
-
 /***** Magic numbers *****/
 #define PREVIEW_SIZE 128
 #define SCALE_WIDTH  200
@@ -81,8 +75,8 @@
 #define DEFAULT_EXPRESSION      "origValXY(x+sin(y*10)*3,y+sin(x*10)*3)"
 #define DEFAULT_NUMBER_FRAMES   10
 
-#define FLAG_INTERSAMPLING      1
-#define FLAG_OVERSAMPLING       2
+#define FLAG_ANTIALIASING       1
+#define FLAG_SUPERSAMPLING      2
 #define FLAG_ANIMATION          4
 #define FLAG_PERIODIC           8
 
@@ -126,8 +120,8 @@ static void run (char       *name,
 
 static void expression_copy (gchar *dest, gchar *src);
 
-static void mathmap (int frame_num);
-static gint32 mathmap_layer_copy(gint32 layerID);
+static void do_mathmap (int frame_num, float t);
+static gint32 mathmap_layer_copy (gint32 layerID);
 
 extern int mmparse (void);
 
@@ -137,12 +131,13 @@ static void update_userval_table (void);
 
 static void update_gradient (void);
 static gint mathmap_dialog (int);
+static void dialog_update_preview (void);
 static void dialog_scale_update (GtkAdjustment *adjustment, gint *value);
 static void dialog_t_update (GtkAdjustment *adjustment, gfloat *value);
 static void dialog_text_changed (void);
 static void dialog_text_update (void);
-static void dialog_intersampling_update (GtkWidget *widget, gpointer data);
-static void dialog_oversampling_update (GtkWidget *widget, gpointer data);
+static void dialog_antialiasing_update (GtkWidget *widget, gpointer data);
+static void dialog_supersampling_update (GtkWidget *widget, gpointer data);
 static void dialog_auto_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_fast_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_edge_behaviour_update (GtkWidget *widget, gpointer data);
@@ -168,7 +163,7 @@ GimpPlugInInfo PLUG_IN_INFO = {
 
 
 static mathmap_vals_t mmvals = {
-	FLAG_INTERSAMPLING | FLAG_PERIODIC, /* flags */
+	FLAG_ANTIALIASING | FLAG_PERIODIC, /* flags */
 	DEFAULT_NUMBER_FRAMES,	/* frames */
 	0.0,			/* t */
 	DEFAULT_EXPRESSION	/* expression */
@@ -188,18 +183,10 @@ static gint32 layer_id;
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
 static GimpDrawable *output_drawable;
 
-static gint   tile_width, tile_height;
-gint   sel_x1, sel_y1, sel_x2, sel_y2;
-gint   sel_width, sel_height;
-gint   preview_width, preview_height;
-
-static int imageWidth, imageHeight;
-
-static double cen_x, cen_y;
-static double scale_x, scale_y;
-static double radius, radius2;
-
-char error_string[1024];
+static gint tile_width, tile_height;
+gint sel_x1, sel_y1, sel_x2, sel_y2;
+gint sel_width, sel_height;
+gint preview_width, preview_height;
 
 GtkWidget *expression_entry = 0,
     *frame_table,
@@ -209,16 +196,17 @@ GtkWidget *expression_entry = 0,
     *uservalues_table;
 GtkColorSelectionDialog *color_selection_dialog;
 
-exprtree *theExprtree = 0;
-int img_width, img_height,
-    previewing = 0,
-    auto_preview = 1,
-    fast_preview = 1;
+int img_width, img_height;
+int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
-int animationEnabled = 1;
-guchar edge_color[4] = { 0, 0, 0, 0 };
 int num_gradient_samples = NUM_GRADIENT_SAMPLES;
 tuple_t gradient_samples[NUM_GRADIENT_SAMPLES];
+int output_bpp;
+int edge_behaviour_mode = EDGE_BEHAVIOUR_COLOR;
+guchar edge_color[4] = { 0, 0, 0, 0 };
+
+mathmap_t *mathmap = 0;
+mathmap_invocation_t *invocation = 0;
 
 /***** Functions *****/
 
@@ -323,7 +311,7 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 		{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
 		{ GIMP_PDB_IMAGE,      "image",            "Input image" },
 		{ GIMP_PDB_DRAWABLE,   "drawable",         "Input drawable" },
-		{ GIMP_PDB_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate 8: Periodic" },
+		{ GIMP_PDB_INT32,      "flags",            "1: Antialiasing 2: Supersampling 4: Animate 8: Periodic" },
 		{ GIMP_PDB_INT32,      "frames",           "Number of frames" },
 		{ GIMP_PDB_FLOAT,      "param_t",          "The parameter t (if not animating)" },
 		{ GIMP_PDB_STRING,     "expression",       "The expression" }
@@ -341,7 +329,7 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 				   "distortions can be constructed. Even animations can be generated.",
 				   "Mark Probst",
 				   "Mark Probst",
-				   "September 2000, " MATHMAP_VERSION,
+				   MATHMAP_DATE ", " MATHMAP_VERSION,
 				   menu,
 				   "RGB*, GRAY*",
 				   GIMP_PLUGIN,
@@ -428,7 +416,7 @@ query(void)
 	{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
 	{ GIMP_PDB_IMAGE,      "image",            "Input image" },
 	{ GIMP_PDB_DRAWABLE,   "drawable",         "Input drawable" },
-	{ GIMP_PDB_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
+	{ GIMP_PDB_INT32,      "flags",            "1: Antialiasing 2: Supersampling 4: Animate 8: Periodic" },
 	{ GIMP_PDB_INT32,      "frames",           "Number of frames" },
 	{ GIMP_PDB_FLOAT,      "param_t",          "The parameter t (if not animating)" },
 	{ GIMP_PDB_STRING,     "expression",       "MathMap expression" }
@@ -444,7 +432,7 @@ query(void)
 			   "distortions can be constructed. Even animations can be generated.",
 			   "Mark Probst",
 			   "Mark Probst",
-			   "September 2000, " MATHMAP_VERSION,
+			   MATHMAP_DATE ", " MATHMAP_VERSION,
 			   "<Image>/Filters/Generic/MathMap/MathMap",
 			   "RGB*, GRAY*",
 			   GIMP_PLUGIN,
@@ -464,7 +452,6 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     static GimpParam values[1];
 
     GimpPDBStatusType status;
-    double xhsiz, yhsiz;
     int pwidth, pheight;
 
     int mutable_expression = 1;
@@ -507,7 +494,7 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     input_drawables[0].fast_image_source = 0;
     input_drawables[0].used = 1;
 
-    outputBPP = input_drawables[0].bpp;
+    output_bpp = input_drawables[0].bpp;
 
     tile_width = gimp_tile_width();
     tile_height = gimp_tile_height();
@@ -517,31 +504,8 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
 
     gimp_drawable_mask_bounds(input_drawables[0].drawable->id, &sel_x1, &sel_y1, &sel_x2, &sel_y2);
 
-    originX = sel_x1;
-    originY = sel_y1;
-
-    sel_width  = sel_x2 - sel_x1;
+    sel_width = sel_x2 - sel_x1;
     sel_height = sel_y2 - sel_y1;
-
-    cen_x = (double) (sel_x2 - 1 + sel_x1) / 2.0;
-    cen_y = (double) (sel_y2 - 1 + sel_y1) / 2.0;
-
-    xhsiz = (double) (sel_width - 1) / 2.0;
-    yhsiz = (double) (sel_height - 1) / 2.0;
-
-    if (xhsiz < yhsiz) {
-	scale_x = yhsiz / xhsiz;
-	scale_y = 1.0;
-    } else if (xhsiz > yhsiz) {
-	scale_x = 1.0;
-	scale_y = xhsiz / yhsiz;
-    } else {
-	scale_x = 1.0;
-	scale_y = 1.0;
-    } /* else */
-
-    radius  = MAX(xhsiz, yhsiz);
-    radius2 = radius * radius;
 
     /* Calculate preview size */
 
@@ -556,29 +520,8 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     preview_width  = MAX(pwidth, 2);  /* Min size is 2 */
     preview_height = MAX(pheight, 2);
 
-    imageWidth = sel_width;
-    imageW = imageWidth;
-    imageHeight = sel_height;
-    imageH = imageHeight;
-
-    middleX = imageWidth / 2.0;
-    middleY = imageHeight / 2.0;
-
-    if (middleX > imageWidth - middleX)
-	imageX = middleX;
-    else
-	imageX = imageWidth - middleX;
-
-    if (middleY > imageHeight - middleY)
-	imageY = middleY;
-    else
-	imageY = imageHeight - middleY;
-    
-    imageR = hypot(imageX, imageY);
-
     init_builtins();
     init_tags();
-    init_internals();
     init_macros();
     init_noise();
 
@@ -631,48 +574,46 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
 	&& (gimp_drawable_is_rgb(input_drawables[0].drawable->id)
 	    || gimp_drawable_is_gray(input_drawables[0].drawable->id)))
     {
-	intersamplingEnabled = mmvals.flags & FLAG_INTERSAMPLING;
-	oversamplingEnabled = mmvals.flags & FLAG_OVERSAMPLING;
-	animationEnabled = mmvals.flags & FLAG_ANIMATION;
+	int animation_enabled = mmvals.flags & FLAG_ANIMATION;
 
 	update_gradient();
 
 	/* Set the tile cache size */
-
 	gimp_tile_cache_ntiles((input_drawables[0].drawable->width + gimp_tile_width() - 1)
 			       / gimp_tile_width());
 
 	/* Run! */
 
-	if (animationEnabled)
+	if (animation_enabled)
 	{
+	    int frame;
+
 	    gimp_undo_push_group_start(image_id);
-	    for (current_frame = 0; current_frame < mmvals.frames; ++current_frame)
+	    for (frame = 0; frame < mmvals.frames; ++frame)
 	    {
 		gint32 layer;
-		char layerName[100];
+		char layer_name[100];
+		float t;
 
 		if (mmvals.flags & FLAG_PERIODIC)
-		    currentT = (double)current_frame / (double)mmvals.frames;
+		    t = (double)frame / (double)mmvals.frames;
 		else if (mmvals.frames < 2)
-		    currentT = 0.0;
+		    t = 0.0;
 		else
-		    currentT = (double)current_frame / (double)(mmvals.frames - 1);
+		    t = (double)frame / (double)(mmvals.frames - 1);
 		layer = mathmap_layer_copy(layer_id);
-		sprintf(layerName, "Frame %d", current_frame + 1);
-		gimp_layer_set_name(layer, layerName);
+		sprintf(layer_name, "Frame %d", frame + 1);
+		gimp_layer_set_name(layer, layer_name);
 		output_drawable = gimp_drawable_get(layer);
-		mathmap(current_frame);
+		do_mathmap(frame, t);
 		gimp_image_add_layer(image_id, layer, 0);
 	    }
 	    gimp_undo_push_group_end(image_id);
 	}
 	else
 	{
-	    current_frame = 0;
-	    currentT = mmvals.param_t;
 	    output_drawable = input_drawables[0].drawable;
-	    mathmap(-1);
+	    do_mathmap(-1, mmvals.param_t);
 	}
 
 	/* If run mode is interactive, flush displays */
@@ -733,59 +674,74 @@ update_gradient (void)
 /*****/
 
 static int
-generate_code (void)
+generate_code (int current_frame, float current_t)
 {
-    static int result;
-
-    result = 1;
-
     if (expression_changed)
     {
+	mathmap_t *new_mathmap;
+
 	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
 
-	theExprtree = 0;
+	if (mathmap != 0)
+	    unload_mathmap(mathmap);
 
-	untag_uservals();
+	new_mathmap = compile_mathmap(mmvals.expression);
 
-	DO_JUMP_CODE {
-	    clear_all_variables();
-	    internals_clear_used();
-	    scanFromString(mmvals.expression);
-	    mmparse();
-	    endScanningFromString();
+	if (new_mathmap == 0)
+	{
+	    gimp_message(error_string);
 
-	    assert(theExprtree != 0);
+	    /* FIXME: free old mathmap/invocation */
 
-	    if (theExprtree->result.number != rgba_tag_number || theExprtree->result.length != 4)
+	    mathmap = 0;
+	    invocation = 0;
+	}
+	else
+	{
+	    mathmap_invocation_t *new_invocation;
+
+	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height);
+	    assert(new_invocation != 0);
+
+	    new_invocation->output_bpp = output_bpp;
+	    new_invocation->origin_x = sel_x1;
+	    new_invocation->origin_y = sel_y1;
+
+	    if (invocation != 0)
 	    {
-		sprintf(error_string, _("The expression must have the result type rgba:4."));
-		JUMP(1);
+		free_invocation(invocation);
+		free_mathmap(mathmap);
 	    }
 
-#ifdef USE_CGEN
-	    assert(gen_and_load_c_code(theExprtree));
-#else
-	    make_postfix(theExprtree);
-	    output_postfix();
-#endif
+	    /* FIXME: free old mathmap/invocation */
+
+	    mathmap = new_mathmap;
+	    invocation = new_invocation;
+
+	    init_invocation(invocation);
+
+	    update_userval_table();
 
 	    expression_changed = 0;
-	} WITH_JUMP_HANDLER {
-	    gimp_message(error_string);
-	    make_empty_postfix();
-
-	    result = 0;
-	} END_JUMP_HANDLER;
-
-	clear_untagged_uservals();
-	untag_uservals();
-	update_userval_table();
+	}
     }
 
-    update_image_internals();
+    if (invocation != 0)
+    {
+	invocation->antialiasing = mmvals.flags & FLAG_ANTIALIASING;
+	invocation->supersampling = mmvals.flags & FLAG_SUPERSAMPLING;
 
-    return result;
+	invocation->current_frame = current_frame;
+	invocation->current_t = current_t;
+
+	invocation->edge_behaviour = edge_behaviour_mode;
+	memcpy(invocation->edge_color, edge_color, sizeof(edge_color));
+
+	update_image_internals(invocation);
+    }
+
+    return invocation != 0;
 }
 
 /*****/
@@ -858,7 +814,7 @@ get_input_drawable (int index)
 /*****/
 
 static void
-mathmap (int frame_num)
+do_mathmap (int frame_num, float current_t)
 {
     GimpPixelRgn dest_rgn;
     gpointer pr;
@@ -869,20 +825,20 @@ mathmap (int frame_num)
     int i;
     gchar progress_info[30];
 
+    assert(invocation != 0);
+
     previewing = 0;
 
-    num_ops = 0;
+    invocation->output_bpp = gimp_drawable_bpp(output_drawable->id);
 
-    outputBPP = gimp_drawable_bpp(output_drawable->id);
-
-    if (generate_code())
+    if (generate_code(frame_num, current_t))
     {
 	/* Initialize pixel region */
 
 	gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
 			    TRUE, TRUE);
 
-	progress     = 0;
+	progress = 0;
 	max_progress = sel_width * sel_height;
 
 	if (frame_num >= 0)
@@ -894,7 +850,7 @@ mathmap (int frame_num)
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
-	    if (oversamplingEnabled)
+	    if (invocation->supersampling)
 	    {
 		unsigned char *line1,
 		    *line2,
@@ -902,17 +858,17 @@ mathmap (int frame_num)
 
 		dest_row = dest_rgn.data;
 
-		line1 = (unsigned char*)malloc((sel_width + 1) * outputBPP);
-		line2 = (unsigned char*)malloc(sel_width * outputBPP);
-		line3 = (unsigned char*)malloc((sel_width + 1) * outputBPP);
+		line1 = (unsigned char*)malloc((sel_width + 1) * output_bpp);
+		line2 = (unsigned char*)malloc(sel_width * output_bpp);
+		line3 = (unsigned char*)malloc((sel_width + 1) * output_bpp);
 
 		for (col = 0; col <= dest_rgn.w; ++col)
 		{
-		    currentX = col + dest_rgn.x - sel_x1 - middleX;
-		    currentY = -(0.0 + dest_rgn.y - sel_y1 - middleY);
-		    calc_ra();
-		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
+		    invocation->current_x = col + dest_rgn.x - sel_x1 - invocation->middle_x;
+		    invocation->current_y = -(0.0 + dest_rgn.y - sel_y1 - invocation->middle_y);
+		    calc_ra(invocation);
+		    update_pixel_internals(invocation);
+		    write_tuple_to_pixel(call_invocation(invocation), line1 + col * output_bpp, output_bpp);
 		}
 
 		for (row = 0; row < dest_rgn.h; ++row)
@@ -921,33 +877,33 @@ mathmap (int frame_num)
 
 		    for (col = 0; col < dest_rgn.w; ++col)
 		    {
-			currentX = col + dest_rgn.x - sel_x1 + 0.5 - middleX;
-			currentY = -(row + dest_rgn.y - sel_y1 + 0.5 - middleY);
-			calc_ra();
-			update_pixel_internals();
-			write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
+			invocation->current_x = col + dest_rgn.x - sel_x1 + 0.5 - invocation->middle_x;
+			invocation->current_y = -(row + dest_rgn.y - sel_y1 + 0.5 - invocation->middle_y);
+			calc_ra(invocation);
+			update_pixel_internals(invocation);
+			write_tuple_to_pixel(call_invocation(invocation), line2 + col * output_bpp, output_bpp);
 		    }
 		    for (col = 0; col <= dest_rgn.w; ++col)
 		    {
-			currentX = col + dest_rgn.x - sel_x1 - middleX;
-			currentY = -(row + dest_rgn.y - sel_y1 + 1.0 - middleY);
-			calc_ra();
-			update_pixel_internals();
-			write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
+			invocation->current_x = col + dest_rgn.x - sel_x1 - invocation->middle_x;
+			invocation->current_y = -(row + dest_rgn.y - sel_y1 + 1.0 - invocation->middle_y);
+			calc_ra(invocation);
+			update_pixel_internals(invocation);
+			write_tuple_to_pixel(call_invocation(invocation), line3 + col * output_bpp, output_bpp);
 		    }
 	    
 		    for (col = 0; col < dest_rgn.w; ++col)
 		    {
-			for (i = 0; i < outputBPP; ++i)
-			    dest[i] = (line1[col*outputBPP+i]
-				       + line1[(col+1)*outputBPP+i]
-				       + 2*line2[col*outputBPP+i]
-				       + line3[col*outputBPP+i]
-				       + line3[(col+1)*outputBPP+i]) / 6;
-			dest += outputBPP;
+			for (i = 0; i < output_bpp; ++i)
+			    dest[i] = (line1[col*output_bpp+i]
+				       + line1[(col+1)*output_bpp+i]
+				       + 2*line2[col*output_bpp+i]
+				       + line3[col*output_bpp+i]
+				       + line3[(col+1)*output_bpp+i]) / 6;
+			dest += output_bpp;
 		    }
 
-		    memcpy(line1, line3, (imageWidth + 1) * outputBPP);
+		    memcpy(line1, line3, (sel_width + 1) * output_bpp);
 
 		    dest_row += dest_rgn.rowstride;
 		}
@@ -962,12 +918,12 @@ mathmap (int frame_num)
 
 		    for (col = dest_rgn.x; col < (dest_rgn.x + dest_rgn.w); col++)
 		    {
-			currentX = col - sel_x1 - middleX;
-			currentY = -(row - sel_y1 - middleY);
-			calc_ra();
-			update_pixel_internals();
-			write_tuple_to_pixel(EVAL_EXPR(), dest);
-			dest += outputBPP;
+			invocation->current_x = col - sel_x1 - invocation->middle_x;
+			invocation->current_y = -(row - sel_y1 - invocation->middle_y);
+			calc_ra(invocation);
+			update_pixel_internals(invocation);
+			write_tuple_to_pixel(call_invocation(invocation), dest, output_bpp);
+			dest += output_bpp;
 		    }
 		
 		    dest_row += dest_rgn.rowstride;
@@ -984,17 +940,13 @@ mathmap (int frame_num)
 	gimp_drawable_flush(output_drawable);
 	gimp_drawable_merge_shadow(output_drawable->id, TRUE);
 	gimp_drawable_update(output_drawable->id, sel_x1, sel_y1, sel_width, sel_height);
-
-#ifndef USE_CGEN
-	fprintf(stderr, "executed %d instructions\n", num_ops);
-#endif
     }
 } /* mathmap */
 
 /*****/
 
 void
-mathmap_get_pixel(int drawable_index, int frame, int x, int y, guchar *pixel)
+mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y, guchar *pixel)
 {
     gint newcol, newrow;
     gint newcoloff, newrowoff;
@@ -1048,7 +1000,7 @@ mathmap_get_pixel(int drawable_index, int frame, int x, int y, guchar *pixel)
 }
 
 void
-mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel)
+mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y, guchar *pixel)
 {
     input_drawable_t *drawable;
 
@@ -1058,7 +1010,7 @@ mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel)
     {
 	int i;
 
-	for (i = 0; i < outputBPP; ++i)
+	for (i = 0; i < output_bpp; ++i)
 	    pixel[i] = edge_color[i];
 	return;
     }
@@ -1087,7 +1039,8 @@ build_fast_image_source (input_drawable_t *drawable)
     {
 	for (x = 0; x < preview_width; ++x)
 	{
-	    mathmap_get_pixel(drawable - input_drawables, 0,
+	    mathmap_get_pixel(invocation,
+			      drawable - input_drawables, 0,
 			      sel_x1 + x * sel_width / preview_width,
 			      sel_y1 + y * sel_height / preview_height, p);
 	    p += 4;
@@ -1170,7 +1123,7 @@ update_userval_table (void)
 	uservalues_table = 0;
     }
 
-    uservalues_table = make_userval_table();
+    uservalues_table = make_userval_table(mathmap->userval_infos, invocation->uservals);
 
     if (uservalues_table != 0)
     {
@@ -1188,6 +1141,10 @@ update_userval_table (void)
 static gint
 mathmap_dialog (int mutable_expression)
 {
+    static int edge_behaviour_color = EDGE_BEHAVIOUR_COLOR;
+    static int edge_behaviour_wrap = EDGE_BEHAVIOUR_WRAP;
+    static int edge_behaviour_reflect = EDGE_BEHAVIOUR_REFLECT;
+
     GtkWidget *dialog;
     GtkWidget *top_table, *middle_table;
     GtkWidget *vbox;
@@ -1285,24 +1242,24 @@ mathmap_dialog (int mutable_expression)
 	    gtk_widget_show(table);
 	    gtk_widget_show(frame);
 
-                /* Intersampling */
+                /* Antialiasing */
 
-		toggle = gtk_check_button_new_with_label(_("Intersampling"));
+		toggle = gtk_check_button_new_with_label(_("Antialiasing"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
-					    mmvals.flags & FLAG_INTERSAMPLING);
+					    mmvals.flags & FLAG_ANTIALIASING);
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
-				   (GtkSignalFunc)dialog_intersampling_update, 0);
+				   (GtkSignalFunc)dialog_antialiasing_update, 0);
 		gtk_widget_show(toggle);
 
-		/* Oversampling */
+		/* Supersampling */
 	    
-		toggle = gtk_check_button_new_with_label(_("Oversampling"));
+		toggle = gtk_check_button_new_with_label(_("Supersampling"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
-					    mmvals.flags & FLAG_OVERSAMPLING);
+					    mmvals.flags & FLAG_SUPERSAMPLING);
 		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
-				   (GtkSignalFunc)dialog_oversampling_update, 0);
+				   (GtkSignalFunc)dialog_supersampling_update, 0);
 		gtk_widget_show(toggle);
 
 	    /* Preview Options */
@@ -1610,60 +1567,38 @@ mathmap_dialog (int mutable_expression)
 /*****/
 
 void
-dialog_update_preview(void)
+user_value_changed (void)
 {
-    double  left, right, bottom, top;
-    double  dx, dy;
-    int     x, y;
-    double  scale_x, scale_y;
-    guchar *p_ul, *p_lr, *p;
-    gint check,check_0,check_1; 
+    if (auto_preview)
+	dialog_update_preview();
+}
 
-    update_uservals();
+static void
+dialog_update_preview (void)
+{
+    double left, right, bottom, top;
+    double dx, dy;
+    int x, y;
+    guchar *p_ul, *p_lr, *p;
+    gint check, check_0, check_1; 
 
     previewing = fast_preview;
 
-    intersamplingEnabled = mmvals.flags & FLAG_INTERSAMPLING;
-    oversamplingEnabled = mmvals.flags & FLAG_OVERSAMPLING;
-
-    currentT = mmvals.param_t;
-
-    left   = sel_x1;
-    right  = sel_x2 - 1;
+    left = sel_x1;
+    right = sel_x2 - 1;
     bottom = sel_y2 - 1;
-    top    = sel_y1;
+    top = sel_y1;
 
     dx = (right - left) / (preview_width - 1);
     dy = (bottom - top) / (preview_height - 1);
 
-    scale_x = (double) (preview_width - 1) / (right - left);
-    scale_y = (double) (preview_height - 1) / (bottom - top);
-
     p_ul = wint.wimage;
     p_lr = wint.wimage + 3 * (preview_width * preview_height - 1);
 
-    imageWidth = sel_width;
-    imageW = imageWidth;
-    imageHeight = sel_height;
-    imageH = imageHeight;
-
-    middleX = imageWidth / 2.0;
-    middleY = imageHeight / 2.0;
-
-    if (middleX > imageWidth - middleX)
-	imageX = middleX;
-    else
-	imageX = imageWidth - middleX;
-
-    if (middleY > imageHeight - middleY)
-	imageY = middleY;
-    else
-	imageY = imageHeight - middleY;
-    
-    imageR = hypot(imageX, imageY);
-
-    if (generate_code())
+    if (generate_code(0, mmvals.param_t))
     {
+	update_uservals(mathmap->userval_infos, invocation->uservals);
+
 	for (y = 0; y < preview_height; y++)
 	{
 	    if ((y / CHECK_SIZE) & 1) {
@@ -1676,16 +1611,15 @@ dialog_update_preview(void)
 	    for (x = 0; x < preview_width; x++)
 	    {
 		tuple_t *result;
-		float redf,
-		    greenf,
-		    bluef,
-		    alphaf;
+		float redf, greenf, bluef, alphaf;
 
-		currentX = x * imageWidth / preview_width - middleX;
-		currentY = -(y * imageHeight / preview_height - middleY);
-		calc_ra();
-		update_pixel_internals();
-		result = EVAL_EXPR();
+		invocation->current_x = x * sel_width / preview_width - invocation->middle_x;
+		invocation->current_y = -(y * sel_height / preview_height - invocation->middle_y);
+
+		calc_ra(invocation);
+		update_pixel_internals(invocation);
+
+		result = call_invocation(invocation);
 		tuple_to_color(result, &redf, &greenf, &bluef, &alphaf);
 
 		if (input_drawables[0].bpp < 2)
@@ -1695,7 +1629,7 @@ dialog_update_preview(void)
 		p_ul[1] = greenf * 255;
 		p_ul[2] = bluef * 255;
 
-		if (outputBPP == 2 || outputBPP == 4)
+		if (output_bpp == 2 || output_bpp == 4)
 		{
 		    if (((x) / CHECK_SIZE) & 1)
 			check = check_0;
@@ -1728,7 +1662,7 @@ dialog_update_preview(void)
 /*****/
 
 static void
-dialog_scale_update(GtkAdjustment *adjustment, gint *value)
+dialog_scale_update (GtkAdjustment *adjustment, gint *value)
 {
     *value = (gint)adjustment->value;
 } /* dialog_scale_update */
@@ -1737,7 +1671,7 @@ dialog_scale_update(GtkAdjustment *adjustment, gint *value)
 /*****/
 
 static void
-dialog_t_update(GtkAdjustment *adjustment, gfloat *value)
+dialog_t_update (GtkAdjustment *adjustment, gfloat *value)
 {
     *value = (gfloat)adjustment->value;
 
@@ -1775,12 +1709,12 @@ dialog_text_update (void)
 /*****/
 
 static void
-dialog_oversampling_update (GtkWidget *widget, gpointer data)
+dialog_supersampling_update (GtkWidget *widget, gpointer data)
 {
-    mmvals.flags &= ~FLAG_OVERSAMPLING;
+    mmvals.flags &= ~FLAG_SUPERSAMPLING;
 
     if (GTK_TOGGLE_BUTTON(widget)->active)
-	mmvals.flags |= FLAG_OVERSAMPLING;
+	mmvals.flags |= FLAG_SUPERSAMPLING;
 }
 
 /*****/
@@ -1807,14 +1741,10 @@ static void
 dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
 {
     edge_behaviour_mode = *(int*)data;
-    if (edge_behaviour_mode == edge_behaviour_color)
-    {
+    if (edge_behaviour_mode == EDGE_BEHAVIOUR_COLOR)
 	gtk_widget_set_sensitive(edge_color_well, 1);
-    }
     else
-    {
 	gtk_widget_set_sensitive(edge_color_well, 0);
-    }
 
     if (auto_preview)
 	dialog_update_preview();
@@ -1830,12 +1760,12 @@ dialog_edge_color_changed (GtkWidget *color_well, gpointer data)
 /*****/
 
 static void
-dialog_intersampling_update (GtkWidget *widget, gpointer data)
+dialog_antialiasing_update (GtkWidget *widget, gpointer data)
 {
-    mmvals.flags &= ~FLAG_INTERSAMPLING;
+    mmvals.flags &= ~FLAG_ANTIALIASING;
 
     if (GTK_TOGGLE_BUTTON(widget)->active)
-	mmvals.flags |= FLAG_INTERSAMPLING;
+	mmvals.flags |= FLAG_ANTIALIASING;
 
     expression_changed = 1;
 
@@ -1891,7 +1821,7 @@ dialog_close_callback (GtkWidget *widget, gpointer data)
 static void
 dialog_ok_callback (GtkWidget *widget, gpointer data)
 {
-    if (generate_code())
+    if (generate_code(0, 0))
     {
 	wint.run = TRUE;
 	gtk_widget_destroy(GTK_WIDGET(data));

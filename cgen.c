@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,7 +25,9 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#ifndef OPENSTEP
 #include <gmodule.h>
+#endif
 #include <unistd.h>
 #include <string.h>
 
@@ -34,16 +36,11 @@
 #include "builtins.h"
 #include "overload.h"
 #include "userval.h"
+#include "mathmap.h"
 
-GModule *module = 0;
-mathfunc_t eval_c_code = 0;
-void (*initfunc) (void*, void*, void*, void*, void*, void*, void*, void*);
-
-extern tuple_t gradient_samples[];
-extern int num_gradient_samples;
-extern void (*getOrigValIntersamplePixel) (void);
-extern void (*getOrigValPixel) (void);
-extern void (*noise) (void);
+#ifdef OPENSTEP
+#include <mach-o/dyld.h>
+#endif
 
 void
 enumerate_tmpvars (exprtree *tree, int *nextone, int force, FILE *out)
@@ -227,8 +224,8 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 	case EXPR_INTERNAL :
 	    fprintf(out,
 		    "{\n"
-		    "tuple_t *tuple = (tuple_t*)%p;\n",
-		    &tree->val.internal->value);
+		    "tuple_t *tuple = &invocation->internals[%d];\n",
+		    tree->val.internal->index);
 	    for (i = 0; i < tree->result.length; ++i)
 		fprintf(out, "tmpvar_%d[%d] = tuple->data[%d];\n", tree->tmpvarnum, i, i);
 	    fprintf(out, "}\n");
@@ -269,45 +266,83 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 	    break;
 
 	case EXPR_USERVAL :
-	    if (tree->val.userval.userval->type == USERVAL_SLIDER)
-		fprintf(out, "tmpvar_%d[0] = *(float*)%p;\n",
-			tree->tmpvarnum, &tree->val.userval.userval->v.slider.value);
-	    else if (tree->val.userval.userval->type == USERVAL_CURVE)
+	    switch (tree->val.userval.info->type)
 	    {
-		gen_c_code_recursive(tree->val.userval.args, out);
-		fprintf(out,
-			"{\n"
-			"  int index = (int)(tmpvar_%d[0] * (%d - 1));\n"
-			"\n"
-			"  if (index < 0)\n"
-			"    index = 0;\n"
-			"  else if (index >= %d)\n"
-			"    index = %d - 1;\n"
-			"  tmpvar_%d[0] = ((float*)%p)[index];\n"
-			"}\n",
-			tree->val.userval.args->tmpvarnum, USER_CURVE_POINTS,
-			USER_CURVE_POINTS,
-			USER_CURVE_POINTS,
-			tree->tmpvarnum, tree->val.userval.userval->v.curve.values);
+		case USERVAL_INT_CONST :
+		    fprintf(out,
+			    "tmpvar_%d[0] = invocation->uservals[%d].v.int_const;\n",
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		case USERVAL_FLOAT_CONST :
+		    fprintf(out,
+			    "tmpvar_%d[0] = invocation->uservals[%d].v.float_const;\n",
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		case USERVAL_BOOL_CONST :
+		    fprintf(out,
+			    "tmpvar_%d[0] = invocation->uservals[%d].v.bool_const;\n",
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		case USERVAL_CURVE :
+		    gen_c_code_recursive(tree->val.userval.args, out);
+		    fprintf(out,
+			    "{\n"
+			    "    int index = (int)(tmpvar_%d[0] * (%d - 1));\n"
+			    "\n"
+			    "    if (index < 0)\n"
+			    "        index = 0;\n"
+			    "    else if (index >= %d)\n"
+			    "        index = %d - 1;\n"
+			    "    tmpvar_%d[0] = invocation->uservals[%d].v.curve.values[index];\n"
+			    "}\n",
+			    tree->val.userval.args->tmpvarnum, USER_CURVE_POINTS,
+			    USER_CURVE_POINTS,
+			    USER_CURVE_POINTS,
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		case USERVAL_COLOR :
+		    fprintf(out,
+			    "{\n"
+			    "    int i;\n"
+			    "\n"
+			    "    for (i = 0; i < 4; ++i)\n"
+			    "        tmpvar_%d[i] = invocation->uservals[%d].v.color.value.data[i];\n"
+			    "}\n",
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		case USERVAL_GRADIENT :
+		    gen_c_code_recursive(tree->val.userval.args, out);
+		    fprintf(out,
+			    "{\n"
+			    "    int index = (int)(tmpvar_%d[0] * (%d - 1)), i;\n"
+			    "\n"
+			    "    if (index < 0)\n"
+			    "        index = 0;\n"
+			    "    else if (index >= %d)\n"
+			    "        index = %d - 1;\n"
+			    "    for (i = 0; i < 4; ++i)\n"
+			    "        tmpvar_%d[i] = invocation->uservals[%d].v.gradient.values[index][i];\n"
+			    "}\n",
+			    tree->val.userval.args->tmpvarnum, USER_GRADIENT_POINTS,
+			    USER_GRADIENT_POINTS,
+			    USER_GRADIENT_POINTS,
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		case USERVAL_IMAGE :
+		    fprintf(out,
+			    "tmpvar_%d[0] = invocation->uservals[%d].v.image.index;\n",
+			    tree->tmpvarnum, tree->val.userval.info->index);
+		    break;
+
+		default :
+		    assert(0);
 	    }
-	    else if (tree->val.userval.userval->type == USERVAL_BOOL)
-		fprintf(out, "tmpvar_%d[0] = *(float*)%p;\n",
-			tree->tmpvarnum, &tree->val.userval.userval->v.bool.value);
-	    else if (tree->val.userval.userval->type == USERVAL_COLOR)
-		fprintf(out,
-			"{\n"
-			"  int i;\n"
-			"\n"
-			"  for (i = 0; i < 4; ++i)\n"
-			"    tmpvar_%d[i] = ((float*)%p)[i];\n"
-			"}\n",
-			tree->tmpvarnum, tree->val.userval.userval->v.color.value.data);
-	    else if (tree->val.userval.userval->type == USERVAL_IMAGE)
-		fprintf(out,
-			"tmpvar_%d[0] = *(int*)%p;\n",
-			tree->tmpvarnum, &tree->val.userval.userval->v.image.index);
-	    else
-		assert(0);
 	    break;
 
 	case EXPR_ASSIGNMENT :
@@ -440,20 +475,28 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
     }
 }
 
-gboolean
-gen_and_load_c_code (exprtree *tree)
+#ifdef OPENSTEP
+#define	MAX(a,b)	(((a)<(b))?(b):(a))
+#define	CGEN_CC		"cc -c -o" 
+#define	CGEN_LD		"cc -bundle -o"
+#endif
+
+initfunc_t
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info)
 {
+    FILE *template = fopen("template.c", "r");
     FILE *out;
     int numtmpvars = 0, i;
     variable_t *var;
     char *buf;
     int pid = getpid();
+    int c;
+    initfunc_t initfunc;
+#ifndef OPENSTEP
+    GModule *module = 0;
+#endif
 
-    if (module != 0)
-    {
-	g_module_close(module);
-	module = 0;
-    }
+    assert(template != 0);
 
     buf = (char*)malloc(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
 
@@ -461,63 +504,63 @@ gen_and_load_c_code (exprtree *tree)
     out = fopen(buf, "w");
     assert(out != 0);
 
-    fprintf(out,
-	    "#include <math.h>\n"
+    while ((c = fgetc(template)) != EOF)
+    {
+	if (c == '$')
+	{
+	    c = fgetc(template);
+	    assert(c != EOF);
+
+	    switch (c)
+	    {
+		case 'l' :
+		    fprintf(out, "%d", MAX_TUPLE_LENGTH);
+		    break;
+
+		case 'c' :
 #ifdef HAVE_COMPLEX
-	    "#include <complex.h>\n"
-	    "#ifndef M_PI\n"
-	    "#define M_PI 3.14159265358979323846\n"
-	    "#endif\n"
-	    "double __complex__ cgamma (double __complex__ z);\n"
+		    putc('1', out);
+#else
+		    putc('0', out);
 #endif
-	    "static void (*getOrigValIntersamplePixel)(float,float,unsigned char*,int,int);\n"
-	    "static void (*getOrigValPixel)(float,float,unsigned char*,int,int);\n"
-	    "static void (*convert_rgb_to_hsv)(float *rgb, float *hsv);\n"
-	    "static void (*convert_hsv_to_rgb)(float *hsv, float *rgb);\n"
-	    "static float (*noise)(float,float,float);\n"
-	    "typedef struct\n"
-	    "{\n"
-	    "    float data[%d];\n"
-	    "    int number;\n"
-	    "    int length;\n"
-	    "} tuple_t;\n"
-	    "static tuple_t *gradient_samples;\n"
-	    "static int *num_gradient_samples;\n"
-	    "typedef void (*builtin_function_t) (void*);\n"
-	    "static tuple_t *stack;\n\n", MAX_TUPLE_LENGTH);
-    fprintf(out,
-	    "void mathmapinit (void *f1, void *f2, void *f3, void *f4, void *f5, void *v1, void *v2, void *s)\n"
-	    "{\n"
-	    "  getOrigValIntersamplePixel = f1;\n"
-	    "  getOrigValPixel = f2;\n"
-	    "  convert_rgb_to_hsv = f3;\n"
-	    "  convert_hsv_to_rgb = f4;\n"
-	    "  noise = f5;\n"
-	    "  gradient_samples = v1;\n"
-	    "  num_gradient_samples = v2;\n"
-	    "  stack = s;\n"
-	    "}\n"
-	    "tuple_t* mathmapfunc (void)\n"
-	    "{\n"
-	    "int dummy;\n");
+		    break;
 
-    for (var = firstVariable; var != 0; var = var->next)
-	fprintf(out, "float uservar_%s[%d];\n", var->name, var->type.length);
+		case 'g' :
+#ifdef GIMP
+		    putc('1', out);
+#else
+		    putc('0', out);
+#endif
+		    break;
 
-    enumerate_tmpvars(tree, &numtmpvars, -1, out);
-    gen_c_code_recursive(tree, out);
+		case 'm' :
+		    for (var = mathmap->variables; var != 0; var = var->next)
+			fprintf(out, "float uservar_%s[%d];\n", var->name, var->type.length);
 
-    for (i = 0; i < tree->result.length; ++i)
-	fprintf(out,
-		"stack[0].data[%d] = tmpvar_%d[%d];\n",
-		i, tree->tmpvarnum, i);
+		    enumerate_tmpvars(mathmap->exprtree, &numtmpvars, -1, out);
+		    gen_c_code_recursive(mathmap->exprtree, out);
 
-    fprintf(out,
-	    "stack[0].length = 4;\n"
-	    "return &stack[0];\n"
-	    "}\n");
+		    for (i = 0; i < mathmap->exprtree->result.length; ++i)
+			fprintf(out,
+				"invocation->stack[0].data[%d] = tmpvar_%d[%d];\n",
+				i, mathmap->exprtree->tmpvarnum, i);
+
+		    fprintf(out,
+			    "invocation->stack[0].length = 4;\n"
+			    "return &invocation->stack[0];\n");
+		    break;
+
+		default :
+		    putc(c, out);
+		    break;
+	    }
+	}
+	else
+	    putc(c, out);
+    }
 
     fclose(out);
+    fclose(template);
 
     sprintf(buf, "%s /tmp/mathfunc%d.o /tmp/mathfunc%d.c", CGEN_CC, pid, pid);
     system(buf);
@@ -526,6 +569,8 @@ gen_and_load_c_code (exprtree *tree)
     system(buf);
 
     sprintf(buf, "/tmp/mathfunc%d.so", pid);
+
+#ifndef OPENSTEP
     module = g_module_open(buf, 0);
     if (module == 0)
     {
@@ -533,7 +578,8 @@ gen_and_load_c_code (exprtree *tree)
 	assert(0);
     }
 
-    assert(g_module_symbol(module, "mathmapfunc", (void**)&eval_c_code));
+    printf("loaded %lx\n", module);
+
     assert(g_module_symbol(module, "mathmapinit", (void**)&initfunc));
 
     unlink(buf);
@@ -544,13 +590,54 @@ gen_and_load_c_code (exprtree *tree)
     sprintf(buf, "/tmp/mathfunc%d.c", pid);
     unlink(buf);
 
+    *module_info = module;
+#else
+    {
+        NSObjectFileImage objectFileImage;
+        NSModule module;
+        const char *moduleName = "Johnny";
+        NSSymbol symbol;
+        
+        NSCreateObjectFileImageFromFile(
+            buf, &objectFileImage);
+
+        module = NSLinkModule(
+            objectFileImage, moduleName,
+            NSLINKMODULE_OPTION_PRIVATE | NSLINKMODULE_OPTION_BINDNOW);
+        NSDestroyObjectFileImage(objectFileImage);
+
+        {
+            symbol = NSLookupSymbolInModule(
+                module, "__init");
+            if (symbol) {
+                void (*init) (void) = NSAddressOfSymbol(symbol);
+                init();
+            }
+        }
+
+        symbol = NSLookupSymbolInModule(
+            module, "_mathmapinit");
+        initfunc = NSAddressOfSymbol(symbol);
+
+	*module_info = module;
+    }
+#endif
+
     free(buf);
 
-    initfunc(&getOrigValIntersamplePixel, &getOrigValPixel, &convert_rgb_to_hsv, &convert_hsv_to_rgb, &noise,
-	     &gradient_samples, &num_gradient_samples,
-	     stack);
-
-    return TRUE;
+    return initfunc;
 }
 
+void
+unload_c_code (void *module_info)
+{
+#ifndef OPENSTEP
+    GModule *module = module_info;
+
+    printf("unloading %lx\n", module);
+    assert(g_module_close(module));
+#else
+    /* FIXME */
+#endif
+}
 #endif

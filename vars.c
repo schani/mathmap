@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,10 +27,8 @@
 
 #include "vars.h"
 
-variable_t *firstVariable = 0;
-
 variable_t*
-register_variable (const char *name, tuple_info_t type)
+register_variable (variable_t **vars, const char *name, tuple_info_t type)
 {
     variable_t *var;
 
@@ -38,20 +36,25 @@ register_variable (const char *name, tuple_info_t type)
     assert(strlen(name) < VAR_MAX_LENGTH);
     strcpy(var->name, name);
     var->type = type;
-    var->value.number = type.number;
-    var->value.length = type.length;
-    var->next = firstVariable;
-    firstVariable = var;
+    var->next = 0;
+
+    var->index = 0;
+    while (*vars != 0)
+    {
+	vars = &(*vars)->next;
+	++var->index;
+    }
+    *vars = var;
 
     return var;
 }
 
 variable_t*
-lookup_variable (const char *name, tuple_info_t *type)
+lookup_variable (variable_t *vars, const char *name, tuple_info_t *type)
 {
     variable_t *var;
 
-    for (var = firstVariable; var != 0; var = var->next)
+    for (var = vars; var != 0; var = var->next)
 	if (strcmp(name, var->name) == 0)
 	{
 	    *type = var->type;
@@ -62,34 +65,63 @@ lookup_variable (const char *name, tuple_info_t *type)
 }
 
 variable_t*
-new_temporary_variable (tuple_info_t type)
+new_temporary_variable (variable_t **vars, tuple_info_t type)
 {
     static int num = 0;
+
+    int i;
 
     variable_t *var = (variable_t*)malloc(sizeof(variable_t));
 
     sprintf(var->name, "tmp____%d", ++num);
     var->type = type;
-    var->value.number = type.number;
-    var->value.length = type.length;
-    var->next = firstVariable;
-    firstVariable = var;
+    var->next = 0;
+
+    for (i = 0; i < type.length; ++i)
+	var->current[i] = 0;
+
+    var->index = 0;
+    while (*vars != 0)
+    {
+	vars = &(*vars)->next;
+	++var->index;
+    }
+    *vars = var;
 
     return var;
 }
 
-void
-clear_all_variables (void)
+tuple_t*
+instantiate_variables (variable_t *vars)
 {
-    variable_t *var = firstVariable;
+    int n, i;
+    variable_t *var;
+    tuple_t *tuples;
 
-    while (var != 0)
+    n = 0;
+    for (var = vars; var != 0; var = var->next)
+	++n;
+
+    tuples = (tuple_t*)malloc(n * sizeof(tuple_t));
+
+    for (i = 0, var = vars; i < n; ++i, var = var->next)
     {
-	variable_t *next = var->next;
-
-	free(var);
-	var = next;
+	tuples[i].number = var->type.number;
+	tuples[i].length = var->type.length;
     }
 
-    firstVariable = 0;
+    return tuples;
+}
+
+void
+free_variables (variable_t *vars)
+{
+    while (vars != 0)
+    {
+	variable_t *next = vars->next;
+
+	free(vars);
+
+	vars = next;
+    }
 }

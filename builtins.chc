@@ -761,8 +761,9 @@
 )\
 
 %builtin(lerp,lerp_1,%'((T L) (_ 1) (T L) (T L))',0,
+    float l = %arg(0,0);
     %forarglength(1,i,
-        %result(%<i>) = %'('1 - %arg(0,0)%')' * %arg(1,%<i>) + %arg(0,0) * %arg(2,%<i>);
+        %result(%<i>) = %'('1 - l%')' * %arg(1,%<i>) + l * %arg(2,%<i>);
     )
 )\
 
@@ -867,18 +868,7 @@
 %builtin(origVal,origValXY,%'((rgba 4) (xy 2) (image 1) (nil 1))',0,
     unsigned char pixel[4];
 
-    getOrigValPixel%'('%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%','%arg(2,0)%')';
-
-    %fornum(i,0,4,
-        %result(%<i>) = pixel[%val(%<i>)] / 255.0;
-    )
-    %reslength() = 4;
-)\
-
-%builtin(origValIntersample,origValXYIntersample,%'((rgba 4) (xy 2) (image 1) (nil 1))',0,
-    unsigned char pixel[4];
-
-    getOrigValIntersamplePixel%'('%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%','%arg(2,0)%')';
+    get_orig_val_pixel_func%'('invocation%','%arg(0,0)%','%arg(0,1)%','pixel%','%arg(1,0)%','%arg(2,0)%')';
 
     %fornum(i,0,4,
         %result(%<i>) = pixel[%val(%<i>)] / 255.0;
@@ -893,6 +883,7 @@
     %reslength() = 1;
 )\
 
+#discard
 %builtin(gradient,gradient,%'((rgba 4) (_ 1))',0,
     int index = %arg(0,0) * %'('%<str>num_gradient_samples - 1%')';
 
@@ -905,7 +896,8 @@
         %result(%<i>) = gradient_samples[index].data[%val(%<i>)];
     )
     %reslength() = 4;
-)\
+)
+#endd
 
 %builtin(toHSVA,toHSVA,%'((hsva 4) (rgba 4))',0,
     float rgb[3] = { %arg(0,0)%',' %arg(0,1)%',' %arg(0,2) };

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,29 +25,23 @@
 #ifndef __MATHMAP_COMMON_H__
 #define __MATHMAP_COMMON_H__
 
-#include <glib.h>
+#include "gtypes.h"
 
 #include "tuples.h"
+#include "mathmap.h"
 
-#define MATHMAP_VERSION       "0.13"
+#define MATHMAP_DATE          "March 2002"
+#define MATHMAP_VERSION       "0.14"
 
-void calc_ra (void);
-void init_internals (void);
-void update_image_internals (void);
-void update_pixel_internals (void);
+void calc_ra (mathmap_invocation_t *invocation);
+void update_image_internals (mathmap_invocation_t *invocation);
+void update_pixel_internals (mathmap_invocation_t *invocation);
 
-void write_tuple_to_pixel (tuple_t *tuple, guchar *dest);
+void write_tuple_to_pixel (tuple_t *tuple, guchar *dest, int output_bpp);
 
-extern double currentX, currentY, currentR, currentA, currentT;
-extern double imageR, imageX, imageY, imageW, imageH;
-extern double middleX, middleY;
-extern int originX, originY, current_frame;
+void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
 
 extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_reflect;
 extern int edge_behaviour_mode;
-
-extern int intersamplingEnabled, oversamplingEnabled;
-
-extern int outputBPP;
 
 #endif

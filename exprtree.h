@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,6 +28,8 @@
 #include "internals.h"
 #include "macros.h"
 
+extern char error_string[];
+
 #define MAX_IDENT_LENGTH    63
 
 typedef char ident[MAX_IDENT_LENGTH + 1];
@@ -48,7 +50,7 @@ typedef struct _exprtree
 	internal_t *internal;
 	struct
 	{
-	    struct _userval_t *userval;
+	    struct _userval_info_t *info;
 	    struct _exprtree *args;
 	} userval;
 	struct
@@ -151,9 +153,8 @@ exprtree* make_if_then_else (exprtree *condition, exprtree *consequent, exprtree
 exprtree* make_while (exprtree *invariant, exprtree *body);
 exprtree* make_do_while (exprtree *body, exprtree *invariant);
 
+void free_exprtree (exprtree *tree);
+
 int exprlist_length (exprtree *list);
 exprtree* exprlist_append (exprtree *list1, exprtree *list2);
-
-double eval_exprtree (exprtree *tree);
-
 #endif

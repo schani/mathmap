@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,52 +36,39 @@
 #include "overload.h"
 #include "mathmap.h"
 
+#ifdef GIMP
+extern int previewing;
 extern gint preview_width, preview_height;
 extern guchar *fast_image_source;
-extern int imageWidth,
-    imageHeight,
-    previewing;
-extern gint sel_x1, sel_y1,
-    sel_width, sel_height;
-extern double middleX,
-    middleY;
-extern unsigned char *imageData;
-extern int intersamplingEnabled,
-    oversamplingEnabled;
-extern double user_curve_values[];
-extern int user_curve_points;
-extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_reflect;
-extern int edge_behaviour_mode;
-extern unsigned char edge_color[4];
+extern gint sel_x1, sel_y1, sel_width, sel_height;
+#endif
 
 builtin *firstBuiltin = 0;
 
-void mathmap_get_pixel (int drawable_index, int frame, int x, int y, unsigned char *pixel);
-
 static void
-get_pixel (int x, int y, guchar *pixel, int drawable_index, int frame)
+get_pixel (mathmap_invocation_t *invocation, int x, int y, guchar *pixel, int drawable_index, int frame)
 { 
-    if (edge_behaviour_mode == edge_behaviour_wrap)
+    if (invocation->edge_behaviour == EDGE_BEHAVIOUR_WRAP)
     {
 	if (x < 0)
-	    x = x % img_width + img_width;
-	else if (x >= img_width)
-	    x %= img_width;
+	    x = x % invocation->img_width + invocation->img_width;
+	else if (x >= invocation->img_width)
+	    x %= invocation->img_width;
 	if (y < 0)
-	    y = y % img_height + img_height;
-	else if (y >= img_height)
-	    y %= img_height;
+	    y = y % invocation->img_height + invocation->img_height;
+	else if (y >= invocation->img_height)
+	    y %= invocation->img_height;
     }
-    else if (edge_behaviour_mode == edge_behaviour_reflect)
+    else if (invocation->edge_behaviour == EDGE_BEHAVIOUR_REFLECT)
     {
 	if (x < 0)
-	    x = -x % img_width;
-	else if (x >= img_width)
-	    x = (img_width - 1) - (x % img_width);
+	    x = -x % invocation->img_width;
+	else if (x >= invocation->img_width)
+	    x = (invocation->img_width - 1) - (x % invocation->img_width);
 	if (y < 0)
-	    y = -y % img_height;
-	else if (y >= img_height)
-	    y = (img_height - 1) - (y % img_height);
+	    y = -y % invocation->img_height;
+	else if (y >= invocation->img_height)
+	    y = (invocation->img_height - 1) - (y % invocation->img_height);
     }
 
 #ifdef GIMP
@@ -90,30 +77,30 @@ get_pixel (int x, int y, guchar *pixel, int drawable_index, int frame)
 	x = (x - sel_x1) * preview_width / sel_width;
 	y = (y - sel_y1) * preview_height / sel_height;
 
-	mathmap_get_fast_pixel(drawable_index, x, y, pixel);
+	mathmap_get_fast_pixel(invocation, drawable_index, x, y, pixel);
     }
     else
 #endif
-	mathmap_get_pixel(drawable_index, frame, x, y, pixel);
+	mathmap_get_pixel(invocation, drawable_index, frame, x, y, pixel);
 }
 
 void
-getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index, int frame)
+get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame)
 {
-    x += originX + middleX;
-    y = -y + originY + middleY;
+    x += invocation->middle_x + invocation->origin_x;
+    y = -y + invocation->middle_y + invocation->origin_y;
 
-    if (!oversamplingEnabled)
+    if (!invocation->supersampling)
     {
 	x += 0.5;
 	y += 0.5;
     }
 
-    get_pixel(floor(x), floor(y), pixel, drawable_index, frame);
+    get_pixel(invocation, floor(x), floor(y), pixel, drawable_index, frame);
 }
 
 void
-getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable_index, int frame)
+get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame)
 {
     int x1,
 	x2,
@@ -137,8 +124,8 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable
 	*pixel4 = pixel4a;
     int i;
 
-    x += middleX + originX;
-    y = -y + middleY + originY;
+    x += invocation->middle_x + invocation->origin_x;
+    y = -y + invocation->middle_y + invocation->origin_y;
 
     x1 = floor(x);
     x2 = x1 + 1;
@@ -153,10 +140,10 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable
     p3fact = x2fact * y1fact;
     p4fact = x2fact * y2fact;
 
-    get_pixel(x1, y1, pixel1, drawable_index, frame);
-    get_pixel(x1, y2, pixel2, drawable_index, frame);
-    get_pixel(x2, y1, pixel3, drawable_index, frame);
-    get_pixel(x2, y2, pixel4, drawable_index, frame);
+    get_pixel(invocation, x1, y1, pixel1, drawable_index, frame);
+    get_pixel(invocation, x1, y2, pixel2, drawable_index, frame);
+    get_pixel(invocation, x2, y1, pixel3, drawable_index, frame);
+    get_pixel(invocation, x2, y2, pixel4, drawable_index, frame);
 
     for (i = 0; i < 4; ++i)
 	pixel[i] = pixel1[i] * p1fact
@@ -237,42 +224,6 @@ solve_linear_equations (int dim, float *a, float *b)
 
     for (i = 0; i < dim; ++i)
 	b[i] = r[i];
-
-    /*
-    if (dim == 2)
-    {
-	float r[2];
-
-	if (a[2] != 0)
-	{
-	    r[1] = (b[0] - a[0] * b[1] / a[2]) / (a[1] - a[3] * a[0] / a[2]);
-	    r[0] = (b[1] - a[3] * r[1]) / a[2];
-	}
-	else if (a[0] != 0)
-	{
-	    r[1] = (b[1] - a[2] * b[0] / a[0]) / (a[3] - a[1] * a[2] / a[0]);
-	    r[0] = (b[0] - a[1] * r[1]) / a[0];
-	}
-	else
-	    r[0] = r[1] = 0;
-
-	b[0] = r[0];
-	b[1] = r[1];
-    }
-    else
-	assert(0);
-    */
-
-    /*
-    integer n = dim;
-    integer nrhs = 1;
-    integer lda = dim;
-    integer ldb = dim;
-    integer info;
-    integer ipiv[dim];
-
-    sgesv_(&n, &nrhs, a, &lda, ipiv, b, &ldb, &info);
-    */
 }
 
 void
@@ -375,18 +326,4 @@ convert_hsv_to_rgb (float *hsv, float *rgb)
 		assert(0);
 	}
     }
-}
-
-builtin_function_t
-builtin_with_name (const char *name)
-{
-    if (strcmp(name, "origVal") == 0)
-    {
-	if (intersamplingEnabled)
-	    return builtin_origValXYIntersample;
-	else
-	    return builtin_origValXY;
-    }
-
-    return 0;
 }

@@ -30,7 +30,7 @@
 #include "builtins.h"
 #include "jump.h"
 
-extern exprtree *theExprtree;
+exprtree *the_exprtree;
 %}
 
 %union {
@@ -55,7 +55,7 @@ extern exprtree *theExprtree;
 
 %%
 
-start :   expr              { theExprtree = $<exprtree>1; }
+start :   expr              { the_mathmap->exprtree = $<exprtree>1; }
         ;
 
 expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }

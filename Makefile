@@ -3,11 +3,11 @@
 CGEN = YES
 
 # if you don't have GNU libc, uncomment the following line
-ONLY_ANSI = YES
+#ONLY_ANSI = YES
 
 # if you do not have the __complex__ type and complex.h header
 # (i.e. if you do not have gcc and glibc), comment the following line
-#HAVE_COMPLEX = YES
+HAVE_COMPLEX = YES
 
 # if you want to build the command line version instead of the GIMP
 # plug-in, uncomment the following line
@@ -59,7 +59,7 @@ endif
 else
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -O3 `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
+CFLAGS = -I. $(CGEN_CFLAGS) $(ANSI_CFLAGS) $(COMPLEX_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS)
 LDFLAGS = $(LIBFFM) `gimp-config --libs`
 endif
 
@@ -80,6 +80,9 @@ endif
 
 mathmap : $(OBJECTS)
 	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LDFLAGS)
+
+compiler : $(COMMON_OBJECTS) compiler.o
+	$(CC) $(CGEN_LDFLAGS) -o compiler $(COMMON_OBJECTS) compiler.o $(LDFLAGS)
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<

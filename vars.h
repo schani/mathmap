@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,22 +27,24 @@
 
 #include "tuples.h"
 
+typedef struct _value_t value_t;
+
 typedef struct _variable_t
 {
     char name[VAR_MAX_LENGTH];
     tuple_info_t type;
+    int index;
 
-    tuple_t value;
+    value_t *current[MAX_TUPLE_LENGTH];	/* only for the compiler */
 
     struct _variable_t *next;
 } variable_t;
 
-variable_t* register_variable (const char *name, tuple_info_t type);
-variable_t* lookup_variable (const char *name, tuple_info_t *type);
-variable_t* new_temporary_variable (tuple_info_t type);
+variable_t* register_variable (variable_t **vars, const char *name, tuple_info_t type);
+variable_t* lookup_variable (variable_t *vars, const char *name, tuple_info_t *type);
+variable_t* new_temporary_variable (variable_t **vars, tuple_info_t type);
 
-void clear_all_variables (void);
-
-extern variable_t *firstVariable;
+tuple_t* instantiate_variables (variable_t *vars);
+void free_variables (variable_t *vars);
 
 #endif

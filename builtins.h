@@ -30,9 +30,11 @@
 #include "tuples.h"
 #include "postfix.h"
 
+struct _mathmap_invocation_t;
+
 #define MAX_BUILTIN_LENGTH     63
 
-typedef void (*builtin_function_t) (postfix_arg*);
+typedef void (*builtin_function_t) (struct _mathmap_invocation_t*, postfix_arg*);
 typedef void (*generator_function_t) (FILE*, int*, int*, int);
 
 typedef struct _builtin
@@ -53,11 +55,6 @@ void double_to_color (double val, unsigned int *red, unsigned int *green,
 void convert_rgb_to_hsv (float *rgb, float *hsv);
 void convert_hsv_to_rgb (float *hsv, float *rgb);
 
-builtin_function_t builtin_with_name (const char *name);
-
 void init_builtins (void);
-
-void builtin_origValXYIntersample (postfix_arg *arg);
-void builtin_origValXY (postfix_arg *arg);
 
 #endif

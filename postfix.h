@@ -27,7 +27,10 @@
 #include "vars.h"
 #include "internals.h"
 
-struct _userval_t;
+#define STACKSIZE     256
+
+struct _userval_info_t;
+struct _mathmap_invocation_t;
 
 typedef union
 {
@@ -35,10 +38,10 @@ typedef union
     tuple_t tuple;
     internal_t *internal;
     variable_t *user_var;
-    struct _userval_t *userval;
+    struct _userval_info_t *userval;
 } postfix_arg;
 
-typedef void (*stackfunc) (postfix_arg*);
+typedef void (*stackfunc) (struct _mathmap_invocation_t*, postfix_arg*);
 
 typedef struct _postfix
 {
@@ -46,28 +49,12 @@ typedef struct _postfix
     postfix_arg arg;
 } postfix;
 
-extern tuple_t stack[];
-extern int stackp;
-
-extern postfix expression[];
-extern int exprp;
-
-extern int num_ops;
-
 struct _exprtree;
 
-void make_postfix (struct _exprtree *tree);
-void make_empty_postfix (void);
-void output_postfix (void);
-tuple_t* eval_postfix (void);
+postfix* make_postfix (struct _exprtree *tree, int *len);
+void output_postfix (postfix *expression, int exprlen);
+tuple_t* eval_postfix (struct _mathmap_invocation_t *invocation);
 
 void make_postfix_recursive (struct _exprtree *tree);
-
-void stack_push (postfix_arg *arg);
-void stack_select_i (postfix_arg *arg);
-void stack_tuple (postfix_arg *arg);
-void stack_dupn_i (postfix_arg *arg);
-void stack_cast (postfix_arg *arg);
-void stack_push_internal (postfix_arg *arg);
 
 #endif

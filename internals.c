@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,33 +26,39 @@
 #include "tags.h"
 #include "internals.h"
 
-static internal_t *first = 0;
-
 internal_t*
-register_internal (const char *name, int number, int length, int can_be_precomputed)
+register_internal (internal_t **internals, const char *name, tuple_info_t type, int can_be_precomputed)
 {
     internal_t *internal = (internal_t*)malloc(sizeof(internal_t));
 
     strncpy(internal->name, name, MAX_INTERNAL_LENGTH);
     internal->name[MAX_INTERNAL_LENGTH] = '\0';
-    internal->value.number = number;
-    internal->value.length = length;
-    internal->next = first;
+    internal->type = type;
+    internal->is_used = 0;
     internal->can_be_precomputed = can_be_precomputed;
-    first = internal;
+    internal->next = 0;
+
+    internal->index = 0;
+    while (*internals != 0)
+    {
+	internals = &(*internals)->next;
+	++internal->index;
+    }
+    *internals = internal;
 
     return internal;
 }
 
 internal_t*
-lookup_internal (const char *name, tuple_info_t *type)
+lookup_internal (internal_t *internals, const char *name, tuple_info_t *type)
 {
     internal_t *internal;
 
-    for (internal = first; internal != 0; internal = internal->next)
+    for (internal = internals; internal != 0; internal = internal->next)
 	if (strcmp(internal->name, name) == 0)
 	{
-	    *type = make_tuple_info(internal->value.number, internal->value.length);
+	    if (type != 0)
+		*type = internal->type;
 	    internal->is_used = 1;
 	    return internal;
 	}
@@ -60,11 +66,37 @@ lookup_internal (const char *name, tuple_info_t *type)
     return 0;
 }
 
-void
-internals_clear_used (void)
+tuple_t*
+instantiate_internals (internal_t *internals)
 {
+    int n, i;
     internal_t *internal;
+    tuple_t *tuples;
 
-    for (internal = first; internal != 0; internal = internal->next)
-	internal->is_used = 0;
+    n = 0;
+    for (internal = internals; internal != 0; internal = internal->next)
+	++n;
+
+    tuples = (tuple_t*)malloc(n * sizeof(tuple_t));
+
+    for (i = 0, internal = internals; i < n; ++i, internal = internals->next)
+    {
+	tuples[i].number = internal->type.number;
+	tuples[i].length = internal->type.length;
+    }
+
+    return tuples;
+}
+
+void
+free_internals (internal_t *internals)
+{
+    while (internals != 0)
+    {
+	internal_t *next = internals->next;
+
+	free(internals);
+
+	internals = next;
+    }
 }
