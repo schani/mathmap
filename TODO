@@ -250,3 +250,41 @@ else
         rgba:[0,0,0,1]
     end
 end
+
+
+
+
+
+
+
+dur = user_slider("duration",0,5);
+amp = exp(-t / dur);
+front = t * R * 2;
+dropxy = xy:[0,0];
+dropr = toRA(xy - dropxy)[0];
+disp = sin(dropr * 360 / user_slider("length",0,100) + t * 360 * user_slider("speed",0,100)) * cos(clamp(if front == 0 then 90 else dropr/front end * 90,0,90))^2 * user_slider("amp",0,100) * amp;
+dispxy = toXY(ra:[disp,0]);
+origVal(xy+dispxy)
+
+
+
+
+
+
+
+dur = user_slider("duration",0,5);
+amp = exp(-t / dur);
+front = t * R * 2;
+n = user_slider("num drops",1,20);
+lastt = user_slider("t of last drop",0,1);
+i = 0;
+dispxy = xy:[0,0];
+while i < n do
+    dropt = scale(noise([n * pi, 0 * pi, 0]),-1,1,0,lastt);
+    dropxy = xy:[noise([n * pi, pi, 0]),noise([n * pi, 2 * pi, 0])] * XY;
+    dropr = (toRA(xy - dropxy))[0];
+    disp = sin(dropr * 360 / user_slider("length",0,100) + t * 360 * user_slider("speed",0,100)) * cos(clamp(if front == 0 then 90 else dropr/front end * 90,0,90))^2 * user_slider("amp",0,100) * amp;
+    dispxy = dispxy + toXY(ra:[disp,0]);
+    i = i + 1
+end;
+origVal(xy+dispxy)

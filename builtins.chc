@@ -534,12 +534,18 @@
 #endif
 
 %builtin(__pow,pow_1,%'((T 1) (T 1) (T 1))',0,
-    %result(0) = pow%'('%arg(0,0)%',' %arg(1,0)%')';
+    if %'('%arg(1,0) <= 0 && %arg(0,0) == 0%')'
+        %result(0) = 0.0;
+    else
+        %result(0) = pow%'('%arg(0,0)%',' %arg(1,0)%')';
 )\
 
 %builtin(__pow,pow_s,%'((T L) (T L) (_ 1))',0,
     %forarglength(0,i,
-        %result(%<i>) = pow%'('%arg(0,%<i>)%',' %arg(1,0)%')';
+        if %'('%arg(1,0) <= 0 && %arg(0,%<i>) == 0%')'
+            %result(%<i>) = 0.0;
+        else
+            %result(%<i>) = pow%'('%arg(0,%<i>)%',' %arg(1,0)%')';
     )
 )\
 
@@ -761,6 +767,12 @@
 %builtin(lerp,lerp_n,%'((T L) (_ L) (T L) (T L))',0,
     %forarglength(0,i,
         %result(%<i>) = %'('1 - %arg(0,%<i>)%')' * %arg(1,%<i>) + %arg(0,%<i>) * %arg(2,%<i>);
+    )
+)\
+
+%builtin(scale,scale,%'((T L) (T L) (T L) (T L) (T L) (T L))',0,
+    %forarglength(0,i,
+        %result(%<i>) = %'('%arg(0,%<i>) - %arg(1,%<i>)%')' / %'('%arg(2,%<i>) - %arg(1,%<i>)%')' * %'('%arg(4,%<i>) - %arg(3,%<i>)%')' + %arg(3,%<i>);
     )
 )\
 
