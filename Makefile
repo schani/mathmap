@@ -19,7 +19,7 @@ HAVE_COMPLEX = YES
 
 # if you are building on linux/alpha and have libffm, uncomment the
 # following line
-LIBFFM = -lffm
+#LIBFFM = -lffm
 
 # if you do not want localization (relevant for plug-in version only),
 # comment the following line

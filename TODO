@@ -1,3 +1,27 @@
+manual: WH,W,H statt wh,w,h
+koordinatensystem erklaeren
+
+
+> (i) Die Möglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
+> und 'minimum' Ausdrücke anzugeben, die von den Variablen 'X(nil:1)' und
+> 'Y(nil:1)' abhängen.
+> 
+> (ii) Einen voreingestellten Wert für 'userslider' festzulegen (mit der
+> gleichen Methode wie unter (i)).
+> 
+> (iii) Die Möglichkeit über den Dialog 'User Values' Werte direkt
+> einzugeben (sowas wie das Eigabefeld <input> in HTML).
+
+
+macos x:
+  altivec
+  multithreading (smp)
+  movies (realtime!)
+
+
+
+
+gimptool in Makefile statt gimp-config verwenden
 radio buttons
 NaN und Infty ausprobieren
 init optimization
@@ -366,3 +390,38 @@ if dh*dh < 0.003 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end
 if (x+X)/W < t then origVal(xy,image:0,frame) else origVal(xy,image:1,frame) end
 
 st=15;p=clamp((x+X-t*W)/st+0.5,0,1);origVal(xy,image:0,frame)*(1-p)+origVal(xy,image:1,frame)*p
+
+
+
+
+
+# wobbly transition
+ns=user_slider("noise scale",0,100);
+np=user_slider("noise speed",0,10);
+bertl=user_slider("bertl",1,5);
+mt=t*4;
+pic1=user_image("input 1");
+pic2=user_image("input 2");
+nxy=xy/R*ns;
+xyn1=noise([nxy[0],nxy[1],mt*np*1.5])*sin(t*180);
+xyn2=noise([nxy[1],nxy[0],(mt+3)*np]);
+l=clamp(xyn1*sin((mt+xyn2)*360)*bertl+t,0,1);
+lerp(l,origVal(xy,pic1),origVal(xy,pic2))
+
+
+
+
+
+
+
+
+
+g = user_slider("granularity",0,50);
+nxy = xy/R*g;
+z1 = user_slider("z1",0,10);
+z2 = user_slider("z2",0,10);
+w2 = user_slider("w2",0,1);
+f2 = user_slider("f2",1,10);
+thr = user_slider("threshold",-1,1);
+n=noise([nxy[0]/2,nxy[1],z1])+noise([nxy[0]/2*f2,nxy[1]*f2,z2])*w2;
+grayColor(if n >= thr then 1 else 0 end)
