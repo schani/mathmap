@@ -278,9 +278,17 @@ solve_linear_equations (int dim, float *a, float *b)
 void
 convert_rgb_to_hsv (float *rgb, float *hsv)
 {
-    float max = MAX(rgb[0], MAX(rgb[1], rgb[2]));
-    float min = MIN(rgb[0], MIN(rgb[1], rgb[2]));
+    float max, min;
+    int i;
 
+    for (i = 0; i < 3; ++i)
+	if (rgb[i] < 0.0)
+	    rgb[i] = 0.0;
+	else if (rgb[i] > 1.0)
+	    rgb[i] = 1.0;
+
+    max = MAX(rgb[0], MAX(rgb[1], rgb[2]));
+    min = MIN(rgb[0], MIN(rgb[1], rgb[2]));
     hsv[2] = max;
 
     if (max != 0)
@@ -311,6 +319,14 @@ convert_rgb_to_hsv (float *rgb, float *hsv)
 void
 convert_hsv_to_rgb (float *hsv, float *rgb)
 {
+    int i;
+
+    for (i = 0; i < 3; ++i)
+	if (hsv[i] < 0.0)
+	    hsv[i] = 0.0;
+	else if (hsv[i] > 1.0)
+	    hsv[i] = 1.0;
+
     if (hsv[1] == 0.0)
 	rgb[0] = rgb[1] = rgb[2] = hsv[2];
     else
