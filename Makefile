@@ -75,7 +75,7 @@ COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postf
 ifeq ($(CMDLINE),YES)
 OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o
 else
-OBJECTS = $(COMMON_OBJECTS) mathmap.o colorwell.o
+OBJECTS = $(COMMON_OBJECTS) mathmap.o
 endif
 
 mathmap : $(OBJECTS)

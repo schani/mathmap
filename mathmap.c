@@ -41,6 +41,7 @@
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpintl.h>
+#include <libgimp/gimpcolorbutton.h>
 
 #include "lispreader.h"
 #include "exprtree.h"
@@ -54,7 +55,6 @@
 #include "macros.h"
 #include "jump.h"
 #include "mathmap.h"
-#include "colorwell.h"
 #include "noise.h"
 #ifdef USE_CGEN
 #include "cgen.h"
@@ -146,8 +146,7 @@ static void dialog_oversampling_update (GtkWidget *widget, gpointer data);
 static void dialog_auto_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_fast_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_edge_behaviour_update (GtkWidget *widget, gpointer data);
-static void dialog_edge_color_changed (ColorWell *color_well, gpointer data);
-static void dialog_edge_color_set (void);
+static void dialog_edge_color_changed (GtkWidget *color_well, gpointer data);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_periodic_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
@@ -1361,10 +1360,9 @@ mathmap_dialog (int mutable_expression)
 				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_color);
 		gtk_widget_show(toggle);
 
-		edge_color_well = color_well_new();
-		gtk_signal_connect(GTK_OBJECT(edge_color_well), "color-changed",
+		edge_color_well = gimp_color_button_new(_("Edge Color"), 32, 16, edge_color, 4);
+		gtk_signal_connect(GTK_OBJECT(edge_color_well), "color_changed",
 				   (GtkSignalFunc)dialog_edge_color_changed, 0);
-		dialog_edge_color_set();
 		gtk_widget_show(edge_color_well);
 		gtk_table_attach(GTK_TABLE(table), edge_color_well, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
 
@@ -1823,26 +1821,8 @@ dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
 }
 
 static void
-dialog_edge_color_set (void)
+dialog_edge_color_changed (GtkWidget *color_well, gpointer data)
 {
-    gdouble color[4];
-    int i;
-
-    for (i = 0; i < 4; ++i)
-	color[i] = edge_color[i] / 255.0;
-
-    color_well_set_color(COLOR_WELL(edge_color_well), color);
-}
-
-static void
-dialog_edge_color_changed (ColorWell *color_well, gpointer data)
-{
-    gdouble color[4];
-    int i;
-
-    color_well_get_color(color_well, color);
-    for (i = 0; i < 4; ++i)
-	edge_color[i] = color[i] * 255.0;
     if (auto_preview)
 	dialog_update_preview();
 }
