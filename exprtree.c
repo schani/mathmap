@@ -30,7 +30,7 @@ alloc_exprtree (void)
 }
 
 exprtree*
-make_number (double num)
+make_number (float num)
 {
     exprtree *tree = alloc_exprtree();
 
@@ -42,6 +42,26 @@ make_number (double num)
     tree->result = make_tuple_info(nil_tag_number, 1);
 
     return tree;
+}
+
+exprtree*
+make_range (int first, int last)
+{
+    if (first > last)
+    {
+	sprintf(error_string, "Invalid range %d..%d.", first, last);
+	JUMP(0);
+    }
+    else if (first == last)
+	return make_number(first);
+    else
+    {
+	exprtree *tree = make_number(first);
+
+	tree->next = make_range(first + 1, last);
+
+	return tree;
+    }
 }
 
 exprtree*
@@ -131,14 +151,17 @@ make_tuple (exprtree *elems)
 }
 
 exprtree*
-make_select (exprtree *tuple, exprtree *num)
+make_select (exprtree *tuple, exprtree *subscripts)
 {
     exprtree *tree = alloc_exprtree();
 
     tree->type = EXPR_SELECT;
     tree->val.select.tuple = tuple;
-    tree->val.select.num = num;
-    tree->result = make_tuple_info(nil_tag_number, 1);
+    tree->val.select.subscripts = subscripts;
+    if (subscripts->result.length == 1)
+	tree->result = make_tuple_info(nil_tag_number, 1);
+    else
+	tree->result = make_tuple_info(tuple->result.number, subscripts->result.length);
 
     return tree;
 }

@@ -21,8 +21,8 @@ do                          return T_DO;
 				mmlval.ident[MAX_IDENT_LENGTH] = '\0';
 				return T_IDENT;
 	                    }
-[0-9]+                      { mmlval.exprtree = make_number(atof(mmtext)); return T_NUMBER; }
-[0-9]*\.[0-9]+              { mmlval.exprtree = make_number(atof(mmtext)); return T_NUMBER; }
+[0-9]+                      { mmlval.exprtree = make_number(atof(mmtext)); return T_INT; }
+[0-9]*\.[0-9]+              { mmlval.exprtree = make_number(atof(mmtext)); return T_FLOAT; }
 "=="                        return T_EQUAL;
 "<="                        return T_LESSEQUAL;
 ">="                        return T_GREATEREQUAL;
@@ -30,6 +30,7 @@ do                          return T_DO;
 "||"                        return T_OR;
 "&&"                        return T_AND;
 "::"                        return T_CONVERT;
+\.\.                        return T_RANGE;
 [-<>!,()+*/%=;^:\[\]]       return mmtext[0];
 #.*                         ;
 [ \t\n]                     ;

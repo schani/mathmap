@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 #include <assert.h>
 
 #include "builtins.h"
@@ -42,18 +43,24 @@ stack_pop (postfix_arg *arg)
 void
 stack_select (postfix_arg *arg)
 {
-    stack[stackp - 2].data[0] = stack[stackp - 2].data[(int)(stack[stackp - 1].data[0])];
-    stack[stackp - 2].number = nil_tag_number;
-    stack[stackp - 2].length = 1;
-    --stackp;
-}
+    tuple_t result;
+    int i;
 
-void
-stack_select_i (postfix_arg *arg)
-{
-    stack[stackp - 1].data[0] = stack[stackp - 1].data[arg->integer];
-    stack[stackp - 1].number = nil_tag_number;
-    stack[stackp - 1].length = 1;
+    for (i = 0; i < stack[stackp - 1].length; ++i)
+    {
+	int index = stack[stackp - 1].data[i];
+
+	if (index < 0 || index >= stack[stackp - 2].length)
+	    result.data[i] = 0.0;
+	else
+	    result.data[i] = stack[stackp - 2].data[index];
+    }
+
+    memcpy(stack[stackp - 2].data, result.data, sizeof(float) * stack[stackp - 1].length);
+    if (stack[stackp - 1].length == 1)
+	stack[stackp - 2].number = nil_tag_number;
+    stack[stackp - 2].length = stack[stackp - 1].length;
+    --stackp;
 }
 
 void
@@ -150,7 +157,7 @@ make_postfix_recursive (exprtree *tree)
 
 	case EXPR_SELECT :
 	    make_postfix_recursive(tree->val.select.tuple);
-	    make_postfix_recursive(tree->val.select.num);
+	    make_postfix_recursive(tree->val.select.subscripts);
 	    expression[exprp].func = stack_select;
 	    ++exprp;
 	    break;
@@ -352,8 +359,6 @@ output_postfix (void)
 	    printf("pop\n");
 	else if (expression[i].func == stack_select)
 	    printf("select\n");
-	else if (expression[i].func == stack_select_i)
-	    printf("select_i %d\n", expression[i].arg.integer);
 	else if (expression[i].func == stack_tuple)
 	    printf("tuple %d\n", expression[i].arg.integer);
 	else if (expression[i].func == stack_dupn_i)

@@ -155,7 +155,7 @@
         )
     else
         %forarglength(0,i,
-            %result(%<i>) = %arg(0,%<i>) / %arg(1,%<i>);
+            %result(%<i>) = %arg(0,%<i>) / %arg(1,0);
         )
 )\
 

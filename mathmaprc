@@ -19,7 +19,7 @@
   Blur = {
     mosaic = "origVal(xy-xy%5)";
     "radial mosaic" = "origVal(ra-ra%5+ra:[0,2.5])";
-    "radial mosaic bertl edition" = "# Thanks to Herbert Poetzl\nA=300*t;\nB=(A*2.2)^0.5;\npi360=3.1415926535/360;\nn=floor(r/B)+0.5;\nalpha=360/floor(360/(A/(pi360*(n-0.5)*B*B)));\norigVal(ra:[(n*A/(alpha*pi360))^0.5,a-a%alpha])";
+    "radial mosaic bertl edition" = "# Thanks to Herbert Poetzl\nA=300*t;\nB=(A*2.2)^0.5;\npi360=pi/360;\nn=floor(r/B)+0.5;\nalpha=360/floor(360/(A/(pi360*(n-0.5)*B*B)));\norigVal(ra:[(n*A/(alpha*pi360))^0.5,a-a%alpha])";
   };
   "Edge-Detect" = {
     "random edge detect" = "origVal(xy)-origVal(xy-xy:[rand(1,4),rand(1,4)])";

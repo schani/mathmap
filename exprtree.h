@@ -31,7 +31,7 @@ typedef struct _exprtree
 	struct
 	{
 	    struct _exprtree *tuple;
-	    struct _exprtree *num;
+	    struct _exprtree *subscripts;
 	} select;
 	struct
 	{
@@ -98,10 +98,11 @@ typedef struct _exprtree
 #define EXPR_CAST         13
 #define EXPR_CONVERT      14
 
-exprtree* make_number (double num);
+exprtree* make_number (float num);
+exprtree* make_range (int first, int last);
 exprtree* make_var (const char *name); /* should use variable_t instead */
 exprtree* make_tuple (exprtree *elems);
-exprtree* make_select (exprtree *tuple, exprtree *num);	/* should take num as int */
+exprtree* make_select (exprtree *tuple, exprtree *subscripts);
 exprtree* make_cast (const char *tagname, exprtree *tuple); /* should use tag number instead */
 exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */
 exprtree* make_function (const char *name, exprtree *args);

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 #include "postfix.h"
 #include "internals.h"
@@ -87,6 +88,12 @@ exprtree*
 macro_var_big_h (exprtree *args)
 {
     return make_select(make_var("WH"), make_number(1));
+}
+
+exprtree*
+macro_var_pi (exprtree *args)
+{
+    return make_number(M_PI);
 }
 
 exprtree*
@@ -192,6 +199,8 @@ init_macros (void)
     register_variable_macro("Y", macro_var_big_y, make_tuple_info(nil_tag_number, 1));
     register_variable_macro("W", macro_var_big_w, make_tuple_info(nil_tag_number, 1));
     register_variable_macro("H", macro_var_big_h, make_tuple_info(nil_tag_number, 1));
+
+    register_variable_macro("pi", macro_var_pi, make_tuple_info(nil_tag_number, 1));
 
     register_overloaded_macro("origVal", "rgba:4=ra:2", macro_func_origVal);
     register_overloaded_macro("origValIntersample", "rgba:4=ra:2", macro_func_origVal);

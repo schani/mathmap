@@ -1,13 +1,13 @@
 # uncomment either the first or the second of the two following lines, depending
 # on whether you have gimp 1.1 or gimp 1.0
-#GIMP11 = YES
-GIMP11 = NO
+GIMP11 = YES
+#GIMP11 = NO
 
 # if you are building on linux/alpha and have libffm, uncomment the following line
-#LIBFFM = -lffm
+LIBFFM = -lffm
 
 # if you want to use the c code generator, uncomment the following line (only gtk >= 1.1)
-#CGEN = YES
+CGEN = YES
 
 ifeq ($(GIMP11),YES)
 GIMPDIR = .gimp-1.1
@@ -34,7 +34,7 @@ mathmap : $(OBJECTS)
 	$(CC) $(CFLAGS) -c $<
 
 parser.c parser.h : parser.y
-	bison -p mm -d parser.y
+	bison -v -p mm -d parser.y
 	mv parser.tab.c parser.c
 	mv parser.tab.h parser.h
 

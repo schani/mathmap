@@ -10,7 +10,7 @@
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
  *
- * Version 0.8
+ * Version 0.9
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

@@ -43,7 +43,7 @@ enumerate_tmpvars (exprtree *tree, int *nextone, int force, FILE *out)
 
 	case EXPR_SELECT :
 	    enumerate_tmpvars(tree->val.select.tuple, nextone, -1, out);
-	    enumerate_tmpvars(tree->val.select.num, nextone, -1, out);
+	    enumerate_tmpvars(tree->val.select.subscripts, nextone, -1, out);
 	    break;
 
 	case EXPR_CAST :
@@ -113,17 +113,65 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 
 	case EXPR_SELECT :
 	    gen_c_code_recursive(tree->val.select.tuple, out);
-	    gen_c_code_recursive(tree->val.select.num, out);
-	    for (i = 1; i < tree->val.select.tuple->result.length; ++i)
-		fprintf(out,
-			"if (tmpvar_%d_0 < %d)\n"
-			"    tmpvar_%d_0 = tmpvar_%d_%d;\n"
-			"else ",
-			tree->val.select.num->tmpvarnum, i,
-			tree->tmpvarnum, tree->val.select.tuple->tmpvarnum, i - 1);
-	    fprintf(out, "tmpvar_%d_0 = tmpvar_%d_%d;\n",
-		    tree->tmpvarnum, tree->val.select.tuple->tmpvarnum,
-		    tree->val.select.tuple->result.length - 1);
+
+	    if (tree->val.select.subscripts->type == EXPR_TUPLE_CONST)
+	    {
+		for (i = 0; i < tree->val.select.subscripts->result.length; ++i)
+		{
+		    int index = tree->val.select.subscripts->val.tuple_const.data[i];
+
+		    if (index < 0 || index >= tree->val.select.tuple->result.length)
+			fprintf(out, "tmpvar_%d_%d = 0.0;\n",
+				tree->tmpvarnum, i);
+		    else
+			fprintf(out, "tmpvar_%d_%d = tmpvar_%d_%d;\n",
+				tree->tmpvarnum, i,
+				tree->val.select.tuple->tmpvarnum, index);
+		}
+	    }
+	    else
+	    {
+		exprtree *elem;
+
+		assert(tree->val.select.subscripts->type == EXPR_TUPLE);
+
+		elem = tree->val.select.subscripts->val.tuple.elems;
+		i = 0;
+		while (elem != 0)
+		{
+		    if (elem->type == EXPR_TUPLE_CONST)
+		    {
+			int index = elem->val.tuple_const.data[0];
+
+			if (index < 0 || index >= tree->val.select.tuple->result.length)
+			    fprintf(out, "tmpvar_%d_%d = 0.0;\n",
+				    tree->tmpvarnum, i);
+			else
+			    fprintf(out, "tmpvar_%d_%d = tmpvar_%d_%d;\n",
+				    tree->tmpvarnum, i,
+				    tree->val.select.tuple->tmpvarnum, index);
+		    }
+		    else
+		    {
+			int j;
+
+			gen_c_code_recursive(elem, out);
+			for (j = 1; j < tree->val.select.tuple->result.length; ++j)
+			    fprintf(out,
+				    "if (tmpvar_%d_0 < %d)\n"
+				    "    tmpvar_%d_%d = tmpvar_%d_%d;\n"
+				    "else ",
+				    elem->tmpvarnum, j,
+				    tree->tmpvarnum, i, tree->val.select.tuple->tmpvarnum, j - 1);
+			fprintf(out, "tmpvar_%d_%d = tmpvar_%d_%d;\n",
+				tree->tmpvarnum, i,
+				tree->val.select.tuple->tmpvarnum, tree->val.select.tuple->result.length - 1);
+		    }
+
+		    elem = elem->next;
+		    ++i;
+		}
+	    }
 	    break;
 
 	case EXPR_CAST :
