@@ -94,10 +94,10 @@
 /***** Types *****/
 
 typedef struct {
-    gchar expression[MAX_EXPRESSION_LENGTH];
     gint flags;
     gint frames;
     gfloat param_t;
+    gchar expression[MAX_EXPRESSION_LENGTH];
     gint num_curve_points;
     gint16 curve_points[USER_CURVE_POINTS];
 } mathmap_vals_t;
@@ -164,10 +164,10 @@ GPlugInInfo PLUG_IN_INFO = {
 
 
 static mathmap_vals_t mmvals = {
-	DEFAULT_EXPRESSION,      /* expression */
 	FLAG_INTERSAMPLING,      /* flags */
 	DEFAULT_NUMBER_FRAMES,   /* frames */
 	0.0,                     /* t */
+	DEFAULT_EXPRESSION,      /* expression */
 	USER_CURVE_POINTS        /* number of curve points */
 }; /* mmvals */
 
@@ -178,6 +178,7 @@ static mathmap_interface_t wint = {
 	FALSE  /* run */
 }; /* wint */
 
+static GRunModeType run_mode;
 static gint32 image_id;
 static gint32 layer_id;
 static GDrawable *input_drawable;
@@ -268,10 +269,10 @@ query(void)
 	{ PARAM_INT32,      "run_mode",         "Interactive, non-interactive" },
 	{ PARAM_IMAGE,      "image",            "Input image" },
 	{ PARAM_DRAWABLE,   "drawable",         "Input drawable" },
-	{ PARAM_STRING,     "expression",       "MathMap expression" },
 	{ PARAM_INT32,      "flags",            "1: Intersampling 2: Oversampling 4: Animate" },
 	{ PARAM_INT32,      "frames",           "Number of frames" },
 	{ PARAM_FLOAT,      "param_t",          "The parameter t (if not animating)" },
+	{ PARAM_STRING,     "expression",       "MathMap expression" },
 	{ PARAM_INT32,      "num_curve_points", "Number of curve points" },
 	{ PARAM_INT16ARRAY, "curve_points",     "Curve Points (range 0-1023)" }
     }; /* args */
@@ -309,7 +310,6 @@ run(char    *name,
 {
     static GParam values[1];
 
-    GRunModeType  run_mode;
     GStatusType   status;
     double        xhsiz, yhsiz;
     int           pwidth, pheight;
@@ -428,6 +428,7 @@ run(char    *name,
 	    /* Possibly retrieve data */
 
 	    gimp_get_data("plug_in_mathmap", &mmvals);
+	    printf("expression is %s\n", mmvals.expression);
 	    break;
 
 	default:
@@ -585,7 +586,8 @@ generate_code (void)
 
     if (expression_changed)
     {
-	dialog_text_update();
+	if (run_mode == RUN_INTERACTIVE)
+	    dialog_text_update();
 
 	theExprtree = 0;
 	usesRA = 0;
@@ -672,141 +674,144 @@ mathmap (int frame_num)
 
     outputBPP = gimp_drawable_bpp(output_drawable->id);
 
-    generate_code();
-
-    /* Initialize pixel region */
-
-    gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
-			TRUE, TRUE);
-
-    imageWidth = sel_width;
-    imageW = imageWidth;
-    imageHeight = sel_height;
-    imageH = imageHeight;
-    wholeImageWidth = img_width;
-    wholeImageHeight = img_height;
-
-    middleX = imageWidth / 2.0;
-    middleY = imageHeight / 2.0;
-
-    if (middleX > imageWidth - middleX)
-	imageX = middleX;
-    else
-	imageX = imageWidth - middleX;
-
-    if (middleY > imageHeight - middleY)
-	imageY = middleY;
-    else
-	imageY = imageHeight - middleY;
-    
-    imageR = sqrt(imageX * imageX + imageY * imageY);
-
-    progress     = 0;
-    max_progress = sel_width * sel_height;
-
-    if (frame_num >= 0)
-	sprintf(progress_info, "Mathmapping frame %d...", frame_num + 1);
-    else
-	strcpy(progress_info, "Mathmapping...");
-    gimp_progress_init(progress_info);
-
-    for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
-	 pr != NULL; pr = gimp_pixel_rgns_process(pr))
+    if (generate_code())
     {
-	if (oversamplingEnabled)
+	/* Initialize pixel region */
+
+	gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
+			    TRUE, TRUE);
+
+	imageWidth = sel_width;
+	imageW = imageWidth;
+	imageHeight = sel_height;
+	imageH = imageHeight;
+	wholeImageWidth = img_width;
+	wholeImageHeight = img_height;
+
+	middleX = imageWidth / 2.0;
+	middleY = imageHeight / 2.0;
+
+	if (middleX > imageWidth - middleX)
+	    imageX = middleX;
+	else
+	    imageX = imageWidth - middleX;
+
+	if (middleY > imageHeight - middleY)
+	    imageY = middleY;
+	else
+	    imageY = imageHeight - middleY;
+    
+	imageR = sqrt(imageX * imageX + imageY * imageY);
+
+	progress     = 0;
+	max_progress = sel_width * sel_height;
+
+	if (frame_num >= 0)
+	    sprintf(progress_info, "Mathmapping frame %d...", frame_num + 1);
+	else
+	    strcpy(progress_info, "Mathmapping...");
+	gimp_progress_init(progress_info);
+
+	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
+	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
-	    unsigned char *line1,
-		*line2,
-		*line3;
-
-	    dest_row = dest_rgn.data;
-
-	    line1 = (unsigned char*)malloc((sel_width + 1) * outputBPP);
-	    line2 = (unsigned char*)malloc(sel_width * outputBPP);
-	    line3 = (unsigned char*)malloc((sel_width + 1) * outputBPP);
-
-	    for (col = 0; col <= dest_rgn.w; ++col)
+	    if (oversamplingEnabled)
 	    {
-		currentX = col + dest_rgn.x - sel_x1 - middleX;
-		currentY = 0.0 + dest_rgn.y - sel_y1 - middleY;
-		calc_ra();
-		update_pixel_internals();
-		write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
-	    }
+		unsigned char *line1,
+		    *line2,
+		    *line3;
 
-	    for (row = 0; row < dest_rgn.h; ++row)
-	    {
-		dest = dest_row;
+		dest_row = dest_rgn.data;
 
-		for (col = 0; col < dest_rgn.w; ++col)
-		{
-		    currentX = col + dest_rgn.x - sel_x1 + 0.5 - middleX;
-		    currentY = row + dest_rgn.y - sel_y1 + 0.5 - middleY;
-		    calc_ra();
-		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
-		}
+		line1 = (unsigned char*)malloc((sel_width + 1) * outputBPP);
+		line2 = (unsigned char*)malloc(sel_width * outputBPP);
+		line3 = (unsigned char*)malloc((sel_width + 1) * outputBPP);
+
 		for (col = 0; col <= dest_rgn.w; ++col)
 		{
 		    currentX = col + dest_rgn.x - sel_x1 - middleX;
-		    currentY = row + dest_rgn.y - sel_y1 + 1.0 - middleY;
+		    currentY = 0.0 + dest_rgn.y - sel_y1 - middleY;
 		    calc_ra();
 		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
+		    write_tuple_to_pixel(EVAL_EXPR(), line1 + col * outputBPP);
 		}
+
+		for (row = 0; row < dest_rgn.h; ++row)
+		{
+		    dest = dest_row;
+
+		    for (col = 0; col < dest_rgn.w; ++col)
+		    {
+			currentX = col + dest_rgn.x - sel_x1 + 0.5 - middleX;
+			currentY = row + dest_rgn.y - sel_y1 + 0.5 - middleY;
+			calc_ra();
+			update_pixel_internals();
+			write_tuple_to_pixel(EVAL_EXPR(), line2 + col * outputBPP);
+		    }
+		    for (col = 0; col <= dest_rgn.w; ++col)
+		    {
+			currentX = col + dest_rgn.x - sel_x1 - middleX;
+			currentY = row + dest_rgn.y - sel_y1 + 1.0 - middleY;
+			calc_ra();
+			update_pixel_internals();
+			write_tuple_to_pixel(EVAL_EXPR(), line3 + col * outputBPP);
+		    }
 	    
-		for (col = 0; col < dest_rgn.w; ++col)
-		{
-		    for (i = 0; i < outputBPP; ++i)
-			dest[i] = (line1[col*outputBPP+i]
-				   + line1[(col+1)*outputBPP+i]
-				   + 2*line2[col*outputBPP+i]
-				   + line3[col*outputBPP+i]
-				   + line3[(col+1)*outputBPP+i]) / 6;
-		    dest += outputBPP;
+		    for (col = 0; col < dest_rgn.w; ++col)
+		    {
+			for (i = 0; i < outputBPP; ++i)
+			    dest[i] = (line1[col*outputBPP+i]
+				       + line1[(col+1)*outputBPP+i]
+				       + 2*line2[col*outputBPP+i]
+				       + line3[col*outputBPP+i]
+				       + line3[(col+1)*outputBPP+i]) / 6;
+			dest += outputBPP;
+		    }
+
+		    memcpy(line1, line3, (imageWidth + 1) * outputBPP);
+
+		    dest_row += dest_rgn.rowstride;
 		}
-
-		memcpy(line1, line3, (imageWidth + 1) * outputBPP);
-
-		dest_row += dest_rgn.rowstride;
 	    }
-	}
-	else
-	{
-	    dest_row = dest_rgn.data;
-
-	    for (row = dest_rgn.y; row < (dest_rgn.y + dest_rgn.h); row++)
+	    else
 	    {
-		dest = dest_row;
+		dest_row = dest_rgn.data;
 
-		for (col = dest_rgn.x; col < (dest_rgn.x + dest_rgn.w); col++)
+		for (row = dest_rgn.y; row < (dest_rgn.y + dest_rgn.h); row++)
 		{
-		    currentX = col - sel_x1 - middleX; currentY = row - sel_y1 - middleY;
-		    calc_ra();
-		    update_pixel_internals();
-		    write_tuple_to_pixel(EVAL_EXPR(), dest);
-		    dest += outputBPP;
-		}
+		    dest = dest_row;
+
+		    for (col = dest_rgn.x; col < (dest_rgn.x + dest_rgn.w); col++)
+		    {
+			currentX = col - sel_x1 - middleX; currentY = row - sel_y1 - middleY;
+			calc_ra();
+			update_pixel_internals();
+			write_tuple_to_pixel(EVAL_EXPR(), dest);
+			dest += outputBPP;
+		    }
 		
-		dest_row += dest_rgn.rowstride;
+		    dest_row += dest_rgn.rowstride;
+		}
 	    }
+
+	    /* Update progress */
+	    progress += dest_rgn.w * dest_rgn.h;
+	    gimp_progress_update((double) progress / max_progress);
 	}
 
-	/* Update progress */
-	progress += dest_rgn.w * dest_rgn.h;
-	gimp_progress_update((double) progress / max_progress);
+	if (the_tile != NULL) {
+	    gimp_tile_unref(the_tile, FALSE);
+	    the_tile = NULL;
+	} /* if */
+
+	gimp_drawable_flush(output_drawable);
+	gimp_drawable_merge_shadow(output_drawable->id, TRUE);
+	gimp_drawable_update(output_drawable->id, sel_x1, sel_y1, sel_width, sel_height);
+
+#ifndef USE_CGEN
+	fprintf(stderr, "executed %d instructions\n", num_ops);
+#endif
     }
-
-    if (the_tile != NULL) {
-	gimp_tile_unref(the_tile, FALSE);
-	the_tile = NULL;
-    } /* if */
-
-    gimp_drawable_flush(output_drawable);
-    gimp_drawable_merge_shadow(output_drawable->id, TRUE);
-    gimp_drawable_update(output_drawable->id, sel_x1, sel_y1, sel_width, sel_height);
-
-    fprintf(stderr, "executed %d instructions\n", num_ops);
 } /* mathmap */
 
 
