@@ -2,6 +2,10 @@
 # comment the following line
 CGEN = YES
 
+# if you want to build the command line version instead of the GIMP plug-in,
+# uncomment the following line
+#CMDLINE = YES
+
 # if you are building on linux/alpha and have libffm, uncomment the following line
 LIBFFM = -lffm
 
@@ -16,15 +20,28 @@ CGEN_CFLAGS=-DUSE_CGEN $(CGEN_CC) $(CGEN_LD)
 CGEN_LDFLAGS=-Wl,--export-dynamic
 endif
 
+ifeq ($(CMDLINE),YES)
+CFLAGS = -I. $(CGEN_CFLAGS) -Wall -O3 -g `glib-config --cflags` -DCMDLINE
+LDFLAGS = $(LIBFFM) `glib-config --libs gmodule` -lm -ljpeg -lpng
+else
 GIMPDIR := .gimp-$(notdir $(shell gimptool --gimpdatadir))
 
-CFLAGS = -I. $(CGEN_CFLAGS) -Wall -O3 -g `gtk-config --cflags`
+CFLAGS = -I. $(CGEN_CFLAGS) -Wall -g `gimp-config --cflags` -DGIMP
+LDFLAGS = $(LIBFFM) `gimp-config --libs`
+endif
+
 CC = gcc
 
-OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o colorwell.o noise.o lispreader.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o noise.o lispreader.o
+
+ifeq ($(CMDLINE),YES)
+OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o
+else
+OBJECTS = $(COMMON_OBJECTS) mathmap.o colorwell.o
+endif
 
 mathmap : $(OBJECTS)
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LIBFFM) `gtk-config --libs` -lgimp -lgimpui
+	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LDFLAGS)
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<

@@ -1,11 +1,11 @@
 /* -*- c -*- */
 
 /*
- * MathMap.h
+ * rwjpeg.h
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 2000 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,32 +22,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __MATHMAP_H__
-#define __MATHMAP_H__
+#ifndef __RWJPEG_H__
+#define __RWJPEG_H__
 
-#include <glib.h>
-#ifdef GIMP
-#include <libgimp/gimp.h>
-#endif
-
-extern char error_string[];
-#ifdef GIMP
-extern int auto_preview;
-#endif
-
-extern int originX, originY, img_width, img_height;
-
-#ifdef GIMP
-void dialog_update_preview (void);
-#endif
-
-void mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel);
-void mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel);
-
-#ifdef GIMP
-int alloc_input_drawable (GDrawable *drawable);
-void free_input_drawable (int index);
-GDrawable* get_input_drawable (int index);
-#endif
+void* open_jpeg_file (char *filename, int *width, int *height);
+void jpeg_read_lines (void *data, unsigned char *lines, int num_lines);
+void jpeg_free_data (void *data);
 
 #endif

@@ -82,8 +82,10 @@ clear_untagged_uservals (void)
 
 	    *userval = (*userval)->next;
 
+#ifdef GIMP
 	    if (p->type == USERVAL_IMAGE && p->v.image.index != -1)
 		free_input_drawable(p->v.image.index);
+#endif
 
 	    free(p);
 	}
@@ -220,6 +222,7 @@ register_image (const char *name)
     return userval;
 }
 
+#ifdef GIMP
 static void
 userval_slider_update (GtkAdjustment *adjustment, userval_t *userval)
 {
@@ -412,6 +415,7 @@ make_userval_table (void)
 
     return table;
 }
+#endif
 
 void
 update_uservals (void)
@@ -420,7 +424,9 @@ update_uservals (void)
 
     for (userval = first; userval != 0; userval = userval->next)
     {
+#ifdef GIMP
 	if (userval->type == USERVAL_CURVE)
 	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(userval->widget)->curve), USER_CURVE_POINTS, userval->v.curve.values);
+#endif
     }
 }

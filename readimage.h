@@ -1,11 +1,11 @@
 /* -*- c -*- */
 
 /*
- * MathMap.h
+ * readimage.h
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 2000 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,32 +22,26 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __MATHMAP_H__
-#define __MATHMAP_H__
+#ifndef __READIMAGE_H__
+#define __READIMAGE_H__
 
-#include <glib.h>
-#ifdef GIMP
-#include <libgimp/gimp.h>
-#endif
+typedef void (*image_read_func_t) (void *data, unsigned char *lines, int num_lines);
+typedef void (*image_reader_free_func_t) (void *data);
 
-extern char error_string[];
-#ifdef GIMP
-extern int auto_preview;
-#endif
+typedef struct
+{
+    int width;
+    int height;
+    int num_lines_read;
+    void *data;
+    image_read_func_t read_func;
+    image_reader_free_func_t free_func;
+} image_reader_t;
 
-extern int originX, originY, img_width, img_height;
+image_reader_t* open_image_reading (char *filename);
+void read_lines (image_reader_t *reader, unsigned char *lines, int num_lines);
+void free_image_reader (image_reader_t *reader);
 
-#ifdef GIMP
-void dialog_update_preview (void);
-#endif
-
-void mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel);
-void mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel);
-
-#ifdef GIMP
-int alloc_input_drawable (GDrawable *drawable);
-void free_input_drawable (int index);
-GDrawable* get_input_drawable (int index);
-#endif
+unsigned char* read_image (char *filename, int *width, int *height);
 
 #endif

@@ -84,6 +84,7 @@ get_pixel (int x, int y, guchar *pixel, int drawable_index)
 	    y = (img_height - 1) - (y % img_height);
     }
 
+#ifdef GIMP
     if (previewing)
     {
 	x = (x - sel_x1) * preview_width / sel_width;
@@ -92,6 +93,7 @@ get_pixel (int x, int y, guchar *pixel, int drawable_index)
 	mathmap_get_fast_pixel(drawable_index, x, y, pixel);
     }
     else
+#endif
 	mathmap_get_pixel(drawable_index, x, y, pixel);
 }
 

@@ -1,4 +1,4 @@
-/* $Id: lispreader.c 205 2000-04-03 02:18:26Z schani $ */
+/* $Id: lispreader.c 211 2000-08-26 16:41:07Z schani $ */
 /*
  * lispreader.c
  *
@@ -111,6 +111,8 @@ _unget_char (char c, lisp_stream_t *stream)
 static int
 _scan (lisp_stream_t *stream)
 {
+    static char *delims = "\"();";
+
     int c;
 
     _token_clear();
@@ -198,9 +200,9 @@ _scan (lisp_stream_t *stream)
 			have_digits = 1;
 		    _token_append(c);
 		    c = _next_char(stream);
-		    if (c != EOF && !isdigit(c) && !isspace(c) && c != '(' && c != ')' && c != '"')
+		    if (c != EOF && !isdigit(c) && !isspace(c) && !strchr(delims, c))
 			have_nondigits = 1;
-		} while (c != EOF && !isspace(c) && c != '(' && c != ')' && c != '"');
+		} while (c != EOF && !isspace(c) && !strchr(delims, c));
 
 		if (c != EOF)
 		    _unget_char(c, stream);
@@ -214,7 +216,7 @@ _scan (lisp_stream_t *stream)
 		if (c == '.')
 		{
 		    c = _next_char(stream);
-		    if (c != EOF && !isspace(c) && c != '(' && c != ')' && c != '"')
+		    if (c != EOF && !isspace(c) && !strchr(delims, c))
 			_token_append('.');
 		    else
 		    {
@@ -226,7 +228,7 @@ _scan (lisp_stream_t *stream)
 		{
 		    _token_append(c);
 		    c = _next_char(stream);
-		} while (c != EOF && !isspace(c) && c != '(' && c != ')' && c != '"');
+		} while (c != EOF && !isspace(c) && !strchr(delims, c));
 		if (c != EOF)
 		    _unget_char(c, stream);
 

@@ -119,6 +119,12 @@ macro_var_pi (exprtree *args)
 }
 
 exprtree*
+macro_var_e (exprtree *args)
+{
+    return make_number(M_E);
+}
+
+exprtree*
 macro_func_origVal (exprtree *args)
 {
     return make_function("origVal", exprlist_append(make_function("toXY", args),
@@ -240,6 +246,7 @@ init_macros (void)
     register_variable_macro("H", macro_var_big_h, make_tuple_info(nil_tag_number, 1));
 
     register_variable_macro("pi", macro_var_pi, make_tuple_info(nil_tag_number, 1));
+    register_variable_macro("e", macro_var_e, make_tuple_info(nil_tag_number, 1));
 
     register_overloaded_macro("origVal", "((rgba 4) (xy 2))", macro_func_origVal);
     register_overloaded_macro("origVal", "((rgba 4) (ra 2))", macro_func_origVal);

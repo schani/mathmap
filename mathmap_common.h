@@ -1,7 +1,7 @@
 /* -*- c -*- */
 
 /*
- * MathMap.h
+ * mathmap_common.h
  *
  * MathMap
  *
@@ -22,32 +22,32 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __MATHMAP_H__
-#define __MATHMAP_H__
+#ifndef __MATHMAP_COMMON_H__
+#define __MATHMAP_COMMON_H__
 
 #include <glib.h>
-#ifdef GIMP
-#include <libgimp/gimp.h>
-#endif
 
-extern char error_string[];
-#ifdef GIMP
-extern int auto_preview;
-#endif
+#include "tuples.h"
 
-extern int originX, originY, img_width, img_height;
+#define MATHMAP_VERSION       "0.12"
 
-#ifdef GIMP
-void dialog_update_preview (void);
-#endif
+void calc_ra (void);
+void init_internals (void);
+void update_image_internals (void);
+void update_pixel_internals (void);
 
-void mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel);
-void mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel);
+void write_tuple_to_pixel (tuple_t *tuple, guchar *dest);
 
-#ifdef GIMP
-int alloc_input_drawable (GDrawable *drawable);
-void free_input_drawable (int index);
-GDrawable* get_input_drawable (int index);
-#endif
+extern double currentX, currentY, currentR, currentA, currentT;
+extern double imageR, imageX, imageY, imageW, imageH;
+extern double middleX, middleY;
+extern int originX, originY;
+
+extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_reflect;
+extern int edge_behaviour_mode;
+
+extern int intersamplingEnabled, oversamplingEnabled;
+
+extern int outputBPP;
 
 #endif

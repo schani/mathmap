@@ -192,3 +192,54 @@ while i < depth + 1 do
 end;
 val = sum / max;
 origVal(xy + val * strength)
+
+
+
+
+
+
+
+
+
+
+
+
+
+# smooth mugl
+sl=30;
+nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
+alpha=[0,0,0,0];
+radii=[0,0,0,0];
+phii=[0,0,0,0];
+xc=[0,0,0,0];
+yc=[0,0,0,0];
+heuslfaktor=sl/user_slider("size",1.2,5);
+i=0; while i < 4 do
+    ix=nx+i%2;
+    iy=ny+floor(i/2);
+    xc[i]=(ix+0.5)*sl;
+    yc[i]=(iy+0.5)*sl;
+    alpha[i]=(noise([ix*0.3,iy*0.3,0])+1)*180+t*360;
+    kurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,pmod(alpha[i],360)];
+    phii[i]=kurde[1];
+    radii[i]=heuslfaktor*(1+noise([xc[i]+cos(kurde[1]),yc[i]+sin(kurde[1]),0]*2)*0.7);
+    i = i + 1
+end;
+i=0;found=0;
+while !found && i<4 do
+    heuslkurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,alpha[i]];
+    if heuslkurde[0]<radii[i] then
+        found = 1
+    else
+        i=i+1
+    end
+end;
+if i >= 4 then
+    rgba:[0,0,1,1]
+else
+    if heuslkurde[0] < radii[i]-1.5 then
+        origVal(toXY(heuslkurde)+xy:[xc[i],yc[i]])
+    else
+        rgba:[0,0,0,1]
+    end
+end

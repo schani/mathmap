@@ -40,8 +40,6 @@
 #define STACKSIZE    1024
 #define EXPRSIZE     8192
 
-extern int usesRA;
-
 tuple_t stack[STACKSIZE];
 int stackp,
     num_ops = 0;

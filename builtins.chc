@@ -357,6 +357,10 @@
     )
 )\
 
+%builtin(exp,exp,%'((T 1) (T 1))',0,
+    %result(0) = exp%'('%arg(0,0)%')';
+)\
+
 %builtin(abs,abs_ri,%'((nil 1) (ri 2))',0,
     float r = %arg(0,0);
     float i = %arg(0,1);

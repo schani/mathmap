@@ -23,7 +23,9 @@
 #ifndef __USERVAL_H__
 #define __USERVAL_H__
 
+#ifdef GIMP
 #include <gtk/gtk.h>
+#endif
 
 #include "tuples.h"
 #include "exprtree.h"
@@ -40,7 +42,9 @@ typedef struct _userval_t
 {
     ident name;
     int type;
+#ifdef GIMP
     GtkWidget *widget;
+#endif
     int tag;
     union
     {
@@ -85,7 +89,9 @@ userval_t* register_color (const char *name);
 userval_t* register_curve (const char *name);
 userval_t* register_image (const char *name);
 
+#ifdef GIMP
 GtkWidget* make_userval_table (void);
+#endif
 
 void update_uservals (void);
 

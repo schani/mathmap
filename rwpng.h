@@ -1,7 +1,7 @@
 /* -*- c -*- */
 
 /*
- * MathMap.h
+ * rwpng.h
  *
  * MathMap
  *
@@ -22,32 +22,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __MATHMAP_H__
-#define __MATHMAP_H__
+#ifndef __RWPNG_H__
+#define __RWPNG_H__
 
-#include <glib.h>
-#ifdef GIMP
-#include <libgimp/gimp.h>
-#endif
+void* open_png_file_reading (char *filename, int *width, int *height);
+void png_read_lines (void *data, unsigned char *lines, int num_lines);
+void png_free_reader_data (void *data);
 
-extern char error_string[];
-#ifdef GIMP
-extern int auto_preview;
-#endif
-
-extern int originX, originY, img_width, img_height;
-
-#ifdef GIMP
-void dialog_update_preview (void);
-#endif
-
-void mathmap_get_pixel (int drawable_index, int x, int y, guchar *pixel);
-void mathmap_get_fast_pixel(int drawable_index, int x, int y, guchar *pixel);
-
-#ifdef GIMP
-int alloc_input_drawable (GDrawable *drawable);
-void free_input_drawable (int index);
-GDrawable* get_input_drawable (int index);
-#endif
+void* open_png_file_writing (char *filename, int width, int height);
+void png_write_lines (void *data, unsigned char *lines, int num_lines);
+void png_free_writer_data (void *data);
 
 #endif
