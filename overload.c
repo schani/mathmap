@@ -1,13 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
 
-#include "argscanner.h"
+#include "lispreader.h"
+#include "tags.h"
 
 #include "overload.h"
 
-extern overload_arg_t *overload_result,
-    *overload_args;
 extern int intersamplingEnabled;
 
 extern int oaparse (void);
@@ -87,17 +87,56 @@ new_overload_argument (binding_t *tag, binding_t *length, overload_arg_t *next)
     return arg;
 }
 
+binding_t*
+string_to_binding (const char *str)
+{
+    if (strcmp(str, "_") == 0)
+	return new_free_variable_binding();
+    if (islower(str[0]))
+	return new_constant_binding(tag_number_for_name(str));
+    return free_binding_with_name(str);
+}
+
+binding_t*
+lisp_object_to_binding (lisp_object_t *obj)
+{
+    switch (lisp_type(obj))
+    {
+	case LISP_TYPE_SYMBOL :
+	    return string_to_binding(lisp_symbol(obj));
+	case LISP_TYPE_INTEGER :
+	    return new_constant_binding(lisp_integer(obj));
+	default :
+	    assert(0);
+    }
+    return 0;
+}
+
+overload_arg_t*
+lisp_object_to_overload_arg (lisp_object_t *obj, overload_arg_t *next)
+{
+    return new_overload_argument(lisp_object_to_binding(lisp_car(obj)),
+				 lisp_object_to_binding(lisp_car(lisp_cdr(obj))),
+				 next);
+}
+
+overload_arg_t*
+lisp_object_to_overload_args (lisp_object_t *obj)
+{
+    if (lisp_type(obj) == LISP_TYPE_NIL)
+	return 0;
+    return lisp_object_to_overload_arg(lisp_car(obj), lisp_object_to_overload_args(lisp_cdr(obj)));
+}
+
 void
 interpret_arg_string (const char *string, overload_arg_t **result, overload_arg_t **args)
 {
-    scan_args_from_string((char*)string);
+    lisp_object_t *obj = lisp_read_from_string(string);
 
-    assert(oaparse() == 0);
+    *result = lisp_object_to_overload_arg(lisp_car(obj), 0);
+    *args = lisp_object_to_overload_args(lisp_cdr(obj));
 
-    *result = overload_result;
-    *args = overload_args;
-
-    end_scanning_args_from_string();
+    lisp_free(obj);
 }
 
 void

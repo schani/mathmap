@@ -22,13 +22,13 @@ CGEN_CFLAGS=-DUSE_CGEN
 CGEN_LDFLAGS=-Wl,--export-dynamic
 endif
 
-CFLAGS = -D_GIMP -D_GIMPDIR=\"$(GIMPDIR)\" $(CGEN_CFLAGS) -Wall -g -O3 `gtk-config --cflags` -IlibPropList
+CFLAGS = -I. -D_GIMP -D_GIMPDIR=\"$(GIMPDIR)\" $(CGEN_CFLAGS) -Wall -g `gtk-config --cflags`
 CC = gcc
 
-OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o argparser.o argscanner.o overload.o jump.o cgen.o builtins_compiler.o colorwell.o noise.o
+OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o colorwell.o noise.o lispreader.o
 
 mathmap : $(OBJECTS)
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LIBFFM) `gtk-config --libs` -lgimp -LlibPropList -lPropList
+	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LIBFFM) `gtk-config --libs` -lgimp
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
@@ -38,18 +38,9 @@ parser.c parser.h : parser.y
 	mv parser.tab.c parser.c
 	mv parser.tab.h parser.h
 
-argparser.c argparser.h : argparser.y
-	bison -p oa -d argparser.y
-	mv argparser.tab.c argparser.c
-	mv argparser.tab.h argparser.h
-
 scanner.c : scanner.fl parser.h
 	flex -Pmm scanner.fl
 	mv lex.mm.c scanner.c
-
-argscanner.c : argscanner.fl argparser.h
-	flex -Poa argscanner.fl
-	mv lex.oa.c argscanner.c
 
 builtins.o : builtins.c builtins.h builtins_interpreter.c
 
@@ -64,7 +55,7 @@ install : mathmap
 	if [ ! -f $(HOME)/$(GIMPDIR)/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/ ; fi
 
 clean :
-	rm -f *~ *.o mathmap scanner.c parser.[ch] parser.output argparser.[ch] argscanner.c core
+	rm -f *~ *.o mathmap scanner.c parser.[ch] parser.output core
 
 realclean : clean
 	rm -f builtins_interpreter.c builtins_compiler.c

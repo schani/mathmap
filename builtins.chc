@@ -1,5 +1,5 @@
 #include list.chh
-%builtin(print,print,%'nil:1=_:_',1,
+%builtin(print,print,%'((nil 1) (_ _))',1,
     printf%'('%<dq>[%<dq>%')';
     %forarglength(0,i,
         printf%'('%<dq>%<prc>f %<dq>%',' %arg(0,%<i>)%')';
@@ -7,49 +7,49 @@
     printf%'('%<dq>]\n%<dq>%')';
 )\
 
-%builtin(__add,add_ri,%'ri:2=ri:2,ri:2',0,
+%builtin(__add,add_ri,%'((ri 2) (ri 2) (ri 2))',0,
     %result(0) = %arg(0,0) + %arg(1,0);
     %result(1) = %arg(0,1) + %arg(1,1);
 )\
 
-%builtin(__add,add_1,%'T:1=T:1,T:1',0,
+%builtin(__add,add_1,%'((T 1) (T 1) (T 1))',0,
     %result(0) = %arg(0,0) + %arg(1,0);
 )\
 
-%builtin(__add,add_s,%'T:L=T:L,_:1',0,
+%builtin(__add,add_s,%'((T L) (T L) (_ 1))',0,
     %forarglength(0,i,
         %result(%<i>) = %arg(0,%<i>) + %arg(1,0);
     )
 )\
 
-%builtin(__add,add_n,%'T:L=T:L,T:L',0,
+%builtin(__add,add_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         %result(%<i>) = %arg(0,%<i>) + %arg(1,%<i>);
     )
 )\
 
-%builtin(__sub,sub_ri,%'ri:2=ri:2,ri:2',0,
+%builtin(__sub,sub_ri,%'((ri 2) (ri 2) (ri 2))',0,
     %result(0) = %arg(0,0) + %arg(1,0);
     %result(1) = %arg(0,1) + %arg(1,1);
 )\
 
-%builtin(__sub,sub_1,%'T:1=T:1,T:1',0,
+%builtin(__sub,sub_1,%'((T 1) (T 1) (T 1))',0,
     %result(0) = %arg(0,0) - %arg(1,0);
 )\
 
-%builtin(__sub,sub_s,%'T:L=T:L,_:1',0,
+%builtin(__sub,sub_s,%'((T L) (T L) (_ 1))',0,
     %forarglength(0,i,
         %result(%<i>) = %arg(0,%<i>) - %arg(1,0);
     )
 )\
 
-%builtin(__sub,sub_n,%'T:L=T:L,T:L',0,
+%builtin(__sub,sub_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         %result(%<i>) = %arg(0,%<i>) - %arg(1,%<i>);
     )
 )\
 
-%builtin(__mul,mul_ri,%'ri:2=ri:2,ri:2',0,
+%builtin(__mul,mul_ri,%'((ri 2) (ri 2) (ri 2))',0,
     float r1 = %arg(0,0);
     float r2 = %arg(1,0);
     float c1 = %arg(0,1);
@@ -71,11 +71,11 @@
     )
 )\
 
-%builtin(__mul,mul_m2x2,%'m2x2:4=m2x2:4,m2x2:4',0,
+%builtin(__mul,mul_m2x2,%'((m2x2 4) (m2x2 4) (m2x2 4))',0,
     %matmult(2)
 )\
 
-%builtin(__mul,mul_m3x3,%'m3x3:9=m3x3:9,m3x3:9',0,
+%builtin(__mul,mul_m3x3,%'((m3x3 9) (m3x3 9) (m3x3 9))',0,
     %matmult(3)
 )\
 
@@ -89,11 +89,11 @@
     )
 )\
 
-%builtin(__mul,mul_v2m2x2,%'T:2=T:2,m2x2:4',0,
+%builtin(__mul,mul_v2m2x2,%'((T 2) (T 2) (m2x2 4))',0,
     %vecmatmul(2)
 )\
 
-%builtin(__mul,mul_v3m3x3,%'T:3=T:3,m3x3:9',0,
+%builtin(__mul,mul_v3m3x3,%'((T 3) (T 3) (m3x3 9))',0,
     %vecmatmul(3)
 )\
 
@@ -107,31 +107,31 @@
     )
 )\
 
-%builtin(__mul,mul_m2x2v2,%'T:2=m2x2:4,T:2',0,
+%builtin(__mul,mul_m2x2v2,%'((T 2) (m2x2 4) (T 2))',0,
     %matvecmul(2)
 )\
 
-%builtin(__mul,mul_m3x3v3,%'T:3=m3x3:9,T:3',0,
+%builtin(__mul,mul_m3x3v3,%'((T 3) (m3x3 9) (T 3))',0,
     %matvecmul(3)
 )\
 
-%builtin(__mul,mul_1,%'T:1=T:1,T:1',0,
+%builtin(__mul,mul_1,%'((T 1) (T 1) (T 1))',0,
     %result(0) = %arg(0,0) * %arg(1,0);
 )\
 
-%builtin(__mul,mul_s,%'T:L=T:L,_:1',0,
+%builtin(__mul,mul_s,%'((T L) (T L) (_ 1))',0,
     %forarglength(0,i,
         %result(%<i>) = %arg(0,%<i>) * %arg(1,0);
     )
 )\
 
-%builtin(__mul,mul_n,%'T:L=T:L,T:L',0,
+%builtin(__mul,mul_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         %result(%<i>) = %arg(0,%<i>) * %arg(1,%<i>);
     )
 )\
 
-%builtin(__div,div_ri,%'ri:2=ri:2,ri:2',0,
+%builtin(__div,div_ri,%'((ri 2) (ri 2) (ri 2))',0,
     float r1 = %arg(0,0);
     float r2 = %arg(1,0);
     float c1 = %arg(0,1);
@@ -149,7 +149,7 @@
     }
 )\
 
-%builtin(__div,div_v2m2x2,%'nil:2=_:2,m2x2:4',0,
+%builtin(__div,div_v2m2x2,%'((nil 2) (_ 2) (m2x2 4))',0,
     float a[4] = { %arg(1,0)%',' %arg(1,1)%',' %arg(1,2)%',' %arg(1,3) };
     float b[2] = { %arg(0,0)%',' %arg(0,1) };
 
@@ -159,7 +159,7 @@
     %result(1) = b[1];
 )\
 
-%builtin(__div,div_v3m3x3,%'nil:3=_:3,m3x3:9',0,
+%builtin(__div,div_v3m3x3,%'((nil 3) (_ 3) (m3x3 9))',0,
     float a[9] = { %arg(1,0)%',' %arg(1,1)%',' %arg(1,2)%',' %arg(1,3)%',' %arg(1,4)%',' %arg(1,5)%',' %arg(1,6)%',' %arg(1,7)%',' %arg(1,8) };
     float b[3] = { %arg(0,0)%',' %arg(0,1)%',' %arg(0,2) };
 
@@ -170,14 +170,14 @@
     %result(2) = b[2];
 )\
 
-%builtin(__div,div_1,%'T:1=T:1,T:1',0,
+%builtin(__div,div_1,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(1,0) == 0%')'
         %result(0) = 0.0;
     else
         %result(0) = %arg(0,0) / %arg(1,0);
 )\
 
-%builtin(__div,div_s,%'T:L=T:L,_:1',0,
+%builtin(__div,div_s,%'((T L) (T L) (_ 1))',0,
     if %'('%arg(1,0) == 0%')'
         %forarglength(0,i,
             %result(%<i>) = 0.0;
@@ -188,7 +188,7 @@
         )
 )\
 
-%builtin(__div,div_n,%'T:L=T:L,T:L',0,
+%builtin(__div,div_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         if %'('%arg(1,%<i>) == 0%')'
             %result(%<i>) = 0.0;
@@ -197,14 +197,14 @@
     )
 )\
 
-%builtin(__mod,mod_1,%'T:1=T:1,T:1',0,
+%builtin(__mod,mod_1,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(1,0) == 0%')'
         %result(0) = 0.0;
     else
         %result(0) = fmod%'('%arg(0,0)%',' %arg(1,0)%')';
 )\
 
-%builtin(__mod,mod_s,%'T:L=T:L,_:1',0,
+%builtin(__mod,mod_s,%'((T L) (T L) (_ 1))',0,
     if %'('%arg(1,0) == 0%')'
         %forarglength(0,i,
             %result(%<i>) = 0.0;
@@ -215,7 +215,7 @@
         )
 )\
 
-%builtin(__mod,mod_n,%'T:L=T:L,T:L',0,
+%builtin(__mod,mod_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         if %'('%arg(1,%<i>) == 0%')'
             %result(%<i>) = 0.0;
@@ -224,7 +224,7 @@
     )
 )\
 
-%builtin(pmod,pmod,%'T:1=T:1,T:1',0,
+%builtin(pmod,pmod,%'((T 1) (T 1) (T 1))',0,
     float mod = fmod%'('%arg(0,0)%',' %arg(1,0)%')';
 
     if %'('%arg(0,0) < 0%')'
@@ -233,7 +233,7 @@
     %result(0) = mod;
 )\
 
-%builtin(dotp,dotp,%'nil:1=T:L,T:L',0,
+%builtin(dotp,dotp,%'((nil 1) (T L) (T L))',0,
     float sum = 0.0;
 
     %forarglength(0,i,
@@ -243,17 +243,17 @@
     %reslength() = 1;
 )\
 
-%builtin(crossp,crossp,%'T:3=T:3,T:3',0,
+%builtin(crossp,crossp,%'((T 3) (T 3) (T 3))',0,
     %result(0) = %arg(0,1) * %arg(1,2) - %arg(0,2) * %arg(1,1);
     %result(1) = %arg(0,2) * %arg(1,0) - %arg(0,0) * %arg(1,2);
     %result(2) = %arg(0,0) * %arg(1,1) - %arg(0,1) * %arg(1,0);
 )\
 
-%builtin(det,det_m2x2,%'nil:1=m2x2:4',0,
+%builtin(det,det_m2x2,%'((nil 1) (m2x2 4))',0,
     %result(0) = %arg(0,0) * %arg(0,3) - %arg(0,1) * %arg(0,2);
 )\
 
-%builtin(det,det_m3x3,%'nil:1=m3x3:9',0,
+%builtin(det,det_m3x3,%'((nil 1) (m3x3 9))',0,
     %result(0) = %arg(0,0) * %arg(0,4) * %arg(0,8)
                  + %arg(0,1) * %arg(0,5) * %arg(0,6)
                  + %arg(0,2) * %arg(0,3) + %arg(0,7)
@@ -262,7 +262,7 @@
                  - %arg(0,1) * %arg(0,3) + %arg(0,8);
 )\
 
-%builtin(normalize,normalize,%'T:L=T:L',0,
+%builtin(normalize,normalize,%'((T L) (T L))',0,
     float l = 0.0;
 
     %forarglength(0,i,
@@ -277,25 +277,25 @@
     )
 )\
 
-%builtin(__neg,neg,%'T:L=T:L',0,
+%builtin(__neg,neg,%'((T L) (T L))',0,
     %forarglength(0,i,
         %result(%<i>) = -%arg(0,%<i>);
     )
 )\
 
-%builtin(sin,sin,%'T:1=T:1',0,
+%builtin(sin,sin,%'((T 1) (T 1))',0,
     %result(0) = sin%'('%arg(0,0) * M_PI / 180.0%')';
 )\
 
-%builtin(cos,cos,%'T:1=T:1',0,
+%builtin(cos,cos,%'((T 1) (T 1))',0,
     %result(0) = cos%'('%arg(0,0) * M_PI / 180.0%')';
 )\
 
-%builtin(tan,tan,%'T:1=T:1',0,
+%builtin(tan,tan,%'((T 1) (T 1))',0,
     %result(0) = tan%'('%arg(0,0) * M_PI / 180.0%')';
 )\
 
-%builtin(asin,asin,%'T:1=T:1',0,
+%builtin(asin,asin,%'((T 1) (T 1))',0,
     if %'('%arg(0,0) < -1.0 || %arg(0,0) > 1.0%')'
     {
         %result(0) = 0.0;
@@ -306,7 +306,7 @@
     }
 )\
 
-%builtin(acos,acos,%'T:1=T:1',0,
+%builtin(acos,acos,%'((T 1) (T 1))',0,
     if %'('%arg(0,0) < -1.0 || %arg(0,0) > 1.0%')'
     {
         %result(0) = 0.0;
@@ -317,25 +317,25 @@
     }
 )\
 
-%builtin(atan,atan,%'T:1=T:1',0,
+%builtin(atan,atan,%'((T 1) (T 1))',0,
     %result(0) = atan%'('%arg(0,0)%')' * 180.0 / M_PI;
 )\
 
-%builtin(atan,atan2,%'T:1=T:1,T:1',0,
+%builtin(atan,atan2,%'((T 1) (T 1) (T 1))',0,
     %result(0) = atan2%'('%arg(0,0)%','%arg(1,0)%')' * 180.0 / M_PI;
 )\
 
-%builtin(__pow,pow_1,%'T:1=T:1,T:1',0,
+%builtin(__pow,pow_1,%'((T 1) (T 1) (T 1))',0,
     %result(0) = pow%'('%arg(0,0)%',' %arg(1,0)%')';
 )\
 
-%builtin(__pow,pow_s,%'T:L=T:L,_:1',0,
+%builtin(__pow,pow_s,%'((T L) (T L) (_ 1))',0,
     %forarglength(0,i,
         %result(%<i>) = pow%'('%arg(0,%<i>)%',' %arg(1,0)%')';
     )
 )\
 
-%builtin(abs,abs_ri,%'nil:1=ri:2',0,
+%builtin(abs,abs_ri,%'((nil 1) (ri 2))',0,
     float r = %arg(0,0);
     float i = %arg(0,1);
 
@@ -343,21 +343,21 @@
     %reslength() = 1;
 )\
 
-%builtin(abs,abs_1,%'T:1=T:1',0,
+%builtin(abs,abs_1,%'((T 1) (T 1))',0,
     %result(0) = fabs%'('%arg(0,0)%')';
 )\
 
-%builtin(abs,abs_n,%'T:L=T:L',0,
+%builtin(abs,abs_n,%'((T L) (T L))',0,
     %forarglength(0,i,
         %result(%<i>) = fabs%'('%arg(0,%<i>)%')';
     )
 )\
 
-%builtin(floor,floor,%'T:1=T:1',0,
+%builtin(floor,floor,%'((T 1) (T 1))',0,
     %result(0) = floor%'('%arg(0,0)%')';
 )\
 
-%builtin(sign,sign_1,%'T:1=T:1',0,
+%builtin(sign,sign_1,%'((T 1) (T 1))',0,
     if %'('%arg(0,0) < 0%')'
         %result(0) = -1.0;
     else if %'('%arg(0,0) > 0%')'
@@ -366,7 +366,7 @@
         %result(0) = 0.0;
 )\
 
-%builtin(sign,sign_n,%'T:L=T:L',0,
+%builtin(sign,sign_n,%'((T L) (T L))',0,
     %forarglength(0,i,
         if %'('%arg(0,%<i>) < 0%')'
             %result(%<i>) = -1.0;
@@ -377,14 +377,14 @@
     )
 )\
 
-%builtin(min,min_1,%'T:1=T:1,T:1',0,
+%builtin(min,min_1,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) < %arg(1,0)%')'
         %result(0) = %arg(0,0);
     else
         %result(0) = %arg(1,0);
 )\
 
-%builtin(min,min_n,%'T:L=T:L,T:L',0,
+%builtin(min,min_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         if %'('%arg(0,%<i>) < %arg(1,%<i>)%')'
             %result(%<i>) = %arg(0,%<i>);
@@ -393,14 +393,14 @@
     )
 )\
 
-%builtin(max,max_1,%'T:1=T:1,T:1',0,
+%builtin(max,max_1,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) > %arg(1,0)%')'
         %result(0) = %arg(0,0);
     else
         %result(0) = %arg(1,0);
 )\
 
-%builtin(max,max_n,%'T:L=T:L,T:L',0,
+%builtin(max,max_n,%'((T L) (T L) (T L))',0,
     %forarglength(0,i,
         if %'('%arg(0,%<i>) > %arg(1,%<i>)%')'
             %result(%<i>) = %arg(0,%<i>);
@@ -409,7 +409,7 @@
     )
 )\
 
-%builtin(sum,sum,%'T:1=T:L',0,
+%builtin(sum,sum,%'((T 1) (T L))',0,
     float sum = 0.0;
 
     %forarglength(0,i,
@@ -418,81 +418,81 @@
     %result(0) = sum;
 )\
 
-%builtin(__not,not,%'T:1=T:1',0,
+%builtin(__not,not,%'((T 1) (T 1))',0,
     if %'('%arg(0,0) != 0%')'
         %result(0) = 0.0;
     else
         %result(0) = 1.0;
 )\
 
-%builtin(__or,or,%'T:1=T:1,T:1',0,
+%builtin(__or,or,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) || %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__and,and,%'T:1=T:1,T:1',0,
+%builtin(__and,and,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) && %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__equal,equal,%'T:1=T:1,T:1',0,
+%builtin(__equal,equal,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) == %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__less,less,%'T:1=T:1,T:1',0,
+%builtin(__less,less,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) < %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__greater,greater,%'T:1=T:1,T:1',0,
+%builtin(__greater,greater,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) > %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__lessequal,lessequal,%'T:1=T:1,T:1',0,
+%builtin(__lessequal,lessequal,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) <= %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__greaterequal,greaterequal,%'T:1=T:1,T:1',0,
+%builtin(__greaterequal,greaterequal,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) >= %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(__notequal,notequal,%'T:1=T:1,T:1',0,
+%builtin(__notequal,notequal,%'((T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) != %arg(1,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(inintv,inintv,%'T:1=T:1,T:1,T:1',0,
+%builtin(inintv,inintv,%'((T 1) (T 1) (T 1) (T 1))',0,
     if %'('%arg(0,0) >= %arg(1,0) && %arg(0,0) <= %arg(2,0)%')'
         %result(0) = 1.0;
     else
         %result(0) = 0.0;
 )\
 
-%builtin(rand,rand,%'T:1=T:1,T:1',1,
+%builtin(rand,rand,%'((T 1) (T 1) (T 1))',1,
     %result(0) = %'(random() / (double)0x7fffffff)' * %'('%arg(1,0) - %arg(0,0)%')' + %arg(0,0);
 )\
 
-%builtin(origVal,origValXY,%'rgba:4=xy:2',0,
+%builtin(origVal,origValXY,%'((rgba 4) (xy 2))',0,
     unsigned char pixel[4];
 
     getOrigValPixel%'('%arg(0,0)%','%arg(0,1)%','pixel%')';
@@ -503,7 +503,7 @@
     %reslength() = 4;
 )\
 
-%builtin(origValIntersample,origValXYIntersample,%'rgba:4=xy:2',0,
+%builtin(origValIntersample,origValXYIntersample,%'((rgba 4) (xy 2))',0,
     unsigned char pixel[4];
 
     getOrigValIntersamplePixel%'('%arg(0,0)%','%arg(0,1)%','pixel%')';
@@ -514,12 +514,12 @@
     %reslength() = 4;
 )\
 
-%builtin(gray,gray,%'nil:1=rgba:4',0,
+%builtin(gray,gray,%'((nil 1) (rgba 4))',0,
     %result(0) = 0.299 * %arg(0,0) + 0.587 * %arg(0,1) + 0.114 * %arg(0,2);
     %reslength() = 1;
 )\
 
-%builtin(gradient,gradient,%'rgba:4=_:1',0,
+%builtin(gradient,gradient,%'((rgba 4) (_ 1))',0,
     int index = %arg(0,0) * %'(num_gradient_samples - 1)';
 
     if %'(index < 0)'
@@ -533,23 +533,23 @@
     %reslength() = 4;
 )\
 
-%builtin(scnoise,scnoise,%'nil:1=_:3',0,
+%builtin(scnoise,scnoise,%'((nil 1) (_ 3))',0,
     %result(0) = scnoise%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
 )\
 
-%builtin(noise3,noise3,%'nil:1=_:3',0,
+%builtin(noise3,noise3,%'((nil 1) (_ 3))',0,
     %result(0) = noise3%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%')';
 )\
 
-%builtin(noise1,noise1,%'T:1=T:1',0,
+%builtin(noise1,noise1,%'((T 1) (T 1))',0,
     %result(0) = noise1%'('%arg(0,0)%')';
 )\
 
-%builtin(vlnoise3,vlnoise3,%'nil:1=_:3,_:1',0,
+%builtin(vlnoise3,vlnoise3,%'((nil 1) (_ 3) (_ 1))',0,
     %result(0) = vlnoise3%'('%arg(0,0)%',' %arg(0,1)%',' %arg(0,2)%',' %arg(1,0)%')';
 )\
 
-%builtin(toXY,toXY,%'xy:2=ra:2',0,
+%builtin(toXY,toXY,%'((xy 2) (ra 2))',0,
     double x%',' y;
 
     x = cos%'('%arg(0,1) * M_PI / 180%')' * %arg(0,0);
@@ -559,7 +559,7 @@
     %result(1) = y;
 )\
 
-%builtin(toRA,toRA,%'ra:2=xy:2',0,
+%builtin(toRA,toRA,%'((ra 2) (xy 2))',0,
     double %'x, y, r, a';
 
     x = %arg(0,0);

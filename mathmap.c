@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-1999 Mark Probst
+ * Copyright (C) 1997-2000 Mark Probst
  * schani@unix.cslab.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -10,7 +10,7 @@
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
  *
- * Version 0.10
+ * Version 0.11
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define MATHMAP_VERSION "0.10"
+#define MATHMAP_VERSION "0.11"
 
 
 #include <sys/param.h>
@@ -37,11 +37,11 @@
 #include <assert.h>
 #include <string.h>
 #include <unistd.h>
-#include <proplist.h>
 
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 
+#include "lispreader.h"
 #include "exprtree.h"
 #include "builtins.h"
 #include "postfix.h"
@@ -329,7 +329,7 @@ run(char    *name,
     *nreturn_vals = 1;
     *return_vals  = values;
 
-	/* Get the active drawable info */
+    /* Get the active drawable info */
 
     input_drawable = gimp_drawable_get(param[2].data.d_drawable);
 
@@ -1008,37 +1008,38 @@ build_preview_source_image(void)
 /*****/
 
 static GtkWidget*
-tree_from_proplist (GtkWidget *root_item, proplist_t pl)
+tree_from_lisp_object (GtkWidget *root_item, lisp_object_t *obj)
 {
     GtkWidget *tree = gtk_tree_new();
-    proplist_t keys;
-    int length,
-	i;
 
     if (root_item != 0)
 	gtk_tree_item_set_subtree(GTK_TREE_ITEM(root_item), tree);
 
-    assert(PLIsDictionary(pl));
-
-    keys = PLGetAllDictionaryKeys(pl);
-    length = PLGetNumberOfElements(keys);
-
-    for (i = 0; i < length; ++i)
+    for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
     {
-	proplist_t key = PLGetArrayElement(keys, i),
-	    value = PLGetDictionaryEntry(pl, key);
-	GtkWidget *item;
+	lisp_object_t *vars[2];
+	GtkWidget *item = 0;
 
-	item = gtk_tree_item_new_with_label(PLGetString(key));
-	gtk_tree_append(GTK_TREE(tree), item);
-	gtk_widget_show(item);
+	assert(lisp_type(obj) == LISP_TYPE_CONS);
 
-	if (!PLIsString(value))
-	    tree_from_proplist(item, value);
-	else
+	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
+	{
+	    item = gtk_tree_item_new_with_label(lisp_string(vars[0]));
+	    gtk_tree_append(GTK_TREE(tree), item);
+	    gtk_widget_show(item);
+	    tree_from_lisp_object(item, vars[1]);
+	}
+	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
+	{
+	    item = gtk_tree_item_new_with_label(lisp_string(vars[0]));
+	    gtk_tree_append(GTK_TREE(tree), item);
+	    gtk_widget_show(item);
 	    gtk_object_set_user_data(GTK_OBJECT(item),
-				     strcpy((char*)malloc(strlen(PLGetString(value)) + 1),
-					    PLGetString(value)));
+				     strcpy((char*)malloc(strlen(lisp_string(vars[1])) + 1),
+					    lisp_string(vars[1])));
+	}
+	else
+	    assert(0);
     }
 
     gtk_widget_show(tree);
@@ -1053,18 +1054,19 @@ static GtkWidget*
 read_tree_from_rc (void)
 {
     char filename[MAXPATHLEN + 1];
-    proplist_t pl;
     GtkWidget *tree;
+    FILE *file;
+    lisp_stream_t stream;
+    lisp_object_t *obj;
 
     strcpy(filename, getenv("HOME"));
     strcat(filename, "/" _GIMPDIR "/mathmaprc");
 
-    pl = PLGetProplistWithPath(filename);
-
-    if (pl == 0)
+    file = fopen(filename, "r");
+    if (file == 0)
     {
-	pl = PLGetProplistWithPath("/usr/local/share/gimp/mathmaprc");
-	if (pl == 0)
+	file = fopen("/usr/local/share/gimp/mathmaprc", "r");
+	if (file == 0)
 	{
 	    tree = gtk_tree_new();
 	    gtk_widget_show(tree);
@@ -1072,7 +1074,11 @@ read_tree_from_rc (void)
 	}
     }
 
-    tree = tree_from_proplist(0, pl);
+    obj = lisp_read(lisp_stream_init_file(&stream, file));
+    tree = tree_from_lisp_object(0, obj);
+    lisp_free(obj);
+
+    fclose(file);
 
     return tree;
 }
@@ -1860,7 +1866,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 {
     gimp_message("MathMap " MATHMAP_VERSION "\n"
 		 "written by\n"
-		 "Mark Probst <schani@unix.cslab.tuwien.ac.at>");
+		 "Mark Probst <schani@complang.tuwien.ac.at>");
 } /* dialog_about_callback */
 
 /*****/

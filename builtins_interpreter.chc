@@ -4,7 +4,7 @@
 \
 %defspecial(builtin,name,funcname,args,sidefx,code,
     %lappend(%&builtins,%hash(name,%eval(%name),funcname,%eval(%funcname),args,%eval(%args),sidefx,%eval(%sidefx)))\
-    %<curnumargs=%llength(%ssplit(%',',%eval(%args)))>\
+    %<curnumargs=%[%llength(%ssplit(%'\\) \\(',%eval(%args))) - 1]>\
     void gen_%eval(%funcname) %'(FILE*, int*, int*, int)';
     void builtin_%eval(%funcname) %'(postfix_arg *arg)'
     {

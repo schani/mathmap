@@ -208,28 +208,28 @@ init_macros (void)
 
     register_variable_macro("pi", macro_var_pi, make_tuple_info(nil_tag_number, 1));
 
-    register_overloaded_macro("origVal", "rgba:4=ra:2", macro_func_origVal);
-    register_overloaded_macro("origValIntersample", "rgba:4=ra:2", macro_func_origVal);
-    register_overloaded_macro("origValXY", "rgba:4=T:1,T:1", macro_func_origValXY);
-    register_overloaded_macro("origValRA", "rgba:4=T:1,T:1", macro_func_origValRA);
+    register_overloaded_macro("origVal", "((rgba 4) (ra 2))", macro_func_origVal);
+    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2))", macro_func_origVal);
+    register_overloaded_macro("origValXY", "((rgba 4) (T 1) (T 1))", macro_func_origValXY);
+    register_overloaded_macro("origValRA", "((rgba 4) (T 1) (T 1))", macro_func_origValRA);
 
-    register_overloaded_macro("red", "nil:1=rgba:4", macro_func_red);
-    register_overloaded_macro("green", "nil:1=rgba:4", macro_func_green);
-    register_overloaded_macro("blue", "nil:1=rgba:4", macro_func_blue);
-    register_overloaded_macro("alpha", "nil:1=rgba:4", macro_func_alpha);
+    register_overloaded_macro("red", "((nil 1) (rgba 4))", macro_func_red);
+    register_overloaded_macro("green", "((nil 1) (rgba 4))", macro_func_green);
+    register_overloaded_macro("blue", "((nil 1) (rgba 4))", macro_func_blue);
+    register_overloaded_macro("alpha", "((nil 1) (rgba 4))", macro_func_alpha);
 
-    register_overloaded_macro("red", "nil:1=rgba:4", macro_func_red);
-    register_overloaded_macro("green", "nil:1=rgba:4", macro_func_green);
-    register_overloaded_macro("blue", "nil:1=rgba:4", macro_func_blue);
-    register_overloaded_macro("alpha", "nil:1=rgba:4", macro_func_alpha);
+    register_overloaded_macro("red", "((nil 1) (rgba 4))", macro_func_red);
+    register_overloaded_macro("green", "((nil 1) (rgba 4))", macro_func_green);
+    register_overloaded_macro("blue", "((nil 1) (rgba 4))", macro_func_blue);
+    register_overloaded_macro("alpha", "((nil 1) (rgba 4))", macro_func_alpha);
 
-    register_overloaded_macro("rgbColor", "rgba:4=T:1,T:1,T:1", macro_func_rgbColor);
-    register_overloaded_macro("rgbaColor", "rgba:4=T:1,T:1,T:1,T:1", macro_func_rgbaColor);
-    register_overloaded_macro("grayColor", "rgba:4=T:1", macro_func_grayColor);
-    register_overloaded_macro("grayaColor", "rgba:4=T:1,T:1", macro_func_grayaColor);
+    register_overloaded_macro("rgbColor", "((rgba 4) (T 1) (T 1) (T 1))", macro_func_rgbColor);
+    register_overloaded_macro("rgbaColor", "((rgba 4) (T 1) (T 1) (T 1) (T 1))", macro_func_rgbaColor);
+    register_overloaded_macro("grayColor", "((rgba 4) (T 1))", macro_func_grayColor);
+    register_overloaded_macro("grayaColor", "((rgba 4) (T 1) (T 1))", macro_func_grayaColor);
 
-    register_overloaded_macro("toXY", "xy:2=xy:2", macro_func_toXY);
-    register_overloaded_macro("toRA", "ra:2=ra:2", macro_func_toRA);
+    register_overloaded_macro("toXY", "((xy 2) (xy 2))", macro_func_toXY);
+    register_overloaded_macro("toRA", "((ra 2) (ra 2))", macro_func_toRA);
 
-    register_overloaded_macro("curve", "nil:1=_:1", macro_func_curve);
+    register_overloaded_macro("curve", "((nil 1) (_ 1))", macro_func_curve);
 }
