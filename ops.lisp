@@ -21,8 +21,8 @@
 
 (defparameter *operators* nil)
 
-(defmacro defop (name arity c-define c-name &key (type-prop 'const) (type 'float) (pure t))
-  `(push '(,name ,arity ,c-define ,c-name ,type-prop ,type ,pure) *operators*))
+(defmacro defop (name arity c-define c-name &key (type-prop 'const) (type 'float) (pure t) (foldable t))
+  `(push '(,name ,arity ,c-define ,c-name ,type-prop ,type ,pure ,(if pure foldable nil)) *operators*))
 
 (defop nop 0 "OP_NOP" "NOP" :type int)
 
@@ -69,7 +69,7 @@
 (defop start-debug-tuple 1 "OP_START_DEBUG_TUPLE" "START_DEBUG_TUPLE" :type int :pure nil)
 (defop set-debug-tuple-data 2 "OP_SET_DEBUG_TUPLE_DATA" "SET_DEBUG_TUPLE_DATA" :type int :pure nil)
 
-(defop orig-val 4 "OP_ORIG_VAL" "ORIG_VAL" :type color)
+(defop orig-val 4 "OP_ORIG_VAL" "ORIG_VAL" :type color :foldable nil)
 (defop red 1 "OP_RED" "RED_FLOAT")
 (defop green 1 "OP_GREEN" "GREEN_FLOAT")
 (defop blue 1 "OP_BLUE" "BLUE_FLOAT")
@@ -115,12 +115,12 @@
 (defop noise 3 "OP_NOISE" "noise")
 (defop rand 2 "OP_RAND" "RAND" :pure nil)
 
-(defop userval-int 1 "OP_USERVAL_INT" "USERVAL_INT_ACCESS" :type int)
-(defop userval-float 1 "OP_USERVAL_FLOAT" "USERVAL_FLOAT_ACCESS" :type float)
-(defop userval-bool 1 "OP_USERVAL_BOOL" "USERVAL_BOOL_ACCESS" :type int)
-(defop userval-curve 2 "OP_USERVAL_CURVE" "USERVAL_CURVE_ACCESS" :type float)
-(defop userval-color 1 "OP_USERVAL_COLOR" "USERVAL_COLOR_ACCESS" :type color)
-(defop userval-gradient 2 "OP_USERVAL_GRADIENT" "USERVAL_GRADIENT_ACCESS" :type color)
+(defop userval-int 1 "OP_USERVAL_INT" "USERVAL_INT_ACCESS" :type int :foldable nil)
+(defop userval-float 1 "OP_USERVAL_FLOAT" "USERVAL_FLOAT_ACCESS" :type float :foldable nil)
+(defop userval-bool 1 "OP_USERVAL_BOOL" "USERVAL_BOOL_ACCESS" :type int :foldable nil)
+(defop userval-curve 2 "OP_USERVAL_CURVE" "USERVAL_CURVE_ACCESS" :type float :foldable nil)
+(defop userval-color 1 "OP_USERVAL_COLOR" "USERVAL_COLOR_ACCESS" :type color :foldable nil)
+(defop userval-gradient 2 "OP_USERVAL_GRADIENT" "USERVAL_GRADIENT_ACCESS" :type color :foldable nil)
 
 (defop make-color 4 "OP_MAKE_COLOR" "MAKE_COLOR" :type color)
 (defop output-color 1 "OP_OUTPUT_COLOR" "OUTPUT_COLOR" :type int :pure nil)
@@ -134,16 +134,16 @@
 (defun make-init-ops ()
   (apply #'string-concat
 	 (mapcar #'(lambda (op)
-		     (destructuring-bind (name arity c-define c-name type-prop type pure)
+		     (destructuring-bind (name arity c-define c-name type-prop type pure foldable)
 			 op
-		       (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~]);~%"
+		       (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~], ~:[0~;1~]);~%"
 			       c-define c-name arity (string-upcase (symbol-name type-prop))
 			       (cdr (assoc type '((nil . "0")
 						  (int . "TYPE_INT") (float . "TYPE_FLOAT")
 						  (complex . "TYPE_COMPLEX") (color . "TYPE_COLOR")
 						  (m2x2 . "TYPE_MATRIX") (m3x3 . "TYPE_MATRIX")
 						  (v2 . "TYPE_VECTOR") (v3 . "TYPE_VECTOR"))))
-			       pure)))
+			       pure foldable)))
 		 (reverse *operators*))))
 
 (defun make-ops-file ()

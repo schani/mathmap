@@ -30,8 +30,9 @@
 #define MAX_INTERNAL_LENGTH    63
 
 #define CONST_NONE              0
-#define CONST_ROW               1
-#define CONST_COL               2
+#define CONST_X                 1
+#define CONST_Y                 2
+#define CONST_T                 4
 
 typedef struct _internal_t
 {

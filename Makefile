@@ -25,6 +25,9 @@ ENABLE_NLS = YES
 # prefix for the software installation
 PREFIX = /usr/local
 
+# directory where the command line binary should be installed in
+BINDIR = $(PREFIX)/bin
+
 # directory where the localization files should be installed in
 LOCALEDIR = $(PREFIX)/share/locale
 
@@ -41,8 +44,8 @@ VERSION = 1.1.0
 OPT_CFLAGS := -g
 
 ifeq ($(MACOSX),YES)
-CGEN_CC=-DCGEN_CC="\"cc -g -c -fPIC -faltivec -o\""
-CGEN_LD=-DCGEN_LD="\"cc -g -bundle -flat_namespace -undefined suppress -o\""
+CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
+CGEN_LD=-DCGEN_LD="\"cc -bundle -flat_namespace -undefined suppress -o\""
 MACOSX_LIBS=-lmx
 MACOSX_CFLAGS=-I/sw/include
 else
@@ -128,7 +131,7 @@ scanner.c : scanner.fl parser.h
 
 compiler.o : new_builtins.c opdefs.h
 
-new_builtins.c opdefs.h : builtins.lisp
+new_builtins.c opdefs.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
 blender.o : generators/blender/blender.c
@@ -141,6 +144,7 @@ ifneq ($(CMDLINE),YES)
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
 else
+	cp mathmap $(BINDIR)
 	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
 	cp generators/blender/blender_template.c $(TEMPLATE_DIR)
 endif
@@ -151,15 +155,18 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *~ *.o mathmap compiler scanner.c parser.[ch] parser.output core
+	rm -f *~ *.o generators/blender/*~ generators/blender/*.o mathmap compiler scanner.c parser.[ch] parser.output core
 
 realclean : clean
-	rm -f new_builtins.c .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h .nfs* mathmap-*.tar.gz
 
 dist : new_builtins.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
 	cp Makefile README ANNOUNCEMENT COPYING INSTALL HACKING *.[ch] *.lisp parser.y scanner.fl mathmaprc *.po mathmap-$(VERSION)
+	mkdir mathmap-$(VERSION)/generators
+	mkdir mathmap-$(VERSION)/generators/blender
+	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h mathmap-$(VERSION)/generators/blender
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/graygradient.png html/clown.jpg html/sinegraph.png html/sineclown.jpg html/polar.png html/clownpond.jpg html/target.png html/rmod.jpg html/clownhole.jpg html/redgreengradient.png html/noise.jpg mathmap-$(VERSION)/doc
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)

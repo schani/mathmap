@@ -63,7 +63,7 @@
 #endif
 
 #define USER_CURVE_POINTS             $p
-#define USER_GRADIENT_POINS           $q
+#define USER_GRADIENT_POINTS          $q
 
 #define MAX_DEBUG_TUPLES              $max_debug_tuples
 
@@ -164,6 +164,17 @@ typedef struct
     $y_decls
 } y_const_vars_t;
 
+struct _mathmap_invocation_t;
+
+typedef void (*init_frame_func_t) (struct _mathmap_invocation_t*);
+typedef void (*calc_lines_func_t) (struct _mathmap_invocation_t*, int, int, unsigned char*);
+
+typedef struct
+{
+    init_frame_func_t init_frame;
+    calc_lines_func_t calc_lines;
+} mathfuncs_t;
+
 typedef struct _mathmap_invocation_t
 {
     mathmap_t *mathmap;
@@ -194,7 +205,7 @@ typedef struct _mathmap_invocation_t
     int row_stride;
     volatile int num_rows_finished;
 
-    void *mathfunc;
+    mathfuncs_t mathfuncs;
 
     xy_const_vars_t *xy_vars;
     y_const_vars_t *y_vars;
@@ -203,8 +214,6 @@ typedef struct _mathmap_invocation_t
     int num_debug_tuples;
     tuple_t debug_tuples[MAX_DEBUG_TUPLES];
 } mathmap_invocation_t;
-
-typedef void (*mathfunc_t) (mathmap_invocation_t*, int, int, unsigned char*);
 
 #if $o
 static color_t
@@ -416,7 +425,7 @@ extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int co
 #include "$opmacros_h"
 
 static void
-mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
+calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     int row, col;
@@ -496,16 +505,19 @@ mathmapfunc (mathmap_invocation_t *invocation, int first_row, int last_row, unsi
     }
 }
 
-mathfunc_t
-mathmapinit (mathmap_invocation_t *invocation)
+static void
+init_frame (mathmap_invocation_t *invocation)
 {
-    /* FIXME */
-    float t = /* invocation->current_t */ 0.0;
+    float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
 
+    if (invocation->xy_vars != 0)
+	free(invocation->xy_vars);
     invocation->xy_vars = (xy_const_vars_t*)malloc(sizeof(xy_const_vars_t));
+    if (invocation->y_vars != 0)
+	free(invocation->y_vars);
     invocation->y_vars = (y_const_vars_t*)malloc(sizeof(y_const_vars_t) * invocation->img_width);
 
     {
@@ -530,7 +542,15 @@ mathmapinit (mathmap_invocation_t *invocation)
 	    }
 	}
     }
+}
 
+mathfuncs_t
+mathmapinit (mathmap_invocation_t *invocation)
+{
+    mathfuncs_t funcs;
 
-    return &mathmapfunc;
+    funcs.init_frame = &init_frame;
+    funcs.calc_lines = &calc_lines;
+
+    return funcs;
 }

@@ -89,7 +89,7 @@ char name[] = "MathMap generated Plug-In";
 
 VarStruct varstr[] =
 {
-    LABEL, "Hyva Schuomi!", 0.0, 0.0, 0.0, "",
+    LABEL, "Input: $num_input_drawables strip(s)", 0.0, 0.0, 0.0, "",
 #if USES_T
     NUMSLI|FLO, "frames per t: ", 25.0, 0.0, 1000.0, "The number of frames it takes t to go from 0 to 1",
 #endif
@@ -109,7 +109,7 @@ float cfra;
 int
 plugin_seq_getversion (void) 
 {
-	return B_PLUGIN_VERSION;
+    return B_PLUGIN_VERSION;
 }
 
 void
@@ -153,8 +153,7 @@ plugin_seq_doit (Cast *cast, float facf0, float facf1, int sx, int sy, ImBuf *ib
     float t = (cast->frames_per_t > 0.0) ? (cfra / cast->frames_per_t) : 0.0;
 #endif
 
-    xy_const_vars_t _xy_vars;
-    xy_const_vars_t *xy_vars = &_xy_vars;
+    xy_const_vars_t _xy_vars, *xy_vars = &_xy_vars;
     y_const_vars_t *y_vars_array;
 
     if (ibuf0 == 0 || out == 0)

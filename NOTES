@@ -86,3 +86,52 @@ in neuer sprache:
     push nil:[1.0]
     make_tuple rgba:4
     return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+code generated for if stmt:
+
+  condition
+  if condition false goto alternative
+  consequent
+  exit with 1st rhss
+  goto end
+ alternative:
+  alternative
+  exit with 2nd rhss
+ end:
+
+
+code generated for while loop:
+
+  entry with 1st rhss
+ start:
+  invariant
+  if invariant false goto end
+  body
+  entry with 2nd rhss
+  goto start
+ end:

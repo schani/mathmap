@@ -946,6 +946,8 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->scale_x = invocation->scale_y = 1.0;
 	    invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
+	    init_frame(invocation);
+
 	    call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
 
 	    /* Update progress */
@@ -1756,6 +1758,8 @@ dialog_update_preview (void)
 	else
 	    disable_debugging(invocation);
 
+	init_frame(invocation);
+
 	call_invocation(invocation, 0, preview_height, buf);
 
 	p = buf;
@@ -2066,6 +2070,7 @@ dialog_preview_click (GtkWidget *widget, GdkEvent *event)
 	    break;
 
 	default :
+	    break;
     }
 }
 

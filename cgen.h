@@ -31,8 +31,16 @@
 struct _mathmap_t;
 struct _mathmap_invocation_t;
 
-typedef void (*mathfunc_t) (struct _mathmap_invocation_t*, int, int, unsigned char*);
-typedef mathfunc_t (*initfunc_t) (struct _mathmap_invocation_t*);
+typedef void (*init_frame_func_t) (struct _mathmap_invocation_t*);
+typedef void (*calc_lines_func_t) (struct _mathmap_invocation_t*, int, int, unsigned char*);
+
+typedef struct
+{
+    init_frame_func_t init_frame;
+    calc_lines_func_t calc_lines;
+} mathfuncs_t;
+
+typedef mathfuncs_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
 void init_compiler (void);
 

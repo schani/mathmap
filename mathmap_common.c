@@ -117,17 +117,17 @@ free_invocation (mathmap_invocation_t *invocation)
 void
 init_internals (mathmap_t *mathmap)
 {
-    register_internal(&mathmap->internals, "x", CONST_COL);
-    register_internal(&mathmap->internals, "y", CONST_ROW);
-    register_internal(&mathmap->internals, "r", CONST_NONE);
-    register_internal(&mathmap->internals, "a", CONST_NONE);
-    register_internal(&mathmap->internals, "t", CONST_ROW | CONST_COL);
-    register_internal(&mathmap->internals, "X", CONST_ROW | CONST_COL);
-    register_internal(&mathmap->internals, "Y", CONST_ROW | CONST_COL);
-    register_internal(&mathmap->internals, "W", CONST_ROW | CONST_COL);
-    register_internal(&mathmap->internals, "H", CONST_ROW | CONST_COL);
-    register_internal(&mathmap->internals, "R", CONST_ROW | CONST_COL);
-    register_internal(&mathmap->internals, "frame", CONST_ROW | CONST_COL);
+    register_internal(&mathmap->internals, "x", CONST_Y | CONST_T);
+    register_internal(&mathmap->internals, "y", CONST_X | CONST_T);
+    register_internal(&mathmap->internals, "r", CONST_T);
+    register_internal(&mathmap->internals, "a", CONST_T);
+    register_internal(&mathmap->internals, "t", CONST_X | CONST_Y);
+    register_internal(&mathmap->internals, "X", CONST_X | CONST_Y | CONST_T);
+    register_internal(&mathmap->internals, "Y", CONST_X | CONST_Y | CONST_T);
+    register_internal(&mathmap->internals, "W", CONST_X | CONST_Y | CONST_T);
+    register_internal(&mathmap->internals, "H", CONST_X | CONST_Y | CONST_T);
+    register_internal(&mathmap->internals, "R", CONST_X | CONST_Y | CONST_T);
+    register_internal(&mathmap->internals, "frame", CONST_X | CONST_Y);
 }
 
 int
@@ -298,6 +298,13 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
     return mathmap;
 }
 
+static void
+init_invocation (mathmap_invocation_t *invocation)
+{
+    if (invocation->mathmap->is_native)
+	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
+}
+
 mathmap_invocation_t*
 invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height)
 {
@@ -305,7 +312,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->mathmap = mathmap;
 
-    invocation->mathfunc = 0;
+    invocation->mathfuncs.init_frame = 0;
+    invocation->mathfuncs.calc_lines = 0;
 
     invocation->uservals = instantiate_uservals(mathmap->userval_infos);
 #ifdef GIMP
@@ -375,6 +383,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->do_debug = 0;
 
+    init_invocation(invocation);
+
     return invocation;
 }
 
@@ -388,13 +398,6 @@ void
 disable_debugging (mathmap_invocation_t *invocation)
 {
     invocation->do_debug = 0;
-}
-
-static void
-init_invocation (mathmap_invocation_t *invocation)
-{
-    if (invocation->mathmap->is_native)
-	invocation->mathfunc = invocation->mathmap->initfunc(invocation);
 }
 
 static void
@@ -432,11 +435,18 @@ write_tuple_to_pixel (tuple_t *tuple, guchar *dest, int output_bpp)
 	dest[output_bpp - 1] = alphaf * 255;
 }
 
+void
+init_frame (mathmap_invocation_t *invocation)
+{
+    if (invocation->mathmap->is_native)
+	invocation->mathfuncs.init_frame(invocation);
+}
+
 static void
 calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
     if (invocation->mathmap->is_native)
-	invocation->mathfunc(invocation, first_row, last_row, q);
+	invocation->mathfuncs.calc_lines(invocation, first_row, last_row, q);
     else
     {
 	int row, col;
@@ -493,8 +503,6 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	int row, col;
 	int img_width = invocation->img_width;
 
-	init_invocation(invocation);
-
 	line1 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 	line2 = (guchar*)malloc(img_width * invocation->output_bpp);
 	line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
@@ -540,10 +548,7 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	free(line3);
     }
     else
-    {
-	init_invocation(invocation);
 	calc_lines(invocation, first_row, last_row, q);
-    }
 }
 
 void

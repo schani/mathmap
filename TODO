@@ -1,5 +1,4 @@
 MERD!!!!!!!
-parameter t is disregarded in constant optimized compiler (xy and y vars must be initialized for each frame)
 supersampling does not work in constant optimized compiler (row length is changed for each second line computed)
 make matrix operations pure (i.e. no memory allocation or think of something else)
 in blender:
@@ -85,6 +84,52 @@ normalisierung von matrizen (matrix/determinante)
 inverse matrix
 pixel konvertieren schneller machen
 abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
+
+
+
+
+
+
+
+
+#konrad stania
+winkelrotz=0;
+winkelrothor=0;
+shiftx=0;
+shifty=0;
+fa=1;
+fb=0;
+fc=0;
+fd=0;
+rotmz=m3x3:[cos(-winkelrotz),-sin(-winkelrotz),0,sin(-winkelrotz),cos(-winkelrotz),0,0,0,1];
+rotmh=m3x3:[1,0,0,0,cos(-winkelrothor),-sin(-winkelrothor),0,sin(-winkelrothor),cos(-winkelrothor)];
+focus=max(X,Y)*5;
+rad=r/R;
+trafomat=rotmz*rotmh;
+koord1ra=ra:[R*(fa*rad+fb*rad^2+fc*rad^3+fd*rad^4),a];
+koord1x=nil:[koord1ra[0]*cos(koord1ra[1])];
+koord1y=nil:[koord1ra[0]*sin(koord1ra[1])];
+koord1z=0;
+koordtraf=[koord1x,koord1y,koord1z]*trafomat;
+origValXY(koordtraf[0]/(koordtraf[2]+focus)*focus-X*shiftx,koordtraf[1]/(koordtraf[2]+focus)*focus-Y*shifty)
+
+
+Remarks:
+winkelrotz   : rotate the image (clockwise)
+winkelrothor : perspectively tilt the image around horizont.
+               In architectural fotography used to make vertical lines strictly paralell
+shiftx/shifty: shift the resulting imgae
+fa ... fd    : to scale image and remove optical distortion
+               in polar koordinates radius = fa * radius + fb * radius ^ 2 + fc * radius ^ 3 + fd * radius ^ 4
+
+
+
+
+
+
+
+
+
 
 
 

@@ -59,6 +59,7 @@ typedef struct
     int last_index;
 } temporary_t;
 
+#define TYPE_NIL             0
 #define TYPE_INT             1
 #define TYPE_FLOAT           2
 #define TYPE_COMPLEX         3
@@ -66,9 +67,11 @@ typedef struct
 #define TYPE_MATRIX          5
 #define TYPE_VECTOR          6
 
+#define MAX_TYPE             TYPE_VECTOR
+
 #define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
 
-#define CONST_MAX            (CONST_ROW | CONST_COL)
+#define CONST_MAX            (CONST_Y | CONST_X | CONST_T)
 
 typedef int type_t;
 
@@ -84,6 +87,8 @@ typedef struct _compvar_t
 
 struct _statement_list_t;
 struct _statement_t;
+struct _native_register_t;
+struct _pre_native_insn_t;
 
 typedef struct _value_t
 {
@@ -92,9 +97,12 @@ typedef struct _value_t
     int index;			/* SSA index */
     struct _statement_t *def;
     struct _statement_list_t *uses;
-    unsigned int const_type : 2; /* defined in internals.h */
-    unsigned int least_const_type_directly_used_in : 2;
-    unsigned int least_const_type_multiply_used_in : 2;
+    struct _pre_native_insn_t *live_start;
+    struct _pre_native_insn_t *live_end;
+    struct _native_register_t *allocated_register;
+    unsigned int const_type : 3; /* defined in internals.h */
+    unsigned int least_const_type_directly_used_in : 3;
+    unsigned int least_const_type_multiply_used_in : 3;
     unsigned int have_defined : 1; /* used in c code output */
     struct _value_t *next;	/* next value for same compvar */
 } value_t;
@@ -125,7 +133,8 @@ typedef struct
 
 typedef int type_prop_t;
 
-static void init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure);
+static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
+		     type_t const_type, int is_pure, int is_foldable);
 
 #include "opdefs.h"
 
@@ -136,6 +145,7 @@ typedef struct _operation_t
     type_prop_t type_prop;
     type_t const_type;		/* used only if type_prop == TYPE_PROP_CONST */
     int is_pure;
+    int is_foldable;
 } operation_t;
 
 #define RHS_PRIMARY          1
@@ -207,6 +217,38 @@ typedef struct _statement_list_t
     struct _statement_list_t *next;
 } statement_list_t;
 
+#define PRE_NATIVE_INSN_LABEL                  0
+#define PRE_NATIVE_INSN_GOTO                   1
+#define PRE_NATIVE_INSN_ASSIGN                 2
+#define PRE_NATIVE_INSN_PHI_ASSIGN             3
+#define PRE_NATIVE_INSN_IF_COND_FALSE_GOTO     4
+
+typedef struct _pre_native_insn_t
+{
+    int type;
+    int index;
+    statement_t *stmt;
+    union
+    {
+	struct _pre_native_insn_t *target;
+	int phi_rhs;
+    } v;
+    struct _pre_native_insn_t *next;
+} pre_native_insn_t;
+
+typedef struct _native_register_t
+{
+    int native_index;
+    struct _value_t *value_allocated_to;
+    int used_anywhere;
+} native_register_t;
+
+typedef struct
+{
+    int num_registers;
+    native_register_t *registers;
+} type_info_t;
+
 static pools_t compiler_pools;
 
 static operation_t ops[NUM_OPS];
@@ -216,6 +258,11 @@ static int next_temp_number = 1;
 static statement_t *first_stmt = 0;
 static statement_t **emit_loc = &first_stmt;
 static statement_t dummy_stmt = { STMT_NIL };
+
+static pre_native_insn_t *first_pre_native_insn;
+static pre_native_insn_t *last_pre_native_insn;
+
+static type_info_t type_infos[MAX_TYPE + 1];
 
 #define STMT_STACK_SIZE            64
 
@@ -301,6 +348,8 @@ new_value (compvar_t *compvar)
     val->index = -1;
     val->def = &dummy_stmt;
     val->uses = 0;
+    val->live_start = val->live_end = 0;
+    val->allocated_register = 0;
     val->const_type = CONST_NONE;
     val->least_const_type_directly_used_in = CONST_MAX;
     val->least_const_type_multiply_used_in = CONST_MAX;
@@ -588,6 +637,19 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
     }
 }
 
+static int
+rhs_contains (rhs_t *rhs, value_t *value)
+{
+    int contained = 0;
+
+    void func (value_t *val)
+	{ if (val == value) contained = 1; }
+
+    for_each_value_in_rhs(rhs, &func);
+
+    return contained;
+}
+
 static void
 for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
 {
@@ -623,8 +685,11 @@ for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
 }
 
 static void
-for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value))
+for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, statement_t *stmt))
 {
+    void call_func (value_t *value)
+	{ func(value, stmt); }
+
     while (stmt != 0)
     {
 	switch (stmt->type)
@@ -633,21 +698,21 @@ for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value))
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs2, func);
+		for_each_value_in_rhs(stmt->v.assign.rhs2, &call_func);
 	    case STMT_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs, func);
-		func(stmt->v.assign.lhs);
+		for_each_value_in_rhs(stmt->v.assign.rhs, &call_func);
+		func(stmt->v.assign.lhs, stmt);
 		break;
 
 	    case STMT_IF_COND :
-		for_each_value_in_rhs(stmt->v.if_cond.condition, func);
+		for_each_value_in_rhs(stmt->v.if_cond.condition, &call_func);
 		for_each_value_in_statements(stmt->v.if_cond.consequent, func);
 		for_each_value_in_statements(stmt->v.if_cond.alternative, func);
 		for_each_value_in_statements(stmt->v.if_cond.exit, func);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		for_each_value_in_rhs(stmt->v.while_loop.invariant, func);
+		for_each_value_in_rhs(stmt->v.while_loop.invariant, &call_func);
 		for_each_value_in_statements(stmt->v.while_loop.entry, func);
 		for_each_value_in_statements(stmt->v.while_loop.body, func);
 		break;
@@ -981,7 +1046,7 @@ end_if_cond (void)
 
     assert(stmt_stackp > 0);
 
-    stmt = stmt_stack[--stmt_stackp];
+    stmt = stmt_stack[stmt_stackp - 1];
 
     assert(stmt->type == STMT_IF_COND && stmt->v.if_cond.consequent != 0);
 
@@ -996,6 +1061,8 @@ end_if_cond (void)
 
 	UNSAFE_EMIT_STMT(nil, stmt->v.if_cond.exit);
     }
+
+    --stmt_stackp;
 
     reset_values_for_phis(stmt->v.if_cond.exit, 1);
 
@@ -1013,6 +1080,8 @@ void
 start_while_loop (rhs_t *invariant)
 {
     statement_t *stmt = alloc_stmt();
+    value_t *value;
+    statement_t *phi_assign;
 
     stmt->type = STMT_WHILE_LOOP;
     stmt->next = 0;
@@ -1020,35 +1089,30 @@ start_while_loop (rhs_t *invariant)
     stmt->v.while_loop.entry = 0;
     stmt->v.while_loop.body = 0;
 
-    {
-	value_t *value;
-	statement_t *phi_assign;
+    assert(invariant->type == RHS_PRIMARY && invariant->v.primary.type == PRIMARY_VALUE);
 
-	assert(invariant->type == RHS_PRIMARY && invariant->v.primary.type == PRIMARY_VALUE);
+    value = invariant->v.primary.v.value;
 
-	value = invariant->v.primary.v.value;
+    phi_assign = alloc_stmt();
 
-	phi_assign = alloc_stmt();
+    phi_assign->type = STMT_PHI_ASSIGN;
+    phi_assign->v.assign.lhs = make_value_copy(value);
+    phi_assign->v.assign.rhs = make_value_rhs(current_value(value->compvar));
+    phi_assign->v.assign.rhs2 = make_value_rhs(current_value(value->compvar));
 
-	phi_assign->type = STMT_PHI_ASSIGN;
-	phi_assign->v.assign.lhs = make_value_copy(value);
-	phi_assign->v.assign.rhs = make_value_rhs(current_value(value->compvar));
-	phi_assign->v.assign.rhs2 = make_value_rhs(current_value(value->compvar));
+    add_use(current_value(value->compvar), phi_assign);
+    add_use(current_value(value->compvar), phi_assign);
 
-	add_use(current_value(value->compvar), phi_assign);
-	add_use(current_value(value->compvar), phi_assign);
+    phi_assign->v.assign.lhs->def = phi_assign;
 
-	phi_assign->v.assign.lhs->def = phi_assign;
-
-	UNSAFE_EMIT_STMT(phi_assign, stmt->v.while_loop.entry);
-
-	assign_value_index_and_make_current(phi_assign->v.assign.lhs);
+    assign_value_index_and_make_current(phi_assign->v.assign.lhs);
  
-	stmt->v.while_loop.invariant = make_value_rhs(current_value(value->compvar));
-    }
+    stmt->v.while_loop.invariant = make_value_rhs(current_value(value->compvar));
 
     emit_stmt(stmt);
     stmt_stack[stmt_stackp++] = stmt;
+
+    UNSAFE_EMIT_STMT(phi_assign, stmt->v.while_loop.entry);
 
     emit_loc = &stmt->v.while_loop.body;
 }
@@ -1173,10 +1237,12 @@ print_rhs (rhs_t *rhs)
 static void
 output_const_type (FILE *out, unsigned int const_type)
 {
-    if (const_type & CONST_ROW)
+    if (const_type & CONST_X)
 	fputs("x", out);
-    if (const_type & CONST_COL)
+    if (const_type & CONST_Y)
 	fputs("y", out);
+    if (const_type & CONST_T)
+	fputs("t", out);
     if (const_type == CONST_NONE)
 	fputs("-", out);
 }
@@ -1193,55 +1259,65 @@ count_uses (value_t *val)
     return num_uses;
 }
 
-void
+static void
+print_assign_statement (statement_t *stmt)
+{
+    switch (stmt->type)
+    {
+	case STMT_ASSIGN :
+	    print_value(stmt->v.assign.lhs);
+	    printf(" (%d) = ", count_uses(stmt->v.assign.lhs));
+	    print_rhs(stmt->v.assign.rhs);
+	    printf("   ");
+	    output_const_type(stdout, stmt->v.assign.lhs->const_type);
+	    printf(" ");
+	    output_const_type(stdout, stmt->v.assign.lhs->least_const_type_directly_used_in);
+	    printf(" ");
+	    output_const_type(stdout, stmt->v.assign.lhs->least_const_type_multiply_used_in);
+	    break;
+
+	case STMT_PHI_ASSIGN :
+	    print_value(stmt->v.assign.lhs);
+	    printf(" (%d) = phi(", count_uses(stmt->v.assign.lhs));
+	    print_rhs(stmt->v.assign.rhs);
+	    printf(", ");
+	    print_rhs(stmt->v.assign.rhs2);
+	    printf(")   ");
+	    output_const_type(stdout, stmt->v.assign.lhs->const_type);
+	    printf(" ");
+	    output_const_type(stdout, stmt->v.assign.lhs->least_const_type_directly_used_in);
+	    printf(" ");
+	    output_const_type(stdout, stmt->v.assign.lhs->least_const_type_multiply_used_in);
+	    break;
+
+	default :
+	    assert(0);
+    }
+}
+
+static void
 dump_code (statement_t *stmt, int indent)
 {
     while (stmt != 0)
     {
+	if (stmt->type != STMT_NIL)
+	    print_indent(indent);
+
 	switch (stmt->type)
 	{
 	    case STMT_NIL :
-		/*
-		print_indent(indent);
-		printf("nil (%p)\n", stmt);
-		*/
 		break;
 
 	    case STMT_ASSIGN :
-		print_indent(indent);
-		print_value(stmt->v.assign.lhs);
-		printf(" (%d) = ", count_uses(stmt->v.assign.lhs));
-		print_rhs(stmt->v.assign.rhs);
-		printf("   ");
-		output_const_type(stdout, stmt->v.assign.lhs->const_type);
-		printf(" ");
-		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_directly_used_in);
-		printf(" ");
-		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_multiply_used_in);
-		printf(" (%p)\n", stmt);
-		break;
-
 	    case STMT_PHI_ASSIGN :
-		print_indent(indent);
-		print_value(stmt->v.assign.lhs);
-		printf(" (%d) = phi(", count_uses(stmt->v.assign.lhs));
-		print_rhs(stmt->v.assign.rhs);
-		printf(", ");
-		print_rhs(stmt->v.assign.rhs2);
-		printf(")   ");
-		output_const_type(stdout, stmt->v.assign.lhs->const_type);
-		printf(" ");
-		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_directly_used_in);
-		printf(" ");
-		output_const_type(stdout, stmt->v.assign.lhs->least_const_type_multiply_used_in);
-		printf(" (%p)\n", stmt);
+		print_assign_statement(stmt);
+		printf("\n");
 		break;
 
 	    case STMT_IF_COND :
-		print_indent(indent);
 		printf("if ");
 		print_rhs(stmt->v.if_cond.condition);
-		printf(" (%p)\n", stmt);
+		printf("\n");
 		dump_code(stmt->v.if_cond.consequent, indent + 1);
 		print_indent(indent);
 		printf("else\n");
@@ -1252,8 +1328,8 @@ dump_code (statement_t *stmt, int indent)
 		break;
 
 	    case STMT_WHILE_LOOP :
-		print_indent(indent);
-		printf("start while (%p)\n", stmt);
+		printf("start while");
+		printf("\n");
 		dump_code(stmt->v.while_loop.entry, indent + 1);
 		print_indent(indent);
 		printf("while ");
@@ -1267,6 +1343,71 @@ dump_code (statement_t *stmt, int indent)
 	}
 
 	stmt = stmt->next;
+    }
+}
+
+static void
+print_liveness (value_t *value)
+{
+    if (value->live_start != 0 && value->live_end != 0)
+	printf("  (%d - %d)", value->live_start->index, value->live_end->index);
+}
+
+static void
+dump_pre_native_code (void)
+{
+    pre_native_insn_t *insn = first_pre_native_insn;
+
+    while (insn != 0)
+    {
+	printf("%4d ", insn->index);
+	switch (insn->type)
+	{
+	    case PRE_NATIVE_INSN_LABEL :
+		printf("label\n");
+		break;
+
+	    case PRE_NATIVE_INSN_GOTO :
+		printf("  goto %d\n", insn->v.target->index);
+		break;
+
+	    case PRE_NATIVE_INSN_ASSIGN :
+		printf("  ");
+		print_value(insn->stmt->v.assign.lhs);
+		printf(" = ");
+		print_rhs(insn->stmt->v.assign.rhs);
+		print_liveness(insn->stmt->v.assign.lhs);
+		printf("\n");
+		break;
+
+	    case PRE_NATIVE_INSN_PHI_ASSIGN :
+		printf("  ");
+		print_value(insn->stmt->v.assign.lhs);
+		printf(" = ");
+		if (insn->v.phi_rhs == 1)
+		    print_rhs(insn->stmt->v.assign.rhs);
+		else
+		    print_rhs(insn->stmt->v.assign.rhs2);
+		print_liveness(insn->stmt->v.assign.lhs);
+		printf("\n");
+		break;
+
+	    case PRE_NATIVE_INSN_IF_COND_FALSE_GOTO :
+		assert(insn->stmt->type == STMT_IF_COND || insn->stmt->type == STMT_WHILE_LOOP);
+
+		printf("  if not ");
+		if (insn->stmt->type == STMT_IF_COND)
+		    print_rhs(insn->stmt->v.if_cond.condition);
+		else
+		    print_rhs(insn->stmt->v.while_loop.invariant);
+		printf(" goto %d\n", insn->v.target->index);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	insn = insn->next;
     }
 }
 
@@ -2123,10 +2264,10 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 static void
 analyze_constants (void)
 {
-    void init_const_type (value_t *value)
+    void init_const_type (value_t *value, statement_t *stmt)
 	{ value->const_type = CONST_MAX; }
 
-    void init_least_const_types (value_t *value)
+    void init_least_const_types (value_t *value, statement_t *stmt)
 	{
 	    value->least_const_type_multiply_used_in = value->const_type;
 	    value->least_const_type_directly_used_in = value->const_type;
@@ -2230,8 +2371,6 @@ optimize_make_color (statement_t *stmt)
 	}
     }
 }
-
-/*** constant propagation ***/
 
 /*** copy propagation ***/
 
@@ -2402,6 +2541,554 @@ remove_dead_code (void)
     } while (worklist != 0);
 }
 
+/*** common subexpression eliminiation ***/
+
+static int
+primaries_equal (primary_t *prim1, primary_t *prim2)
+{
+    if (prim1->type != prim2->type)
+	return 0;
+
+    switch (prim1->type)
+    {
+	case PRIMARY_VALUE :
+	    return prim1->v.value == prim2->v.value;
+
+	case PRIMARY_INT_CONST :
+	    return prim1->v.int_const == prim2->v.int_const;
+
+	case PRIMARY_FLOAT_CONST :
+	    return prim1->v.float_const == prim2->v.float_const;
+
+	default :
+	    assert(0);
+    }
+
+    return 0;
+}
+
+static int
+rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
+{
+    if (rhs1->type != rhs2->type)
+	return 0;
+
+    switch (rhs1->type)
+    {
+	case RHS_PRIMARY :
+	    return primaries_equal(&rhs1->v.primary, &rhs2->v.primary);
+
+	case RHS_INTERNAL :
+	    return rhs1->v.internal == rhs2->v.internal;
+
+	case RHS_OP :
+	{
+	    int i;
+
+	    if (rhs1->v.op.op != rhs2->v.op.op)
+		return 0;
+
+	    for (i = 0; i < rhs1->v.op.op->num_args; ++i)
+		if (!primaries_equal(&rhs1->v.op.args[i], &rhs2->v.op.args[i]))
+		    return 0;
+	    return 1;
+	}
+
+	default :
+	    assert(0);
+    }
+
+    return 0;
+}
+
+static void
+replace_rhs_with_value (rhs_t **rhs, value_t *val, statement_t *stmt)
+{
+    void remove_value_use (value_t *value)
+	{ remove_use(value, stmt); }
+
+    for_each_value_in_rhs(*rhs, &remove_value_use);
+
+    *rhs = make_value_rhs(val);
+
+    add_use(val, stmt);
+}
+
+static void
+replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		if (rhss_equal(rhs, stmt->v.assign.rhs2))
+		    replace_rhs_with_value(&stmt->v.assign.rhs2, val, stmt);
+	    case STMT_ASSIGN :
+		if (rhss_equal(rhs, stmt->v.assign.rhs))
+		    replace_rhs_with_value(&stmt->v.assign.rhs, val, stmt);
+		break;
+
+	    case STMT_IF_COND :
+		if (rhss_equal(rhs, stmt->v.if_cond.condition))
+		    replace_rhs_with_value(&stmt->v.if_cond.condition, val, stmt);
+		replace_rhs_recursively(stmt->v.if_cond.consequent, rhs, val);
+		replace_rhs_recursively(stmt->v.if_cond.alternative, rhs, val);
+		replace_rhs_recursively(stmt->v.if_cond.exit, rhs, val);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		if (rhss_equal(rhs, stmt->v.while_loop.invariant))
+		    replace_rhs_with_value(&stmt->v.while_loop.invariant, val, stmt);
+		replace_rhs_recursively(stmt->v.while_loop.entry, rhs, val);
+		replace_rhs_recursively(stmt->v.while_loop.body, rhs, val);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static void
+cse_recursively (statement_t *stmt)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN :
+		if (stmt->v.assign.rhs->type == RHS_INTERNAL
+		    || (stmt->v.assign.rhs->type == RHS_OP
+			&& stmt->v.assign.rhs->v.op.op->is_pure))
+		    replace_rhs_recursively(stmt->next, stmt->v.assign.rhs, stmt->v.assign.lhs);
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_IF_COND :
+		cse_recursively(stmt->v.if_cond.consequent);
+		cse_recursively(stmt->v.if_cond.alternative);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		cse_recursively(stmt->v.while_loop.body);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static void
+common_subexpression_elimination (void)
+{
+    cse_recursively(first_stmt);
+}
+
+/*** pre native code generation ***/
+
+static pre_native_insn_t*
+new_pre_native_insn (int type, statement_t *stmt)
+{
+    pre_native_insn_t *insn = (pre_native_insn_t*)pools_alloc(&compiler_pools, sizeof(pre_native_insn_t));
+
+    insn->type = type;
+    insn->index = -1;
+    insn->stmt = stmt;
+    insn->next = 0;
+
+    return insn;
+}
+
+static pre_native_insn_t*
+new_pre_native_insn_goto (int type, statement_t *stmt, pre_native_insn_t *target)
+{
+    pre_native_insn_t *insn = new_pre_native_insn(type, stmt);
+
+    insn->v.target = target;
+
+    return insn;
+}
+
+static pre_native_insn_t*
+new_pre_native_insn_phi_assign (statement_t *stmt, int phi_rhs)
+{
+    pre_native_insn_t *insn = new_pre_native_insn(PRE_NATIVE_INSN_PHI_ASSIGN, stmt);
+
+    insn->v.phi_rhs = phi_rhs;
+
+    return insn;
+}
+
+static void
+emit_pre_native_insn (pre_native_insn_t *insn)
+{
+    assert(insn->next == 0);
+
+    if (last_pre_native_insn == 0)
+    {
+	assert(first_pre_native_insn == 0);
+
+	insn->index = 0;
+
+	first_pre_native_insn = last_pre_native_insn = insn;
+    }
+    else
+    {
+	assert(first_pre_native_insn != 0);
+
+	insn->index = last_pre_native_insn->index + 1;
+
+	last_pre_native_insn = last_pre_native_insn->next = insn;
+    }
+}
+
+static void
+generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs)
+{
+    while (stmt != 0)
+    {
+	if (stmt->type == STMT_PHI_ASSIGN)
+	    emit_pre_native_insn(new_pre_native_insn_phi_assign(stmt, phi_rhs));
+	else
+	    assert(stmt->type == STMT_NIL);
+
+	stmt = stmt->next;
+    }
+}
+
+static void
+generate_pre_native_code_recursively (statement_t *stmt)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_ASSIGN :
+		emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
+		break;
+
+	    case STMT_IF_COND :
+		{
+		    pre_native_insn_t *label_alternative = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
+		    pre_native_insn_t *label_end = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
+
+		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_IF_COND_FALSE_GOTO,
+								  stmt, label_alternative));
+		    generate_pre_native_code_recursively(stmt->v.if_cond.consequent);
+		    generate_pre_native_code_for_phis(stmt->v.if_cond.exit, 1);
+		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_GOTO, stmt, label_end));
+		    emit_pre_native_insn(label_alternative);
+		    generate_pre_native_code_recursively(stmt->v.if_cond.alternative);
+		    generate_pre_native_code_for_phis(stmt->v.if_cond.exit, 2);
+		    emit_pre_native_insn(label_end);
+		}
+		break;
+
+	    case STMT_WHILE_LOOP :
+		{
+		    pre_native_insn_t *label_start = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
+		    pre_native_insn_t *label_end = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
+
+		    generate_pre_native_code_for_phis(stmt->v.while_loop.entry, 1);
+		    emit_pre_native_insn(label_start);
+		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_IF_COND_FALSE_GOTO,
+								  stmt, label_end));
+		    generate_pre_native_code_recursively(stmt->v.while_loop.body);
+		    generate_pre_native_code_for_phis(stmt->v.while_loop.entry, 2);
+		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_GOTO, stmt, label_start));
+		    emit_pre_native_insn(label_end);
+		}
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static void
+generate_pre_native_code (void)
+{
+    first_pre_native_insn = 0;
+    last_pre_native_insn = 0;
+
+    generate_pre_native_code_recursively(first_stmt);
+}
+
+/*** register allocation ***/
+
+/*
+static statement_t*
+least_common_ancestor (statement_t *stmt1, statement_t *stmt2)
+{
+    while (stmt1 != 0)
+    {
+	statement_t *stmt;
+
+	for (stmt = stmt2; stmt != 0; stmt = stmt->parent)
+	    if (stmt == stmt1)
+		return stmt;
+
+	stmt1 = stmt1->parent;
+    }
+
+    return stmt1;
+}
+
+static void
+determine_live_range (value_t *value, statement_t *stmt)
+{
+    statement_list_t *lst;
+    statement_t *largest_loop = 0;
+
+    if (value->index < 0)
+	return;
+
+    if (value->live_start != 0)
+    {
+	assert(value->live_end != 0);
+	return;
+    }
+
+    for (lst = value->uses; lst != 0; lst = lst->next)
+	if (lst->stmt->type == STMT_PHI_ASSIGN
+	    && lst->stmt->parent->type == STMT_WHILE_LOOP
+	    && rhs_contains(lst->stmt->v.assign.rhs2, value))
+	    if (largest_loop == 0 || lst->stmt->parent->index < largest_loop->index)
+		largest_loop = lst->stmt->parent;
+
+    if (largest_loop != 0)
+    {
+	value->live_start = value->def;
+	value->live_end = largest_loop;
+    }
+    else
+    {
+	value->live_start = value->def;
+
+	for (lst = value->uses; lst != 0; lst = lst->next)
+	    if (value->live_end == 0 || lst->stmt->index > value->live_end->index)
+		value->live_end = lst->stmt;
+
+	if (value->live_end == 0)
+	    value->live_end = value->live_start;
+    }
+}
+*/
+
+static void
+for_each_value_in_pre_native_insn (pre_native_insn_t *insn, void (*func) (value_t *value))
+{
+    switch (insn->type)
+    {
+	case PRE_NATIVE_INSN_LABEL :
+	case PRE_NATIVE_INSN_GOTO :
+	    break;
+
+	case PRE_NATIVE_INSN_ASSIGN :
+	    func(insn->stmt->v.assign.lhs);
+	    for_each_value_in_rhs(insn->stmt->v.assign.rhs, func);
+	    break;
+
+	case PRE_NATIVE_INSN_PHI_ASSIGN :
+	    assert(insn->v.phi_rhs == 1 || insn->v.phi_rhs == 2);
+
+	    func(insn->stmt->v.assign.lhs);
+	    if (insn->v.phi_rhs == 1)
+		for_each_value_in_rhs(insn->stmt->v.assign.rhs, func);
+	    else
+		for_each_value_in_rhs(insn->stmt->v.assign.rhs2, func);
+	    break;
+
+	case PRE_NATIVE_INSN_IF_COND_FALSE_GOTO :
+	    assert(insn->stmt->type == STMT_IF_COND || insn->stmt->type == STMT_WHILE_LOOP);
+
+	    if (insn->stmt->type == STMT_IF_COND)
+		for_each_value_in_rhs(insn->stmt->v.if_cond.condition, func);
+	    else
+		for_each_value_in_rhs(insn->stmt->v.while_loop.invariant, func);
+	    break;
+
+	default :
+	    assert(0);
+    }
+}
+
+static void
+determine_live_ranges (void)
+{
+    pre_native_insn_t *insn;
+
+    void update (value_t *value)
+	{
+	    if (value->live_start == 0)
+	    {
+		assert(value->live_end == 0);
+
+		value->live_start = value->live_end = insn;
+	    }
+	    else
+	    {
+		assert(value->live_end != 0);
+
+		value->live_end = insn;
+	    }
+	}
+
+    for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
+	for_each_value_in_pre_native_insn(insn, &update);
+}
+
+static void
+init_type_info (int type, int num_registers)
+{
+    int i;
+
+    assert(type >= 0 && type <= MAX_TYPE);
+    assert(num_registers >= 0);
+
+    type_infos[type].num_registers = num_registers;
+    if (num_registers > 0)
+	type_infos[type].registers = (native_register_t*)malloc(sizeof(native_register_t) * num_registers);
+    else
+	type_infos[type].registers = 0;
+
+    for (i = 0; i < num_registers; ++i)
+    {
+	type_infos[type].registers[i].value_allocated_to = 0;
+	type_infos[type].registers[i].used_anywhere = 0;
+    }
+}
+
+static void
+allocate_reg_for_value (value_t *value)
+{
+    int type = value->compvar->type;
+    int i;
+
+    assert(value->allocated_register == 0);
+
+    for (i = 0; i < type_infos[type].num_registers; ++i)
+	if (type_infos[type].registers[i].value_allocated_to == 0)
+	{
+	    value->allocated_register = &type_infos[type].registers[i];
+	    type_infos[type].registers[i].value_allocated_to = value;
+	    type_infos[type].registers[i].used_anywhere = 1;
+
+	    break;
+	}
+}
+
+static void
+register_allocation (void)
+{
+    int i;
+    pre_native_insn_t *insn;
+
+    void allocate (value_t *value)
+	{
+	    if (value->index < 0)
+		return;
+	    if (value->live_start == insn && value->allocated_register == 0)
+		allocate_reg_for_value(value);
+	}
+
+    void deallocate (value_t *value)
+	{
+	    if (value->index < 0)
+		return;
+	    if (value->live_end == insn)
+		if (value->allocated_register != 0
+		    && value->allocated_register->value_allocated_to != 0)
+		{
+		    assert(value->allocated_register->value_allocated_to == value);
+
+		    value->allocated_register->value_allocated_to = 0;
+		}
+	}
+
+    init_type_info(TYPE_NIL, 0);
+    init_type_info(TYPE_INT, 128);
+    init_type_info(TYPE_FLOAT, 128);
+    init_type_info(TYPE_COMPLEX, 128);
+    init_type_info(TYPE_COLOR, 128);
+    init_type_info(TYPE_MATRIX, 128);
+    init_type_info(TYPE_VECTOR, 128);
+
+    for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
+    {
+	if (insn->type == PRE_NATIVE_INSN_ASSIGN
+	    || insn->type == PRE_NATIVE_INSN_PHI_ASSIGN)
+	{
+	    value_t *lhs = insn->stmt->v.assign.lhs;
+	    rhs_t *rhs;
+
+	    if (insn->type == PRE_NATIVE_INSN_ASSIGN
+		|| insn->v.phi_rhs == 1)
+		rhs = insn->stmt->v.assign.rhs;
+	    else
+		rhs = insn->stmt->v.assign.rhs2;
+
+	    if (rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_VALUE
+		&& lhs->index >= 0 && rhs->v.primary.v.value->index >= 0
+		&& lhs->live_start == insn && rhs->v.primary.v.value->live_end == insn)
+	    {
+		value_t *rhs_value = rhs->v.primary.v.value;
+
+		assert(rhs_value->allocated_register != 0);
+		assert(lhs->allocated_register == 0);
+
+		lhs->allocated_register = rhs_value->allocated_register;
+
+		lhs->allocated_register->value_allocated_to = lhs;
+
+		/* this may be necessary if there was no dead code removal */
+		deallocate(lhs);
+
+		continue;
+	    }
+	}
+
+	for_each_value_in_pre_native_insn(insn, &allocate);
+	for_each_value_in_pre_native_insn(insn, &deallocate);
+    }
+
+    for (i = 0; i < MAX_TYPE; ++i)
+    {
+	int num_used = 0;
+	int j;
+
+	for (j = 0; j < type_infos[i].num_registers; ++j)
+	{
+	    assert(type_infos[i].registers[j].value_allocated_to == 0);
+
+	    if (type_infos[i].registers[j].used_anywhere)
+		++num_used;
+	}
+
+	printf("type %d : %d regs used\n", i, num_used);
+    }
+}
+
 /*** ssa well-formedness check ***/
 
 static void
@@ -2469,15 +3156,18 @@ set_value_defined_and_current_for_checking (value_t *value, GHashTable *current_
 }
 
 static void
-check_phis (statement_t *stmts, statement_t *body1, statement_t *body2,
+check_phis (statement_t *stmts, statement_t *parent, statement_t *body1, statement_t *body2,
 	    GHashTable *current_value_hash, value_set_t *defined_set)
 {
     while (stmts != 0)
     {
+	assert(stmts->parent == parent);
+
 	assert(stmts->type == STMT_NIL || stmts->type == STMT_PHI_ASSIGN);
 
 	if (stmts->type == STMT_PHI_ASSIGN)
 	{
+/*
 	    void check_value (value_t *value)
 		{
 		    if (value->index >= 0)
@@ -2500,6 +3190,14 @@ check_phis (statement_t *stmts, statement_t *body1, statement_t *body2,
 
 	    for_each_value_in_rhs(stmts->v.assign.rhs, check_value);
 	    for_each_value_in_rhs(stmts->v.assign.rhs2, check_value);
+*/
+
+	    /* FIXME: check that the values in rhs are defined in body1 and
+	     * the ones in rhs2 are defined in body2 */
+/*
+	    check_rhs_defined(stmts->v.assign.rhs, defined_set);
+	    check_rhs_defined(stmts->v.assign.rhs2, defined_set);
+*/
 
 	    set_value_defined_and_current_for_checking(stmts->v.assign.lhs, current_value_hash, defined_set);
 	}
@@ -2508,10 +3206,11 @@ check_phis (statement_t *stmts, statement_t *body1, statement_t *body2,
     }
 }
 
-static void check_ssa_recursively (statement_t *stmts, GHashTable *current_value_hash, value_set_t *defined_set);
+static void check_ssa_recursively (statement_t *stmts, statement_t *parent,
+				   GHashTable *current_value_hash, value_set_t *defined_set);
 
 static void
-check_ssa_with_undo (statement_t *stmts, GHashTable *current_value_hash, value_set_t *defined_set)
+check_ssa_with_undo (statement_t *stmts, statement_t *parent, GHashTable *current_value_hash, value_set_t *defined_set)
 {
     GHashTable *current_value_hash_copy;
     value_set_t *defined_set_copy;
@@ -2519,17 +3218,19 @@ check_ssa_with_undo (statement_t *stmts, GHashTable *current_value_hash, value_s
     current_value_hash_copy = direct_hash_table_copy(current_value_hash);
     defined_set_copy = value_set_copy(defined_set);
 
-    check_ssa_recursively(stmts, current_value_hash_copy, defined_set_copy);
+    check_ssa_recursively(stmts, parent, current_value_hash_copy, defined_set_copy);
 
     free_value_set(defined_set_copy);
     g_hash_table_destroy(current_value_hash_copy);
 }
 
 static void
-check_ssa_recursively (statement_t *stmts, GHashTable *current_value_hash, value_set_t *defined_set)
+check_ssa_recursively (statement_t *stmts, statement_t *parent, GHashTable *current_value_hash, value_set_t *defined_set)
 {
     while (stmts != 0)
     {
+	assert(stmts->parent == parent);
+
 	switch (stmts->type)
 	{
 	    case STMT_NIL :
@@ -2548,20 +3249,20 @@ check_ssa_recursively (statement_t *stmts, GHashTable *current_value_hash, value
 	    case STMT_IF_COND :
 		check_rhs_defined(stmts->v.if_cond.condition, defined_set);
 
-		check_ssa_with_undo(stmts->v.if_cond.consequent, current_value_hash, defined_set);
-		check_ssa_with_undo(stmts->v.if_cond.alternative, current_value_hash, defined_set);
+		check_ssa_with_undo(stmts->v.if_cond.consequent, stmts, current_value_hash, defined_set);
+		check_ssa_with_undo(stmts->v.if_cond.alternative, stmts, current_value_hash, defined_set);
 
-		check_phis(stmts->v.if_cond.exit, stmts->v.if_cond.consequent, stmts->v.if_cond.alternative,
+		check_phis(stmts->v.if_cond.exit, stmts, stmts->v.if_cond.consequent, stmts->v.if_cond.alternative,
 			   current_value_hash, defined_set);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		check_phis(stmts->v.while_loop.entry, stmts->v.while_loop.body, 0,
+		check_phis(stmts->v.while_loop.entry, stmts, stmts->v.while_loop.body, 0,
 			   current_value_hash, defined_set);
 
 		check_rhs_defined(stmts->v.while_loop.invariant, defined_set);
 
-		check_ssa_with_undo(stmts->v.while_loop.body, current_value_hash, defined_set);
+		check_ssa_with_undo(stmts->v.while_loop.body, stmts, current_value_hash, defined_set);
 		break;
 
 	    default :
@@ -2581,7 +3282,7 @@ check_ssa (statement_t *stmts)
     current_value_hash = g_hash_table_new(&g_direct_hash, &g_direct_equal);
     defined_set = new_value_set();
 
-    check_ssa_recursively(stmts, current_value_hash, defined_set);
+    check_ssa_recursively(stmts, 0, current_value_hash, defined_set);
 
     free_value_set(defined_set);
     g_hash_table_destroy(current_value_hash);
@@ -2660,8 +3361,8 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 static int
 is_permanent_const_value (value_t *value)
 {
-    return value->least_const_type_multiply_used_in == value->const_type
-	&& value->least_const_type_directly_used_in != value->const_type;
+    return (value->least_const_type_multiply_used_in | CONST_T) == (value->const_type | CONST_T)
+	&& (value->least_const_type_directly_used_in | CONST_T) != (value->const_type | CONST_T);
 }
 
 /* temporary const values must be defined for the calculation of all const
@@ -2693,9 +3394,9 @@ output_value_name (FILE *out, value_t *value, int for_decl)
 #ifndef NO_CONSTANTS_ANALYSIS
 	if (!for_decl && is_permanent_const_value(value))
 	{
-	    if (value->const_type == (CONST_ROW | CONST_COL))
+	    if ((value->const_type | CONST_T) == (CONST_X | CONST_Y | CONST_T))
 		fprintf(out, "xy_vars->");
-	    else if (value->const_type == CONST_COL)
+	    else if ((value->const_type | CONST_T) == (CONST_Y | CONST_T))
 		fprintf(out, "y_vars->");
 	}
 #endif
@@ -2748,7 +3449,7 @@ output_value_decl (FILE *out, value_t *value)
 static void
 reset_have_defined (statement_t *stmt)
 {
-    void reset_value_have_defined (value_t *value)
+    void reset_value_have_defined (value_t *value, statement_t *stmt)
 	{ value->have_defined = 0; }
 
     for_each_value_in_statements(stmt, &reset_value_have_defined);
@@ -2902,9 +3603,9 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 static void
 output_permanent_const_declarations (FILE *out, int const_type)
 {
-    void output_value_if_needed (value_t *value)
+    void output_value_if_needed (value_t *value, statement_t *stmt)
 	{
-	    if (value->const_type == const_type
+	    if ((value->const_type | CONST_T) == (const_type | CONST_T)
 		&& is_permanent_const_value(value))
 		output_value_decl(out, value);
 	}
@@ -2919,13 +3620,13 @@ output_permanent_const_code (FILE *out, int const_type)
 {
     int is_value_needed (value_t *value)
 	{
-	    return value->const_type == const_type
-		|| (is_const_type_within(const_type,
+	    return (value->const_type | CONST_T) == (const_type | CONST_T)
+		|| (is_const_type_within(const_type | CONST_T,
 					 value->least_const_type_multiply_used_in,
-					 value->const_type));
+					 value->const_type | CONST_T));
 	}
 
-    void output_value_if_needed (value_t *value)
+    void output_value_if_needed (value_t *value, statement_t *stmt)
 	{
 	    if ((is_temporary_const_value(value) || const_type == 0)
 		&& is_value_needed(value))
@@ -2946,12 +3647,12 @@ output_permanent_const_code (FILE *out, int const_type)
     for_each_value_in_statements(first_stmt, &output_value_if_needed);
 
     /* code */
-    if (const_type == (CONST_ROW | CONST_COL))
+    if (const_type == (CONST_X | CONST_Y))
 	slice_flag = SLICE_XY_CONST;
-    else if (const_type == CONST_ROW)
-	slice_flag = SLICE_X_CONST;
-    else if (const_type == CONST_COL)
+    else if (const_type == CONST_Y)
 	slice_flag = SLICE_Y_CONST;
+    else if (const_type == CONST_X)
+	slice_flag = SLICE_X_CONST;
     else
 	slice_flag = SLICE_NO_CONST;
 
@@ -3023,13 +3724,24 @@ generate_ir_code (mathmap_t *mathmap)
 
     optimize_make_color(first_stmt);
     copy_propagation();
+    common_subexpression_elimination();
+    copy_propagation();
     remove_dead_code();
 
 #ifndef NO_CONSTANTS_ANALYSIS
     analyze_constants();
 #endif
-    // dump_code(first_stmt, 0);
+
+    dump_code(first_stmt, 0);
     check_ssa(first_stmt);
+
+    /* no statement reordering after this point */
+    generate_pre_native_code();
+    determine_live_ranges();
+
+    dump_pre_native_code();
+
+    register_allocation();
 }
 
 void
@@ -3097,37 +3809,37 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     else if (strcmp(directive, "xy_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(out, CONST_ROW | CONST_COL);
+	output_permanent_const_declarations(out, CONST_X | CONST_Y);
 #endif
     }
     else if (strcmp(directive, "x_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(out, CONST_ROW);
+	output_permanent_const_declarations(out, CONST_X);
 #endif
     }
     else if (strcmp(directive, "y_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(out, CONST_COL);
+	output_permanent_const_declarations(out, CONST_Y);
 #endif
     }
     else if (strcmp(directive, "xy_code") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(out, CONST_ROW | CONST_COL);
+	output_permanent_const_code(out, CONST_X | CONST_Y);
 #endif
     }
     else if (strcmp(directive, "x_code") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(out, CONST_ROW);
+	output_permanent_const_code(out, CONST_X);
 #endif
     }
     else if (strcmp(directive, "y_code") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(out, CONST_COL);
+	output_permanent_const_code(out, CONST_Y);
 #endif
     }
     else if (strcmp(directive, "opmacros_h") == 0)
@@ -3157,8 +3869,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     static int last_mathfunc = 0;
 
     FILE *out;
-    int numtmpvars = 0, i;
-    variable_t *var;
     char *buf;
     int pid = getpid();
     initfunc_t initfunc;
@@ -3282,7 +3992,7 @@ unload_c_code (void *module_info)
 /*** inits ***/
 
 static void
-init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure)
+init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure, int is_foldable)
 {
     assert(num_args <= MAX_OP_ARGS);
 
@@ -3291,6 +4001,7 @@ init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t cons
     ops[index].type_prop = type_prop;
     ops[index].const_type = const_type;
     ops[index].is_pure = is_pure;
+    ops[index].is_foldable = is_foldable;
 }
 
 void

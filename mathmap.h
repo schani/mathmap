@@ -107,7 +107,7 @@ typedef struct _mathmap_invocation_t
     int row_stride;
     volatile int num_rows_finished;
 
-    mathfunc_t mathfunc;
+    mathfuncs_t mathfuncs;
 
     void *xy_vars;
     void *y_vars;
@@ -148,6 +148,7 @@ int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_filename);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
+void init_frame (mathmap_invocation_t *invocation);
 void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);

@@ -47,7 +47,7 @@
 		      (abs-v 1 "OP_ABS" "fabs")))
 
 (defparameter *primops* (mapcar #'(lambda (op)
-				    (destructuring-bind (name arity c-define c-name type-prop type pure)
+				    (destructuring-bind (name arity c-define c-name type-prop type pure foldable)
 					op
 				      (list name arity c-define c-name type)))
 				*operators*))
