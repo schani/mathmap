@@ -630,7 +630,7 @@ generate_code (void)
 	    if (theExprtree->result.number != rgba_tag_number || theExprtree->result.length != 4)
 	    {
 		sprintf(error_string, "The expression must have the result type rgba:4.");
-		JUMP(0);
+		JUMP(1);
 	    }
 
 #ifdef USE_CGEN
@@ -1572,65 +1572,66 @@ dialog_update_preview(void)
     
     imageR = sqrt(imageX * imageX + imageY * imageY);
 
-    generate_code();
-
-    for (y = 0; y < preview_height; y++)
+    if (generate_code())
     {
-	if ((y / CHECK_SIZE) & 1) {
-	    check_0 = CHECK_DARK;
-	    check_1 = CHECK_LIGHT;
-	} else {
-	    check_0 = CHECK_LIGHT;
-	    check_1 = CHECK_DARK;
-	}                        
-	for (x = 0; x < preview_width; x++)
+	for (y = 0; y < preview_height; y++)
 	{
-	    tuple_t *result;
-	    float redf,
-		greenf,
-		bluef,
-		alphaf;
-
-	    currentX = x * imageWidth / preview_width - middleX;
-	    currentY = -(y * imageHeight / preview_height - middleY);
-	    calc_ra();
-	    update_pixel_internals();
-	    result = EVAL_EXPR();
-	    tuple_to_color(result, &redf, &greenf, &bluef, &alphaf);
-
-	    if (input_drawables[0].bpp < 2)
-		redf = greenf = bluef = 0.299 * redf + 0.587 * greenf + 0.114 * bluef;
-
-	    p_ul[0] = redf * 255;
-	    p_ul[1] = greenf * 255;
-	    p_ul[2] = bluef * 255;
-
-	    if (outputBPP == 2 || outputBPP == 4)
+	    if ((y / CHECK_SIZE) & 1) {
+		check_0 = CHECK_DARK;
+		check_1 = CHECK_LIGHT;
+	    } else {
+		check_0 = CHECK_LIGHT;
+		check_1 = CHECK_DARK;
+	    }                        
+	    for (x = 0; x < preview_width; x++)
 	    {
-		if (((x) / CHECK_SIZE) & 1)
-		    check = check_0;
-		else
-		    check = check_1;
-		p_ul[0] = check + (p_ul[0] - check) * alphaf;
-		p_ul[1] = check + (p_ul[1] - check) * alphaf;
-		p_ul[2] = check + (p_ul[2] - check) * alphaf;
+		tuple_t *result;
+		float redf,
+		    greenf,
+		    bluef,
+		    alphaf;
+
+		currentX = x * imageWidth / preview_width - middleX;
+		currentY = -(y * imageHeight / preview_height - middleY);
+		calc_ra();
+		update_pixel_internals();
+		result = EVAL_EXPR();
+		tuple_to_color(result, &redf, &greenf, &bluef, &alphaf);
+
+		if (input_drawables[0].bpp < 2)
+		    redf = greenf = bluef = 0.299 * redf + 0.587 * greenf + 0.114 * bluef;
+
+		p_ul[0] = redf * 255;
+		p_ul[1] = greenf * 255;
+		p_ul[2] = bluef * 255;
+
+		if (outputBPP == 2 || outputBPP == 4)
+		{
+		    if (((x) / CHECK_SIZE) & 1)
+			check = check_0;
+		    else
+			check = check_1;
+		    p_ul[0] = check + (p_ul[0] - check) * alphaf;
+		    p_ul[1] = check + (p_ul[1] - check) * alphaf;
+		    p_ul[2] = check + (p_ul[2] - check) * alphaf;
+		}
+
+		p_ul += 3;
 	    }
-
-	    p_ul += 3;
 	}
+
+	p = wint.wimage;
+
+	for (y = 0; y < preview_height; y++)
+	{
+	    gtk_preview_draw_row(GTK_PREVIEW(wint.preview), p, 0, y, preview_width);
+
+	    p += preview_width * 3;
+	}
+
+	gtk_widget_draw(wint.preview, NULL);
+	gdk_flush();
     }
-
-    p = wint.wimage;
-
-    for (y = 0; y < preview_height; y++)
-    {
-	gtk_preview_draw_row(GTK_PREVIEW(wint.preview), p, 0, y, preview_width);
-
-	p += preview_width * 3;
-    }
-
-    gtk_widget_draw(wint.preview, NULL);
-    gdk_flush();
 } /* dialog_update_preview */
 
 

@@ -134,7 +134,7 @@ int
 yyerror (char *s)
 {
     sprintf(error_string, "Parse error.");
-    JUMP(0);
+    JUMP(1);
 
     return 0;
 }

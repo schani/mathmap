@@ -51,7 +51,7 @@ make_range (int first, int last)
     if (first > last)
     {
 	sprintf(error_string, "Invalid range %d..%d.", first, last);
-	JUMP(0);
+	JUMP(1);
     }
     else if (first == last)
 	return make_number(first);
@@ -96,7 +96,7 @@ make_var (const char *name)
     else
     {
 	sprintf(error_string, "Undefined variable %s.", name);
-	JUMP(0);
+	JUMP(1);
     }
 
     return tree;
@@ -116,7 +116,7 @@ make_tuple (exprtree *elems)
 	if (elem->result.length != 1)
 	{
 	    sprintf(error_string, "Tuples cannot contain tuples of length other than 1.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	if (elem->type != EXPR_TUPLE_CONST)
@@ -216,7 +216,7 @@ make_function (const char *name, exprtree *args)
     if (args == 0)
     {
 	sprintf(error_string, "Function %s must be called with at least one argument.", name);
-	JUMP(0);
+	JUMP(1);
     }
 
     first = last = (function_arg_info_t*)malloc(sizeof(function_arg_info_t));
@@ -276,8 +276,8 @@ make_function (const char *name, exprtree *args)
     else
     {
 	sprintf(error_string, "Unable to resolve invocation of %s.", name);
-	JUMP(0);
-    }	
+	JUMP(1);
+    }
 
     /*
     while (first != 0)
@@ -305,13 +305,13 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (exprlist_length(args) != 2)
 	{
 	    sprintf(error_string, "user_slider takes 2 arguments.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 	if (args->type != EXPR_TUPLE_CONST || args->val.tuple_const.length != 1
 	    || args->next->type != EXPR_TUPLE_CONST || args->next->val.tuple_const.length != 1)
 	{
 	    sprintf(error_string, "user_slider min and max must be constants with length 1.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	min = args->val.tuple_const.data[0];
@@ -322,7 +322,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (userval == 0)
 	{
 	    sprintf(error_string, "user_slider %s has a mismatch.", name);
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	tree->result.number = nil_tag_number;
@@ -333,7 +333,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (exprlist_length(args) != 0)
 	{
 	    sprintf(error_string, "user_bool takes no arguments.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	userval = register_bool(name);
@@ -341,7 +341,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (userval == 0)
 	{
 	    sprintf(error_string, "user_bool %s has a mismatch.", name);
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	tree->result.number = nil_tag_number;
@@ -352,7 +352,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (exprlist_length(args) != 0)
 	{
 	    sprintf(error_string, "user_bool takes no arguments.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	userval = register_color(name);
@@ -360,7 +360,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (userval == 0)
 	{
 	    sprintf(error_string, "user_bool %s has a mismatch.", name);
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	tree->result.number = rgba_tag_number;
@@ -371,12 +371,12 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (exprlist_length(args) != 1)
 	{
 	    sprintf(error_string, "user_curve takes 1 argument.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 	if (args->result.length != 1)
 	{
 	    sprintf(error_string, "user_curve argument must have length 1.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	userval = register_curve(name);
@@ -384,7 +384,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (userval == 0)
 	{
 	    sprintf(error_string, "user_curve %s has mismatch.", name);
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	tree->result.number = nil_tag_number;
@@ -395,7 +395,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (exprlist_length(args) != 0)
 	{
 	    sprintf(error_string, "user_image takes no arguments.");
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	userval = register_image(name);
@@ -403,7 +403,7 @@ make_userval (const char *type, const char *name, exprtree *args)
 	if (userval == 0)
 	{
 	    sprintf(error_string, "user_image %s has a mismatch.", name);
-	    JUMP(0);
+	    JUMP(1);
 	}
 
 	tree->result.number = image_tag_number;
@@ -412,7 +412,7 @@ make_userval (const char *type, const char *name, exprtree *args)
     else
     {
 	sprintf(error_string, "Unknown userval function %s.", type);
-	JUMP(0);
+	JUMP(1);
     }
 
     tree->type = EXPR_USERVAL;
@@ -450,7 +450,7 @@ make_assignment (char *name, exprtree *value)
     if (tree->result.number != value->result.number || tree->result.length != value->result.length)
     {
 	sprintf(error_string, "Variable %s is being assigned two different types.", name);
-	JUMP(0);
+	JUMP(1);
     }
 
     tree->type = EXPR_ASSIGNMENT;
@@ -470,13 +470,13 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
     if (var == 0)
     {
 	sprintf(error_string, "Undefined variable %s.", name);
-	JUMP(0);
+	JUMP(1);
     }
 
     if (subscripts->result.length != value->result.length)
     {
 	sprintf(error_string, "Lhs does not match rhs in sub assignment.");
-	JUMP(0);
+	JUMP(1);
     }
 
     tree->type = EXPR_SUB_ASSIGNMENT;
@@ -496,7 +496,7 @@ make_if_then (exprtree *condition, exprtree *consequent)
     if (condition->result.length != 1)
     {
 	sprintf(error_string, "Condition to if statement must have length 1.");
-	JUMP(0);
+	JUMP(1);
     }
 
     tree->type = EXPR_IF_THEN;
@@ -515,13 +515,13 @@ make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternat
     if (condition->result.length != 1)
     {
 	sprintf(error_string, "Condition to if statement must have length 1.");
-	JUMP(0);
+	JUMP(1);
     }
     if (consequent->result.number != alternative->result.number
 	|| consequent->result.length != alternative->result.length)
     {
 	sprintf(error_string, "Consequent and alternative must have the same type in if statement.");
-	JUMP(0);
+	JUMP(1);
     }
 
     tree->type = EXPR_IF_THEN_ELSE;

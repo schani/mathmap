@@ -92,3 +92,50 @@ defun __div (ri:2 a, ri:2 b)
         ri:[(a[0]*b[0] + a[1]*b[1]) / q, (-a[0]*b[1] + b[0]*a[1]) / q]
     end
 end
+
+
+
+
+
+
+
+
+dx=-5;
+dy=-5;
+sum=rgba:[0,0,0,0];
+num=0;
+while dy < 6 do
+    while dx < 6 do
+        sum = sum + origVal(xy+xy:[dx,dy]);
+        num = num + 1;
+        dx = dx + 1
+    end;
+    dy = dy + 1
+end;
+sum / num
+
+
+
+
+
+
+
+
+
+
+
+
+
+alpha = user_slider("alpha",0,360);
+dir = xy:[cos(alpha),sin(alpha)];
+ndir = xy:[-dir[1],dir[0]];
+p = xy / m2x2:[dir[0],-ndir[0],
+               dir[1],-ndir[1]];
+pt = dir * p[0];
+vec = xy - pt;
+dist = -p[1] / R;
+pos = 0.5 + p[0] / R / 2;
+lower = user_curve("lower",pos) * 2 - 0.5;
+upper = user_curve("upper",pos) * 2 - 0.5;
+f = ((dist + 1) / 2 - lower) / (upper - lower);
+origVal(pt + ndir * (f*2-1) * )R
