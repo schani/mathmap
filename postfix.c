@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -192,7 +192,10 @@ stack_userval_bool_const (mathmap_invocation_t *invocation, postfix_arg *arg)
 void
 stack_userval_color (mathmap_invocation_t *invocation, postfix_arg *arg)
 {
+    /* FIXME: change for new uservals */
+    /*
     invocation->stack[invocation->stackp++] = invocation->uservals[arg->userval->index].v.color.value;
+    */
 }
 
 void
@@ -210,9 +213,33 @@ stack_userval_curve (mathmap_invocation_t *invocation, postfix_arg *arg)
 }
 
 void
+stack_userval_gradient (mathmap_invocation_t *invocation, postfix_arg *arg)
+{
+    /* FIXME: change for new uservals */
+    /*
+    int index = invocation->stack[invocation->stackp - 1].data[0] * (USER_GRADIENT_POINTS - 1);
+    int i;
+
+    if (index < 0)
+	index = 0;
+    else if (index >= USER_GRADIENT_POINTS)
+	index = USER_GRADIENT_POINTS - 1;
+
+    for (i = 0; i < 4; ++i)
+	invocation->stack[invocation->stackp - 1].data[i] = invocation->uservals[arg->userval->index].v.gradient.values[index][i];
+    invocation->stack[invocation->stackp - 1].length = 4;
+    invocation->stack[invocation->stackp - 1].number = rgba_tag_number;
+    */
+}
+
+void
 stack_userval_image (mathmap_invocation_t *invocation, postfix_arg *arg)
 {
+#ifndef OPENSTEP
     invocation->stack[invocation->stackp].data[0] = invocation->uservals[arg->userval->index].v.image.index;
+#else
+    invocation->stack[invocation->stackp].data[0] = arg->userval->index;
+#endif
     invocation->stack[invocation->stackp].length = 1;
     invocation->stack[invocation->stackp].number = image_tag_number;
     ++invocation->stackp;
@@ -223,6 +250,22 @@ make_postfix_recursive (exprtree *tree)
 {
     switch (tree->type)
     {
+	case EXPR_INT_CONST :
+	    expression[exprp].func = stack_push;
+	    expression[exprp].arg.tuple.number = tree->result.number;
+	    expression[exprp].arg.tuple.length = 1;
+	    expression[exprp].arg.tuple.data[0] = (float)tree->val.int_const;
+	    ++exprp;
+	    break;
+
+	case EXPR_FLOAT_CONST :
+	    expression[exprp].func = stack_push;
+	    expression[exprp].arg.tuple.number = tree->result.number;
+	    expression[exprp].arg.tuple.length = 1;
+	    expression[exprp].arg.tuple.data[0] = tree->val.float_const;
+	    ++exprp;
+	    break;
+
 	case EXPR_TUPLE_CONST :
 	    expression[exprp].func = stack_push;
 	    expression[exprp].arg.tuple = tree->val.tuple_const;
@@ -300,6 +343,11 @@ make_postfix_recursive (exprtree *tree)
 	    {
 		make_postfix_recursive(tree->val.userval.args);
 		expression[exprp].func = stack_userval_curve;
+	    }
+	    else if (tree->val.userval.info->type == USERVAL_GRADIENT)
+	    {
+		make_postfix_recursive(tree->val.userval.args);
+		expression[exprp].func = stack_userval_gradient;
 	    }
 	    else if (tree->val.userval.info->type == USERVAL_IMAGE)
 		expression[exprp].func = stack_userval_image;

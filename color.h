@@ -1,11 +1,9 @@
-/* -*- c -*- */
-
 /*
- * internals.h
+ * color.h
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,27 +20,17 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __INTERNALS_H__
-#define __INTERNALS_H__
+#ifndef __COLOR_H__
+#define __COLOR_H__
 
-#include "tuples.h"
+typedef unsigned int color_t;
 
-#define MAX_INTERNAL_LENGTH    63
+#define MAKE_RGBA_COLOR(r,g,b,a)            ((((color_t)(r))<<24)|(((color_t)(g))<<16)|(((color_t)(b))<<8)|((color_t)(a)))
+#define RED(c)                              ((c)>>24)
+#define GREEN(c)                            (((c)>>16)&0xff)
+#define BLUE(c)                             (((c)>>8)&0xff)
+#define ALPHA(c)                            ((c)&0xff)
 
-typedef struct _internal_t
-{
-    char name[MAX_INTERNAL_LENGTH + 1];
-    int index;
-
-    unsigned int is_used;
-
-    struct _internal_t *next;
-} internal_t;
-
-internal_t* register_internal (internal_t **internals, const char *name);
-internal_t* lookup_internal (internal_t *internals, const char *name);
-
-tuple_t* instantiate_internals (internal_t *internals);
-void free_internals (internal_t *internals);
+#define COLOR_BLACK                         (MAKE_RGBA_COLOR(0,0,0,0xff))
 
 #endif

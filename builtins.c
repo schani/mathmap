@@ -48,27 +48,37 @@ builtin *firstBuiltin = 0;
 static void
 get_pixel (mathmap_invocation_t *invocation, int x, int y, guchar *pixel, int drawable_index, int frame)
 { 
+    int width, height;
+
+#ifndef OPENSTEP
+    width = invocation->img_width;
+    height = invocation->img_height;
+#else
+    width = invocation->uservals[drawable_index].v.image.width;
+    height = invocation->uservals[drawable_index].v.image.height;
+#endif
+
     if (invocation->edge_behaviour == EDGE_BEHAVIOUR_WRAP)
     {
 	if (x < 0)
-	    x = x % invocation->img_width + invocation->img_width;
-	else if (x >= invocation->img_width)
-	    x %= invocation->img_width;
+	    x = x % width + width;
+	else if (x >= width)
+	    x %= width;
 	if (y < 0)
-	    y = y % invocation->img_height + invocation->img_height;
-	else if (y >= invocation->img_height)
-	    y %= invocation->img_height;
+	    y = y % height + height;
+	else if (y >= height)
+	    y %= height;
     }
     else if (invocation->edge_behaviour == EDGE_BEHAVIOUR_REFLECT)
     {
 	if (x < 0)
-	    x = -x % invocation->img_width;
-	else if (x >= invocation->img_width)
-	    x = (invocation->img_width - 1) - (x % invocation->img_width);
+	    x = -x % width;
+	else if (x >= width)
+	    x = (width - 1) - (x % width);
 	if (y < 0)
-	    y = -y % invocation->img_height;
-	else if (y >= invocation->img_height)
-	    y = (invocation->img_height - 1) - (y % invocation->img_height);
+	    y = -y % height;
+	else if (y >= height)
+	    y = (height - 1) - (y % height);
     }
 
 #ifdef GIMP
@@ -87,6 +97,21 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, guchar *pixel, int dr
 void
 get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, unsigned char *pixel, int drawable_index, int frame)
 {
+    int middle_x, middle_y, origin_x, origin_y;
+
+#ifndef OPENSTEP
+    middle_x = invocation->middle_x;
+    middle_y = invocation->middle_y;
+    origin_x = invocation->origin_x;
+    origin_y = invocation->origin_y;
+#else
+    /* FIXME: assert that drawable_index is legal */
+
+    middle_x = invocation->uservals[drawable_index].v.image.middle_x;
+    middle_y = invocation->uservals[drawable_index].v.image.middle_y;
+    origin_x = origin_y = 0;
+#endif
+
     x += invocation->middle_x + invocation->origin_x;
     y = -y + invocation->middle_y + invocation->origin_y;
 

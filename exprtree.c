@@ -55,14 +55,25 @@ alloc_exprtree (void)
 }
 
 exprtree*
-make_number (float num)
+make_int_number (int num)
 {
     exprtree *tree = alloc_exprtree();
 
-    tree->type = EXPR_TUPLE_CONST;
-    tree->val.tuple_const.number = nil_tag_number;
-    tree->val.tuple_const.length = 1;
-    tree->val.tuple_const.data[0] = num;
+    tree->type = EXPR_INT_CONST;
+    tree->val.int_const = num;
+
+    tree->result = make_tuple_info(nil_tag_number, 1);
+
+    return tree;
+}
+
+exprtree*
+make_float_number (float num)
+{
+    exprtree *tree = alloc_exprtree();
+
+    tree->type = EXPR_FLOAT_CONST;
+    tree->val.float_const = num;
 
     tree->result = make_tuple_info(nil_tag_number, 1);
 
@@ -78,10 +89,10 @@ make_range (int first, int last)
 	JUMP(1);
     }
     else if (first == last)
-	return make_number(first);
+	return make_int_number(first);
     else
     {
-	exprtree *tree = make_number(first);
+	exprtree *tree = make_int_number(first);
 
 	tree->next = make_range(first + 1, last);
 
@@ -95,13 +106,13 @@ make_var (const char *name)
     tuple_info_t info;
     exprtree *tree = 0;
 
-    if (lookup_internal(the_mathmap->internals, name, &info) != 0)
+    if (lookup_internal(the_mathmap->internals, name) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_INTERNAL;
-	tree->val.internal = lookup_internal(the_mathmap->internals, name, &tree->result);
-	tree->result = info;
+	tree->val.internal = lookup_internal(the_mathmap->internals, name);
+	tree->result = make_tuple_info(nil_tag_number, 1);
     }
     else if (lookup_variable_macro(name, &info) != 0)
     {
@@ -143,8 +154,15 @@ make_tuple (exprtree *elems)
 	    JUMP(1);
 	}
 
-	if (elem->type != EXPR_TUPLE_CONST)
+	if (elem->type != EXPR_TUPLE_CONST
+	    || elem->type != EXPR_FLOAT_CONST)
 	    is_const = 0;
+    }
+
+    if (length > MAX_TUPLE_LENGTH)
+    {
+	sprintf(error_string, "Tuples cannot be longer than %d elements.", MAX_TUPLE_LENGTH);
+	JUMP(1);
     }
 
     tree = alloc_exprtree();
@@ -160,7 +178,10 @@ make_tuple (exprtree *elems)
 	elem = elems;
 	for (i = 0; i < length; ++i)
 	{
-	    tree->val.tuple_const.data[i] = elem->val.tuple_const.data[0];
+	    if (elem->type == EXPR_TUPLE_CONST)
+		tree->val.tuple_const.data[i] = elem->val.tuple_const.data[0];
+	    else
+		tree->val.tuple_const.data[i] = elem->val.float_const;
 	    elem = elem->next;
 	}
     }
@@ -275,7 +296,7 @@ make_function (const char *name, exprtree *args)
 	    tree->val.func.args = args;
 	    tree->result = info;
 
-	    if (is_constant && !entry->v.builtin.sidefx)
+	    if (is_constant && 0) /* FIXME: can only do if function is side-effect free */
 	    {
 		tuple_t stack[32];
 		mathmap_t mathmap;
@@ -334,22 +355,19 @@ make_userval (const char *type, const char *name, exprtree *args)
 
     if (strcmp(type, "user_int") == 0)
     {
-	float min, max;
+	int min, max;
 
 	if (exprlist_length(args) != 2)
 	{
 	    sprintf(error_string, "user_int takes 2 arguments.");
 	    JUMP(1);
 	}
-	if (args->type != EXPR_TUPLE_CONST || args->val.tuple_const.length != 1
-	    || args->next->type != EXPR_TUPLE_CONST || args->next->val.tuple_const.length != 1)
+	if (!is_exprtree_single_const(args, &min, 0)
+	    || !is_exprtree_single_const(args->next, &max, 0))
 	{
 	    sprintf(error_string, "user_int min and max must be constants with length 1.");
 	    JUMP(1);
 	}
-
-	min = args->val.tuple_const.data[0];
-	max = args->next->val.tuple_const.data[0];
 
 	info = register_int_const(&the_mathmap->userval_infos, name, min, max);
 
@@ -371,15 +389,12 @@ make_userval (const char *type, const char *name, exprtree *args)
 	    sprintf(error_string, "%s takes 2 arguments.", type);
 	    JUMP(1);
 	}
-	if (args->type != EXPR_TUPLE_CONST || args->val.tuple_const.length != 1
-	    || args->next->type != EXPR_TUPLE_CONST || args->next->val.tuple_const.length != 1)
+	if (!is_exprtree_single_const(args, 0, &min)
+	    || !is_exprtree_single_const(args->next, 0, &max))
 	{
 	    sprintf(error_string, "%s min and max must be constants with length 1.", type);
 	    JUMP(1);
 	}
-
-	min = args->val.tuple_const.data[0];
-	max = args->next->val.tuple_const.data[0];
 
 	info = register_float_const(&the_mathmap->userval_infos, name, min, max);
 
@@ -453,6 +468,30 @@ make_userval (const char *type, const char *name, exprtree *args)
 
 	tree->result.number = nil_tag_number;
 	tree->result.length = 1;
+    }
+    else if (strcmp(type, "user_gradient") == 0)
+    {
+	if (exprlist_length(args) != 1)
+	{
+	    sprintf(error_string, "user_gradient takes 1 argument.");
+	    JUMP(1);
+	}
+	if (args->result.length != 1)
+	{
+	    sprintf(error_string, "user_gradient argument must have length 1.");
+	    JUMP(1);
+	}
+
+	info = register_gradient(&the_mathmap->userval_infos, name);
+
+	if (info == 0)
+	{
+	    sprintf(error_string, "user_gradient %s has mismatch.", name);
+	    JUMP(1);
+	}
+
+	tree->result.number = rgba_tag_number;
+	tree->result.length = 4;
     }
     else if (strcmp(type, "user_image") == 0)
     {
@@ -655,4 +694,51 @@ exprlist_append (exprtree *list1, exprtree *list2)
     tree->next = list2;
 
     return list1;
+}
+
+int
+is_exprtree_single_const (exprtree *tree, int *int_val, float *float_val)
+{
+    if (tree->type == EXPR_INT_CONST || tree->type == EXPR_FLOAT_CONST || tree->type == EXPR_TUPLE_CONST)
+    {
+	if (tree->type == EXPR_INT_CONST)
+	{
+	    if (int_val != 0)
+		*int_val = tree->val.int_const;
+	    if (float_val != 0)
+		*float_val = (float)tree->val.int_const;
+	}
+	else if (tree->type == EXPR_FLOAT_CONST)
+	{
+	    if (int_val != 0)
+		*int_val = (int)tree->val.float_const;
+	    if (float_val != 0)
+		*float_val = tree->val.float_const;
+	}
+	else
+	{
+	    if (int_val != 0)
+		*int_val = (int)tree->val.tuple_const.data[0];
+	    if (float_val != 0)
+		*float_val = tree->val.tuple_const.data[0];
+	}
+
+	return 1;
+    }
+    else if (tree->type == EXPR_TUPLE && tree->result.length == 1)
+	return is_exprtree_single_const(tree->val.tuple.elems, int_val, float_val);
+    else if (tree->type == EXPR_FUNC
+	     && strcmp(tree->val.func.entry->name, "__neg") == 0)
+    {
+	int result = is_exprtree_single_const(tree->val.func.args, int_val, float_val);
+
+	if (result != 0 && int_val != 0)
+	    *int_val = -*int_val;
+	if (result != 0 && float_val != 0)
+	    *float_val = -*float_val;
+
+	return result;
+    }
+
+    return 0;
 }

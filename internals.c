@@ -27,15 +27,13 @@
 #include "internals.h"
 
 internal_t*
-register_internal (internal_t **internals, const char *name, tuple_info_t type, int can_be_precomputed)
+register_internal (internal_t **internals, const char *name)
 {
     internal_t *internal = (internal_t*)malloc(sizeof(internal_t));
 
     strncpy(internal->name, name, MAX_INTERNAL_LENGTH);
     internal->name[MAX_INTERNAL_LENGTH] = '\0';
-    internal->type = type;
     internal->is_used = 0;
-    internal->can_be_precomputed = can_be_precomputed;
     internal->next = 0;
 
     internal->index = 0;
@@ -50,15 +48,13 @@ register_internal (internal_t **internals, const char *name, tuple_info_t type, 
 }
 
 internal_t*
-lookup_internal (internal_t *internals, const char *name, tuple_info_t *type)
+lookup_internal (internal_t *internals, const char *name)
 {
     internal_t *internal;
 
     for (internal = internals; internal != 0; internal = internal->next)
 	if (strcmp(internal->name, name) == 0)
 	{
-	    if (type != 0)
-		*type = internal->type;
 	    internal->is_used = 1;
 	    return internal;
 	}
@@ -81,8 +77,8 @@ instantiate_internals (internal_t *internals)
 
     for (i = 0, internal = internals; i < n; ++i, internal = internals->next)
     {
-	tuples[i].number = internal->type.number;
-	tuples[i].length = internal->type.length;
+	tuples[i].number = nil_tag_number;
+	tuples[i].length = 1;
     }
 
     return tuples;

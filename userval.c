@@ -40,6 +40,8 @@ alloc_and_register_userval (userval_info_t **p, const char *name, int type)
 {
     userval_info_t *info = (userval_info_t*)malloc(sizeof(userval_info_t));
 
+    memset(info, 0, sizeof(userval_info_t));
+
     strncpy(info->name, name, MAX_IDENT_LENGTH);
     info->name[MAX_IDENT_LENGTH] = '\0';
     info->type = type;
@@ -179,6 +181,20 @@ register_curve (userval_info_t **infos, const char *name)
 }
 
 userval_info_t*
+register_gradient (userval_info_t **infos, const char *name)
+{
+    userval_info_t *info;
+
+    info = lookup_userval(*infos, name, USERVAL_GRADIENT);
+    if (info != 0)
+	return info;
+
+    info = alloc_and_register_userval(infos, name, USERVAL_GRADIENT);
+
+    return info;
+}
+
+userval_info_t*
 register_image (userval_info_t **infos, const char *name)
 {
     userval_info_t *info;
@@ -219,28 +235,35 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
 	    break;
 
 	case USERVAL_GRADIENT :
-	    /* FIXME */
+	    {
+		int i;
+
+		for (i = 0; i < USER_GRADIENT_POINTS; ++i)
+		{
+		    unsigned char v = i * 256 / USER_GRADIENT_POINTS;
+
+		    val->v.gradient.values[i] = MAKE_RGBA_COLOR(v, v, v, 0xff);
+		}
+	    }
 	    break;
 
 	case USERVAL_COLOR :
-	    val->v.color.value.number = rgba_tag_number;
-	    val->v.color.value.length = 4;
-
-#ifdef OPENSTEP
+#ifndef OPENSTEP
 	    val->v.color.button_value[0] =
 		val->v.color.button_value[1] =
 		val->v.color.button_value[2] = 0;
 	    val->v.color.button_value[3] = 255;
 #endif
 
-	    val->v.color.value.data[0] =
-		val->v.color.value.data[1] =
-		val->v.color.value.data[2] = 0.0;
-	    val->v.color.value.data[3] = 1.0;
+	    val->v.color.value = COLOR_BLACK;
 	    break;
 
 	case USERVAL_IMAGE :
+#ifndef OPENSTEP
 	    val->v.image.index = -1;
+#else
+	    val->v.image.data = 0;
+#endif
 	    break;
     }
 }
@@ -255,7 +278,7 @@ instantiate_userval (userval_t *val, userval_info_t *info)
 	    break;
 
 	case USERVAL_GRADIENT :
-	    val->v.gradient.values = (float(*)[4])malloc(USER_GRADIENT_POINTS * 4 * sizeof(float));
+	    val->v.gradient.values = (color_t*)malloc(USER_GRADIENT_POINTS * sizeof(color_t));
 	    break;
     }
 
@@ -274,6 +297,7 @@ instantiate_uservals (userval_info_t *infos)
 	++n;
 
     uservals = (userval_t*)malloc(n * sizeof(userval_t));
+    memset(uservals, 0, n * sizeof(userval_t));
 
     for (info = infos; info != 0; info = info->next)
 	instantiate_userval(&uservals[info->index], info);
@@ -295,6 +319,7 @@ free_uservals (userval_t *uservals, userval_info_t *infos)
 		break;
 
 	    case USERVAL_GRADIENT :
+		free(uservals[info->index].v.gradient.values);
 		break;
 
 	    case USERVAL_IMAGE :
@@ -331,7 +356,7 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    break;
 
 	case USERVAL_GRADIENT :
-	    memcpy(dst->v.gradient.values, src->v.gradient.values, USER_GRADIENT_POINTS * sizeof(float));
+	    memcpy(dst->v.gradient.values, src->v.gradient.values, USER_GRADIENT_POINTS * sizeof(color_t));
 	    break;
 
 	default :
@@ -372,8 +397,10 @@ userval_color_update (GtkWidget *color_well, userval_t *userval)
 {
     int i;
 
-    for (i = 0; i < 4; ++i)
-	userval->v.color.value.data[i] = (float)userval->v.color.button_value[i] / 255.0;
+    userval->v.color.value = MAKE_RGBA_COLOR(userval->v.color.button_value[0],
+					     userval->v.color.button_value[1],
+					     userval->v.color.button_value[2],
+					     userval->v.color.button_value[3]);
 
     user_value_changed();
 }

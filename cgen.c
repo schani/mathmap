@@ -253,8 +253,10 @@ gen_c_code_recursive (exprtree *tree, FILE *out)
 		}
 
 		fprintf(out, "{\n");
+		/*
 		tree->val.func.entry->v.builtin.generator(out, invarnums, invarlengths,
 							  tree->tmpvarnum);
+		*/
 		fprintf(out, "}\n");
 	    }
 	    break;

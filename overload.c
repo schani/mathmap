@@ -162,7 +162,7 @@ interpret_arg_string (const char *string, overload_arg_t **result, overload_arg_
 }
 
 void
-register_overloaded_builtin (const char *name, const char *argstring, int sidefx,
+register_overloaded_builtin (const char *name, const char *argstring,
 			     builtin_function_t func, generator_function_t gen)
 {
     overload_entry_t *entry = (overload_entry_t*)malloc(sizeof(overload_entry_t));
@@ -176,7 +176,6 @@ register_overloaded_builtin (const char *name, const char *argstring, int sidefx
 
     for (arg = entry->args, entry->num_args = 0; arg != 0; arg = arg->next)
 	++entry->num_args;
-    entry->v.builtin.sidefx = sidefx;
     entry->v.builtin.builtin = func;
     entry->v.builtin.generator = gen;
 

@@ -40,7 +40,7 @@ alloc_variable (tuple_info_t type)
 
     for (i = 0; i < type.length; ++i)
     {
-	var->current[i] = 0;
+	var->compvar[i] = 0;
 	var->last_index[i] = 0;
     }
 

@@ -318,10 +318,13 @@ main (int argc, char *argv[])
 	return 1;
     }
 
-    init_builtins();
     init_tags();
+    init_builtins();
     init_macros();
     init_noise();
+#ifdef USE_CGEN
+    init_compiler();
+#endif
 
     assert(num_input_drawables > 0);
 

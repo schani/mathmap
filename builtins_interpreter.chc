@@ -112,8 +112,8 @@ void
 init_builtins (void)
 {
 %foreach(b,%&builtins,
-    register_overloaded_builtin%'('"%b{name}"%',' "%b{args}"%',' %b{sidefx}%','
+    register_overloaded_builtin%'('"%b{name}"%',' "%b{args}"%','
                                    builtin_%b{funcname}%','
-                                   gen_%b{funcname}%');\n'
+                                   0%');\n'
 )
 }

@@ -48,6 +48,8 @@ typedef struct _exprtree
 	tuple_t tuple_const;
 	variable_t *var;
 	internal_t *internal;
+	int int_const;
+	float float_const;
 	struct
 	{
 	    struct _userval_info_t *info;
@@ -119,24 +121,27 @@ typedef struct _exprtree
     struct _exprtree *next;
 } exprtree;
 
-#define EXPR_TUPLE_CONST     1
-#define EXPR_FUNC            2
-#define EXPR_INTERNAL        3
-#define EXPR_SEQUENCE        4
-#define EXPR_ASSIGNMENT      5
-#define EXPR_VARIABLE        6
-#define EXPR_IF_THEN         7
-#define EXPR_IF_THEN_ELSE    8
-#define EXPR_WHILE           9
-#define EXPR_DO_WHILE       10
-#define EXPR_TUPLE          11
-#define EXPR_SELECT         12
-#define EXPR_CAST           13
-#define EXPR_CONVERT        14
-#define EXPR_SUB_ASSIGNMENT 15
-#define EXPR_USERVAL        16
+#define EXPR_INT_CONST       1
+#define EXPR_FLOAT_CONST     2
+#define EXPR_TUPLE_CONST     3
+#define EXPR_FUNC            4
+#define EXPR_INTERNAL        5
+#define EXPR_SEQUENCE        6
+#define EXPR_ASSIGNMENT      7
+#define EXPR_VARIABLE        8
+#define EXPR_IF_THEN         9
+#define EXPR_IF_THEN_ELSE   10
+#define EXPR_WHILE          11
+#define EXPR_DO_WHILE       12
+#define EXPR_TUPLE          13
+#define EXPR_SELECT         14
+#define EXPR_CAST           15
+#define EXPR_CONVERT        16
+#define EXPR_SUB_ASSIGNMENT 17
+#define EXPR_USERVAL        18
 
-exprtree* make_number (float num);
+exprtree* make_int_number (int num);
+exprtree* make_float_number (float num);
 exprtree* make_range (int first, int last);
 exprtree* make_var (const char *name); /* should use variable_t instead */
 exprtree* make_tuple (exprtree *elems);
@@ -157,4 +162,6 @@ void free_exprtree (exprtree *tree);
 
 int exprlist_length (exprtree *list);
 exprtree* exprlist_append (exprtree *list1, exprtree *list2);
+
+int is_exprtree_single_const (exprtree *tree, int *int_val, float *float_val);
 #endif

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2002 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,11 +31,12 @@
 #include "postfix.h"
 
 struct _mathmap_invocation_t;
+struct _compvar_t;
 
 #define MAX_BUILTIN_LENGTH     63
 
 typedef void (*builtin_function_t) (struct _mathmap_invocation_t*, postfix_arg*);
-typedef void (*generator_function_t) (FILE*, int*, int*, int);
+typedef void (*generator_function_t) (struct _compvar_t***, int*, struct _compvar_t**);
 
 typedef struct _builtin
 {

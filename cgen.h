@@ -34,6 +34,8 @@ struct _mathmap_invocation_t;
 typedef tuple_t* (*mathfunc_t) (void);
 typedef mathfunc_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
+void init_compiler (void);
+
 initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info);
 void unload_c_code (void *module_info);
 

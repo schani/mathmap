@@ -93,6 +93,8 @@ typedef struct _mathmap_invocation_t
 
     int exprp;
 
+    volatile int num_rows_finished;
+
 #ifdef USE_CGEN
     mathfunc_t mathfunc;
 #endif

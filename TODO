@@ -1,6 +1,8 @@
 manual: WH,W,H statt wh,w,h
 koordinatensystem erklaeren
 
+short circuit logic eval
+
 
 > (i) Die Möglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
 > und 'minimum' Ausdrücke anzugeben, die von den Variablen 'X(nil:1)' und
@@ -504,3 +506,5 @@ if (abs(px)>=X-1) || (abs(py)>=Y-1)
 then grayColor(user_bool("black/white"))
 else origVal(xy:[px,py])
 end
+
+

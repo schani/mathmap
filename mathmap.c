@@ -524,6 +524,9 @@ run (char *name, int nparams, GimpParam *param, int *nreturn_vals, GimpParam **r
     init_tags();
     init_macros();
     init_noise();
+#ifdef USE_CGEN
+    init_compiler();
+#endif
 
     /* See how we will run */
 
@@ -719,8 +722,6 @@ generate_code (int current_frame, float current_t)
 	    mathmap = new_mathmap;
 	    invocation = new_invocation;
 
-	    init_invocation(invocation);
-
 	    update_userval_table();
 
 	    expression_changed = 0;
@@ -737,6 +738,8 @@ generate_code (int current_frame, float current_t)
 
 	invocation->edge_behaviour = edge_behaviour_mode;
 	memcpy(invocation->edge_color, edge_color, sizeof(edge_color));
+
+	init_invocation(invocation);
 
 	update_image_internals(invocation);
     }

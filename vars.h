@@ -27,7 +27,8 @@
 
 #include "tuples.h"
 
-typedef struct _value_t value_t;
+struct _compvar_t;
+struct _value_t;
 
 typedef struct _variable_t
 {
@@ -35,7 +36,7 @@ typedef struct _variable_t
     tuple_info_t type;
     int index;
 
-    value_t *current[MAX_TUPLE_LENGTH];	/* only for the compiler */
+    struct _compvar_t *compvar[MAX_TUPLE_LENGTH]; /* only for the compiler */
     int last_index[MAX_TUPLE_LENGTH]; /* ditto */
 
     struct _variable_t *next;

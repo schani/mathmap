@@ -31,6 +31,7 @@
 
 #include "tuples.h"
 #include "exprtree.h"
+#include "color.h"
 
 #define USER_CURVE_POINTS       1024
 #define USER_GRADIENT_POINTS    1024
@@ -79,7 +80,7 @@ typedef struct _userval_t
 #ifndef OPENSTEP
 	    guchar button_value[4];
 #endif
-	    tuple_t value;
+	    color_t value;
 	} color;
 
 	struct
@@ -89,15 +90,21 @@ typedef struct _userval_t
 
 	struct
 	{
-	    float (*values)[4];
+	    color_t *values;
 	} gradient;
 
 	struct
 	{
 #ifdef OPENSTEP
-	    void *image_rep;
-#endif
+	    int width;
+	    int height;
+	    int row_stride;
+	    float middle_x;
+	    float middle_y;
+	    void *data;
+#else
 	    int index;
+#endif
 	} image;
     } v;
 
@@ -114,6 +121,7 @@ userval_info_t* register_float_const (userval_info_t **infos, const char *name, 
 userval_info_t* register_bool (userval_info_t **infos, const char *name);
 userval_info_t* register_color (userval_info_t **infos, const char *name);
 userval_info_t* register_curve (userval_info_t **infos, const char *name);
+userval_info_t* register_gradient (userval_info_t **infos, const char *name);
 userval_info_t* register_image (userval_info_t **infos, const char *name);
 
 void set_userval_to_default (userval_t *val, userval_info_t *info);

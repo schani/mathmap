@@ -72,25 +72,42 @@ free_invocation (mathmap_invocation_t *invocation)
     /* FIXME */
 }
 
-#define XY_INTERNAL_INDEX         0
-#define RA_INTERNAL_INDEX         1
+#define X_INTERNAL_INDEX         0
+#define Y_INTERNAL_INDEX         1
+#define R_INTERNAL_INDEX         2
+#define A_INTERNAL_INDEX         3
 
-static void
+void
 init_internals (mathmap_t *mathmap)
 {
-    register_internal(&mathmap->internals, "xy", make_tuple_info(xy_tag_number, 2), 0);
-    register_internal(&mathmap->internals, "ra", make_tuple_info(ra_tag_number, 2), 0);
-    register_internal(&mathmap->internals, "t", make_tuple_info(nil_tag_number, 1), 1);
-    register_internal(&mathmap->internals, "XY", make_tuple_info(xy_tag_number, 2), 1);
-    register_internal(&mathmap->internals, "WH", make_tuple_info(xy_tag_number, 2), 1);
-    register_internal(&mathmap->internals, "R", make_tuple_info(nil_tag_number, 1), 1);
-    register_internal(&mathmap->internals, "frame", make_tuple_info(nil_tag_number, 1), 1);
+    register_internal(&mathmap->internals, "x");
+    register_internal(&mathmap->internals, "y");
+    register_internal(&mathmap->internals, "r");
+    register_internal(&mathmap->internals, "a");
+    register_internal(&mathmap->internals, "t");
+    register_internal(&mathmap->internals, "X");
+    register_internal(&mathmap->internals, "Y");
+    register_internal(&mathmap->internals, "W");
+    register_internal(&mathmap->internals, "H");
+    register_internal(&mathmap->internals, "R");
+    register_internal(&mathmap->internals, "frame");
 }
 
 int
 check_mathmap (char *expression)
 {
     static mathmap_t mathmap;
+
+    mathmap.variables = 0;
+    mathmap.userval_infos = 0;
+    mathmap.internals = 0;
+#ifdef USE_CGEN
+    mathmap.module_info = 0;
+#endif
+
+    mathmap.exprtree = 0;
+
+    init_internals(&mathmap);
 
     the_mathmap = &mathmap;
 
@@ -134,6 +151,9 @@ compile_mathmap (char *expression)
     mathmap->variables = 0;
     mathmap->userval_infos = 0;
     mathmap->internals = 0;
+#ifdef USE_CGEN
+    mathmap->module_info = 0;
+#endif
 
     mathmap->exprtree = 0;
 
@@ -225,6 +245,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     if (template != 0)
 	carry_over_uservals_from_template(invocation, template);
 
+    invocation->num_rows_finished = 0;
+
 #ifdef USE_CGEN
     invocation->stack = (tuple_t*)malloc(sizeof(tuple_t));
 #else
@@ -245,7 +267,7 @@ init_invocation (mathmap_invocation_t *invocation)
 void
 calc_ra (mathmap_invocation_t *invocation)
 {
-    if (invocation->mathmap->internals->next->is_used)
+    if (invocation->mathmap->internals->next->next->is_used)
     {
 	double x = invocation->current_x, y = invocation->current_y;
 
@@ -253,10 +275,10 @@ calc_ra (mathmap_invocation_t *invocation)
 	if (invocation->current_r == 0.0)
 	    invocation->current_a = 0.0;
 	else
-	    invocation->current_a = acos(x / invocation->current_r) * 180 / M_PI;
+	    invocation->current_a = acos(x / invocation->current_r);
 
 	if (y < 0)
-	    invocation->current_a = 360 - invocation->current_a;
+	    invocation->current_a = 2 * M_PI - invocation->current_a;
     }
 }
 
@@ -265,32 +287,34 @@ update_image_internals (mathmap_invocation_t *invocation)
 {
     internal_t *internal;
 
-    internal = lookup_internal(invocation->mathmap->internals, "t", 0);
+    internal = lookup_internal(invocation->mathmap->internals, "t");
     invocation->internals[internal->index].data[0] = invocation->current_t;
 
-    internal = lookup_internal(invocation->mathmap->internals, "XY", 0);
+    internal = lookup_internal(invocation->mathmap->internals, "X");
     invocation->internals[internal->index].data[0] = invocation->image_X;
-    invocation->internals[internal->index].data[1] = invocation->image_Y;
+    internal = lookup_internal(invocation->mathmap->internals, "Y");
+    invocation->internals[internal->index].data[0] = invocation->image_Y;
     
-    internal = lookup_internal(invocation->mathmap->internals, "WH", 0);
+    internal = lookup_internal(invocation->mathmap->internals, "W");
     invocation->internals[internal->index].data[0] = invocation->image_W;
-    invocation->internals[internal->index].data[1] = invocation->image_H;
+    internal = lookup_internal(invocation->mathmap->internals, "H");
+    invocation->internals[internal->index].data[0] = invocation->image_H;
     
-    internal = lookup_internal(invocation->mathmap->internals, "R", 0);
+    internal = lookup_internal(invocation->mathmap->internals, "R");
     invocation->internals[internal->index].data[0] = invocation->image_R;
 
-    internal = lookup_internal(invocation->mathmap->internals, "frame", 0);
+    internal = lookup_internal(invocation->mathmap->internals, "frame");
     invocation->internals[internal->index].data[0] = invocation->current_frame;
 }
 
 void
 update_pixel_internals (mathmap_invocation_t *invocation)
 {
-    invocation->internals[XY_INTERNAL_INDEX].data[0] = invocation->current_x;
-    invocation->internals[XY_INTERNAL_INDEX].data[1] = invocation->current_y;
+    invocation->internals[X_INTERNAL_INDEX].data[0] = invocation->current_x;
+    invocation->internals[Y_INTERNAL_INDEX].data[0] = invocation->current_y;
 
-    invocation->internals[RA_INTERNAL_INDEX].data[0] = invocation->current_r;
-    invocation->internals[RA_INTERNAL_INDEX].data[1] = invocation->current_a;
+    invocation->internals[R_INTERNAL_INDEX].data[0] = invocation->current_r;
+    invocation->internals[A_INTERNAL_INDEX].data[0] = invocation->current_a;
 }
 
 void
