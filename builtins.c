@@ -27,36 +27,46 @@ extern double user_curve_values[];
 extern int user_curve_points;
 extern tuple_t gradient_samples[];
 extern int num_gradient_samples;
+extern int edge_behaviour_color, edge_behaviour_wrap, edge_behaviour_mode;
+extern unsigned char edge_color[4];
 
 builtin *firstBuiltin = 0;
 
 void mathmap_get_pixel (int x, int y, unsigned char *pixel);
 
+extern int originX,
+    originY,
+    wholeImageWidth,
+    wholeImageHeight;
+
 static void
 get_pixel (int x, int y, guchar *pixel)
-{
+{ 
+    if (edge_behaviour_mode == edge_behaviour_wrap)
+    {
+	if (x < 0)
+	    x = x % wholeImageWidth + wholeImageWidth;
+	else if (x >= wholeImageWidth)
+	    x %= wholeImageWidth;
+	if (y < 0)
+	    y = y % wholeImageHeight + wholeImageHeight;
+	else if (y >= wholeImageHeight)
+	    y %= wholeImageHeight;
+    }
+
     if (previewing)
     {
 	x = (x - sel_x1) * preview_width / sel_width;
 	y = (y - sel_y1) * preview_height / sel_height;
 
 	if (x < 0 || x > preview_width || y < 0 || y >= preview_height)
-	{
-	    static unsigned char blackPixel[4] = { 0, 0, 0, 0 };
-
-	    memcpy(pixel, blackPixel, outputBPP);
-	}
+	    memcpy(pixel, edge_color, outputBPP);
 	else
 	    memcpy(pixel, fast_image_source + (x + y * preview_width) * outputBPP, outputBPP);
     }
     else
 	mathmap_get_pixel(x, y, pixel);
 }
-
-extern int originX,
-    originY,
-    wholeImageWidth,
-    wholeImageHeight;
 
 void
 getOrigValPixel (float x, float y, unsigned char *pixel)
@@ -76,8 +86,6 @@ getOrigValPixel (float x, float y, unsigned char *pixel)
 void
 getOrigValIntersamplePixel (float x, float y, unsigned char *pixel)
 {
-    static unsigned char blackPixel[4] = { 0, 0, 0, 0 };
-
     int x1,
 	x2,
 	y1,
@@ -116,25 +124,10 @@ getOrigValIntersamplePixel (float x, float y, unsigned char *pixel)
     p3fact = x2fact * y1fact;
     p4fact = x2fact * y2fact;
 
-    if (x1 < 0 || x1 >= wholeImageWidth || y1 < 0 || y1 >= wholeImageHeight)
-	pixel1 = blackPixel;
-    else
-	get_pixel(x1, y1, pixel1);
-
-    if (x1 < 0 || x1 >= wholeImageWidth || y2 < 0 || y2 >= wholeImageHeight)
-	pixel2 = blackPixel;
-    else
-	get_pixel(x1, y2, pixel2);
-
-    if (x2 < 0 || x2 >= wholeImageWidth || y1 < 0 || y1 >= wholeImageHeight)
-	pixel3 = blackPixel;
-    else
-	get_pixel(x2, y1, pixel3);
-
-    if (x2 < 0 || x2 >= wholeImageWidth || y2 < 0 || y2 >= wholeImageHeight)
-	pixel4 = blackPixel;
-    else
-	get_pixel(x2, y2, pixel4);
+    get_pixel(x1, y1, pixel1);
+    get_pixel(x1, y2, pixel2);
+    get_pixel(x2, y1, pixel3);
+    get_pixel(x2, y2, pixel4);
 
     for (i = 0; i < 4; ++i)
 	pixel[i] = pixel1[i] * p1fact

@@ -285,7 +285,7 @@ gen_and_load_c_code (exprtree *tree)
 	    "extern tuple_t stack[];\n"
 	    "extern int stackp;\n\n", MAX_TUPLE_LENGTH);
     fprintf(out,
-	    "tuple_t* kurdenheusl (void)\n"
+	    "tuple_t* mathmapfunc (void)\n"
 	    "{\n"
 	    "int dummy;\n");
 
@@ -318,7 +318,7 @@ gen_and_load_c_code (exprtree *tree)
 	assert(0);
     }
 
-    assert(g_module_symbol(module, "kurdenheusl", (void**)&eval_c_code));
+    assert(g_module_symbol(module, "mathmapfunc", (void**)&eval_c_code));
 
     return TRUE;
 }

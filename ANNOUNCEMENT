@@ -1,8 +1,8 @@
-MathMap 0.7
+MathMap 0.8
 -----------
 
 MathMap is a GIMP plug-in which allows distortion of images specified
-by mathematical formulas. For each pixel in the generated image, an
+by mathematical formulae. For each pixel in the generated image, an
 expression is evaluated which should return a pixel value. The
 expression can either refer to a pixel in the source image or can
 generate pixels completely independent of the source. MathMap not only
@@ -14,12 +14,17 @@ The MathMap homepage can be found at
 
 It includes a user's manual as well as screenshots and examples.
 
-Changes since 0.6:
+Changes since 0.7:
 
-  * Implemented the tagged tuples type system. This is major feature!
+  * Now runs under both GIMP 1.0 and GIMP 1.1.
 
-  * Implemented better error handling by borrowing a piece of code from
-    the current development tree of chpp.
+  * Features a transparent MathMap->C compiler under GIMP 1.1 boosting
+    performance by a factor 2 to 8.
+
+  * Simple vector and matrix algebra.
+
+  * Pixels outside the image can now be either wrapped or given any
+    color (including transparency).
 
 ----
 Mark Probst

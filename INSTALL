@@ -1,0 +1,25 @@
+In case you don't have libPropList installed on your system, do the
+following in this directory:
+
+	tar -zxf libPropList.tar.gz
+	cd libPropList
+	./configure
+	make
+	cd ..
+
+If you are using GIMP 1.1 and/or are building on an Alpha, edit
+Makefile and follow the comments there.
+
+Then just type
+
+	make
+
+It should compile on most systems.
+
+If you want to install mathmap on your account, type
+
+	make install
+
+---
+Mark Probst
+schani@unix.cslab.tuwien.ac.at

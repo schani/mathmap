@@ -1,0 +1,15 @@
+As of version 0.8 MathMap features a compiler in addition to the
+interpreter. Thus, all builtins must be available in two versions,
+namely for the intepreter and the compiler. To accomplish this without
+manually writing the two version, I have put to use the chpp
+preprocessor (http://www.unix.cslab.tuwien.ac.at/chpp/). It creates
+both versions from builtins.chc.
+
+If you want to write your own builtins or modify existing ones, you
+need at least version 0.3.4 of chpp. If you have any problems
+understanding builtins.chc (it's a little hard if you are not used to
+chpp) I'd be glad to help you. Just drop me a mail.
+
+---
+Mark Probst
+schani@unix.cslab.tuwien.ac.at

@@ -1,3 +1,4 @@
+#include list.chh
 %builtin(__add,add_ri,%'ri:2=ri:2,ri:2',
     %result(0) = %arg(0,0) + %arg(1,0);
     %result(1) = %arg(0,1) + %arg(1,1);
@@ -48,6 +49,62 @@
 
     %result(0) = r1 * r2 - c1 * c2;
     %result(1) = r1 * c2 + r2 * c1;
+)\
+
+%define(matmult,n,
+    %for(i,0,%[n-1],
+        %for(j,0,%[n-1],
+            float a%i%j = %<lst=%list()>%for(k,0,%[n-1],%<lst[%k]=%arg(0,%[i*n+k]) * %arg(1,%[k*n+j])>)%listJoin(+,%lst);%'\n'
+        )
+    )\
+
+    %for(i,0,%[n*n-1],
+        %result(%i) = a%[i/n]%[i%%n];%'\n'
+    )
+)\
+
+%builtin(__mul,mul_m2x2,%'m2x2:4=m2x2:4,m2x2:4',
+    %matmult(2)
+)\
+
+%builtin(__mul,mul_m3x3,%'m3x3:9=m3x3:9,m3x3:9',
+    %matmult(3)
+)\
+
+%define(vecmatmul,n,
+    %for(i,0,%[n-1],
+        float a%i = %<lst=%list()>%for(j,0,%[n-1],%<lst[%j]=%arg(0,%j) * %arg(1,%[j*n+i])>)%listJoin(+,%lst);%'\n'
+    )\
+
+    %for(i,0,%[n-1],
+        %result(%i) = a%i;%'\n'
+    )
+)\
+
+%builtin(__mul,mul_v2m2x2,%'T:2=T:2,m2x2:4',
+    %vecmatmul(2)
+)\
+
+%builtin(__mul,mul_v3m3x3,%'T:3=T:3,m3x3:9',
+    %vecmatmul(3)
+)\
+
+%define(matvecmul,n,
+    %for(i,0,%[n-1],
+        float a%i = %<lst=%list()>%for(j,0,%[n-1],%<lst[%j]=%arg(0,%[i*n+j]) * %arg(1,%j)>)%listJoin(+,%lst);%'\n'
+    )\
+
+    %for(i,0,%[n-1],
+        %result(%i) = a%i;%'\n'
+    )
+)\
+
+%builtin(__mul,mul_m2x2v2,%'T:2=m2x2:4,T:2',
+    %matvecmul(2)
+)\
+
+%builtin(__mul,mul_m3x3v3,%'T:3=m3x3:9,T:3',
+    %matvecmul(3)
 )\
 
 %builtin(__mul,mul_1,%'T:1=T:1,T:1',

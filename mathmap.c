@@ -142,6 +142,9 @@ static void dialog_intersampling_update (GtkWidget *widget, gpointer data);
 static void dialog_oversampling_update (GtkWidget *widget, gpointer data);
 static void dialog_auto_preview_update (GtkWidget *widget, gpointer data);
 static void dialog_fast_preview_update (GtkWidget *widget, gpointer data);
+static void dialog_edge_behaviour_update (GtkWidget *widget, gpointer data);
+static void dialog_edge_color_clicked (GtkWidget *widget, gpointer data);
+static void dialog_edge_color_show (void);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 static void dialog_close_callback(GtkWidget *widget, gpointer data);
@@ -198,7 +201,10 @@ char error_string[1024];
 GtkWidget *expression_entry = 0,
     *frame_table,
     *t_table,
-    *user_curve;
+    *user_curve,
+    *edge_color_preview,
+    *edge_color_preview_button;
+GtkColorSelectionDialog *color_selection_dialog;
 
 exprtree *theExprtree = 0;
 int imageWidth,
@@ -229,6 +235,8 @@ double currentX,
 int intersamplingEnabled,
     oversamplingEnabled,
     animationEnabled = 1;
+int edge_behaviour_color = 1, edge_behaviour_wrap = 2, edge_behaviour_mode = 1;
+unsigned char edge_color[4] = { 0, 0, 0, 0 };
 double user_curve_values[USER_CURVE_POINTS];
 int num_gradient_samples = NUM_GRADIENT_SAMPLES;
 tuple_t gradient_samples[NUM_GRADIENT_SAMPLES];
@@ -812,12 +820,24 @@ mathmap_get_pixel(int x, int y, guchar *pixel)
     guchar *p;
     int     i;
 
-    if ((x < 0) || (x >= img_width) || (y < 0) || (y >= img_height)) {
-	for (i = 0; i < outputBPP; ++i)
-	    pixel[i] = 0;
-
-	return;
-    } /* if */
+    if (edge_behaviour_mode == edge_behaviour_wrap)
+    {
+	if (x < 0)
+	    x = x % wholeImageWidth + wholeImageWidth;
+	else if (x >= wholeImageWidth)
+	    x %= wholeImageWidth;
+	if (y < 0)
+	    y = y % wholeImageHeight + wholeImageHeight;
+	else if (y >= wholeImageHeight)
+	    y %= wholeImageHeight;
+    }
+    else
+	if ((x < 0) || (x >= img_width) || (y < 0) || (y >= img_height))
+	{
+	    for (i = 0; i < outputBPP; ++i)
+		pixel[i] = edge_color[i];
+	    return;
+	}
 
     newcol    = x / tile_width; /* The compiler should optimize this */
     newcoloff = x % tile_width;
@@ -998,21 +1018,21 @@ read_tree_from_rc (void)
 static gint
 mathmap_dialog(void)
 {
-    GtkWidget  *dialog;
-    GtkWidget *top_table,
-	*middle_table;
+    GtkWidget *dialog;
+    GtkWidget *top_table, *middle_table;
     GtkWidget *vbox;
-    GtkWidget  *frame;
-    GtkWidget  *table;
-    GtkWidget  *button;
-    GtkWidget  *label;
-    GtkWidget  *toggle;
-    GtkWidget  *alignment;
+    GtkWidget *frame;
+    GtkWidget *table;
+    GtkWidget *button;
+    GtkWidget *label;
+    GtkWidget *toggle;
+    GtkWidget *alignment;
     GtkWidget *root_tree;
     GtkWidget *scale;
     GtkWidget *vscrollbar;
     GtkWidget *notebook;
     GtkObject *adjustment;
+    GSList *edge_group = 0;
     int i;
     gint        argc,
 	position = 0;
@@ -1082,7 +1102,7 @@ mathmap_dialog(void)
 
 	/* Settings */
 
-	middle_table = gtk_table_new(2, 2, FALSE);
+	middle_table = gtk_table_new(3, 2, FALSE);
 	gtk_container_border_width(GTK_CONTAINER(middle_table), 6);
 	gtk_table_set_col_spacings(GTK_TABLE(middle_table), 4);
 	gtk_widget_show(middle_table);
@@ -1153,6 +1173,49 @@ mathmap_dialog(void)
 				   (GtkSignalFunc)dialog_fast_preview_update, 0);
 		gtk_widget_show(toggle);
 
+	    /* Edge Behaviour */
+
+	    table = gtk_table_new(2, 2, FALSE);
+	    gtk_container_border_width(GTK_CONTAINER(table), 6);
+	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
+
+	    frame = gtk_frame_new("Edge Behaviour");
+	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
+	    gtk_container_add(GTK_CONTAINER(frame), table);
+	    gtk_table_attach(GTK_TABLE(middle_table), frame, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+
+	    gtk_widget_show(table);
+	    gtk_widget_show(frame);
+
+	        /* Color */
+
+	        toggle = gtk_radio_button_new_with_label(edge_group, "Color");
+		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_color);
+		gtk_widget_show(toggle);
+
+		edge_color_preview_button = gtk_button_new();
+		edge_color_preview = gtk_preview_new(GTK_PREVIEW_COLOR);
+		gtk_preview_size(GTK_PREVIEW(edge_color_preview), 32, 16);
+		gtk_container_add(GTK_CONTAINER(edge_color_preview_button), edge_color_preview);
+		gtk_widget_show(edge_color_preview);
+		gtk_table_attach(GTK_TABLE(table), edge_color_preview_button, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
+		gtk_signal_connect(GTK_OBJECT(edge_color_preview_button), "clicked",
+				   (GtkSignalFunc)dialog_edge_color_clicked, 0);
+		gtk_widget_show(edge_color_preview_button);
+		dialog_edge_color_show();
+
+	        /* Wrap */
+
+	        toggle = gtk_radio_button_new_with_label(edge_group, "Wrap");
+		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_wrap);
+		gtk_widget_show(toggle);
+
 	    /* Animation */
 	    
 	    table = gtk_table_new(3, 1, FALSE);
@@ -1166,7 +1229,7 @@ mathmap_dialog(void)
 
 	    alignment = gtk_alignment_new(0, 0, 0, 0);
 	    gtk_container_add(GTK_CONTAINER(alignment), frame);
-	    gtk_table_attach(GTK_TABLE(middle_table), alignment, 1, 2, 0, 2, GTK_FILL, 0, 0, 0);
+	    gtk_table_attach(GTK_TABLE(middle_table), alignment, 1, 2, 0, 3, GTK_FILL, 0, 0, 0);
 
 	    gtk_widget_show(table);
 	    gtk_widget_show(frame);
@@ -1293,7 +1356,7 @@ mathmap_dialog(void)
 	gtk_signal_connect(GTK_OBJECT(root_tree), "selection_changed",
 			   (GtkSignalFunc)dialog_tree_changed,
 			   (gpointer)NULL);
-#if 0
+#if GTK_MINOR_VERSION < 1
 	gtk_container_add(GTK_CONTAINER(table), root_tree);
 #else
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(table), root_tree);
@@ -1556,6 +1619,97 @@ dialog_fast_preview_update (GtkWidget *widget, gpointer data)
     fast_preview = GTK_TOGGLE_BUTTON(widget)->active;
     if (auto_preview)
 	dialog_update_preview();
+}
+
+/*****/
+
+static void
+dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
+{
+    edge_behaviour_mode = *(int*)data;
+    if (edge_behaviour_mode == edge_behaviour_color)
+    {
+	gtk_widget_set_sensitive(edge_color_preview_button, 1);
+    }
+    else if (edge_behaviour_mode == edge_behaviour_wrap)
+    {
+	gtk_widget_set_sensitive(edge_color_preview_button, 0);
+    }
+    else
+	assert(0);
+
+    if (auto_preview)
+	dialog_update_preview();
+}
+
+static void
+dialog_edge_color_show (void)
+{
+    guchar buf[32 * 3];
+    int i;
+
+    for (i = 0; i < 32; ++i)
+    {
+	buf[3 * i + 0] = edge_color[0];
+	buf[3 * i + 1] = edge_color[1];
+	buf[3 * i + 2] = edge_color[2];
+    }
+
+    for (i = 0; i < 16; ++i)
+	gtk_preview_draw_row(GTK_PREVIEW(edge_color_preview), buf, 0, i, 32);
+    gtk_widget_draw(edge_color_preview, 0);
+}
+
+static void
+color_select_cancel_callback (GtkWidget *widget, gpointer data)
+{
+    gtk_widget_destroy(GTK_WIDGET(color_selection_dialog));
+    color_selection_dialog = 0;
+}
+
+static void
+color_select_ok_callback (GtkWidget *widget, gpointer data)
+{
+    double color[4];
+    int i;
+
+    gtk_color_selection_get_color(GTK_COLOR_SELECTION(color_selection_dialog->colorsel), color);
+    for (i = 0; i < 4; ++i)
+	edge_color[i] = color[i] * 255.0;
+
+    gtk_widget_destroy(GTK_WIDGET(color_selection_dialog));
+    color_selection_dialog = 0;
+    dialog_edge_color_show();
+
+    if (auto_preview)
+	dialog_update_preview();
+}
+
+static void
+dialog_edge_color_clicked (GtkWidget *widget, gpointer data)
+{
+    GtkWidget *dialog;
+    double color[4];
+    int i;
+
+    dialog = gtk_color_selection_dialog_new("Edge Color");
+    color_selection_dialog = GTK_COLOR_SELECTION_DIALOG(dialog);
+    gtk_color_selection_set_opacity(GTK_COLOR_SELECTION(color_selection_dialog->colorsel), 1);
+
+    gtk_widget_destroy(color_selection_dialog->help_button);
+    gtk_signal_connect(GTK_OBJECT(dialog), "destroy",
+		       (GtkSignalFunc)color_select_cancel_callback, 0);
+    gtk_signal_connect(GTK_OBJECT(color_selection_dialog->ok_button), "clicked",
+		       (GtkSignalFunc)color_select_ok_callback, 0);
+    gtk_signal_connect(GTK_OBJECT(color_selection_dialog->cancel_button), "clicked",
+		       (GtkSignalFunc)color_select_cancel_callback, 0);
+
+    for (i = 0; i < 4; ++i)
+	color[i] = (double)edge_color[i] / 255.0;
+    gtk_color_selection_set_color(GTK_COLOR_SELECTION(color_selection_dialog->colorsel), color);
+
+    gtk_window_position(GTK_WINDOW(dialog), GTK_WIN_POS_MOUSE);
+    gtk_widget_show(dialog);
 }
 
 /*****/

@@ -1,14 +1,13 @@
 # uncomment either the first or the second of the two following lines, depending
 # on whether you have gimp 1.1 or gimp 1.0
-GIMP11 = YES
-#GIMP11 = NO
+#GIMP11 = YES
+GIMP11 = NO
 
 # if you are building on linux/alpha and have libffm, uncomment the following line
-LIBFFM = -lffm
-#LIBM = -lm
+#LIBFFM = -lffm
 
-# if you want to use the c code generator, uncomment the following line (only gimp >=1.1)
-CGEN = YES
+# if you want to use the c code generator, uncomment the following line (only gtk >= 1.1)
+#CGEN = YES
 
 ifeq ($(GIMP11),YES)
 GIMPDIR = .gimp-1.1
@@ -23,13 +22,13 @@ CGEN_CHPPFLAGS=-DUSE_CGEN
 CGEN_LDFLAGS=-Wl,--export-dynamic
 endif
 
-CFLAGS = -D_GIMP -D_GIMPDIR=\"$(GIMPDIR)\" $(CGEN_CFLAGS) -Wall -g -O3 `glib-config --cflags`
+CFLAGS = -D_GIMP -D_GIMPDIR=\"$(GIMPDIR)\" $(CGEN_CFLAGS) -Wall -g -O3 `gtk-config --cflags`
 CC = gcc
 
 OBJECTS = mathmap.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o argparser.o argscanner.o overload.o jump.o $(CGEN_OBJS)
 
 mathmap : $(OBJECTS)
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LIBFFM) `gtk-config --libs` -lgimp -lPropList $(LIBM)
+	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LIBFFM) `gtk-config --libs` -lgimp -lPropList
 
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
@@ -54,7 +53,7 @@ argscanner.c : argscanner.fl argparser.h
 
 builtins.o : builtins.c builtins.h builtins_interpreter.c
 
-builtins_interpreter.c : builtins_interpreter.chc builtins.chc
+builtins_interpreter.c : builtins_interpreter.chc builtins.chc Makefile
 	chpp $(CGEN_CHPPFLAGS) builtins_interpreter.chc >builtins_interpreter.c
 
 builtins_compiler.c : builtins_compiler.chc builtins.chc
@@ -65,4 +64,7 @@ install : mathmap
 	if [ ! -f $(HOME)/$(GIMPDIR)/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/ ; fi
 
 clean :
-	rm -f *~ *.o mathmap scanner.c parser.[ch] argparser.[ch] argscanner.c builtins_interpreter.c builtins_compiler.c
+	rm -f *~ *.o mathmap scanner.c parser.[ch] argparser.[ch] argscanner.c
+
+realclean : clean
+	rm -f builtins_interpreter.c builtins_compiler.c
