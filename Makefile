@@ -70,7 +70,7 @@ endif
 
 CC = gcc
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o noise.o lispreader.o spec_func.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o cgen.o builtins_compiler.o builtins_interpreter.o noise.o lispreader.o spec_func.o
 
 ifeq ($(CMDLINE),YES)
 OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o
@@ -96,7 +96,7 @@ scanner.c : scanner.fl parser.h
 	flex -Pmm scanner.fl
 	mv lex.mm.c scanner.c
 
-builtins.o : builtins.c builtins.h builtins_interpreter.c
+builtins.o : builtins.c builtins.h
 
 builtins_interpreter.c : builtins_interpreter.chc builtins.chc
 	chpp $(ANSI_CHPPFLAGS) $(COMPLEX_CHPPFLAGS) builtins_interpreter.chc >builtins_interpreter.c

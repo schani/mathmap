@@ -57,4 +57,7 @@ builtin_function_t builtin_with_name (const char *name);
 
 void init_builtins (void);
 
+void builtin_origValXYIntersample (postfix_arg *arg);
+void builtin_origValXY (postfix_arg *arg);
+
 #endif

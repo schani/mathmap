@@ -83,8 +83,21 @@
 %<prc=%'%'>\
 %<str=>\
 \
+%'#include <stdio.h>'
+%'#include <stdlib.h>'
+%'#include <math.h>'
+
+%'#include "postfix.h"'
+%'#include "overload.h"'
 %'#include "noise.h"'
+%'#include "tuples.h"'
 %'#include "mathmap.h"'
+
+void solve_linear_equations (int dim, float *a, float *b);
+void getOrigValPixel (float x, float y, unsigned char *pixel, int drawable_index, int frame);
+void getOrigValIntersamplePixel (float x, float y, unsigned char *pixel, int drawable_index, int frame);
+extern int num_gradient_samples;
+extern tuple_t gradient_samples[];
 
 #include builtins.chc
 

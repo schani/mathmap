@@ -118,7 +118,7 @@ mathmap_get_pixel (int drawable_index, int frame, int x, int y, guchar *pixel)
 	|| y < 0 || y >= img_height
 	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
     {
-	for (i = 0; i < outputBPP; ++i)
+	for (i = 0; i < 4; ++i)
 	    pixel[i] = edge_color[i];
 	return;
     }
