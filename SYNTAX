@@ -1,0 +1,21 @@
+With doc strings:
+
+filter blend
+  "Blends two images"
+  (
+    image i1
+      "Lower image",
+    image i2
+      "Upper image",
+    float alpha: 0.0 - 1.0 (0.5)
+      "Alpha value of the upper image"
+  )
+
+  i1(xy)*(1-alpha) + i2(xy)*alpha
+end
+
+Without doc strings:
+
+filter blend (image i1, image i2, float alpha)
+  i1(xy)*(1-alpha) + i2(xy)*alpha
+end

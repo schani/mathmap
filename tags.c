@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "tags.h"
 #include "exprtree.h"
@@ -37,7 +38,7 @@ int nil_tag_number,
 
 typedef struct _tag_entry
 {
-    ident name;
+    char *name;
     int number;
 
     struct _tag_entry *next;
@@ -70,8 +71,9 @@ tag_number_for_name (const char *name)
 
     entry = (tag_entry*)malloc(sizeof(tag_entry));
 
-    strncpy(entry->name, name, MAX_IDENT_LENGTH);
-    entry->name[MAX_IDENT_LENGTH] = '\0';
+    entry->name = strdup(name);
+    assert(entry->name != 0);
+
     entry->number = ++num_tags;
     entry->next = first;
     first = entry;

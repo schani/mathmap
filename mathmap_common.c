@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,6 +42,70 @@ mathmap_t *the_mathmap = 0;
 int yyparse (void);
 
 void
+register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
+{
+    while (arg_decls != 0)
+    {
+	userval_info_t *result = 0;
+
+	printf("registering %s  type %d\n", arg_decls->name, arg_decls->type);
+
+	switch (arg_decls->type)
+	{
+	    case ARG_TYPE_INT :
+		if (arg_decls->v.integer.have_limits)
+		    result = register_int_const(&mathmap->userval_infos, arg_decls->name,
+						arg_decls->v.integer.min, arg_decls->v.integer.max);
+		else
+		    result = register_int_const(&mathmap->userval_infos, arg_decls->name, -100000, 100000);
+		break;
+
+	    case ARG_TYPE_FLOAT :
+		if (arg_decls->v.floating.have_limits)
+		    result = register_float_const(&mathmap->userval_infos, arg_decls->name,
+						  arg_decls->v.floating.min, arg_decls->v.floating.max);
+		else
+		    result = register_float_const(&mathmap->userval_infos, arg_decls->name, -100000.0, 100000.0);
+		break;
+
+	    case ARG_TYPE_BOOL :
+		result = register_bool(&mathmap->userval_infos, arg_decls->name);
+		break;
+
+	    case ARG_TYPE_COLOR :
+		result = register_color(&mathmap->userval_infos, arg_decls->name);
+		break;
+
+	    case ARG_TYPE_GRADIENT :
+		result = register_gradient(&mathmap->userval_infos, arg_decls->name);
+		break;
+
+	    case ARG_TYPE_CURVE :
+		result = register_curve(&mathmap->userval_infos, arg_decls->name);
+		break;
+
+	    case ARG_TYPE_FILTER :
+		assert(0);
+
+	    case ARG_TYPE_IMAGE :
+		result = register_image(&mathmap->userval_infos, arg_decls->name);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	if (result == 0)
+	{
+	    sprintf(error_string, "Conflict for argument %s.", arg_decls->name);
+	    JUMP(1);
+	}
+
+	arg_decls = arg_decls->next;
+    }
+}
+
+void
 unload_mathmap (mathmap_t *mathmap)
 {
     if (mathmap->is_native && mathmap->module_info != 0)
@@ -56,8 +120,8 @@ free_mathmap (mathmap_t *mathmap)
 {
     if (mathmap->variables != 0)
 	free_variables(mathmap->variables);
-    if (mathmap->exprtree != 0)
-	free_exprtree(mathmap->exprtree);
+    if (mathmap->top_level_decls != 0)
+	free_top_level_decls(mathmap->top_level_decls);
     if (mathmap->userval_infos != 0)
 	free_userval_infos(mathmap->userval_infos);
     if (!mathmap->is_native && mathmap->expression != 0)
@@ -151,60 +215,15 @@ does_mathmap_use_t (mathmap_t *mathmap)
     return t_internal->is_used;
 }
 
-int
-check_mathmap (char *expression)
-{
-    static mathmap_t mathmap;
-
-    mathmap.variables = 0;
-    mathmap.userval_infos = 0;
-    mathmap.internals = 0;
-    mathmap.is_native = 0;
-    mathmap.module_info = 0;
-
-    mathmap.exprtree = 0;
-
-    init_internals(&mathmap);
-
-    the_mathmap = &mathmap;
-
-    DO_JUMP_CODE {
-	scanFromString(expression);
-	yyparse();
-	endScanningFromString();
-
-	the_mathmap = 0;
-
-	assert(mathmap.exprtree != 0);
-
-	if (mathmap.exprtree->result.number != rgba_tag_number
-	    || mathmap.exprtree->result.length != 4)
-	{
-	    free_exprtree(mathmap.exprtree);
-	    mathmap.exprtree = 0;
-
-	    sprintf(error_string, "The expression must have the result type rgba:4.");
-	    JUMP(1);
-	}
-    } WITH_JUMP_HANDLER {
-	the_mathmap = 0;
-    } END_JUMP_HANDLER;
-
-    if (mathmap.exprtree != 0)
-    {
-	free_exprtree(mathmap.exprtree);
-	return 1;
-    }
-    return 0;
-}
-
 mathmap_t*
 parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     userval_info_t *info;
+    exprtree *expr;
 
     mathmap = (mathmap_t*)malloc(sizeof(mathmap_t));
+    assert(mathmap != 0);
 
     mathmap->variables = 0;
     mathmap->userval_infos = 0;
@@ -212,8 +231,7 @@ parse_mathmap (char *expression)
     mathmap->is_native = 0;
     mathmap->module_info = 0;
     mathmap->expression = 0;
-
-    mathmap->exprtree = 0;
+    mathmap->top_level_decls = 0;
 
     init_internals(mathmap);
 
@@ -224,25 +242,39 @@ parse_mathmap (char *expression)
 	yyparse();
 	endScanningFromString();
 
-	the_mathmap = 0;
+	mathmap->top_level_decls = the_top_level_decls;
+	the_top_level_decls = 0;
 
-	assert(mathmap->exprtree != 0);
-
-	if (mathmap->exprtree->result.number != rgba_tag_number
-	    || mathmap->exprtree->result.length != 4)
+	if (mathmap->top_level_decls == 0
+	    || mathmap->top_level_decls->next != 0
+	    || mathmap->top_level_decls->type != TOP_LEVEL_FILTER)
 	{
-	    free_mathmap(mathmap);
-	    mathmap = 0;
+	    free_top_level_decls(mathmap->top_level_decls);
+	    mathmap->top_level_decls = 0;
+
+	    sprintf(error_string, "Exactly one filter must be defined.");
+	    JUMP(1);
+	}
+
+	expr = mathmap->top_level_decls->v.filter.body;
+
+	if (expr->result.number != rgba_tag_number
+	    || expr->result.length != 4)
+	{
+	    free_top_level_decls(mathmap->top_level_decls);
+	    mathmap->top_level_decls = 0;
 
 	    sprintf(error_string, "The expression must have the result type rgba:4.");
 	    JUMP(1);
 	}
     } WITH_JUMP_HANDLER {
-	the_mathmap = 0;
+	the_top_level_decls = 0;
 
 	free_mathmap(mathmap);
 	mathmap = 0;
     } END_JUMP_HANDLER;
+
+    the_mathmap = 0;
 
     if (mathmap != 0)
     {
@@ -252,6 +284,20 @@ parse_mathmap (char *expression)
     }
 
     return mathmap;
+}
+
+int
+check_mathmap (char *expression)
+{
+    mathmap_t *mathmap = parse_mathmap(expression);
+
+    if (mathmap != 0)
+    {
+	free_mathmap(mathmap);
+	return 1;
+    }
+    else
+	return 0;
 }
 
 mathmap_t*
@@ -273,7 +319,7 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{
-	    mathmap->expression = make_postfix(mathmap->exprtree, &mathmap->exprlen);
+	    mathmap->expression = make_postfix(mathmap->top_level_decls->v.filter.body, &mathmap->exprlen);
 	    output_postfix(mathmap->expression, mathmap->exprlen);
 
 	    mathmap->is_native = 0;
@@ -286,8 +332,6 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 	else
 	    mathmap->is_native = 1;
     } WITH_JUMP_HANDLER {
-	the_mathmap = 0;
-
 	if (mathmap != 0)
 	{
 	    free_mathmap(mathmap);
@@ -320,11 +364,10 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     {
 	userval_info_t *info;
 
+	// we give the original image as the first input image
 	for (info = mathmap->userval_infos; info != 0; info = info->next)
-	    if (info->type == USERVAL_IMAGE
-		&& strcmp(info->name, INPUT_IMAGE_USERVAL_NAME) == 0)
+	    if (info->type == USERVAL_IMAGE)
 	    {
-		/* this is the original image */
 		invocation->uservals[info->index].v.image.index = 0;
 		break;
 	    }
@@ -512,7 +555,7 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 
 	for (row = first_row; row < last_row; ++row)
 	{
-	    char *p = q;
+	    unsigned char *p = q;
 
 	    invocation->img_width = img_width;
 	    invocation->middle_x = middle_x - 0.5;
@@ -624,7 +667,7 @@ process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_p
 			name[length++] = c;
 		    }
 		    else
-			if (c != EOF)
+			if (c != EOF && c != '$')
 			    ungetc(c, template);
 		} while (is_word_character(c));
 

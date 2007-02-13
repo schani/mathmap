@@ -61,6 +61,11 @@
 (defmacro defbuiltin (overloaded-name name type args &rest body)
   `(setq *builtins* (cons (list ',overloaded-name ',name ',type ',args ',body) *builtins*)))
 
+(defun c-type (type)
+  (second (assoc type '((nil "float") (float "float") (int "int")
+			(color "color_t") (complex "complex float") (m2x2 "gsl_matrix *")
+			(m3x3 "gsl_matrix *") (v2 "gsl_vector *") (v3 "gsl_vector *")))))
+
 (defun gen-builtin (overloaded-name name type args body for-compiler-p)
   (labels ((length-of-arg-pos (pos)
 	     (if for-compiler-p
@@ -88,9 +93,7 @@
 			   'tuple
 			   (lookup-length (cadadr (nth pos args)))))))
 	   (lookup-op (op num-args table)
-	     (find-if #'(lambda (o) (and (eq op (first o)) (= num-args (second o)))) table))
-	   (c-type (type)
-	     (second (assoc type '((nil "float") (float "float") (int "int") (color "color_t") (complex "complex float") (m2x2 "gsl_matrix *") (m3x3 "gsl_matrix *") (v2 "gsl_vector *") (v3 "gsl_vector *"))))))
+	     (find-if #'(lambda (o) (and (eq op (first o)) (= num-args (second o)))) table)))
     (let ((body (my-macroexpand body `((eval . eval)
 				       (+ . ,#'(lambda (&rest args) (reduce #'(lambda (a b) (list '+ a b)) args)))
 				       (* . ,#'(lambda (&rest args) (reduce #'(lambda (a b) (list '* a b)) args))))))
@@ -962,7 +965,7 @@
       (set result (make (?T 1) 1))
       (set result (make (?T 1) 0))))
 
-(defbuiltin "origVal" origValXY (rgba 4) ((p (xy 2)) (drawable (image 1)) (frame (nil 1)))
+(defbuiltin "origVal" origValXY (rgba 4) ((p (xy 2)) (frame (nil 1)) (drawable (image 1)))
   (let ((c (orig-val (nth 0 p) (nth 1 p) (nth 0 drawable) (nth 0 frame))))
     (set result (make (rgba 4) (red c) (green c) (blue c) (alpha c)))))
 

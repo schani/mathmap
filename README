@@ -1,5 +1,5 @@
-MathMap 0.14
-============
+MathMap 1.1.0
+=============
 
 MathMap is a plug-in for The GIMP and a standalone command-line
 utility for image and animation manipulation.
@@ -8,12 +8,8 @@ The newest version is always available from the MathMap home-page:
 
     http://www.complang.tuwien.ac.at/schani/mathmap/
 
-I plan to release a version 1.0 of MathMap soon and to this end have
-decided not to add any more nontrivial features, but instead focus on
-bug fixing.  So please, if you encounter any problems, mail me, and
-I'll try to fix them as best I can.  (Of course that doesn't mean that
-feature contributions are discouraged - on the contrary!  It's just
-that I probably won't integrate them until version 1.0 is out.)
+This is an unstable/development release.  Use at your own risk!  See
+BUGS for a list of known bugs and limitations in this release.
 
 See INSTALL on how to build and install MathMap.
 

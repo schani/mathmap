@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,8 +37,10 @@
 
 char error_string[1024];
 
+top_level_decl_t *the_top_level_decls = 0;
+
 static arg_decl_t*
-make_arg_decl (int type, const char *name)
+make_arg_decl (int type, const char *name, const char *docstring)
 {
     arg_decl_t *arg = (arg_decl_t*)malloc(sizeof(arg_decl_t));
 
@@ -46,8 +48,16 @@ make_arg_decl (int type, const char *name)
 
     arg->type = type;
 
-    assert(strlen(name) < MAX_IDENT_LENGTH);
-    strcpy(arg->name, name);
+    arg->name = strdup(name);
+    assert(arg->name != 0);
+
+    if (docstring != 0)
+    {
+	arg->docstring = strdup(docstring);
+	assert(arg->docstring != 0);
+    }
+    else
+	arg->docstring = 0;
 
     arg->next = 0;
 
@@ -55,39 +65,57 @@ make_arg_decl (int type, const char *name)
 }
 
 arg_decl_t*
-make_simple_arg_decl (const char *type_name, const char *name)
+make_simple_arg_decl (const char *type_name, const char *name, const char *docstring)
 {
     static struct { const char *name; int type; } types[] =
 	{
 	    { "int", ARG_TYPE_INT },
 	    { "float", ARG_TYPE_FLOAT },
+	    { "bool", ARG_TYPE_BOOL },
 	    { "color", ARG_TYPE_COLOR },
 	    { "gradient", ARG_TYPE_GRADIENT },
 	    { "curve", ARG_TYPE_CURVE },
+	    { "image", ARG_TYPE_IMAGE },
 	    { 0 }
 	};
 
     int i;
 
     for (i = 0; types[i].name != 0; ++i)
-	if (strcmp(types[i].name, name) == 0)
+	if (strcmp(types[i].name, type_name) == 0)
 	    break;
 
     if (types[i].name == 0)
     {
-	sprintf(error_string, "Unknown type %s.", name);
+	sprintf(error_string, "Unknown type %s.", type_name);
 	JUMP(1);
     }
     else
-	return make_arg_decl(types[i].type, name);
+    {
+	int type = types[i].type;
+	arg_decl_t *arg_decl = make_arg_decl(type, name, docstring);
+
+	if (type == ARG_TYPE_INT)
+	{
+	    arg_decl->v.integer.have_limits = 0;
+	    arg_decl->v.integer.default_value = 0;
+	}
+	else if (type == ARG_TYPE_FLOAT)
+	{
+	    arg_decl->v.floating.have_limits = 0;
+	    arg_decl->v.floating.default_value = 0.0;
+	}
+
+	return arg_decl;
+    }
 
     return 0;
 }
 
 arg_decl_t*
-make_filter_arg_decl (const char *name, arg_decl_t *args)
+make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring)
 {
-    arg_decl_t *arg = make_arg_decl(ARG_TYPE_FILTER, name);
+    arg_decl_t *arg = make_arg_decl(ARG_TYPE_FILTER, name, docstring);
 
     arg->v.filter.args = args;
 
@@ -110,8 +138,27 @@ arg_decl_list_append (arg_decl_t *list1, arg_decl_t *list2)
     return list1;
 }
 
+void
+free_arg_decls (arg_decl_t *list)
+{
+    while (list != 0)
+    {
+	arg_decl_t *next = list->next;
+
+	free(list->name);
+	if (list->docstring != 0)
+	    free(list->docstring);
+	if (list->type == ARG_TYPE_FILTER)
+	    free_arg_decls(list->v.filter.args);
+
+	free(list);
+
+	list = next;
+    }
+}
+
 static top_level_decl_t*
-make_top_level_decl (int type, const char *name)
+make_top_level_decl (int type, const char *name, const char *docstring)
 {
     top_level_decl_t *top_level = (top_level_decl_t*)malloc(sizeof(top_level_decl_t));
 
@@ -119,16 +166,26 @@ make_top_level_decl (int type, const char *name)
 
     top_level->type = type;
 
-    assert(strlen(name) < MAX_IDENT_LENGTH);
-    strcpy(top_level->name, name);
+    top_level->name = strdup(name);
+    assert(top_level->name != 0);
+
+    if (docstring != 0)
+    {
+	top_level->docstring = strdup(docstring);
+	assert(top_level->docstring != 0);
+    }
+    else
+	top_level->docstring = 0;
+
+    top_level->next = 0;
 
     return top_level;
 }
 
 top_level_decl_t*
-make_filter (const char *name, arg_decl_t *args, exprtree *body)
+make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body)
 {
-    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name);
+    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
 
     top_level->v.filter.args = args;
     top_level->v.filter.body = body;
@@ -150,6 +207,167 @@ top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2)
     list->next = list2;
 
     return list1;
+}
+
+void
+free_top_level_decls (top_level_decl_t *list)
+{
+    while (list != 0)
+    {
+	top_level_decl_t *next = list->next;
+
+	free(list->name);
+	if (list->docstring != 0)
+	    free(list->docstring);
+
+	if (list->type == TOP_LEVEL_FILTER)
+	{
+	    free_arg_decls(list->v.filter.args);
+	    free_exprtree(list->v.filter.body);
+	}
+	else
+	    assert(0);
+
+	free(list);
+
+	list = next;
+    }
+}
+
+static limits_t*
+alloc_limits (int type)
+{
+    limits_t *limits = (limits_t*)malloc(sizeof(limits_t));
+
+    assert(limits != 0);
+
+    limits->type = type;
+
+    return limits;
+}
+
+limits_t*
+make_int_limits (int min, int max)
+{
+    limits_t *limits = alloc_limits(LIMITS_INT);
+
+    if (min >= max)
+    {
+	strcpy(error_string, "Lower limit must be less than upper limit");
+	JUMP(1);
+    }
+
+    limits->v.integer.min = min;
+    limits->v.integer.max = max;
+
+    return limits;
+}
+
+limits_t*
+make_float_limits (float min, float max)
+{
+    limits_t *limits = alloc_limits(LIMITS_FLOAT);
+
+    if (min >= max)
+    {
+	strcpy(error_string, "Lower limit must be less than upper limit");
+	JUMP(1);
+    }
+
+    limits->v.floating.min = min;
+    limits->v.floating.max = max;
+
+    return limits;
+}
+
+void
+free_limits (limits_t *limits)
+{
+    free(limits);
+}
+
+void
+apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
+{
+    if (arg_decl->type == ARG_TYPE_INT)
+    {
+	if (limits->type != LIMITS_INT)
+	{
+	    strcpy(error_string, "Only integers can be limits for an int argument");
+	    JUMP(1);
+	}
+
+	arg_decl->v.integer.have_limits = 1;
+	arg_decl->v.integer.min = limits->v.integer.min;
+	arg_decl->v.integer.max = limits->v.integer.max;
+	arg_decl->v.integer.default_value = arg_decl->v.integer.min;
+    }
+    else if (arg_decl->type ==ARG_TYPE_FLOAT)
+    {
+	float min = 0.0, max = 0.0;
+
+	if (limits->type == LIMITS_INT)
+	{
+	    min = (float)limits->v.integer.min;
+	    max = (float)limits->v.integer.max;
+	}
+	else if (limits->type == LIMITS_FLOAT)
+	{
+	    min = limits->v.floating.min;
+	    max = limits->v.floating.max;
+	}
+	else
+	{
+	    strcpy(error_string, "Only integers and floats can be limits for a float argument");
+	    JUMP(1);
+	}
+
+	arg_decl->v.floating.have_limits = 1;
+	arg_decl->v.floating.min = min;
+	arg_decl->v.floating.max = max;
+	arg_decl->v.floating.default_value = min;
+    }
+    else
+    {
+	strcpy(error_string, "Limits applied to wrongly typed argument");
+	JUMP(1);
+    }
+}
+
+void
+apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
+{
+    if (arg_decl->type == ARG_TYPE_INT)
+    {
+	if (exprtree->type != EXPR_INT_CONST)
+	{
+	    strcpy(error_string, "Only integers can be defaults for an int argument");
+	    JUMP(1);
+	}
+
+	arg_decl->v.integer.default_value = exprtree->val.int_const;
+    }
+    else if (arg_decl->type == ARG_TYPE_FLOAT)
+    {
+	float default_value = 0.0;
+
+	if (exprtree->type == EXPR_INT_CONST)
+	    default_value = (float)exprtree->val.int_const;
+	else if (exprtree->type == EXPR_FLOAT_CONST)
+	    default_value = exprtree->val.float_const;
+	else
+	{
+	    strcpy(error_string, "Only floats can be defaults for a float argument");
+	    JUMP(1);
+	}
+
+	arg_decl->v.floating.default_value = default_value;
+    }
+    else
+    {
+	strcpy(error_string, "Default applied to wrongly typed argument");
+	JUMP(1);
+    }
 }
 
 static exprtree*
@@ -210,6 +428,91 @@ make_range (int first, int last)
     }
 }
 
+static exprtree*
+make_userval (userval_info_t *info, exprtree *args)
+{
+    exprtree *tree = alloc_exprtree();
+
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	case USERVAL_FLOAT_CONST :
+	case USERVAL_BOOL_CONST :
+	case USERVAL_COLOR :
+	    if (exprlist_length(args) != 0)
+	    {
+		sprintf(error_string, "Integer inputs take no arguments.");
+		JUMP(1);
+	    }
+
+	    if (info->type == USERVAL_COLOR)
+	    {
+		tree->result.number = rgba_tag_number;
+		tree->result.length = 4;
+	    }
+	    else
+	    {
+		tree->result.number = nil_tag_number;
+		tree->result.length = 1;
+	    }
+	    break;
+
+	case USERVAL_CURVE :
+	case USERVAL_GRADIENT :
+	    if (exprlist_length(args) != 1)
+	    {
+		sprintf(error_string, "A curve or gradient takes one argument.");
+		JUMP(1);
+	    }
+	    if (args->result.length != 1)
+	    {
+		sprintf(error_string, "The curve or gradient argument must have length 1.");
+		JUMP(1);
+	    }
+
+	    if (info->type == USERVAL_CURVE)
+	    {
+		tree->result.number = nil_tag_number;
+		tree->result.length = 1;
+	    }
+	    else
+	    {
+		tree->result.number = rgba_tag_number;
+		tree->result.length = 4;
+	    }
+	    break;
+
+	case USERVAL_IMAGE :
+	    if (exprlist_length(args) != 1)
+	    {
+		sprintf(error_string, "An image takes one argument.");
+		JUMP(1);
+	    }
+
+	    tree->result.number = image_tag_number;
+	    tree->result.length = 1;
+
+	    break;
+
+	default :
+	    assert(0);
+    }
+
+    tree->type = EXPR_USERVAL;
+    tree->val.userval.info = info;
+
+    if (info->type == USERVAL_IMAGE)
+    {
+	tree->val.userval.args = 0;
+
+	return make_function("origVal", exprlist_append(args, tree));
+    }
+    else
+	tree->val.userval.args = args;
+
+    return tree;
+}
+
 exprtree*
 make_var (const char *name)
 {
@@ -229,6 +532,12 @@ make_var (const char *name)
 	macro_function_t function = lookup_variable_macro(name, &info);
 
 	tree = function(0);
+    }
+    else if (lookup_userval(the_mathmap->userval_infos, name) != 0)
+    {
+	userval_info_t *info = lookup_userval(the_mathmap->userval_infos, name);
+
+	tree = make_userval(info, 0);
     }
     else if (lookup_variable(the_mathmap->variables, name, &info) != 0)
     {
@@ -361,10 +670,9 @@ make_convert (const char *tagname, exprtree *tuple)
 exprtree*
 make_function (const char *name, exprtree *args)
 {
-    exprtree *tree = 0,
-	*arg = args;
-    function_arg_info_t *first,
-	*last;
+    exprtree *tree = 0;
+    exprtree *arg = args;
+    function_arg_info_t *first, *last;
     overload_entry_t *entry;
     tuple_info_t info;
 
@@ -372,6 +680,13 @@ make_function (const char *name, exprtree *args)
     {
 	sprintf(error_string, "Function %s must be called with at least one argument.", name);
 	JUMP(1);
+    }
+
+    if (lookup_userval(the_mathmap->userval_infos, name) != 0)
+    {
+	userval_info_t *info = lookup_userval(the_mathmap->userval_infos, name);
+
+	return make_userval(info, args);
     }
 
     first = last = (function_arg_info_t*)malloc(sizeof(function_arg_info_t));
@@ -406,34 +721,34 @@ make_function (const char *name, exprtree *args)
 	    tree->val.func.args = args;
 	    tree->result = info;
 
-	    /* FIXME: can only do if function is side-effect free */
+	    /* FIXME: can only do if function is pure */
 	    /*
-	    if (is_constant && 0)
-	    {
-		tuple_t stack[32];
-		mathmap_t mathmap;
-		mathmap_invocation_t invocation;
+	      if (is_constant && 0)
+	      {
+	      tuple_t stack[32];
+	      mathmap_t mathmap;
+	      mathmap_invocation_t invocation;
 
-		tuple_t *result;
-		int i;
+	      tuple_t *result;
+	      int i;
 
-		invocation.mathmap = &mathmap;
+	      invocation.mathmap = &mathmap;
 
-		mathmap.expression = make_postfix(tree, &mathmap.exprlen);
-		invocation.stack = stack;
+	      mathmap.expression = make_postfix(tree, &mathmap.exprlen);
+	      invocation.stack = stack;
 
-		printf("foldings constants:\n");
-		output_postfix(mathmap.expression, mathmap.exprlen);
-		result = eval_postfix(&invocation);
+	      printf("foldings constants:\n");
+	      output_postfix(mathmap.expression, mathmap.exprlen);
+	      result = eval_postfix(&invocation);
 
-		tree->type = EXPR_TUPLE_CONST;
-		for (i = 0; i < tree->result.length; ++i)
-		    tree->val.tuple_const.data[i] = result->data[i];
-		tree->val.tuple_const.number = tree->result.number;
-		tree->val.tuple_const.length = tree->result.length;
+	      tree->type = EXPR_TUPLE_CONST;
+	      for (i = 0; i < tree->result.length; ++i)
+	      tree->val.tuple_const.data[i] = result->data[i];
+	      tree->val.tuple_const.number = tree->result.number;
+	      tree->val.tuple_const.length = tree->result.length;
 
-		free(mathmap.expression);
-	    }
+	      free(mathmap.expression);
+	      }
 	    */
 	}
 	else if (entry->type == OVERLOAD_MACRO)
@@ -448,192 +763,14 @@ make_function (const char *name, exprtree *args)
     }
 
     /*
-    while (first != 0)
-    {
-	function_arg_info_t *next = first->next;
+      while (first != 0)
+      {
+      function_arg_info_t *next = first->next;
 
-	free(first);
-	first = next;
-    }
+      free(first);
+      first = next;
+      }
     */
-
-    return tree;
-}
-
-exprtree*
-make_userval (const char *type, const char *name, exprtree *args)
-{
-    userval_info_t *info;
-    exprtree *tree = alloc_exprtree();
-
-    if (strcmp(type, "user_int") == 0)
-    {
-	int min, max;
-
-	if (exprlist_length(args) != 2)
-	{
-	    sprintf(error_string, "user_int takes 2 arguments.");
-	    JUMP(1);
-	}
-	if (!is_exprtree_single_const(args, &min, 0)
-	    || !is_exprtree_single_const(args->next, &max, 0))
-	{
-	    sprintf(error_string, "user_int min and max must be constants with length 1.");
-	    JUMP(1);
-	}
-
-	info = register_int_const(&the_mathmap->userval_infos, name, min, max);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "user_int %s has a mismatch.", name);
-	    JUMP(1);
-	}
-
-	tree->result.number = nil_tag_number;
-	tree->result.length = 1;
-    }
-    else if (strcmp(type, "user_float") == 0 || strcmp(type, "user_slider") == 0)
-    {
-	float min, max;
-
-	if (exprlist_length(args) != 2)
-	{
-	    sprintf(error_string, "%s takes 2 arguments.", type);
-	    JUMP(1);
-	}
-	if (!is_exprtree_single_const(args, 0, &min)
-	    || !is_exprtree_single_const(args->next, 0, &max))
-	{
-	    sprintf(error_string, "%s min and max must be constants with length 1.", type);
-	    JUMP(1);
-	}
-
-	info = register_float_const(&the_mathmap->userval_infos, name, min, max);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "%s %s has a mismatch.", type, name);
-	    JUMP(1);
-	}
-
-	tree->result.number = nil_tag_number;
-	tree->result.length = 1;
-    }
-    else if (strcmp(type, "user_bool") == 0)
-    {
-	if (exprlist_length(args) != 0)
-	{
-	    sprintf(error_string, "user_bool takes no arguments.");
-	    JUMP(1);
-	}
-
-	info = register_bool(&the_mathmap->userval_infos, name);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "user_bool %s has a mismatch.", name);
-	    JUMP(1);
-	}
-
-	tree->result.number = nil_tag_number;
-	tree->result.length = 1;
-    }
-    else if (strcmp(type, "user_color") == 0)
-    {
-	if (exprlist_length(args) != 0)
-	{
-	    sprintf(error_string, "user_bool takes no arguments.");
-	    JUMP(1);
-	}
-
-	info = register_color(&the_mathmap->userval_infos, name);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "user_bool %s has a mismatch.", name);
-	    JUMP(1);
-	}
-
-	tree->result.number = rgba_tag_number;
-	tree->result.length = 4;
-    }
-    else if (strcmp(type, "user_curve") == 0)
-    {
-	if (exprlist_length(args) != 1)
-	{
-	    sprintf(error_string, "user_curve takes 1 argument.");
-	    JUMP(1);
-	}
-	if (args->result.length != 1)
-	{
-	    sprintf(error_string, "user_curve argument must have length 1.");
-	    JUMP(1);
-	}
-
-	info = register_curve(&the_mathmap->userval_infos, name);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "user_curve %s has mismatch.", name);
-	    JUMP(1);
-	}
-
-	tree->result.number = nil_tag_number;
-	tree->result.length = 1;
-    }
-    else if (strcmp(type, "user_gradient") == 0)
-    {
-	if (exprlist_length(args) != 1)
-	{
-	    sprintf(error_string, "user_gradient takes 1 argument.");
-	    JUMP(1);
-	}
-	if (args->result.length != 1)
-	{
-	    sprintf(error_string, "user_gradient argument must have length 1.");
-	    JUMP(1);
-	}
-
-	info = register_gradient(&the_mathmap->userval_infos, name);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "user_gradient %s has mismatch.", name);
-	    JUMP(1);
-	}
-
-	tree->result.number = rgba_tag_number;
-	tree->result.length = 4;
-    }
-    else if (strcmp(type, "user_image") == 0)
-    {
-	if (exprlist_length(args) != 0)
-	{
-	    sprintf(error_string, "user_image takes no arguments.");
-	    JUMP(1);
-	}
-
-	info = register_image(&the_mathmap->userval_infos, name);
-
-	if (info == 0)
-	{
-	    sprintf(error_string, "user_image %s has a mismatch.", name);
-	    JUMP(1);
-	}
-
-	tree->result.number = image_tag_number;
-	tree->result.length = 1;
-    }
-    else
-    {
-	sprintf(error_string, "Unknown userval function %s.", type);
-	JUMP(1);
-    }
-
-    tree->type = EXPR_USERVAL;
-    tree->val.userval.info = info;
-    tree->val.userval.args = args;
 
     return tree;
 }
@@ -656,6 +793,8 @@ make_assignment (char *name, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
     variable_t *var = lookup_variable(the_mathmap->variables, name, &tree->result);
+
+    // FIXME: check whether the variable name is an internal, var macro or user val
 
     if (var == 0)
     {

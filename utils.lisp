@@ -36,6 +36,10 @@
 (defun dcs (x)
   (substitute #\d #\. (substitute #\p #\+ (substitute #\_ #\- (string-downcase (symbol-name x))))))
 
+;; up-case-symbol
+(defun ucs (x)
+  (substitute #\d #\. (substitute #\p #\+ (substitute #\_ #\- (string-upcase (symbol-name x))))))
+
 (defvar *tmp-num* 0)
 (defun make-tmp-name ()
   (let ((name (format nil "tmp_~A" *tmp-num*)))

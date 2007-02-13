@@ -1,0 +1,30 @@
+Known Bugs
+==========
+
+Compiler
+--------
+
+Two inputs can have the same name
+
+GIMP Plug-In
+------------
+
+supersampling does not work in the compiler (row length is changed for
+each second line computed)
+
+the interpreter does not work at all
+
+crashes when "ESC" is pressed
+
+grid example doesn't work
+
+when there are no user values the user values tab doesn't scale when window is resized
+
+Limitations in Blender Plug-In Generation
+-----------------------------------------
+
+noise, gamma, vector/matrix division do not work
+
+edge behaviour is not implemented
+
+antialiasing and supersampling are not implemented

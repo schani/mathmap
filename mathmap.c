@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -10,7 +10,7 @@
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
  *
- * Version 0.14
+ * Version 1.1.0
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,12 @@
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
+#ifndef GIMP2
 #include <libgimp/gimpintl.h>
+#else
+#define INIT_LOCALE(x)
+#define _(x)             (x)
+#endif
 
 #include "lispreader.h"
 #include "exprtree.h"
@@ -59,7 +64,7 @@
 #include "cgen.h"
 
 /***** Magic numbers *****/
-#define PREVIEW_SIZE 192
+#define PREVIEW_SIZE 384
 #define SCALE_WIDTH  200
 #define ENTRY_WIDTH  60
 
@@ -123,6 +128,8 @@ static void run (const gchar *name,
 
 
 static void expression_copy (gchar *dest, const gchar *src);
+
+static int generate_code (int current_frame, float current_t);
 
 static void do_mathmap (int frame_num, float t);
 static gint32 mathmap_layer_copy (gint32 layerID);
@@ -315,6 +322,9 @@ read_rc_file (void)
 	return obj;
 
     file = open_rc_file("mathmaprc");
+
+    if (file == 0)
+	return lisp_nil();
 
     obj = lisp_read(lisp_stream_init_file(&stream, file));
     fclose(file);
@@ -624,6 +634,9 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 		mmvals.frames = param[4].data.d_int32;
 		mmvals.param_t = param[5].data.d_float;
 		expression_copy(mmvals.expression, param[6].data.d_string);
+
+		if (!generate_code(0, 0))
+		    status = GIMP_PDB_CALLING_ERROR;
 	    }
 
 	    break;
@@ -632,6 +645,10 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 	    /* Possibly retrieve data */
 
 	    gimp_get_data(name, &mmvals);
+
+	    if (!generate_code(0, 0))
+		status = GIMP_PDB_CALLING_ERROR;
+
 	    break;
 
 	default:
@@ -1180,7 +1197,7 @@ read_tree_from_rc (void)
     store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
 
     obj = read_rc_file();
-    if(obj)
+    if (obj != 0)
     {
     	tree_from_lisp_object(store, NULL, obj);
     	lisp_free(obj);
@@ -1906,6 +1923,9 @@ dialog_supersampling_update (GtkWidget *widget, gpointer data)
 
     if (GTK_TOGGLE_BUTTON(widget)->active)
 	mmvals.flags |= FLAG_SUPERSAMPLING;
+
+    if (auto_preview)
+	dialog_update_preview();
 }
 
 /*****/

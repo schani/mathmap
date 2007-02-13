@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2004 Mark Probst
+ * Copyright (C) 2002-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <math.h>
+#include <complex.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdarg.h>
@@ -113,9 +114,13 @@ typedef struct _value_list_t
     struct _value_list_t *next;
 } value_list_t;
 
-#define PRIMARY_VALUE        1
-#define PRIMARY_INT_CONST    2
-#define PRIMARY_FLOAT_CONST  3
+/* is_rhs_const_primary() assumes that PRIMARY_VALUE is the only non-const
+ * primary type.  */
+#define PRIMARY_VALUE          1
+#define PRIMARY_INT_CONST      2
+#define PRIMARY_FLOAT_CONST    3
+#define PRIMARY_COMPLEX_CONST  4
+#define PRIMARY_COLOR_CONST    5
 
 typedef struct
 {
@@ -125,21 +130,20 @@ typedef struct
 	value_t *value;
 	int int_const;
 	float float_const;
+	complex float complex_const;
+	color_t color_const;
     } v;
 } primary_t;
 
 #define TYPE_PROP_CONST      1
 #define TYPE_PROP_MAX        2
+#define TYPE_PROP_MAX_FLOAT  3
 
 typedef int type_prop_t;
 
-static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
-		     type_t const_type, int is_pure, int is_foldable);
-
-#include "opdefs.h"
-
 typedef struct _operation_t
 {
+    int index;
     char *name;
     int num_args;
     type_prop_t type_prop;
@@ -248,6 +252,35 @@ typedef struct
     int num_registers;
     native_register_t *registers;
 } type_info_t;
+
+static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
+		     type_t const_type, int is_pure, int is_foldable);
+static int rhs_is_foldable (rhs_t *rhs);
+primary_t make_int_const_primary (int int_const);
+primary_t make_float_const_primary (float float_const);
+primary_t make_complex_const_primary (complex float complex_const);
+primary_t make_color_const_primary (color_t color_const);
+
+#include <complex.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_linalg.h>
+#include <gsl/gsl_specfunc.h>
+
+#include "spec_func.h"
+#include "builtins.h"
+#include "noise.h"
+
+#define INTERPRETER
+#include "opmacros.h"
+#undef INTERPRETER
+
+#define RHS_ARG(i)                (rhs->v.op.args[(i)])
+#define OP_CONST_FLOAT_VAL(i)     (RHS_ARG((i)).type == PRIMARY_INT_CONST ? (float)(RHS_ARG((i)).v.int_const) : \
+                                   RHS_ARG((i)).type == PRIMARY_FLOAT_CONST ? RHS_ARG((i)).v.float_const : \
+                                   ({ assert(0); 0.0; }))
+
+#include "opdefs.h"
 
 static pools_t compiler_pools;
 
@@ -485,6 +518,39 @@ make_int_const_primary (int int_const)
 }
 
 primary_t
+make_float_const_primary (float float_const)
+{
+    primary_t primary;
+
+    primary.type = PRIMARY_FLOAT_CONST;
+    primary.v.float_const = float_const;
+
+    return primary;
+}
+
+primary_t
+make_complex_const_primary (complex float complex_const)
+{
+    primary_t primary;
+
+    primary.type = PRIMARY_COMPLEX_CONST;
+    primary.v.complex_const = complex_const;
+
+    return primary;
+}
+
+primary_t
+make_color_const_primary (color_t color_const)
+{
+    primary_t primary;
+
+    primary.type = PRIMARY_COLOR_CONST;
+    primary.v.color_const = color_const;
+
+    return primary;
+}
+
+primary_t
 make_compvar_primary (compvar_t *compvar)
 {
     primary_t primary;
@@ -529,6 +595,17 @@ make_value_rhs (value_t *val)
     rhs->type = RHS_PRIMARY;
     rhs->v.primary.type = PRIMARY_VALUE;
     rhs->v.primary.v.value = val;
+
+    return rhs;
+}
+
+rhs_t*
+make_primary_rhs (primary_t primary)
+{
+    rhs_t *rhs = alloc_rhs();
+
+    rhs->type = RHS_PRIMARY;
+    rhs->v.primary = primary;
 
     return rhs;
 }
@@ -637,6 +714,7 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
     }
 }
 
+/*
 static int
 rhs_contains (rhs_t *rhs, value_t *value)
 {
@@ -649,6 +727,7 @@ rhs_contains (rhs_t *rhs, value_t *value)
 
     return contained;
 }
+*/
 
 static void
 for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
@@ -1146,19 +1225,6 @@ end_while_loop (void)
 #define STK                   (invocation->stack_machine->stack)
 #define STKP                  (invocation->stack_machine->stackp)
 
-#include <complex.h>
-#include <gsl/gsl_vector.h>
-#include <gsl/gsl_matrix.h>
-#include <gsl/gsl_linalg.h>
-#include <gsl/gsl_specfunc.h>
-
-#include "spec_func.h"
-#include "builtins.h"
-#include "noise.h"
-
-#define INTERPRETER
-#include "opmacros.h"
-#undef INTERPRETER
 #include "new_builtins.c"
 
 /*** debug printing ***/
@@ -1196,6 +1262,16 @@ print_primary (primary_t *primary)
 
 	case PRIMARY_FLOAT_CONST :
 	    printf("%f", primary->v.float_const);
+	    break;
+
+	case PRIMARY_COMPLEX_CONST :
+	    printf("%f + %f i", crealf(primary->v.complex_const), cimagf(primary->v.complex_const));
+	    break;
+
+	case PRIMARY_COLOR_CONST :
+	    printf("(%d,%d,%d,%d)",
+		   RED(primary->v.color_const), GREEN(primary->v.color_const),
+		   BLUE(primary->v.color_const), ALPHA(primary->v.color_const));
 	    break;
 
 	default :
@@ -1828,6 +1904,12 @@ primary_type (primary_t *primary)
 	case PRIMARY_FLOAT_CONST :
 	    return TYPE_FLOAT;
 
+	case PRIMARY_COMPLEX_CONST :
+	    return TYPE_COMPLEX;
+
+	case PRIMARY_COLOR_CONST :
+	    return TYPE_COLOR;
+
 	default :
 	    assert(0);
     }
@@ -1852,7 +1934,8 @@ rhs_type (rhs_t *rhs)
 		int max = TYPE_INT;
 		int i;
 
-		assert(rhs->v.op.op->type_prop == TYPE_PROP_MAX);
+		assert(rhs->v.op.op->type_prop == TYPE_PROP_MAX
+		       || rhs->v.op.op->type_prop == TYPE_PROP_MAX_FLOAT);
 
 		for (i = 0; i < rhs->v.op.op->num_args; ++i)
 		{
@@ -1972,6 +2055,8 @@ primary_constant (primary_t *primary)
 
 	case PRIMARY_INT_CONST :
 	case PRIMARY_FLOAT_CONST :
+	case PRIMARY_COMPLEX_CONST :
+	case PRIMARY_COLOR_CONST :
 	    return CONST_MAX;
 
 	default :
@@ -2374,9 +2459,10 @@ optimize_make_color (statement_t *stmt)
 
 /*** copy propagation ***/
 
-static void
+static int
 copy_propagation (void)
 {
+    int changed_at_all = 0;
     int changed;
 
     void propagate_copy (statement_t *stmt)
@@ -2396,10 +2482,91 @@ copy_propagation (void)
     {
 	changed = 0;
 	for_each_assign_statement(first_stmt, &propagate_copy);
+	if (changed)
+	    changed_at_all = 1;
     } while (changed);
+
+    return changed_at_all;
 }
 
-/*** dead code removal ***/
+/*** constant folding ***/
+
+static int
+rhs_is_foldable (rhs_t *rhs)
+{
+    int i;
+
+    if (rhs->type != RHS_OP)
+	return 0;
+
+    if (!rhs->v.op.op->is_foldable)
+	return 0;
+
+    for (i = 0; i < rhs->v.op.op->num_args; ++i)
+	if (rhs->v.op.args[i].type == PRIMARY_VALUE)
+	    return 0;
+
+    return 1;
+}
+
+static void
+fold_rhs_if_possible (rhs_t **rhs, int *changed)
+{
+    if (rhs_is_foldable(*rhs))
+    {
+	*rhs = make_primary_rhs(fold_rhs(*rhs));
+	*changed = 1;
+    }
+}
+
+static void
+fold_constants_recursively (statement_t *stmt, int *changed)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		fold_rhs_if_possible(&stmt->v.assign.rhs2, changed);
+	    case STMT_ASSIGN :
+		fold_rhs_if_possible(&stmt->v.assign.rhs, changed);
+		break;
+
+	    case STMT_IF_COND :
+		fold_rhs_if_possible(&stmt->v.if_cond.condition, changed);
+		fold_constants_recursively(stmt->v.if_cond.consequent, changed);
+		fold_constants_recursively(stmt->v.if_cond.alternative, changed);
+		fold_constants_recursively(stmt->v.if_cond.exit, changed);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		fold_rhs_if_possible(&stmt->v.while_loop.invariant, changed);
+		fold_constants_recursively(stmt->v.while_loop.entry, changed);
+		fold_constants_recursively(stmt->v.while_loop.body, changed);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static int
+constant_folding (void)
+{
+    int changed = 0;
+
+    fold_constants_recursively(first_stmt, &changed);
+
+    return changed;
+}
+
+/*** dead assignment removal ***/
 
 static value_list_t*
 add_value_if_new (value_list_t *list, value_t *value)
@@ -2418,42 +2585,18 @@ add_value_if_new (value_list_t *list, value_t *value)
 }
 
 static void
-remove_values_from_rhs (statement_t *stmt, rhs_t *rhs, value_list_t **worklist)
+remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *changed)
 {
-    switch (rhs->type)
-    {
-	case RHS_PRIMARY :
-	    if (rhs->v.primary.type == PRIMARY_VALUE)
-	    {
-		assert(rhs->v.primary.v.value->index < 0
-		       || rhs->v.primary.v.value->def->type != STMT_NIL);
-		remove_use(rhs->v.primary.v.value, stmt);
-		if (rhs->v.primary.v.value->uses == 0)
-		    *worklist = add_value_if_new(*worklist, rhs->v.primary.v.value);
-	    }
-	    break;
+    void remove_value (value_t *value)
+	{
+	    assert(value->index < 0 || value->def->type != STMT_NIL);
+	    remove_use(value, stmt);
+	    if (value->uses == 0)
+		*worklist = add_value_if_new(*worklist, value);
 
-	case RHS_OP :
-	    {
-		int i;
+	    *changed = 1;
+	}
 
-		for (i = 0; i < rhs->v.op.op->num_args; ++i)
-		    if (rhs->v.op.args[i].type == PRIMARY_VALUE)
-		    {
-			assert(rhs->v.op.args[i].v.value->index < 0
-			       || rhs->v.op.args[i].v.value->def->type != STMT_NIL);
-			remove_use(rhs->v.op.args[i].v.value, stmt);
-			if (rhs->v.op.args[i].v.value->uses == 0)
-			    *worklist = add_value_if_new(*worklist, rhs->v.op.args[i].v.value);
-		    }
-	    }
-	    break;
-    }
-}
-
-static void
-remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist)
-{
     assert(stmt->v.assign.lhs->uses == 0);
 
     if ((stmt->v.assign.rhs->type == RHS_OP
@@ -2463,9 +2606,9 @@ remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist)
 	    && !stmt->v.assign.rhs2->v.op.op->is_pure))
 	return;
 
-    remove_values_from_rhs(stmt, stmt->v.assign.rhs, worklist);
+    for_each_value_in_rhs(stmt->v.assign.rhs, &remove_value);
     if (stmt->type == STMT_PHI_ASSIGN)
-	remove_values_from_rhs(stmt, stmt->v.assign.rhs2, worklist);
+	for_each_value_in_rhs(stmt->v.assign.rhs2, &remove_value);
 
     stmt->type = STMT_NIL;
 }
@@ -2506,7 +2649,7 @@ remove_dead_code_initially (statement_t *stmt, value_list_t **worklist)
 }
 
 static void
-remove_dead_code_from_worklist (value_list_t *worklist, value_list_t **new_worklist)
+remove_dead_code_from_worklist (value_list_t *worklist, value_list_t **new_worklist, int *changed)
 {
     while (worklist != 0)
     {
@@ -2519,26 +2662,199 @@ remove_dead_code_from_worklist (value_list_t *worklist, value_list_t **new_workl
 	    assert(worklist->value->def->type == STMT_ASSIGN
 		   || worklist->value->def->type == STMT_PHI_ASSIGN);
 
-	    remove_assign_stmt_if_pure(worklist->value->def, new_worklist);
+	    remove_assign_stmt_if_pure(worklist->value->def, new_worklist, changed);
 	}
 
 	worklist = worklist->next;
     }
 }
 
-static void
-remove_dead_code (void)
+static int
+remove_dead_assignments (void)
 {
+    int changed = 0;
     value_list_t *worklist = 0;
 
     remove_dead_code_initially(first_stmt, &worklist);
+
     do
     {
 	value_list_t *new_worklist = 0;
 
-	remove_dead_code_from_worklist(worklist, &new_worklist);
+	remove_dead_code_from_worklist(worklist, &new_worklist, &changed);
 	worklist = new_worklist;
     } while (worklist != 0);
+
+    return changed;
+}
+
+/*** dead branch removal ***/
+
+static int
+is_rhs_const_primary (rhs_t *rhs)
+{
+    if (rhs->type != RHS_PRIMARY)
+	return 0;
+
+    if (rhs->v.primary.type == PRIMARY_VALUE)
+	return 0;
+
+    return 1;
+}
+
+static int
+is_const_primary_rhs_true (rhs_t *rhs)
+{
+    assert(is_rhs_const_primary(rhs));
+
+    switch (rhs->v.primary.type)
+    {
+	case PRIMARY_INT_CONST :
+	    return rhs->v.primary.v.int_const != 0;
+
+	case PRIMARY_FLOAT_CONST :
+	    return rhs->v.primary.v.float_const != 0.0;
+
+	case PRIMARY_COMPLEX_CONST :
+	case PRIMARY_COLOR_CONST :
+	    assert(0);
+
+	default :
+	    assert(0);
+    }
+
+    return 0;
+}
+
+static int
+has_indirect_parent (statement_t *stmt, statement_t *parent)
+{
+    assert(stmt != 0 && parent != 0);
+
+    do
+    {
+	stmt = stmt->parent;
+    } while (stmt != 0 && stmt != parent);
+
+    if (stmt == parent)
+	return 1;
+    return 0;
+}
+
+static void
+remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt)
+{
+    void remove (value_t *val)
+	{ remove_use(val, stmt); }
+
+    for_each_value_in_rhs(rhs, &remove);
+}
+
+static void
+remove_dead_branches_recursively (statement_t *stmt, int *changed)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->type)
+	{
+	    case STMT_NIL :
+	    case STMT_ASSIGN :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_IF_COND :
+		if (is_rhs_const_primary(stmt->v.if_cond.condition))
+		{
+		    int condition_true = is_const_primary_rhs_true(stmt->v.if_cond.condition);
+		    statement_t *branch = condition_true ? stmt->v.if_cond.consequent : stmt->v.if_cond.alternative;
+		    statement_t *insertion_point = stmt;
+		    statement_t *phi;
+
+		    while (branch != 0)
+		    {
+			statement_t *next = branch->next;
+
+			if (branch->type == STMT_ASSIGN)
+			{
+			    statement_list_t *lst;
+
+			    for (lst = branch->v.assign.lhs->uses; lst != 0; lst = lst->next)
+				assert(has_indirect_parent(lst->stmt, stmt));
+			}
+
+			if (branch->type != STMT_NIL)
+			{
+			    branch->parent = stmt->parent;
+
+			    branch->next = insertion_point->next;
+			    insertion_point = insertion_point->next = branch;
+			}
+
+			branch = next;
+		    }
+
+		    phi = stmt->v.if_cond.exit;
+		    while (phi != 0)
+		    {
+			statement_t *next = phi->next;
+
+			if (phi->type == STMT_PHI_ASSIGN)
+			{
+			    if (condition_true)
+				remove_uses_in_rhs(phi->v.assign.rhs2, phi);
+			    else
+				remove_uses_in_rhs(phi->v.assign.rhs, phi);
+
+			    phi->type = STMT_ASSIGN;
+			    if (!condition_true)
+				phi->v.assign.rhs = phi->v.assign.rhs2;
+
+			    phi->parent = stmt->parent;
+
+			    phi->next = insertion_point->next;
+			    insertion_point = insertion_point->next = phi;
+			}
+			else
+			    assert(phi->type == STMT_NIL);
+
+			phi = next;
+		    }
+
+		    stmt->type = STMT_NIL;
+
+		    /* we don't need to handle the consequent/alternative
+		     * here, because we have inserted it after the if
+		     * statement, so the loop will handle them next.  */
+
+		    *changed = 1;
+		}
+		else
+		{
+		    remove_dead_branches_recursively(stmt->v.if_cond.consequent, changed);
+		    remove_dead_branches_recursively(stmt->v.if_cond.alternative, changed);
+		}
+		break;
+
+	    case STMT_WHILE_LOOP :
+		remove_dead_branches_recursively(stmt->v.while_loop.body, changed);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static int
+remove_dead_branches (void)
+{
+    int changed = 0;
+
+    remove_dead_branches_recursively(first_stmt, &changed);
+
+    return changed;
 }
 
 /*** common subexpression eliminiation ***/
@@ -2559,6 +2875,12 @@ primaries_equal (primary_t *prim1, primary_t *prim2)
 
 	case PRIMARY_FLOAT_CONST :
 	    return prim1->v.float_const == prim2->v.float_const;
+
+	case PRIMARY_COMPLEX_CONST :
+	    return prim1->v.complex_const == prim2->v.complex_const;
+
+	case PRIMARY_COLOR_CONST :
+	    return prim1->v.color_const == prim2->v.color_const;
 
 	default :
 	    assert(0);
@@ -2615,7 +2937,7 @@ replace_rhs_with_value (rhs_t **rhs, value_t *val, statement_t *stmt)
 }
 
 static void
-replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val)
+replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val, int *changed)
 {
     while (stmt != 0)
     {
@@ -2626,25 +2948,37 @@ replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val)
 
 	    case STMT_PHI_ASSIGN :
 		if (rhss_equal(rhs, stmt->v.assign.rhs2))
+		{
 		    replace_rhs_with_value(&stmt->v.assign.rhs2, val, stmt);
+		    *changed = 1;
+		}
 	    case STMT_ASSIGN :
 		if (rhss_equal(rhs, stmt->v.assign.rhs))
+		{
 		    replace_rhs_with_value(&stmt->v.assign.rhs, val, stmt);
+		    *changed = 1;
+		}
 		break;
 
 	    case STMT_IF_COND :
 		if (rhss_equal(rhs, stmt->v.if_cond.condition))
+		{
 		    replace_rhs_with_value(&stmt->v.if_cond.condition, val, stmt);
-		replace_rhs_recursively(stmt->v.if_cond.consequent, rhs, val);
-		replace_rhs_recursively(stmt->v.if_cond.alternative, rhs, val);
-		replace_rhs_recursively(stmt->v.if_cond.exit, rhs, val);
+		    *changed = 1;
+		}
+		replace_rhs_recursively(stmt->v.if_cond.consequent, rhs, val, changed);
+		replace_rhs_recursively(stmt->v.if_cond.alternative, rhs, val, changed);
+		replace_rhs_recursively(stmt->v.if_cond.exit, rhs, val, changed);
 		break;
 
 	    case STMT_WHILE_LOOP :
 		if (rhss_equal(rhs, stmt->v.while_loop.invariant))
+		{
 		    replace_rhs_with_value(&stmt->v.while_loop.invariant, val, stmt);
-		replace_rhs_recursively(stmt->v.while_loop.entry, rhs, val);
-		replace_rhs_recursively(stmt->v.while_loop.body, rhs, val);
+		    *changed = 1;
+		}
+		replace_rhs_recursively(stmt->v.while_loop.entry, rhs, val, changed);
+		replace_rhs_recursively(stmt->v.while_loop.body, rhs, val, changed);
 		break;
 
 	    default :
@@ -2656,7 +2990,7 @@ replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val)
 }
 
 static void
-cse_recursively (statement_t *stmt)
+cse_recursively (statement_t *stmt, int *changed)
 {
     while (stmt != 0)
     {
@@ -2669,19 +3003,19 @@ cse_recursively (statement_t *stmt)
 		if (stmt->v.assign.rhs->type == RHS_INTERNAL
 		    || (stmt->v.assign.rhs->type == RHS_OP
 			&& stmt->v.assign.rhs->v.op.op->is_pure))
-		    replace_rhs_recursively(stmt->next, stmt->v.assign.rhs, stmt->v.assign.lhs);
+		    replace_rhs_recursively(stmt->next, stmt->v.assign.rhs, stmt->v.assign.lhs, changed);
 		break;
 
 	    case STMT_PHI_ASSIGN :
 		break;
 
 	    case STMT_IF_COND :
-		cse_recursively(stmt->v.if_cond.consequent);
-		cse_recursively(stmt->v.if_cond.alternative);
+		cse_recursively(stmt->v.if_cond.consequent, changed);
+		cse_recursively(stmt->v.if_cond.alternative, changed);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		cse_recursively(stmt->v.while_loop.body);
+		cse_recursively(stmt->v.while_loop.body, changed);
 		break;
 
 	    default :
@@ -2692,10 +3026,14 @@ cse_recursively (statement_t *stmt)
     }
 }
 
-static void
+static int
 common_subexpression_elimination (void)
 {
-    cse_recursively(first_stmt);
+    int changed = 0;
+
+    cse_recursively(first_stmt, &changed);
+
+    return changed;
 }
 
 /*** pre native code generation ***/
@@ -3471,6 +3809,19 @@ output_primary (FILE *out, primary_t *prim)
 	case PRIMARY_FLOAT_CONST :
 	    fprintf(out, "%f", prim->v.float_const);
 	    break;
+
+	case PRIMARY_COMPLEX_CONST :
+	    fprintf(out, "COMPLEX(%f,%f)", crealf(prim->v.complex_const), cimagf(prim->v.complex_const));
+	    break;
+
+	case PRIMARY_COLOR_CONST :
+	    fprintf(out, "MAKE_RGBA_COLOR(%d,%d,%d,%d)",
+		    RED(prim->v.color_const), GREEN(prim->v.color_const),
+		    BLUE(prim->v.color_const), ALPHA(prim->v.color_const));
+	    break;
+
+	default :
+	    assert(0);
     }
 }
 
@@ -3696,9 +4047,10 @@ has_altivec (void)
 #endif
 
 void
-generate_ir_code (mathmap_t *mathmap)
+generate_ir_code (mathmap_t *mathmap, int constant_analysis)
 {
     compvar_t *result[MAX_TUPLE_LENGTH];
+    int changed;
 
     first_stmt = 0;
     emit_loc = &first_stmt;
@@ -3707,7 +4059,7 @@ generate_ir_code (mathmap_t *mathmap)
 
     init_pools(&compiler_pools);
 
-    gen_code(mathmap->exprtree, result, 0);
+    gen_code(mathmap->top_level_decls->v.filter.body, result, 0);
     {
 	compvar_t *color_tmp = make_temporary(), *dummy = make_temporary();
 
@@ -3719,17 +4071,28 @@ generate_ir_code (mathmap_t *mathmap)
 
     propagate_types();
 
-    // dump_code(first_stmt, 0);
     check_ssa(first_stmt);
 
     optimize_make_color(first_stmt);
-    copy_propagation();
-    common_subexpression_elimination();
-    copy_propagation();
-    remove_dead_code();
+
+    do
+    {
+	printf("--------------------------------\n");
+	dump_code(first_stmt, 0);
+
+	changed = 0;
+
+	changed = copy_propagation() || changed;
+	changed = common_subexpression_elimination() || changed;
+	changed = copy_propagation() || changed;
+	changed = constant_folding() || changed;
+	changed = remove_dead_assignments() || changed;
+	changed = remove_dead_branches() || changed;
+    } while (changed);
 
 #ifndef NO_CONSTANTS_ANALYSIS
-    analyze_constants();
+    if (constant_analysis)
+	analyze_constants();
 #endif
 
     dump_code(first_stmt, 0);
@@ -3766,6 +4129,9 @@ set_opmacros_filename (const char *filename)
 int
 compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
 {
+    assert(mathmap->top_level_decls != 0
+	   && mathmap->top_level_decls->type == TOP_LEVEL_FILTER);
+
     if (strcmp(directive, "l") == 0)
 	fprintf(out, "%d", MAX_TUPLE_LENGTH);
     else if (strcmp(directive, "g") == 0)
@@ -3858,6 +4224,19 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     {
 	fprintf(out, "%d", does_mathmap_use_t(mathmap) ? 1 : 0);
     }
+    else if (strcmp(directive, "filter_name") == 0)
+    {
+	fprintf(out, "%s", mathmap->top_level_decls->name);
+    }
+    else if (strcmp(directive, "filter_docstring") == 0)
+    {
+	if (mathmap->top_level_decls->docstring != 0)
+	    fprintf(out, "%s", mathmap->top_level_decls->docstring);
+    }
+    else if (strcmp(directive, "num_uservals") == 0)
+    {
+	fprintf(out, "%d", mathmap->num_uservals);
+    }
     else
 	return 0;
     return 1;
@@ -3878,7 +4257,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     assert(template != 0);
 
-    generate_ir_code(mathmap);
+    generate_ir_code(mathmap, 1);
 
     buf = (char*)alloca(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
     assert(buf != 0);
@@ -3924,13 +4303,13 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     assert(g_module_symbol(module, "mathmapinit", (void**)&initfunc));
 
-    /* unlink(buf); */
+    unlink(buf);
 
     sprintf(buf, "/tmp/mathfunc%d_%d.o", pid, last_mathfunc);
     unlink(buf);
 
     sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, last_mathfunc);
-    /* unlink(buf); */
+    unlink(buf);
 
     *module_info = module;
 #else
@@ -3989,6 +4368,58 @@ unload_c_code (void *module_info)
 #endif
 }
 
+/*** plug-in generator ***/
+
+#ifdef CMDLINE
+int
+generate_plug_in (char *filter, char *output_filename,
+		  char *template_filename, char *opmacros_filename, int analyze_constants,
+		  template_processor_func_t template_processor)
+{
+    char template_path[strlen(TEMPLATE_DIR) + 1 + strlen(template_filename) + 1];
+    char opmacros_path[strlen(TEMPLATE_DIR) + 1 + strlen(opmacros_filename) + 1];
+    FILE *template, *out;
+    mathmap_t *mathmap;
+
+    sprintf(template_path, "%s/%s", TEMPLATE_DIR, template_filename);
+    sprintf(opmacros_path, "%s/%s", TEMPLATE_DIR, opmacros_filename);
+
+    mathmap = parse_mathmap(filter);
+
+    if (mathmap == 0)
+    {
+	fprintf(stderr, "Error: %s\n", error_string);
+	return 0;
+    }
+
+    generate_ir_code(mathmap, analyze_constants);
+
+    template = fopen(template_path, "r");
+    out = fopen(output_filename, "w");
+
+    if (template == 0)
+    {
+	fprintf(stderr, "Could not open template file `%s'\n", template_path);
+	exit(1);
+    }
+    if (out == 0)
+    {
+	fprintf(stderr, "Could not open output file `%s'\n", output_filename);
+	exit(1);
+    }
+
+    set_opmacros_filename(opmacros_path);
+    process_template_file(mathmap, template, out, template_processor);
+
+    fclose(template);
+    fclose(out);
+
+    forget_ir_code(mathmap);
+
+    return 1;
+}
+#endif
+
 /*** inits ***/
 
 static void
@@ -3996,6 +4427,7 @@ init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t cons
 {
     assert(num_args <= MAX_OP_ARGS);
 
+    ops[index].index = index;
     ops[index].name = name;
     ops[index].num_args = num_args;
     ops[index].type_prop = type_prop;

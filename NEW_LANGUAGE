@@ -49,12 +49,12 @@ expression is a pixel, not an image.  Hence, what we define as a "filter"
 actually only returns a single pixel, only it's called as often as is needed
 to generate a whole image.
 
-In the new MathMap language, however, it's also possible to obtain a new
-"virtual" image by taking a filter and giving it it's input images and
-arguments, but not telling it which pixel we want.  Afterwards, we can then
-give coordinates to this virtual image to obtain the pixel at that position,
-effectively calling the filter.  We can also pass the virtual image to another
-filter, as if it were "real".
+In the new MathMap language, however, it's also possible to obtain a
+new "virtual" image by taking a filter and giving it its input images
+and arguments, but not telling it which pixel we want.  Afterwards, we
+can then give coordinates to this virtual image to obtain the pixel at
+that position, effectively calling the filter.  We can also pass the
+virtual image to another filter, as if it were "real".
 
 To get a pixel from a virtual image, we simply apply coordinates to it, like
 with a real image, so we could actually also write the above filter as
@@ -71,9 +71,9 @@ virtual image.
 
 ** Quality
 
-One big advantage of having virtual images is that we don't lose information
-as we would, would we render a real image for each application of a filter.
-Consider the following example:
+One big advantage of having virtual images is that we don't lose
+information as we would if we rendered a real image for each
+application of a filter.  Consider the following example:
 
   filter zoom_in (image input)
     input(xy/2)
@@ -99,12 +99,13 @@ and then applying zoom_in to that image, we'd get a blurred version of the
 original image, since we'd be scaling up a scaled down version of the
 original.
 
-If, on the other hand, we computed identity2 the same way, we'd get a good
-quality version of the inner quarter of the original image, the outer parts
-blackened out (if that's the edge behaviour set).  By scaling up the original
-image, we'd obviously lose the outer parts unless we'd make the temporary
-up-scaled image four times as large as the original.  But how would MathMap
-know that it's supposed to do that?
+If, on the other hand, we computed identity2 the same way, we'd get a
+good quality version of the inner quarter of the original image, the
+outer parts blackened out (if that's the current edge behaviour).  By
+scaling up the original image, we'd obviously lose the outer parts
+unless we'd make the temporary up-scaled image four times as large as
+the original.  But how would MathMap know that it's supposed to do
+that?
 
 By not rendering these temporary images, however, MathMap would suffer neither
 of these losses and the "identity1" filter, for example, would be equivalent
@@ -126,8 +127,8 @@ needs more than one pixel from one of its input images to produce an output
 pixel, because that means that some input pixels must be calculated more than
 once.
 
-Let's look at a somewhat realistic example.  One of the example filters of
-MathMap is Conway's "Game of Life":
+Let's look at a somewhat unrealistic example.  One of the example
+filters of MathMap is Conway's "Game of Life":
 
   filter life (image img)
     num=(gray(img(xy+xy:[-1,-1]))>0.5)+

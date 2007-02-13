@@ -1,390 +1,431 @@
 ; -*- lisp -*-
 
 ((group "Distorts"
-	(expression "Wave" "wv=user_float(\"wavelength\",1,100);
-amp=user_float(\"distortion\",0,100);
-origVal(xy+xy:[sin(y/wv+t*2*pi),sin(x/wv+t*2*pi)]*amp)")
-	(expression "Square" "origVal(sign(xy)*xy^2/XY)")
-	(expression "Slice" "q=t*2*pi;
-size=user_float(\"size\",1,100);
-offset=user_float(\"offset\",0,100);
-origVal(xy+xy:[offset*sign(cos(y/size+q)),offset*sign(cos(x/size+q))])")
-	(expression "Mercator" "origVal(xy*xy:[cos(pi/2/Y*y+t*2*pi),1])")
-	(expression "Pond" "amp=user_float(\"height\",0,100);
-length=user_float(\"wavelength\",1,50);
-origVal(ra+ra:[sin(r/length+t*2*pi)*amp,0])")
-	(expression "Enhanced Pond" "max_freq=user_slider(\"max frequency\",1,10000);
-amp=user_slider(\"amplitude\",0,100);
-r_off=user_slider(\"r offset\",1,1000);
-origVal(ra+ra:[sin(max_freq/(r+r_off)+t*2*pi)*amp,0])")
-	(expression "Sea 1" "amp=user_float(\"size\",0,100);
-wv=user_float(\"waviness\",1,100);
-origVal(xy+xy:[amp*(X/H)*sin(t*2*pi+wv*Y*(-y+Y+60)^-1),0])")
-	(expression "Sea 2" "amp=user_float(\"size\",0,100);
-wv=user_float(\"waviness\",1,100);
-origVal(xy+xy:[0,amp*sin(t*2*pi+wv*Y*(-y+Y+60)^-1)])")
-	(expression "Sea 3" "amp1=user_float(\"h size\",0,100);
-amp2=user_float(\"v size\",0,100);
-wv=user_float(\"waviness\",1,100);
-s=sin(t*2*pi+wv*Y*(-y+Y+60)^-1);
-origVal(xy+xy:[amp1*s,amp2*s])")
-	(expression "Twirl" "origVal(ra+ra:[0,(r/R-1)*(t-0.5)*4*pi])")
-	(expression "Sphere" "mag=user_float(\"magnification\",0.1,10);
-p=r/X;
-if inintv(p,0,1) then
-    origVal(ra:[X/pi/2*asin(p)*mag,a])
-else
-    user_color(\"background\")
+	(expression "Wave" "filter wave (image in, float wv: 1-100, float amp: 0-100)
+    in(xy+xy:[sin(y/wv+t*2*pi),sin(x/wv+t*2*pi)]*amp)
 end")
-	(expression "Jitter" "ang=user_float(\"angle\",0,6.28318530);
-origValRA(r,a+(a+t*ang)%ang-ang/2)")
-	(expression "Circular Slice" "ang=user_float(\"slicage\",0,1);
-origValRA(r,a+(r/200+t*ang)%ang-ang/2)")
-	(expression "Fisheye" "amt=user_float(\"amount\",-2,1);
-origValRA(r^(2-amt)/R^(1-amt),a)")
+	(expression "Square" "filter square (image in)
+    in(sign(xy)*xy^2/XY)
+end")
+	(expression "Slice" "filter slice (image in, float size: 1-100, float offset:0-100)
+    q=t*2*pi;
+    in(xy+xy:[offset*sign(cos(y/size+q)),offset*sign(cos(x/size+q))])
+end")
+	(expression "Mercator" "filter mercator (image in)
+    in(xy*xy:[cos(pi/2/Y*y+t*2*pi),1])
+end")
+	(expression "Pond" "filter pond (image in, float height: 0-100, float wavelength: 1-50)
+    in(ra+ra:[sin(r/wavelength+t*2*pi)*height,0])
+end")
+	(expression "Enhanced Pond" "filter enhanced_pond (image in, float max_freq: 1-10000, float amp: 0-100, float r_off: 1-1000)
+    in(ra+ra:[sin(max_freq/(r+r_off)+t*2*pi)*amp,0])
+end")
+	(expression "Sea 1" "filter sea1 (image in, float amp: 0-100, float wv: 1-100)
+    in(xy+xy:[amp*(X/H)*sin(t*2*pi+wv*Y*(-y+Y+60)^-1),0])
+end")
+	(expression "Sea 2" "filter sea2 (image in, float amp: 0-100, float wv: 1-100)
+    in(xy+xy:[0,amp*sin(t*2*pi+wv*Y*(-y+Y+60)^-1)])
+end")
+	(expression "Sea 3" "filter sea3 (image in, float amp1: 0-100, float amp2: 0-100, float wv: 1-100)
+    s=sin(t*2*pi+wv*Y*(-y+Y+60)^-1);
+    in(xy+xy:[amp1*s,amp2*s])
+end")
+	(expression "Twirl" "filter twirl (image in)
+    in(ra+ra:[0,(r/R-1)*(t-0.5)*4*pi])
+end")
+	(expression "Sphere" "filter sphere (image in, float mag: 0.1-10, color background)
+    p=r/X;
+    if inintv(p,0,1) then
+        in(ra:[X/pi/2*asin(p)*mag,a])
+    else
+        background
+    end
+end")
+	(expression "Jitter" "filter jitter (image in, float angle: 0-6.28318530)
+    in(ra:[r,a+(a+t*angle)%angle-angle/2])
+end")
+	(expression "Circular Slice" "filter circular_slice (image in, float ang: 0-1)
+    in(ra:[r,a+(r/200+t*ang)%ang-ang/2])
+end")
+	(expression "Fisheye" "filter fisheye (image in, float amt: -2-1)
+    in(ra:[r^(2-amt)/R^(1-amt),a])
+end")
 	(expression "Inverse Lambert Azimuthal Projection" "# Thanks to Carlos A. Furuti
-c=2*asin(r/Y);
-phi =
-    if r == 0 then
-        0
-    else
-        asin(y*sin(c)/r)
-    end;
-origVal(xy:[atan(x*sin(c),r*cos(c))*X/pi,phi*Y/(pi/2)])")
-	(expression "Bilinear Interpolation" "xn=x/X;
-yn=y/Y;
-a0=user_float(\"a0\",-1,1);
-a1=user_float(\"a1\",-1,1);
-a2=user_float(\"a2\",-1,1);
-a3=user_float(\"a3\",-1,1);
-b0=user_float(\"b0\",-1,1);
-b1=user_float(\"b1\",-1,1);
-b2=user_float(\"b2\",-1,1);
-b3=user_float(\"b3\",-1,1);
-u=xn*yn*a3+xn*a2+yn*a1+a0;
-v=xn*yn*b3+xn*b2+yn*b1+b0;
-origVal(xy:[u*X,v*Y])")
-	(expression "Curve Bend" "alpha = user_slider(\"alpha\",0,6.28318530);
-dir = xy:[cos(alpha),sin(alpha)];
-ndir = xy:[-dir[1],dir[0]];
-p = xy / m2x2:[dir[0],-ndir[0],
-               dir[1],-ndir[1]];
-pt = dir * p[0];
-vec = xy - pt;
-dist = -p[1] / R;
-pos = 0.5 + p[0] / R / 2;
-lower = 1 / (user_curve(\"lower\",pos) * 4 - 2);
-upper = 1 / (user_curve(\"upper\",pos) * 4 - 2);
-f = lower + ((dist + 1) / 2) * (upper - lower);
-origVal(pt + ndir * f * R)")
+filter ilap (image in)
+    c=2*asin(r/Y);
+    phi =
+        if r == 0 then
+            0
+        else
+            asin(y*sin(c)/r)
+        end;
+    in(xy:[atan(x*sin(c),r*cos(c))*X/pi,phi*Y/(pi/2)])
+end")
+	(expression "Bilinear Interpolation" "filter bilin_int (image in,
+                  float a0: -1-1, float a1: -1-1, float a2: -1-1, float a3: -1-1,
+                  float b0: -1-1, float b1: -1-1, float b2: -1-1, float b3: -1-1)
+    xn=x/X;
+    yn=y/Y;
+    u=xn*yn*a3+xn*a2+yn*a1+a0;
+    v=xn*yn*b3+xn*b2+yn*b1+b0;
+    in(xy:[u*X,v*Y])
+end")
+	(expression "Curve Bend" "filter curve_bend (image in, float alpha: 0-6.28318530, curve lower, curve upper)
+    dir = xy:[cos(alpha),sin(alpha)];
+    ndir = xy:[-dir[1],dir[0]];
+    p = xy / m2x2:[dir[0],-ndir[0],
+                   dir[1],-ndir[1]];
+    pt = dir * p[0];
+    vec = xy - pt;
+    dist = -p[1] / R;
+    pos = 0.5 + p[0] / R / 2;
+    lo = 1 / (lower(pos) * 4 - 2);
+    up = 1 / (upper(pos) * 4 - 2);
+    f = lo + ((dist + 1) / 2) * (up - lo);
+    in(pt + ndir * f * R)
+end")
 	(expression "Peel Animation" "# tomr@aceldama.com
-if (r > X) then
-    user_color(\"Outside\");
-else
-    rad = (X*t);
-    if (r > rad) then
-        origVal(ra:[rad*(1-(r-rad)/(X-rad)), a]);
+filter peel (image in, color outside)
+    if (r > X) then
+        outside
     else
-        origVal(xy);
+        rad = (X*t);
+        if (r > rad) then
+            in(ra:[rad*(1-(r-rad)/(X-rad)), a]);
+        else
+            in(xy);
+        end
     end
 end")
 	(expression "Radial Eversion" "# by tomr@aceldama.com
-if (r > X) then
-    user_color(\"Outside\");
-else
-    origVal(ra:[X-r, a]);
+filter radial_eversion (image in, color outside)
+    if (r > X) then
+        outside
+    else
+        in(ra:[X-r, a])
+    end
 end")
 	(expression "Stereographic Projection" "# by Alexander Heide <heide@ra.physik.uni-halle.de>
 # see http://www.physik.uni-halle.de/~heide/crystal/crystal.html
-xy0=xy:[user_slider(\"x center\",0,2048)-X,
-        -(user_slider(\"y center\",0,2048)-Y)];
-D=user_slider(\"distance\",0,1024);
-s=user_slider(\"zoom\",-1,1);
-pxy=(xy*10^-s)/min(X,Y);
-p=(dotp(pxy,pxy))^(1/2);
-back=user_bool(\"trans/back\");
-xy1=pxy*(2*back-1)/p*D*tan(4*atan(p))+xy0;
-out=0;
-if back then
-  if p>tan(45/2) then out=1 end
-else
-  if p>1 || p<tan(45/2) then out=1 end
-end;
-if out || abs(xy1[0])>=X-1 || abs(xy1[1])>=Y-1
-then user_color(\"background\")
-else origVal(xy1)
+filter stereographic (image in, float x_center: 0-2048, float y_center: 0-2048, float distance: 0-1024,
+                      float zoom: -1-1, bool trans_or_back, color background)
+    xy0=xy:[x_center-X, -(y_center-Y)];
+    D=distance;
+    s=zoom;
+    pxy=(xy*10^-s)/min(X,Y);
+    p=(dotp(pxy,pxy))^(1/2);
+    back=trans_or_back;
+    xy1=pxy*(2*back-1)/p*D*tan(4*atan(p))+xy0;
+    out=0;
+    if back then
+        if p>tan(45/2) then out=1 end
+    else
+        if p>1 || p<tan(45/2) then out=1 end
+    end;
+    if out || abs(xy1[0])>=X-1 || abs(xy1[1])>=Y-1
+    then background
+    else in(xy1)
+    end
 end")
 	(expression "Rotation" "# by Alexander Heide <heide@ra.physik.uni-halle.de>
 # see http://www.physik.uni-halle.de/~heide/crystal/crystal.html
-x0=user_slider(\"x center\",-1024,1024)-X;
-y0=-(user_slider(\"y center\",-1024,1024)-Y);
+filter rotation (image in, float x_center: -1024-1024, float y_center: -1024-1024,
+                 float psi: 0-3.141592, float theta: -3.141592-3.141592, float radius: 1-2048,
+                 float x_shift: -2048-2048, float y_shift: -2048-2048, float zoom: -1-1)
+    x0=x_center-X;
+    y0=-(y_center-Y);
 
-psi=user_slider(\"psi\",0,3.141592);
-theta=user_slider(\"theta\",-3.141592,3.141592);
-rad=user_slider(\"radius\",1,2048);
+    rad=radius;
 
-xs=-user_slider(\"x shift\",-2048,2048);
-ys=-user_slider(\"y shift\",-2048,2048);
-s=-user_slider(\"zoom\",-1,1);
+    xs=-x_shift;
+    ys=-y_shift;
+    s=-zoom;
 
-xy1=xy*10^s+xy:[xs,ys];
+    xy1=xy*10^s+xy:[xs,ys];
 
-pxy=xy1-xy:[x0,y0];
+    pxy=xy1-xy:[x0,y0];
 
-pxy=pxy/rad;
-psq=pxy[0]^2+pxy[1]^2;
-xi=2*pxy[0]/(1+psq);
-eta=2*pxy[1]/(1+psq);
-zeta=(1-psq)/(1+psq);
+    pxy=pxy/rad;
+    psq=pxy[0]^2+pxy[1]^2;
+    xi=2*pxy[0]/(1+psq);
+    eta=2*pxy[1]/(1+psq);
+    zeta=(1-psq)/(1+psq);
 
-xi1=cos(psi)*xi+sin(psi)*eta;
-eta1=-sin(psi)*xi+cos(psi)*eta;
-zeta1=zeta;
+    xi1=cos(psi)*xi+sin(psi)*eta;
+    eta1=-sin(psi)*xi+cos(psi)*eta;
+    zeta1=zeta;
 
-xi=xi1;
-eta=cos(theta)*eta1+sin(theta)*zeta1;
-zeta=-sin(theta)*eta1+cos(theta)*zeta1;
+    xi=xi1;
+    eta=cos(theta)*eta1+sin(theta)*zeta1;
+    zeta=-sin(theta)*eta1+cos(theta)*zeta1;
 
-xi1=cos(psi)*xi-sin(psi)*eta;
-eta1=sin(psi)*xi+cos(psi)*eta;
-zeta1=zeta;
+    xi1=cos(psi)*xi-sin(psi)*eta;
+    eta1=sin(psi)*xi+cos(psi)*eta;
+    zeta1=zeta;
 
-px=xi1/(1+zeta1)*rad+x0;
-py=eta1/(1+zeta1)*rad+y0;
+    px=xi1/(1+zeta1)*rad+x0;
+    py=eta1/(1+zeta1)*rad+y0;
 
-origVal(xy:[px,py])"))
+    in(xy:[px,py])
+end"))
  (group "Blur"
-	(expression "Mosaic" "sz=user_float(\"size\",1,100);
-origVal(xy-xy%sz)")
-	(expression "Radial Mosaic" "asz=user_float(\"angular size\",0.01,3.141592);
-rsz=user_float(\"radial size\",1,100);
-origVal(ra-ra%ra:[rsz,asz]+ra:[0,asz/2])")
+	(expression "Mosaic" "filter mosaic (image in, float size: 1-100)
+  in(xy-xy%size)
+end")
+	(expression "Radial Mosaic" "filter radial_mosaic (image in, float angular_size: 0.01-3.141592,
+                                                           float radial_size: 1-100)
+    asz=angular_size;
+    rsz=radial_size;
+    in(ra-ra%ra:[rsz,asz]+ra:[0,asz/2])
+end")
 	(expression "Radial Mosaic Bertl Edition" "# by Herbert Poetzl
-A=user_slider(\"pixel area\",10,5000);
-asp=user_slider(\"aspect ratio\",0.1,10);
-B=(A*asp)^0.5;
-pi2=pi/2;
-twopi=pi*2;
-n=floor(r/B)+0.5;
-alpha=twopi/floor(twopi/(A/(pi2*(n-0.5)*B*B)));
-origVal(ra:[(n*A/(alpha*pi2))^0.5,a-a%alpha])")
+filter rmbe (image in, float pixel_area: 10-5000, float aspect_ratio: 0.1-10)
+    A=pixel_area;
+    asp=aspect_ratio;
+    B=(A*asp)^0.5;
+    pi2=pi/2;
+    twopi=pi*2;
+    n=floor(r/B)+0.5;
+    alpha=twopi/floor(twopi/(A/(pi2*(n-0.5)*B*B)));
+    in(ra:[(n*A/(alpha*pi2))^0.5,a-a%alpha])
+end")
 	(expression "Zoom-Twist" "# by tomr@aceldama.com
-samples = user_int(\"Samples\", 4, 64);
-zoom = user_float(\"Zoom\", 0, 1);
-tfact = user_float(\"Twist\", 0, 6.2831853) * (user_curve(\"Twist at t\", t) - 0.5);
-zfact = (user_curve(\"Zoom at t\", t)-0.5) * (user_curve(\"Zoom at r\", r/X)-0.5) * zoom;
-if zfact > 0 then
+filter zoom_twist (image in, int samples: 4-64, float zoom: 0-1, float twist: 0-6.2831853,
+                   curve twist_at_t, curve twist_at_r,
+                   curve zoom_at_t, curve zoom_at_r,
+                   curve sampling_shape)
+    tfact = twist * (twist_at_t(t) - 0.5);
+    zfact = (zoom_at_t(t)-0.5) * (zoom_at_r(r/X)-0.5) * zoom;
     sample = 0;
     total = rgba:[0,0,0,0];
     while (sample < samples) do
-        radj = zfact * (user_curve(\"Sampling shape\", sample/samples)-0.5);
+        radj = zfact * (sampling_shape(sample/samples)-0.5);
         sr = r + radj * X;
-        sa = a + (user_curve(\"Twist at r\", radj)-0.5) * tfact;
+        sa = a + (twist_at_r(radj)-0.5) * tfact;
         total = total + origVal(ra:[sr, sa]);
         sample = sample+1
     end;
     total/samples
-else
-    origVal(xy)
 end")
 	(expression "Spin-Zoom" "# by tomr@aceldama.com
-zoom = user_float(\"Zoom\", 0, 1);
-angle = user_float(\"Angle\", 0, 6.2831853);
-samples = user_int(\"Samples\", 2, 64);
-zfact = (user_curve(\"Zoom at r\", r/X)*zoom*X)/samples;
-rfact = (user_curve(\"Position at t\", t)*angle)/samples;
-if zfact > 0 then
+filter spin_zoom (image in, float zoom: 0-1, float angle: 0-6.2831853, int samples: 2-64,
+                  curve zoom_at_r, curve position_at_t)
+    zfact = (zoom_at_r(r/X)*zoom*X)/samples;
+    rfact = (position_at_t(t)*angle)/samples;
     sample = 0;
     total = rgba:[0,0,0,0];
     while (sample < samples) do
-        total = total + origVal(ra + ra:[zfact, rfact] * sample);
+        total = total + in(ra + ra:[zfact, rfact] * sample);
         sample = sample+1
     end;
     total/samples
-else
-    origVal(xy)
 end"))
  (group "Edge-Detect"
-	(expression "Random Edge Detect" "d=user_slider(\"distance\",0,50);
-origVal(xy)-origVal(xy-xy:[rand(0,d),rand(0,d)])"))
+	(expression "Random Edge Detect" "filter random_edge_detect (image in, float distance: 0-50)
+    d=distance;
+    in(xy)-in(xy-xy:[rand(0,d),rand(0,d)])
+end"))
  (group "Render"
-	(expression "Spiral" "n=user_float(\"rotations\",0,20);
-q=sin((r/R*n-a*0.1)*10+t*2*pi)*0.5+0.5;
-origVal(xy)*grayColor(q)")
-	(expression "Alpha Spiral" "n=user_float(\"rotations\",0,20);
-q=sin((r/R*n-a*0.1)*10+t*2*pi)*0.5+0.5;
-origVal(xy)*rgba:[1,1,1,0]+rgba:[0,0,0,q]")
-	(expression "Darts Board" "ang=2*pi/user_int(\"subdivisions\",1,30);
-p=origVal(xy);
-q=if inintv((a-ang/4)%ang,0,ang/2)
-    then
-        p
-    else
-        -p+1
+	(expression "Spiral" "filter spiral (image in, float rotations: 0-20)
+    q=sin((r/R*rotations-a*0.1)*10+t*2*pi)*0.5+0.5;
+    in(xy)*grayColor(q)
+end")
+	(expression "Alpha Spiral" "filter alpha_spiral (image in, float rotations: 0-20)
+    q=sin((r/R*rotations-a*0.1)*10+t*2*pi)*0.5+0.5;
+    in(xy)*rgba:[1,1,1,0]+rgba:[0,0,0,q]
+end")
+	(expression "Darts Board" "filter darts (image in, int subdivisions: 1-30, float distance: 10-200, float width: 0-100)
+    ang=2*pi/subdivisions;
+    p=in(xy);
+    q=if inintv((a-ang/4)%ang,0,ang/2)
+        then
+            p
+        else
+            -p+1
+        end;
+    dist=distance;
+    q=if inintv(r%dist,dist-width,dist)
+        then
+            q
+        else
+            -q+1
+        end;
+    rgba:[q[0],q[1],q[2],p[3]]
+end")
+	(expression "RGB Solid Noise" "filter rgb_solid_noise (float granularity: 0-50, float rz: 0-10, float gz: 0-10, float bz: 0-10)
+    g = granularity;
+    nxy = xy/R*g;
+    rgba:[noise([nxy[0],nxy[1],rz]),
+          noise([nxy[0],nxy[1],gz]),
+          noise([nxy[0],nxy[1],bz]),1]*0.5+0.5
+end")
+	(expression "Fractal Noise" "filter fractal_noise (float z: 0-10, float depth: 1-10, float persistence: 0-1, float granularity: 0-50)
+    pers = persistence;
+    g = granularity;
+    nxy = xy / R * g;
+    xyz = [nxy[0],nxy[1],z];
+    i = 1;
+    sum = 0;
+    max = 0;
+    while i < depth + 1 do
+        sum = sum + noise(xyz*i) * (pers^i);
+        max = max + (pers ^ i);
+        i = i + 1
     end;
-dist=user_float(\"distance\",10,200);
-width=user_float(\"width\",0,100);
-q=if inintv(r%dist,dist-width,dist)
-    then
-        q
-    else
-        -q+1
+    grayColor(sum / (max * 2) + 0.5)
+end")
+	(expression "Sine Wave" "filter sine_wave (float wavelength: 1-100)
+    grayColor(sin(r/wavelength+t*2*pi)*0.5+0.5)
+end")
+	(expression "Grid" "filter grid (int width: 2-500, int height: 2-500)
+  grayColor(if (x%width)*(y%height) then 1 else 0 end)
+end")
+	(expression "Disco" "filter disco (int red_wavelength: 1-50,  int green_wavelength: 1-50, int blue_wavelength: 1-50)
+    rl=red_wavelength;
+    gl=green_wavelength;
+    bl=blue_wavelength;
+    q=t*2*pi;
+    abs(rgba:[sin(r/rl+q)+sin(a*rl+q),
+              sin(r/gl+q)+sin(a*gl+q),
+              sin(r/bl+q)+sin(a*bl+q),2])
+end")
+	(expression "Moire 1" "filter moire1 ()
+    q=t*2*pi;
+    abs(rgba:[sin(r/4+q)+sin(15*a+q),
+              sin(r/3.5+q)+sin(17*a+q),
+              sin(r/3+q)+sin(19*a+q),2])*0.5
+end")
+	(expression "Moire 2" "filter moire2 (float zoom: 1-100)
+    grayColor(sin(x*y/zoom+t*2*pi)*0.5+0.5)
+end")
+	(expression "Mandelbrot" "filter mandelbrot (gradient coloring)
+    p=ri:(xy/xy:[X,X]*1.5-xy:[0.5,0]);
+    c=ri:[0,0];
+    iter=0;
+    while abs(c)<2 && iter<31
+    do
+        c=c*c+p;
+        iter=iter+1
     end;
-rgba:[q[0],q[1],q[2],p[3]]")
-	(expression "RGB Solid Noise" "g = user_slider(\"granularity\",0,50);
-nxy = xy/R*g;
-rz = user_slider(\"rz\",0,10);
-gz = user_slider(\"gz\",0,10);
-bz = user_slider(\"bz\",0,10);
-rgba:[noise([nxy[0],nxy[1],rz]),noise([nxy[0],nxy[1],gz]),noise([nxy[0],nxy[1],bz]),1]*0.5+0.5")
-	(expression "Fractal Noise" "z = user_slider(\"z\",0,10);
-depth = user_int(\"depth\",1,10);
-pers = user_slider(\"persistence\",0,1);
-g = user_slider(\"granularity\",0,50);
-nxy = xy / R * g;
-xyz = [nxy[0],nxy[1],z];
-i = 1;
-sum = 0;
-max = 0;
-while i < depth + 1 do
-    sum = sum + noise(xyz*i) * (pers^i);
-    max = max + (pers ^ i);
-    i = i + 1
-end;
-grayColor(sum / (max * 2) + 0.5)")
-	(expression "Sine Wave" "wv=user_float(\"wavelength\",1,100);
-grayColor(sin(r/wv+t*2*pi)*0.5+0.5)")
-	(expression "Grid" "grayColor(if (x%20)*(y%20) then 1 else 0 end)")
-	(expression "Disco" "rl=user_int(\"red wavelength\",1,50);
-gl=user_int(\"green wavelength\",1,50);
-bl=user_int(\"blue wavelength\",1,50);
-q=t*2*pi;
-abs(rgba:[sin(r/rl+q)+sin(a*rl+q),sin(r/gl+q)+sin(a*gl+q),sin(r/bl+q)+sin(a*bl+q),2])")
-	(expression "Moire 1" "q=t*2*pi;
-abs(rgba:[sin(r/4+q)+sin(15*a+q),sin(r/3.5+q)+sin(17*a+q),sin(r/3+q)+sin(19*a+q),2])*0.5")
-	(expression "Moire 2" "z=user_float(\"zoom\",1,100);
-grayColor(sin(x*y/z+t*2*pi)*0.5+0.5)")
-	(expression "Mandelbrot" "p=ri:(xy/xy:[X,X]*1.5-xy:[0.5,0]);
-c=ri:[0,0];
-iter=0;
-while abs(c)<2 && iter<31
-do
-    c=c*c+p;
-    iter=iter+1
-end;
-user_gradient(\"coloring\", iter/32)")
+    coloring(iter/32)
+end")
 	(expression "Domain Coloring" "# Domain coloring.
 # Paint the point z=x+iy according to the value of w=f(z), where f is a complex-valued function.
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-i=ri:[0,1];
+filter domain_coloring (image in, int coloring_scheme: 1-7, gradient coloring)
 
-#Domain; [mid_x,mid_y]+-[delta_x,delta_y]
-z=ri:( xy:[0,0] + xy:[2,2] * xy/XY );
+    i=ri:[0,1];
 
-#Function
-f=z*z-1 ;
+    #Domain; [mid_x,mid_y]+-[delta_x,delta_y]
+    z=ri:( xy:[0,0] + xy:[2,2] * xy/XY );
 
-#Choose coloring scheme
-scheme = user_int(\"coloring scheme\",1,7);
+    #Function
+    f=z*z-1 ;
 
-if scheme == 1 then
-# 1. Use active layer superimposed on a rectangle in the w=u+iv plane; [mid_u,mid_v]+-[delta_u,delta_v].
-    origVal((xy:f - xy:[0,0]) / xy:[8,8] * XY)
+    #Choose coloring scheme
+    scheme = coloring_scheme;
 
-else if scheme == 2 then
-# 2. Gradient based on arg(w).
-    gradient(pmod(arg(f)/2/pi - 0.0 ,1))
+    if scheme == 1 then
+    # 1. Use active layer superimposed on a rectangle in the w=u+iv plane; [mid_u,mid_v]+-[delta_u,delta_v].
+        in((xy:f - xy:[0,0]) / xy:[8,8] * XY)
 
-else if scheme == 3 then
-# 3. Shading based on abs(w); log scale produces one ring for each doubling of abs(w).
-    grayColor(pmod(log(abs(f))/log(2),1))
+    else if scheme == 2 then
+    # 2. Gradient based on arg(w).
+        coloring(pmod(arg(f)/2/pi - 0.0 ,1))
 
-else if scheme == 4 then
-# 4. Checkerboard (which can be turned into a grid using 'Filters/Edge-Detect/Edge').
-    tmpxy=xy:f/  xy:[1,1];
-    if (floor(pmod(tmpxy[0],2))+floor(pmod(tmpxy[1],2)))%2 then
-        grayColor(1)
+    else if scheme == 3 then
+    # 3. Shading based on abs(w); log scale produces one ring for each doubling of abs(w).
+        grayColor(pmod(log(abs(f))/log(2),1))
+
+    else if scheme == 4 then
+    # 4. Checkerboard (which can be turned into a grid using 'Filters/Edge-Detect/Edge').
+        tmpxy=xy:f/  xy:[1,1];
+        if (floor(pmod(tmpxy[0],2))+floor(pmod(tmpxy[1],2)))%2 then
+            grayColor(1)
+        else
+            grayColor(0)
+        end
+
+    else if scheme == 5 then
+    # 5. Checkerboard again, but based on radius and angle.
+        tmpra=toRA(xy:(f))/  ra:[1,pi / 6];
+        if (floor(pmod(tmpra[0],2))+floor(pmod(tmpra[1],2)))%2 then
+            grayColor(1)
+        else
+            grayColor(0)
+        end
+
+    else if scheme == 6 then
+    # 6. Color depends on arg(w), intensity on abs(w).
+        tmpclr=coloring(pmod(arg(f)/2/pi+  0.0  ,1));
+        tmp=((pi/2)-atan(log(abs(f))))/pi;
+        c1=max(2*tmp-1,0);
+        c2=min(2*tmp,1);
+        tmpclr=(-tmpclr+1)*c1+tmpclr*c2;
+        rgba:[tmpclr[0],tmpclr[1],tmpclr[2],tmpclr[3]]
+
     else
-        grayColor(0)
-    end
+    # 7.Yet another idea...
+        rgba:[ 0.5+0.5*cos( f[0]*1.6 ), 0.5+0.5*cos( f[1]*1.6 ), 0,1]
 
-else if scheme == 5 then
-# 5. Checkerboard again, but based on radius and angle.
-    tmpra=toRA(xy:(f))/  ra:[1,pi / 6];
-    if (floor(pmod(tmpra[0],2))+floor(pmod(tmpra[1],2)))%2 then
-        grayColor(1)
-    else
-        grayColor(0)
-    end
+    end end end end end end
 
-else if scheme == 6 then
-# 6. Color depends on arg(w), intensity on abs(w).
-    tmpclr=gradient(pmod(arg(f)/2/pi+  0.0  ,1));
-    tmp=((pi/2)-atan(log(abs(f))))/pi;
-    c1=max(2*tmp-1,0);
-    c2=min(2*tmp,1);
-    tmpclr=(-tmpclr+1)*c1+tmpclr*c2;
-    rgba:[tmpclr[0],tmpclr[1],tmpclr[2],tmpclr[3]]
-
-else
-# 7.Yet another idea...
-    rgba:[ 0.5+0.5*cos( f[0]*1.6 ), 0.5+0.5*cos( f[1]*1.6 ), 0,1]
-
-end end end end end end
-
-# 8. Write your own expressions...
-#")
+    # 8. Write your own expressions...
+    #
+end")
 	(expression "HSV Domain Coloring" "# by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-z = x + I*y;
-z = z/Y;
-# This sets the corners of the window
-# to 1.2 + 1.2i, 1.2 - 1.2i, -1.2 + 1.2i, -1.2 - 1.2i
-# (provided your image is square):
-z = 1.2*z;
-# Change this to the function you want, e.g.
-# w=sin(1/z);
-w = 1/z;
-hue = arg(w)/2/pi + 1/2;
-if !inintv(hue,0,1) then hue = 0 end;
-sat = atan(abs(2*w))/90;
-val = 1 - atan(abs(w/8))/90;
-toRGBA(hsva:[hue,sat,val,1])")
+filter hsv_domain_coloring ()
+    z = x + I*y;
+    z = z/Y;
+    # This sets the corners of the window
+    # to 1.2 + 1.2i, 1.2 - 1.2i, -1.2 + 1.2i, -1.2 - 1.2i
+    # (provided your image is square):
+    z = 1.2*z;
+    # Change this to the function you want, e.g.
+    # w=sin(1/z);
+    w = 1/z;
+    hue = arg(w)/2/pi + 1/2;
+    if !inintv(hue,0,1) then hue = 0 end;
+    sat = atan(abs(2*w))/90;
+    val = 1 - atan(abs(w/8))/90;
+    toRGBA(hsva:[hue,sat,val,1])
+end")
 	(expression "Grid Based Domain Coloring" "# by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-z = x + I*y;
-z = z/Y;
-# This sets the corners of the window
-# to 1.2 + 1.2i, 1.2 - 1.2i, -1.2 + 1.2i, -1.2 - 1.2i
-# (provided your image is square):
-z = 1.2*z;
-# Change this to the function you want, e.g.
-# w=sin(1/z);
-w = 1/z;
-# This determins the spacing of the grid:
-spacing=1;
-w = w/spacing;
-rgrid = pmod(w[0],1);
-igrid = pmod(w[1],1);
-# This creates a black and white \"checkerboard\".
-# Other ideas:
-# gradient((rgrid + igrid)/2)
-# or
-# grayColor (rgrid*igrid)
-grayColor((rgrid < 1/2) != (igrid < 1/2))")
-	(expression "Weird Black and White Texture" "g = user_slider(\"granularity\",0,50);
-nxy = xy/R*g;
-z1 = user_slider(\"z1\",0,10);
-z2 = user_slider(\"z2\",0,10);
-w2 = user_slider(\"w2\",0,1);
-f2 = user_slider(\"f2\",1,10);
-thr = user_slider(\"threshold\",-1,1);
-n=noise([nxy[0]/2,nxy[1],z1])+noise([nxy[0]/2*f2,nxy[1]*f2,z2])*w2;
-grayColor(if n >= thr then 1 else 0 end)")
+filter grid_based_domain_coloring ()
+    z = x + I*y;
+    z = z/Y;
+    # This sets the corners of the window
+    # to 1.2 + 1.2i, 1.2 - 1.2i, -1.2 + 1.2i, -1.2 - 1.2i
+    # (provided your image is square):
+    z = 1.2*z;
+    # Change this to the function you want, e.g.
+    # w=sin(1/z);
+    w = 1/z;
+    # This determins the spacing of the grid:
+    spacing=1;
+    w = w/spacing;
+    rgrid = pmod(w[0],1);
+    igrid = pmod(w[1],1);
+    # This creates a black and white \"checkerboard\".
+    # Other ideas:
+    # gradient((rgrid + igrid)/2)
+    # or
+    # grayColor (rgrid*igrid)
+    grayColor((rgrid < 1/2) != (igrid < 1/2))
+end")
+	(expression "Weird Black and White Texture" "filter wbawt (float granularity: 0-50, float z1: 0-10, float z2: 0-10, float w2: 0-1, float f2: 1-10, float threshold: -1-1)
+    g = granularity;
+    nxy = xy/R*g;
+    thr = threshold;
+    n=noise([nxy[0]/2,nxy[1],z1])+noise([nxy[0]/2*f2,nxy[1]*f2,z2])*w2;
+    grayColor(if n >= thr then 1 else 0 end)
+end")
 	(expression "Plot function" "#########
 #
 # Function graph plotter
@@ -407,248 +448,266 @@ grayColor(if n >= thr then 1 else 0 end)")
 #
 #########
 
+filter function_plotter ()
 
-#########
-#
-# Various parameters.
-#
-# NOTE:
-# Which function to plot is specified
-# further down in the code!
-#
-# Curve features.
-#   The parameter 'thickness' affects the thickness
-#   in the y direction only.
-#   To make the curve thicker in the x direction,
-#   increase 'sampdist'.
-#   For functions which vary quickly,
-#   increase 'samples'.
-#   (To plot isolated points, set samples = 0.)
-#
-  thickness = 1.0 ;
-  samples =   1 ;
-  sampdist =  1.0 ;
-#
-# Plotting range.
-#   Set y0mid = 1 or 0 to interpret y0 as y_midpoint
-#   or y_minimum, respectively.
-#
-  xrange = [ -1.0 , 1.0 ] * 2 ;
-  yscale = 1.0 ;
-  y0 =     0.0 ;
-  y0mid=   1 ;
-#
-#
-#########
-
-dy = yscale * (xrange[1]-xrange[0]) * Y / X; yrange = [0.0,dy]+y0; if y0mid then yrange=yrange-dy/2 end;
-
-#########
-#
-# To set 'yrange' directly,
-# overriding the setting using y0 and yscale,
-# uncomment the following line.
-#
-  # yrange=[ -1.0 , 1.0 ];
-#
-#
-#########
-
-
-low=1000000.0; high=-1000000.0;
-dx=-samples; while dx<=samples do q=scale( (x+dx*sampdist/samples)/X,-1,1,xrange[0],xrange[1] );
-
-#########
-#
-# Specify which function to plot.
-#
-# We write it as function of 'q',
-# since 'x' is used by MathMap already.
-#
-  f = 0.6*sin(2*q)-0.3*cos(7*q) ;
-#
-#########
-
-low = min(low,f); high =max(high,f); dx = dx+1 end;
-if inintv( y, scale(low,yrange[0],yrange[1],-Y,Y)-thickness,scale(high,yrange[0],yrange[1],-Y,Y)+thickness) then
-    rgba:[0.0,0.0,0.0,1.0]
-else
-    rgba:[0.0,0.0,0.0,0.0]
+    #########
+    #
+    # Various parameters.
+    #
+    # NOTE:
+    # Which function to plot is specified
+    # further down in the code!
+    #
+    # Curve features.
+    #   The parameter 'thickness' affects the thickness
+    #   in the y direction only.
+    #   To make the curve thicker in the x direction,
+    #   increase 'sampdist'.
+    #   For functions which vary quickly,
+    #   increase 'samples'.
+    #   (To plot isolated points, set samples = 0.)
+    #
+      thickness = 1.0 ;
+      samples =   1 ;
+      sampdist =  1.0 ;
+    #
+    # Plotting range.
+    #   Set y0mid = 1 or 0 to interpret y0 as y_midpoint
+    #   or y_minimum, respectively.
+    #
+      xrange = [ -1.0 , 1.0 ] * 2 ;
+      yscale = 1.0 ;
+      y0 =     0.0 ;
+      y0mid=   1 ;
+    #
+    #
+    #########
+    
+    dy = yscale * (xrange[1]-xrange[0]) * Y / X; yrange = [0.0,dy]+y0; if y0mid then yrange=yrange-dy/2 end;
+    
+    #########
+    #
+    # To set 'yrange' directly,
+    # overriding the setting using y0 and yscale,
+    # uncomment the following line.
+    #
+      # yrange=[ -1.0 , 1.0 ];
+    #
+    #
+    #########
+    
+    
+    low=1000000.0; high=-1000000.0;
+    dx=-samples; while dx<=samples do q=scale( (x+dx*sampdist/samples)/X,-1,1,xrange[0],xrange[1] );
+    
+    #########
+    #
+    # Specify which function to plot.
+    #
+    # We write it as function of 'q',
+    # since 'x' is used by MathMap already.
+    #
+      f = 0.6*sin(2*q)-0.3*cos(7*q) ;
+    #
+    #########
+    
+    low = min(low,f); high =max(high,f); dx = dx+1 end;
+    if inintv( y, scale(low,yrange[0],yrange[1],-Y,Y)-thickness,scale(high,yrange[0],yrange[1],-Y,Y)+thickness) then
+        rgba:[0.0,0.0,0.0,1.0]
+    else
+        rgba:[0.0,0.0,0.0,0.0]
+    end
 end"))
  (group "Colors"
-	(expression "Desaturate" "p=origVal(xy);
-grayaColor(gray(p),alpha(p))")
-	(expression "Gamma Correction" "p=origVal(xy);
-rgba:[curve(red(p)),curve(green(p)),curve(blue(p)),alpha(p)]")
-	(expression "Pidgin Gamma Correction" "p=origVal(xy);
-g=gray(p);
-p*rgba:[curve(g)/g,curve(g)/g,curve(g)/g,1]")
-	(expression "Colorify" "user_gradient(\"colors\", (gray(origVal(xy))+t)%1)"))
+	(expression "Desaturate" "filter desaturate (image in)
+    p=in(xy);
+    grayaColor(gray(p),alpha(p))
+end")
+	(expression "Gamma Correction" "filter gamma_correction (image in, curve gamma)
+    p=in(xy);
+    rgba:[gamma(red(p)),gamma(green(p)),gamma(blue(p)),alpha(p)]
+end")
+	(expression "Pidgin Gamma Correction" "filter pidgin_gamma_correction (image in, curve gamma)
+    p=in(xy);
+    g=gray(p);
+    p*rgba:[gamma(g)/g,gamma(g)/g,gamma(g)/g,alpha(p)]
+end")
+	(expression "Colorify" "filter colorify (image in, gradient colors)
+    colors((gray(in(xy))+t)%1)
+end"))
  (group "Noise"
-	(expression "Scatter" "d=user_slider(\"distance\",0,100);
-origVal(xy+xy:[rand(-d,d),rand(-d,d)]*t)")
-	(expression "Life" "num=(gray(origVal(xy+xy:[-1,-1]))>0.5)+
-(gray(origVal(xy+xy:[-1,0]))>0.5)+
-(gray(origVal(xy+xy:[-1,1]))>0.5)+
-(gray(origVal(xy+xy:[0,-1]))>0.5)+
-(gray(origVal(xy+xy:[0,1]))>0.5)+
-(gray(origVal(xy+xy:[1,-1]))>0.5)+
-(gray(origVal(xy+xy:[1,0]))>0.5)+
-(gray(origVal(xy+xy:[1,1]))>0.5);
-val=gray(origVal(xy))>0.5;
-rgba:[0,0,0,1]+rgba:[1,1,1,0]*if num==2 then val else if num==3 then 1 else 0 end end"))
+	(expression "Scatter" "filter scatter (image in, float distance: 0-100)
+    d=distance;
+    in(xy+xy:[rand(-d,d),rand(-d,d)]*t)
+end")
+	(expression "Life" "filter life (image in)
+    num=(gray(in(xy+xy:[-1,-1]))>0.5)+
+        (gray(in(xy+xy:[-1,0]))>0.5)+
+        (gray(in(xy+xy:[-1,1]))>0.5)+
+        (gray(in(xy+xy:[0,-1]))>0.5)+
+        (gray(in(xy+xy:[0,1]))>0.5)+
+        (gray(in(xy+xy:[1,-1]))>0.5)+
+        (gray(in(xy+xy:[1,0]))>0.5)+
+        (gray(in(xy+xy:[1,1]))>0.5);
+    val=gray(in(xy))>0.5;
+    rgba:[0,0,0,1]+rgba:[1,1,1,0]*if num==2 then val else if num==3 then 1 else 0 end end
+end"))
  (group "Map"
-	(expression "Tile" "n=user_int(\"n\",1,10);
-origVal((xy+XY)*n%WH-XY)")
+	(expression "Tile" "filter tile (image in, int n: 1-10)
+    in((xy+XY)*n%WH-XY)
+end")
 	(expression "Make Seamless" "# Edge Behaviour must be Wrap
-ax=abs(x)/X;ay=abs(y)/Y;
-x1=max(0,ax-ay);
-y1=max(0,ay-ax);
-x2=min(1,ax+(1-ay));
-y2=min(1,ay+(1-ax));
-weight=clamp(1-(ax-x1)/(x2-x1),0,1);
-lerp(weight,origVal(xy+XY),origVal(xy))")
-	(expression "Displace" "origVal(xy+xy:[(gray(origVal(xy,user_image(\"x image\")))-0.5)*user_slider(\"x disp\",0,100)*2,
-               (gray(origVal(xy,user_image(\"y image\")))-0.5)*user_slider(\"y disp\",0,100)*2])")
+filter make_seamless (image in)
+    ax=abs(x)/X;ay=abs(y)/Y;
+    x1=max(0,ax-ay);
+    y1=max(0,ay-ax);
+    x2=min(1,ax+(1-ay));
+    y2=min(1,ay+(1-ax));
+    weight=clamp(1-(ax-x1)/(x2-x1),0,1);
+    lerp(weight,in(xy+XY),in(xy))
+end")
+	(expression "Displace" "filter displace (image in,
+                                                 image x_image, float x_disp: 0-100,
+                                                 image y_image, float y_disp: 0-100)
+    in(xy+xy:[(gray(x_image(xy))-0.5)*x_disp*2,(gray(y_image(xy))-0.5)*y_disp*2])
+end")
 	(expression "Radial Displace" "# tomr@aceldama.com
-origVal(ra:[r+t*user_slider(\"MaxR\",0,32)*((2*gray(origVal(xy,user_image(\"Radial\"))))-1),a+t*user_slider(\"MaxA\",0,6.2831853)*((2*gray(origVal(xy,user_image(\"Angle\"))))-1)])")
+filter radial_displace (image in, image radial, float max_r: 0-32, image angle, float max_a: 0-6.2831853)
+    in(ra:[r+t*max_r*((2*gray(radial(xy)))-1),a+t*max_a*((2*gray(angle(xy)))-1)])
+end")
 	(expression "Sphere" "# by Herbert Poetzl
-rd=0.9*min(X,Y);
-if r>rd then
-    user_color(\"back\")
-else
-    alpha=user_float(\"alpha\",0,6.2831853);
-    beta=user_float(\"beta\",0,6.2831853);
-    gamma=user_float(\"gamma\",0,6.2831853);
-    sa=sin(alpha);
-    sb=sin(beta);
-    ca=cos(alpha);
-    cb=cos(beta);
-    theta=a;
-    phi=acos(r/rd);
-    x0=cos(theta)*cos(phi);
-    y0=sin(theta)*cos(phi);
-    z0=sin(phi);
-    x1=ca*x0+sa*y0;
-    z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;
-    if z1 >= 0 || 1 then
-        y1=cb*-sa*x0+cb*ca*y0+sb*z0
+filter sphere (image in, float alpha: 0-6.2831853, float beta: 0-6.2831853, float gamma: 0-6.2831853, color background)
+    rd=0.9*min(X,Y);
+    if r>rd then
+        background
     else
-        z1=z1-2*cb*z0;
-        y1=cb*-sa*x0+cb*ca*y0-sb*z0
-    end;
-    theta1=atan(-x1/y1)+(if y1>0 then pi/2 else 3*pi/2 end);
-    phi1=asin(z1);
-    origVal(xy:[((theta1*2+gamma)%(2*pi)-pi)/pi*X,-phi1/(pi/2)*Y])
+        sa=sin(alpha);
+        sb=sin(beta);
+        ca=cos(alpha);
+        cb=cos(beta);
+        theta=a;
+        phi=acos(r/rd);
+        x0=cos(theta)*cos(phi);
+        y0=sin(theta)*cos(phi);
+        z0=sin(phi);
+        x1=ca*x0+sa*y0;
+        z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;
+        if z1 >= 0 || 1 then
+            y1=cb*-sa*x0+cb*ca*y0+sb*z0
+        else
+            z1=z1-2*cb*z0;
+            y1=cb*-sa*x0+cb*ca*y0-sb*z0
+        end;
+        theta1=atan(-x1/y1)+(if y1>0 then pi/2 else 3*pi/2 end);
+        phi1=asin(z1);
+        in(xy:[((theta1*2+gamma)%(2*pi)-pi)/pi*X,-phi1/(pi/2)*Y])
+    end
 end")
 	(expression "Sphere with Reflection" "# by Herbert Poetzl
-rd=0.9*min(X,Y);
-if r>rd then
-    user_color(\"back\")
-else
-    alpha=user_slider(\"alpha\",0,6.2831853);
-    beta=user_slider(\"beta\",0,6.2831853);
-    gamma=user_slider(\"gamma\",0,6.2831853);
-    phil=pi/4;
-    lv=normalize([user_slider(\"lx\",-1,1),user_slider(\"ly\",-1,1),user_slider(\"lz\",-1,1)]);
-    sa=sin(alpha);
-    sb=sin(beta);
-    ca=cos(alpha);
-    cb=cos(beta);
-    theta=a;
-    phi=acos(r/rd);
-    m0=cos(phi);
-    x0=cos(theta)*m0;
-    y0=sin(theta)*m0;
-    z0=sin(phi);
-    x1=ca*x0+sa*y0;
-    m1=ca*y0-sa*x0;
-    z1=cb*z0-sb*m1;
-    y1=cb*m1+sb*z0;
-    diffq=dotp(lv,[x1,y1,z1]);
-    theta1=atan(-x1/y1)+(if y1>0 then pi/2 else 3*pi/2 end);
-    phi1=asin(z1);
-    p=origVal(xy:[((theta1+gamma)%(2*pi)-pi)/pi*X,-phi1/(pi/2)*Y]);
-    p*(1-diffq)+rgba:[1,1,1,1]*diffq
+filter sphere_with_reflection (image in, float alpha: 0-6.2831853, float beta: 0-6.2831853, float gamma: 0-6.2831853,
+                               float lx: -1-1, float ly: -1-1, float lz: -1-1, color background)
+    rd=0.9*min(X,Y);
+    if r>rd then
+        background
+    else
+        phil=pi/4;
+        lv=normalize([lx,ly,lz]);
+        sa=sin(alpha);
+        sb=sin(beta);
+        ca=cos(alpha);
+        cb=cos(beta);
+        theta=a;
+        phi=acos(r/rd);
+        m0=cos(phi);
+        x0=cos(theta)*m0;
+        y0=sin(theta)*m0;
+        z0=sin(phi);
+        x1=ca*x0+sa*y0;
+        m1=ca*y0-sa*x0;
+        z1=cb*z0-sb*m1;
+        y1=cb*m1+sb*z0;
+        diffq=dotp(lv,[x1,y1,z1]);
+        theta1=atan(-x1/y1)+(if y1>0 then pi/2 else 3*pi/2 end);
+        phi1=asin(z1);
+        p=in(xy:[((theta1+gamma)%(2*pi)-pi)/pi*X,-phi1/(pi/2)*Y]);
+        p*(1-diffq)+rgba:[1,1,1,1]*diffq
+    end
 end")
-        (expression "Square Decompose" "wd=user_float(\"width\",1,200);
-sk=user_float(\"skip\",0,200);
-pd=wd+sk;
-mx=pmod(x,pd);
-my=pmod(y,pd);
-if inintv(mx,wd/2,wd/2+sk) || inintv(my,wd/2,wd/2+sk) then
-  rgba:[0,0,0,0]
-else
-  px = if mx <= wd/2 then
-      x-floor(x/pd)*sk
+        (expression "Square Decompose" "filter square_decompose (image in, float width: 1-200, float skip: 0-200)
+    pd=width+skip;
+    mx=pmod(x,pd);
+    my=pmod(y,pd);
+    if inintv(mx,width/2,width/2+skip) || inintv(my,width/2,width/2+skip) then
+      rgba:[0,0,0,0]
     else
-      x-(floor(x/pd)+1)*sk
-    end;
-  py = if my <= wd/2 then
-      y-floor(y/pd)*sk
-    else
-      y-(floor(y/pd)+1)*sk
-    end;
-  origVal(xy:[px,py])
+      px = if mx <= width/2 then
+          x-floor(x/pd)*skip
+        else
+          x-(floor(x/pd)+1)*skip
+        end;
+      py = if my <= width/2 then
+          y-floor(y/pd)*skip
+        else
+          y-(floor(y/pd)+1)*skip
+        end;
+      in(xy:[px,py])
+    end
 end")
 	(expression "Mugl" "# by Herbert Poetzl
-sl=30;
-nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
-alpha=[0,0,0,0];
-radii=[0,0,0,0];
-xc=[0,0,0,0];
-yc=[0,0,0,0];
-nummugls=user_int(\"edges\",3,10);
-muglwinkl=pi/nummugls;
-heuslfaktor=sl/user_slider(\"size\",1.2,5);
-i=0; while i < 4 do
-    ix=nx+i%2;
-    iy=ny+floor(i/2);
-    xc[i]=(ix+0.5)*sl;
-    yc[i]=(iy+0.5)*sl;
-    alpha[i]=(noise([ix*0.3,iy*0.3,0])+1)*pi+t*pi*2;
-    kurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,pmod(alpha[i],pi*2)];
-    radii[i]=heuslfaktor/cos(abs(kurde[1]%(muglwinkl*2)-muglwinkl));
-    i = i + 1
-end;
-i=0;found=0;
-while !found && i<4 do
-    heuslkurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,alpha[i]];
-    if heuslkurde[0]<radii[i] then
-        found = 1
+filter mugl (image in, int edges: 3-10, float size: 1.2-5)
+    sl=30;
+    nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
+    alpha=[0,0,0,0];
+    radii=[0,0,0,0];
+    xc=[0,0,0,0];
+    yc=[0,0,0,0];
+    muglwinkl=pi/edges;
+    heuslfaktor=sl/size;
+    i=0; while i < 4 do
+        ix=nx+i%2;
+        iy=ny+floor(i/2);
+        xc[i]=(ix+0.5)*sl;
+        yc[i]=(iy+0.5)*sl;
+        alpha[i]=(noise([ix*0.3,iy*0.3,0])+1)*pi+t*pi*2;
+        kurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,pmod(alpha[i],pi*2)];
+        radii[i]=heuslfaktor/cos(abs(kurde[1]%(muglwinkl*2)-muglwinkl));
+        i = i + 1
+    end;
+    i=0;found=0;
+    while !found && i<4 do
+        heuslkurde=toRA(xy:[x-xc[i],y-yc[i]])+ra:[0,alpha[i]];
+        if heuslkurde[0]<radii[i] then
+            found = 1
+        else
+            i=i+1
+        end
+    end;
+    if i >= 4 then
+        rgba:[0,0,1,1]
     else
-        i=i+1
-    end
-end;
-if i >= 4 then
-    rgba:[0,0,1,1]
-else
-    if heuslkurde[0] < radii[i]-1.5 then
-        origVal(toXY(heuslkurde)+xy:[xc[i],yc[i]])
-    else
-        rgba:[0,0,0,1]
+        if heuslkurde[0] < radii[i]-1.5 then
+            in(toXY(heuslkurde)+xy:[xc[i],yc[i]])
+        else
+            rgba:[0,0,0,1]
+        end
     end
 end"))
  (group "Combine"
-	(expression "Depth Merge" "overlap = user_slider(\"overlap\",0.001,2);
-offset = user_slider(\"offset\",-1,1);
-scale1 = user_slider(\"scale1\",-1,1);
-scale2 = user_slider(\"scale2\",-1,1);
-depth1 = gray(origVal(xy,user_image(\"depth1\")));
-depth2 = gray(origVal(xy,user_image(\"depth2\")));
-frac = clamp(((depth2 * scale2 - (depth1 * scale1 + offset)) / overlap + 1) / 2, 0, 1);
-c1 = origVal(xy,user_image(\"image1\"));
-c2 = origVal(xy,user_image(\"image2\"));
-clamp(lerp(frac,c2,c1),rgba:[0,0,0,0],rgba:[1,1,1,1])")
+	(expression "Depth Merge" "filter depth_merge (image image1, image image2, image depth1, image depth2, 
+                    float overlap: 0.001-2, float offset: -1-1, float scale1: -1-1, float scale2: -1-1)
+    d1 = gray(depth1(xy));
+    d2 = gray(depth2(xy));
+    frac = clamp(((d2 * scale2 - (d1 * scale1 + offset)) / overlap + 1) / 2, 0, 1);
+    c1 = image1(xy);
+    c2 = image2(xy);
+    clamp(lerp(frac,c2,c1),rgba:[0,0,0,0],rgba:[1,1,1,1])
+end")
 (expression "Wobbly Transition" "# by Herbert Poetzl
-ns=user_slider(\"noise scale\",0,50);
-np=user_slider(\"noise speed\",0,10);
-bertl=user_slider(\"bertl\",1,5);
-mt=t*4;
-pic1=user_image(\"input 1\");
-pic2=user_image(\"input 2\");
-nxy=xy/R*ns;
-xyn1=noise([nxy[0],nxy[1],mt*np*1.5])*sin(t*pi);
-xyn2=noise([nxy[1],nxy[0],(mt+3)*np]);
-l=clamp(xyn1*sin((mt+xyn2)*2*pi)*bertl+t,0,1);
-lerp(l,origVal(xy,pic1),origVal(xy,pic2))")))
+filter wobbly_transition (float scale: 0-50, float speed: 0-10, float bertl: 1-5, image input1, image input2)
+    mt=t*4;
+    nxy=xy/R*scale;
+    xyn1=noise([nxy[0],nxy[1],mt*speed*1.5])*sin(t*pi);
+    xyn2=noise([nxy[1],nxy[0],(mt+3)*speed]);
+    l=clamp(xyn1*sin((mt+xyn2)*2*pi)*bertl+t,0,1);
+    lerp(l,input1(xy),input2(xy))
+end")))

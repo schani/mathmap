@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -51,6 +51,7 @@
 #include "writeimage.h"
 
 #include "generators/blender/blender.h"
+#include "generators/pixeltree/pixeltree.h"
 
 typedef struct
 {
@@ -241,7 +242,7 @@ main (int argc, char *argv[])
 	    case 256 :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
-		       "Copyright (C) 1997-2004 Mark Probst\n"
+		       "Copyright (C) 1997-2005 Mark Probst\n"
 		       "\n"
 		       "This program is free software; you can redistribute it and/or modify\n"
 		       "it under the terms of the GNU General Public License as published by\n"
@@ -433,6 +434,11 @@ main (int argc, char *argv[])
 	if (strcmp(generator, "blender") == 0)
 	{
 	    if (!blender_generate_plug_in(argv[optind], argv[optind + 1]))
+		return 1;
+	}
+	else if (strcmp(generator, "pixeltree") == 0)
+	{
+	    if (!pixeltree_generate_plug_in(argv[optind], argv[optind + 1]))
 		return 1;
 	}
 	else

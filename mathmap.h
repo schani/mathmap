@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,7 +38,7 @@
 #include <libgimp/gimp.h>
 #endif
 
-#define MATHMAP_DATE          "April 2004"
+#define MATHMAP_DATE          "November 2005"
 
 typedef struct _mathmap_t
 {
@@ -46,8 +46,8 @@ typedef struct _mathmap_t
     variable_t *variables;
     internal_t *internals;
 
-    exprtree *exprtree;
-    /* top_level_decl_t *top_level_decls; */
+    //exprtree *exprtree;
+    top_level_decl_t *top_level_decls;
 
     int num_uservals;
 
@@ -58,12 +58,14 @@ typedef struct _mathmap_t
 
     postfix_insn_t *expression;
     int exprlen;
+
+    struct _mathmap_t *next;
 } mathmap_t;
 
 /*
- * this variable is set by the compiler.  it's ok that it is global
+ * This variable is set by the compiler.  It's ok that it is global
  * because the compiler is non-reentrant (which is ok because it's
- * fast).
+ * fast and more convenient to write).
  */
 extern mathmap_t *the_mathmap;
 
@@ -134,6 +136,8 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
+void register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls);
+
 void unload_mathmap (mathmap_t *mathmap);
 void free_mathmap (mathmap_t *mathmap);
 void free_invocation (mathmap_invocation_t *invocation);
@@ -161,6 +165,9 @@ color_t mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_i
 typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
 
 void process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor);
+int generate_plug_in (char *filter, char *output_filename,
+		      char *template_filename, char *opmacros_filename, int analyze_constants,
+		      template_processor_func_t template_processor);
 
 #ifdef GIMP
 void user_value_changed (void);

@@ -1,3 +1,4 @@
+#define NOP()                 (0.0)
 #define ADD(a,b)              ((a)+(b))
 #define SUB(a,b)              ((a)-(b))
 #define NEG(a)                (-(a))

@@ -44,7 +44,7 @@ typedef mathfuncs_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
 void init_compiler (void);
 
-void generate_ir_code (struct _mathmap_t *mathmap);
+void generate_ir_code (struct _mathmap_t *mathmap, int constant_analysis);
 void forget_ir_code (struct _mathmap_t *mathmap);
 
 void set_opmacros_filename (const char *filename);

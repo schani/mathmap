@@ -1,3 +1,7 @@
+Why is there no error message when i assign to "r"???
+
+merge changes from 1.0
+add gsl-config to Makefile
 MERD!!!!!!!
 supersampling does not work in constant optimized compiler (row length is changed for each second line computed)
 make matrix operations pure (i.e. no memory allocation or think of something else)
@@ -5,6 +9,8 @@ in blender:
   noise, cgamma, vector/matrix div
   edge behaviour
   antialiasing/supersampling
+
+
 
 
 short circuit execution for && in compiler
@@ -15,6 +21,11 @@ make user_* accept constant folded arguments
 
 
 
+
+# Simone Demmel <neko@greenie.muc.de>
+filter flag (image in, float amp: 0-20, float len: 0-50, int speed: 1-5)
+  in(xy:[x,y+amp*sin(pi*len/X*(-x+X*t*2*speed/len))])
+end
 
 
 
@@ -84,6 +95,42 @@ normalisierung von matrizen (matrix/determinante)
 inverse matrix
 pixel konvertieren schneller machen
 abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
+
+
+
+
+#contrast
+p=origVal(xy);
+ex=user_float("ex",0,10);
+re=red(p)*2;gr=green(p)*2;bl=blue(p)*2;
+rgba:[if re<=1 then (re^ex)/2 else 1-(2-re)^ex/2 end,
+      if gr<=1 then (gr^ex)/2 else 1-(2-gr)^ex/2 end,
+      if bl<=1 then (bl^ex)/2 else 1-(2-bl)^ex/2 end,
+      alpha(p)]
+
+
+#lomoize
+p=origVal(xy);
+br=user_slider("brightness",0,8);
+re=clamp(red(p)*2*br,0,2);
+gr=clamp(green(p)*2*br,0,2);
+bl=clamp(blue(p)*2*br,0,2);
+ex=user_slider("contrast",0,8);
+p=rgba:[if re<=1 then (re^ex)/2 else 1-(2-re)^ex/2 end,
+        if gr<=1 then (gr^ex)/2 else 1-(2-gr)^ex/2 end,
+        if bl<=1 then (bl^ex)/2 else 1-(2-bl)^ex/2 end,
+        alpha(p)];
+dist=(toRA(xy*xy:[1/W,1/H]))[0];
+radius=user_slider("vignette radius",0,1);
+if dist >= radius then
+  f=(1-scale(dist,radius,1,0,1))^user_slider("vignette hardness",0,10)
+else
+  f=1
+end;
+p*rgba:[f,f,f,1]
+
+
+
 
 
 

@@ -33,9 +33,9 @@
 (defop / 2 "OP_DIV" "DIV")
 (defop % 2 "OP_MOD" "MOD")
 
-(defop abs 1 "OP_ABS" "fabs" :type-prop max :type nil)
-(defop min 2 "OP_MIN" "MIN" :type-prop max :type nil)
-(defop max 2 "OP_MAX" "MAX" :type-prop max :type nil)
+(defop abs 1 "OP_ABS" "fabs" :type-prop max-float :type nil)
+(defop min 2 "OP_MIN" "MIN" :type-prop max-float :type nil)
+(defop max 2 "OP_MAX" "MAX" :type-prop max-float :type nil)
 
 (defop sqrt 1 "OP_SQRT" "sqrt")
 (defop hypot 2 "OP_HYPOT" "hypot")
@@ -70,10 +70,10 @@
 (defop set-debug-tuple-data 2 "OP_SET_DEBUG_TUPLE_DATA" "SET_DEBUG_TUPLE_DATA" :type int :pure nil)
 
 (defop orig-val 4 "OP_ORIG_VAL" "ORIG_VAL" :type color :foldable nil)
-(defop red 1 "OP_RED" "RED_FLOAT")
-(defop green 1 "OP_GREEN" "GREEN_FLOAT")
-(defop blue 1 "OP_BLUE" "BLUE_FLOAT")
-(defop alpha 1 "OP_ALPHA" "ALPHA_FLOAT")
+(defop red 1 "OP_RED" "RED_FLOAT" :foldable nil)
+(defop green 1 "OP_GREEN" "GREEN_FLOAT" :foldable nil)
+(defop blue 1 "OP_BLUE" "BLUE_FLOAT" :foldable nil)
+(defop alpha 1 "OP_ALPHA" "ALPHA_FLOAT" :foldable nil)
 
 (defop complex 2 "OP_COMPLEX" "COMPLEX" :type complex)
 (defop c-real 1 "OP_C_REAL" "crealf")
@@ -125,6 +125,30 @@
 (defop make-color 4 "OP_MAKE_COLOR" "MAKE_COLOR" :type color)
 (defop output-color 1 "OP_OUTPUT_COLOR" "OUTPUT_COLOR" :type int :pure nil)
 
+(defun c-type-define (type)
+  (cdr (assoc type '((nil . "0")
+		     (int . "TYPE_INT") (float . "TYPE_FLOAT")
+		     (complex . "TYPE_COMPLEX") (color . "TYPE_COLOR")
+		     (m2x2 . "TYPE_MATRIX") (m3x3 . "TYPE_MATRIX")
+		     (v2 . "TYPE_VECTOR") (v3 . "TYPE_VECTOR")))))
+
+(defun max-type (types)
+  (cond ((null types)
+	 (error "cannot determine max type of empty list"))
+	((null (cdr types))
+	 (car types))
+	(t
+	 (let ((rest-max (max-type (cdr types))))
+	   (cond ((eq (car types) 'complex)
+		  'complex)
+		 ((eq (car types) 'int)
+		  rest-max)
+		 (t
+		  (assert (eq (car types) 'float))
+		  (if (eq rest-max 'complex)
+		      'complex
+		    'float)))))))
+
 (defun make-op-defines ()
   (apply #'string-concat
 	 (mapcar #'(lambda (op index)
@@ -137,17 +161,47 @@
 		     (destructuring-bind (name arity c-define c-name type-prop type pure foldable)
 			 op
 		       (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~], ~:[0~;1~]);~%"
-			       c-define c-name arity (string-upcase (symbol-name type-prop))
-			       (cdr (assoc type '((nil . "0")
-						  (int . "TYPE_INT") (float . "TYPE_FLOAT")
-						  (complex . "TYPE_COMPLEX") (color . "TYPE_COLOR")
-						  (m2x2 . "TYPE_MATRIX") (m3x3 . "TYPE_MATRIX")
-						  (v2 . "TYPE_VECTOR") (v3 . "TYPE_VECTOR"))))
-			       pure foldable)))
+			       c-define c-name arity (ucs type-prop)
+			       (c-type-define type) pure foldable)))
+		 (reverse *operators*))))
+
+(defun make-op-folders ()
+  (apply #'string-concat
+	 (mapcar #'(lambda (op)
+		     (destructuring-bind (name arity c-define c-name type-prop type pure foldable)
+			 op
+		       (labels ((switch-args (arg-types)
+				  (if (= (length arg-types) arity)
+				      (let ((max-type (max-type arg-types)))
+					(format nil "return make_~A_const_primary(~A(~{(~A)rhs->v.op.args[~A].v.~A_const~^, ~}));~%"
+						(dcs max-type) c-name
+						(mappend #'(lambda (i arg-type)
+							     (list (c-type max-type) i (dcs arg-type)))
+							 (integers-upto arity) arg-types)))
+				    (format nil "switch (rhs->v.op.args[~A].type) {~%~Adefault : assert(0); break;~%}~%"
+					    (length arg-types)
+					    (apply #'string-concat
+						   (mapcar #'(lambda (type)
+							       (format nil "case PRIMARY_~A_CONST :~%~A"
+								       type
+								       (switch-args (append arg-types (list type)))))
+							   (if (eq type-prop 'max)
+							       '(int float complex)
+							     '(int float))))))))
+			 (if foldable
+			     (if (eq type-prop 'const)
+				 (format nil "case ~A :~%return make_~A_const_primary(~A(~{OP_CONST_FLOAT_VAL(~A)~^, ~}));~%"
+					 c-define (dcs type) c-name
+					 (integers-upto arity))
+			       (format nil "case ~A :~%~A"
+				       c-define
+				       (switch-args '())))
+			   ""))))
 		 (reverse *operators*))))
 
 (defun make-ops-file ()
   (with-open-file (out "opdefs.h" :direction :output :if-exists :supersede)
     (let ((*standard-output* out))
       (format t "~A~%#define NUM_OPS ~A~%~%" (make-op-defines) (length *operators*))
-      (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops)))))
+      (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
+      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%~%" (make-op-folders)))))

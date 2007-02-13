@@ -49,7 +49,7 @@
 
 typedef struct _userval_info_t
 {
-    ident name;
+    char *name;
     int type;
     int index;
 
@@ -69,8 +69,6 @@ typedef struct _userval_info_t
 
     struct _userval_info_t *next;
 } userval_info_t;
-
-#define INPUT_IMAGE_USERVAL_NAME         "_*_input_*_"
 
 typedef struct _userval_t
 {
@@ -124,7 +122,7 @@ typedef struct _userval_t
 #endif
 } userval_t;
 
-userval_info_t* lookup_userval (userval_info_t *infos, const char *name, int type);
+userval_info_t* lookup_userval (userval_info_t *infos, const char *name);
 userval_info_t* lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info);
 
 userval_info_t* register_int_const (userval_info_t **infos, const char *name, int min, int max);

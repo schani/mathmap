@@ -23,8 +23,6 @@
 #ifndef __VARS_H__
 #define __VARS_H__
 
-#define VAR_MAX_LENGTH     32
-
 #include "tuples.h"
 
 struct _compvar_t;
@@ -32,7 +30,7 @@ struct _value_t;
 
 typedef struct _variable_t
 {
-    char name[VAR_MAX_LENGTH];
+    char *name;
     tuple_info_t type;
     int index;
 

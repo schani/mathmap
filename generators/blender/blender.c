@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2004 Mark Probst
+ * Copyright (C) 2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,7 +43,7 @@ find_nth_image_userval (userval_info_t *infos, int n)
 }
 
 static int
-blender_template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
+template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
 {
     if (strcmp(directive, "var_structs") == 0)
     {
@@ -148,46 +148,9 @@ blender_template_processor (mathmap_t *mathmap, const char *directive, FILE *out
     return 1;
 }
 
-
 int
-blender_generate_plug_in (char *expression, char *output_filename)
+blender_generate_plug_in (char *filter, char *output_filename)
 {
-    /* FIXME: get filename from some install location */
-    const char *template_filename = TEMPLATE_DIR "/blender_template.c";
-    FILE *template, *out;
-    mathmap_t *mathmap;
-
-    mathmap = parse_mathmap(expression);
-
-    if (mathmap == 0)
-    {
-	fprintf(stderr, error_string);
-	return 0;
-    }
-
-    generate_ir_code(mathmap);
-
-    template = fopen(template_filename, "r");
-    out = fopen(output_filename, "w");
-
-    if (template == 0)
-    {
-	fprintf(stderr, "Could not open template file `%s'\n", template_filename);
-	exit(1);
-    }
-    if (out == 0)
-    {
-	fprintf(stderr, "Could not open output file `%s'\n", output_filename);
-	exit(1);
-    }
-
-    set_opmacros_filename("blender_opmacros.h");
-    process_template_file(mathmap, template, out, &blender_template_processor);
-
-    fclose(template);
-    fclose(out);
-
-    forget_ir_code(mathmap);
-
-    return 1;
+    return generate_plug_in(filter, output_filename,
+			    "blender_template.c", "blender_opmacros.h", 1, template_processor);
 }

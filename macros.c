@@ -107,20 +107,6 @@ macro_var_e (exprtree *args)
     return make_float_number(M_E);
 }
 
-static exprtree*
-make_default_image (void)
-{
-    return make_userval("user_image", INPUT_IMAGE_USERVAL_NAME, 0);
-}
-
-exprtree*
-macro_func_origVal (exprtree *args)
-{
-    return make_function("origVal", exprlist_append(make_function("toXY", args),
-						    exprlist_append(make_default_image(),
-								    make_int_number(0))));
-}
-
 exprtree*
 macro_func_origValImage (exprtree *args)
 {
@@ -128,18 +114,7 @@ macro_func_origValImage (exprtree *args)
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  exprlist_append(args->next,
-										  make_int_number(0)))));
-}
-
-exprtree*
-macro_func_origValFrame (exprtree *args)
-{
-    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, args->result);
-
-    return make_sequence(make_assignment(tmpvar->name, args),
-			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  exprlist_append(make_default_image(),
+								  exprlist_append(make_int_number(0),
 										  args->next))));
 }
 
@@ -240,18 +215,6 @@ macro_func_toRA (exprtree *arg)
     return arg;
 }
 
-exprtree*
-macro_func_curve (exprtree *arg)
-{
-    return make_userval("user_curve", "curve", arg);
-}
-
-exprtree*
-macro_func_gradient (exprtree *arg)
-{
-    return make_userval("user_gradient", "gradient", arg);
-}
-
 void
 init_macros (void)
 {
@@ -264,22 +227,9 @@ init_macros (void)
     register_variable_macro("pi", macro_var_pi, make_tuple_info(nil_tag_number, 1));
     register_variable_macro("e", macro_var_e, make_tuple_info(nil_tag_number, 1));
 
-    register_overloaded_macro("origVal", "((rgba 4) (xy 2))", macro_func_origVal);
-    register_overloaded_macro("origVal", "((rgba 4) (ra 2))", macro_func_origVal);
-    register_overloaded_macro("origVal", "((rgba 4) (xy 2) (nil 1))", macro_func_origValFrame);
-    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (nil 1))", macro_func_origValFrame);
     register_overloaded_macro("origVal", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
     register_overloaded_macro("origVal", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
-    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (image 1) (nil 1))", macro_func_origValImageFrame);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (xy 2))", macro_func_origVal);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2))", macro_func_origVal);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (xy 2) (nil 1))", macro_func_origValFrame);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2) (nil 1))", macro_func_origValFrame);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
-    register_overloaded_macro("origValIntersample", "((rgba 4) (ra 2) (image 1) (nil 1))", macro_func_origValImageFrame);
-    register_overloaded_macro("origValXY", "((rgba 4) (T 1) (T 1))", macro_func_origValXY);
-    register_overloaded_macro("origValRA", "((rgba 4) (T 1) (T 1))", macro_func_origValRA);
+    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (nil 1) (image 1))", macro_func_origValImageFrame);
 
     register_overloaded_macro("red", "((nil 1) (rgba 4))", macro_func_red);
     register_overloaded_macro("green", "((nil 1) (rgba 4))", macro_func_green);
@@ -298,7 +248,4 @@ init_macros (void)
 
     register_overloaded_macro("toXY", "((xy 2) (xy 2))", macro_func_toXY);
     register_overloaded_macro("toRA", "((ra 2) (ra 2))", macro_func_toRA);
-
-    register_overloaded_macro("curve", "((nil 1) (_ 1))", macro_func_curve);
-    register_overloaded_macro("gradient", "((rgba 4) (_ 1))", macro_func_gradient);
 }

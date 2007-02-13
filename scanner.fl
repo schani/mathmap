@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -44,19 +44,12 @@ while                       return T_WHILE;
 do                          return T_DO;
 xor                         return T_XOR;
 [a-zA-Z_][a-zA-Z0-9_]*      {
-			        strncpy(yylval.ident, yytext, MAX_IDENT_LENGTH);
-				yylval.ident[MAX_IDENT_LENGTH] = '\0';
+				yylval.ident = strdup(yytext);
 				return T_IDENT;
 	                    }
 \"[^\"\n]*\"                {
-				int len;
-
-				if (yyleng - 2 < MAX_IDENT_LENGTH)
-				    len = yyleng - 2;
-				else
-				    len = MAX_IDENT_LENGTH;
-				strncpy(yylval.ident, yytext + 1, len);
-				yylval.ident[len] = '\0';
+				yylval.ident = strdup(yytext + 1);
+				yylval.ident[yyleng - 2] = '\0';
 				return T_STRING;
 			    }
 [0-9]+                      { yylval.exprtree = make_int_number(atoi(yytext)); return T_INT; }

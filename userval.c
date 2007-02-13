@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,8 +42,9 @@ alloc_and_register_userval (userval_info_t **p, const char *name, int type)
 
     memset(info, 0, sizeof(userval_info_t));
 
-    strncpy(info->name, name, MAX_IDENT_LENGTH);
-    info->name[MAX_IDENT_LENGTH] = '\0';
+    info->name = strdup(name);
+    assert(name != 0);
+
     info->type = type;
     info->next = 0;
 
@@ -59,12 +60,12 @@ alloc_and_register_userval (userval_info_t **p, const char *name, int type)
 }
 
 userval_info_t*
-lookup_userval (userval_info_t *infos, const char *name, int type)
+lookup_userval (userval_info_t *infos, const char *name)
 {
     userval_info_t *info;
 
     for (info = infos; info != 0; info = info->next)
-	if (info->type == type && strcmp(name, info->name) == 0)
+	if (strcmp(name, info->name) == 0)
 	    return info;
 
     return 0;
@@ -73,23 +74,25 @@ lookup_userval (userval_info_t *infos, const char *name, int type)
 userval_info_t*
 lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info)
 {
-    userval_info_t *info = lookup_userval(infos, test_info->name, test_info->type);
+    userval_info_t *info = lookup_userval(infos, test_info->name);
 
-    if (info != 0)
-	switch (info->type)
-	{
-	    case USERVAL_INT_CONST :
-		if (info->v.int_const.min != test_info->v.int_const.min
-		    || info->v.int_const.max != test_info->v.int_const.max)
-		    info = 0;
-		break;
+    if (info == 0 || info->type != test_info->type)
+	return 0;
 
-	    case USERVAL_FLOAT_CONST :
-		if (info->v.float_const.min != test_info->v.float_const.min
-		    || info->v.float_const.max != test_info->v.float_const.max)
-		    info = 0;
-		break;
-	}
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	    if (info->v.int_const.min != test_info->v.int_const.min
+		|| info->v.int_const.max != test_info->v.int_const.max)
+		info = 0;
+	    break;
+
+	case USERVAL_FLOAT_CONST :
+	    if (info->v.float_const.min != test_info->v.float_const.min
+		|| info->v.float_const.max != test_info->v.float_const.max)
+		info = 0;
+	    break;
+    }
 
     return info;
 }
@@ -99,9 +102,11 @@ register_int_const (userval_info_t **infos, const char *name, int min, int max)
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_INT_CONST);
+    info = lookup_userval(*infos, name);
     if (info != 0)
     {
+	if (info->type != USERVAL_INT_CONST)
+	    return 0;
 	if (info->v.int_const.min == min && info->v.int_const.max == max)
 	    return info;
 	return 0;
@@ -121,9 +126,11 @@ register_float_const (userval_info_t **infos, const char *name, float min, float
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_FLOAT_CONST);
+    info = lookup_userval(*infos, name);
     if (info != 0)
     {
+	if (info->type != USERVAL_FLOAT_CONST)
+	    return 0;
 	if (info->v.float_const.min == min && info->v.float_const.max == max)
 	    return info;
 	return 0;
@@ -143,9 +150,13 @@ register_bool (userval_info_t **infos, const char *name)
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_BOOL_CONST);
+    info = lookup_userval(*infos, name);
     if (info != 0)
+    {
+	if (info->type != USERVAL_BOOL_CONST)
+	    return 0;
 	return info;
+    }
 
     info = alloc_and_register_userval(infos, name, USERVAL_BOOL_CONST);
 
@@ -157,9 +168,13 @@ register_color (userval_info_t **infos, const char *name)
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_COLOR);
+    info = lookup_userval(*infos, name);
     if (info != 0)
+    {
+	if (info->type != USERVAL_COLOR)
+	    return 0;
 	return info;
+    }
 
     info = alloc_and_register_userval(infos, name, USERVAL_COLOR);
 
@@ -171,9 +186,13 @@ register_curve (userval_info_t **infos, const char *name)
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_CURVE);
+    info = lookup_userval(*infos, name);
     if (info != 0)
+    {
+	if (info->type != USERVAL_CURVE)
+	    return 0;
 	return info;
+    }
 
     info = alloc_and_register_userval(infos, name, USERVAL_CURVE);
 
@@ -185,9 +204,13 @@ register_gradient (userval_info_t **infos, const char *name)
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_GRADIENT);
+    info = lookup_userval(*infos, name);
     if (info != 0)
+    {
+	if (info->type != USERVAL_GRADIENT)
+	    return 0;
 	return info;
+    }
 
     info = alloc_and_register_userval(infos, name, USERVAL_GRADIENT);
 
@@ -199,9 +222,13 @@ register_image (userval_info_t **infos, const char *name)
 {
     userval_info_t *info;
 
-    info = lookup_userval(*infos, name, USERVAL_IMAGE);
+    info = lookup_userval(*infos, name);
     if (info != 0)
+    {
+	if (info->type != USERVAL_IMAGE)
+	    return 0;
 	return info;
+    }
 
     info = alloc_and_register_userval(infos, name, USERVAL_IMAGE);
 
@@ -356,6 +383,7 @@ free_userval_infos (userval_info_t *infos)
     {
 	userval_info_t *next = infos->next;
 
+	free(infos->name);
 	free(infos);
 
 	infos = next;
@@ -477,13 +505,17 @@ user_image_update (gint32 id, userval_t *userval)
 }
 
 static int
-make_table_entry_for_userval (userval_info_t *info)
+make_table_entry_for_userval (userval_info_t *info, int *have_input_image)
 {
     if (info->type == USERVAL_GRADIENT)
 	return 0;
-    if (info->type == USERVAL_IMAGE
-	&& strcmp(info->name, INPUT_IMAGE_USERVAL_NAME) == 0)
+    if (info->type == USERVAL_IMAGE)
+    {
+	if (*have_input_image)
+	    return 1;
+	*have_input_image = 1;
 	return 0;
+    }
     return 1;
 }
 
@@ -493,10 +525,12 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
     int i;
     userval_info_t *info;
     GtkWidget *table;
+    int have_input_image;
 
+    have_input_image = 0;
     i = 0;
     for (info = infos; info != 0; info = info->next)
-	if (make_table_entry_for_userval(info))
+	if (make_table_entry_for_userval(info, &have_input_image))
 	    ++i;
 
     if (i == 0)
@@ -504,13 +538,14 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 
     table = gtk_table_new(i, 2, FALSE);
 
+    have_input_image = 0;
     i = 0;
     for (info = infos; info != 0; info = info->next)
     {
 	GtkWidget *widget = 0, *label;
 	GtkAttachOptions xoptions = GTK_FILL | GTK_EXPAND, yoptions = 0;
 
-	if (!make_table_entry_for_userval(info))
+	if (!make_table_entry_for_userval(info, &have_input_image))
 	    continue;
 
 	label = gtk_label_new(info->name);

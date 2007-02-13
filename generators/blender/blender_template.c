@@ -89,9 +89,9 @@ char name[] = "MathMap generated Plug-In";
 
 VarStruct varstr[] =
 {
-    LABEL, "Input: $num_input_drawables strip(s)", 0.0, 0.0, 0.0, "",
+    LABEL, "In: $num_input_drawables strip(s)", 0.0, 0.0, 0.0, "",
 #if USES_T
-    NUMSLI|FLO, "frames per t: ", 25.0, 0.0, 1000.0, "The number of frames it takes t to go from 0 to 1",
+    NUMSLI|FLO, "frames per t: ", 25.0, 0.0, 1000.0, "Number of frames it takes t to go from 0 to 1",
 #endif
     $var_structs
 };

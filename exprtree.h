@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2005 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,23 +30,58 @@
 
 extern char error_string[];
 
-#define MAX_IDENT_LENGTH    63
+#define LIMITS_INT             1
+#define LIMITS_FLOAT           2
 
-typedef char ident[MAX_IDENT_LENGTH + 1];
-
-#define ARG_TYPE_INT           1
-#define ARG_TYPE_FLOAT         2
-#define ARG_TYPE_COLOR         3
-#define ARG_TYPE_GRADIENT      4
-#define ARG_TYPE_CURVE         5
-#define ARG_TYPE_FILTER        6
-
-typedef struct _arg_decl_t
+// This is only used during parsing.
+typedef struct
 {
-    ident name;
     int type;
     union
     {
+	struct
+	{
+	    int min;
+	    int max;
+	} integer;
+	struct
+	{
+	    float min;
+	    float max;
+	} floating;
+    } v;
+} limits_t;
+
+#define ARG_TYPE_INT           1
+#define ARG_TYPE_FLOAT         2
+#define ARG_TYPE_BOOL          3
+#define ARG_TYPE_COLOR         4
+#define ARG_TYPE_GRADIENT      5
+#define ARG_TYPE_CURVE         6
+#define ARG_TYPE_FILTER        7
+#define ARG_TYPE_IMAGE         8
+
+typedef struct _arg_decl_t
+{
+    char *name;
+    int type;
+    char *docstring;
+    union
+    {
+	struct
+	{
+	    int have_limits;
+	    int min;
+	    int max;
+	    int default_value;
+	} integer;
+	struct
+	{
+	    int have_limits;
+	    float min;
+	    float max;
+	    float default_value;
+	} floating;
 	struct
 	{
 	    struct _arg_decl_t *args;
@@ -167,7 +202,8 @@ typedef struct _exprtree
 typedef struct _top_level_decl_t
 {
     int type;
-    ident name;
+    char *name;
+    char *docstring;
     union
     {
 	struct
@@ -180,14 +216,27 @@ typedef struct _top_level_decl_t
     struct _top_level_decl_t *next;
 } top_level_decl_t;
 
-top_level_decl_t* make_filter (const char *name, arg_decl_t *args, exprtree *body);
+extern top_level_decl_t *the_top_level_decls;
+
+top_level_decl_t* make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body);
 
 top_level_decl_t* top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2);
 
-arg_decl_t* make_simple_arg_decl (const char *type_name, const char *name);
-arg_decl_t* make_filter_arg_decl (const char *name, arg_decl_t *args);
+void free_top_level_decls (top_level_decl_t *list);
+
+arg_decl_t* make_simple_arg_decl (const char *type_name, const char *name, const char *docstring);
+arg_decl_t* make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring);
 
 arg_decl_t* arg_decl_list_append (arg_decl_t *list1, arg_decl_t *list2);
+
+void free_arg_decls (arg_decl_t *list);
+
+limits_t* make_int_limits (int min, int max);
+limits_t* make_float_limits (float min, float max);
+void free_limits (limits_t *limits);
+
+void apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits);
+void apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree);
 
 exprtree* make_int_number (int num);
 exprtree* make_float_number (float num);
@@ -198,7 +247,6 @@ exprtree* make_select (exprtree *tuple, exprtree *subscripts);
 exprtree* make_cast (const char *tagname, exprtree *tuple); /* should use tag number instead */
 exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */
 exprtree* make_function (const char *name, exprtree *args);
-exprtree* make_userval (const char *type, const char *name, exprtree *args);
 exprtree* make_sequence (exprtree *left, exprtree *right);
 exprtree* make_assignment (char *name, exprtree *value); /* should use variable_t instead */
 exprtree* make_sub_assignment (char *name, exprtree *subscripts, exprtree *value);

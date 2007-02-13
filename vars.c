@@ -35,6 +35,7 @@ alloc_variable (tuple_info_t type)
 
     var = (variable_t*)malloc(sizeof(variable_t));
 
+    var->name = 0;
     var->type = type;
     var->next = 0;
 
@@ -52,8 +53,8 @@ register_variable (variable_t **vars, const char *name, tuple_info_t type)
 {
     variable_t *var = alloc_variable(type);
 
-    assert(strlen(name) < VAR_MAX_LENGTH);
-    strcpy(var->name, name);
+    var->name = strdup(name);
+    assert(var->name != 0);
 
     var->index = 0;
     while (*vars != 0)
@@ -85,10 +86,13 @@ variable_t*
 new_temporary_variable (variable_t **vars, tuple_info_t type)
 {
     static int num = 0;
+    static char buf[64];
 
     variable_t *var = alloc_variable(type);
 
-    sprintf(var->name, "tmp____%d", ++num);
+    sprintf(buf, "tmp____%d", ++num);
+    var->name = strdup(buf);
+    assert(var->name != 0);
 
     var->index = 0;
     while (*vars != 0)
@@ -130,6 +134,7 @@ free_variables (variable_t *vars)
     {
 	variable_t *next = vars->next;
 
+	free(vars->name);
 	free(vars);
 
 	vars = next;
