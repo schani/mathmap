@@ -34,9 +34,7 @@
 #include "postfix.h"
 #include "color.h"
 
-#ifdef GIMP
 #include <libgimp/gimp.h>
-#endif
 
 #define MATHMAP_DATE          "November 2005"
 
@@ -69,9 +67,7 @@ typedef struct _mathmap_t
  */
 extern mathmap_t *the_mathmap;
 
-#ifndef OPENSTEP
 extern color_t gradient_samples[USER_GRADIENT_POINTS];
-#endif
 
 #define EDGE_BEHAVIOUR_COLOR          1	/* all three used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2
@@ -114,6 +110,8 @@ typedef struct _mathmap_invocation_t
     void *xy_vars;
     void *y_vars;
 
+    int cmdline; /* if this is in the plug-in then 0, otherwise it's in the command line */
+
     int do_debug;
     int num_debug_tuples;
     tuple_t debug_tuples[MAX_DEBUG_TUPLES];
@@ -136,6 +134,9 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
+int cmdline_main (int argc, char *argv[]);
+color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y);
+
 void register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls);
 
 void unload_mathmap (mathmap_t *mathmap);
@@ -151,7 +152,7 @@ int does_mathmap_use_t (mathmap_t *mathmap);
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_filename);
-mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
+mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height, int cmdline);
 void init_frame (mathmap_invocation_t *invocation);
 void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
 
@@ -169,23 +170,12 @@ int generate_plug_in (char *filter, char *output_filename,
 		      char *template_filename, char *opmacros_filename, int analyze_constants,
 		      template_processor_func_t template_processor);
 
-#ifdef GIMP
 void user_value_changed (void);
 
 int alloc_input_drawable (GimpDrawable *drawable);
 void free_input_drawable (int index);
 GimpDrawable* get_input_drawable (int index);
 
-/* GIMP 1.2/2.0 compatiblity macros */
-#ifndef GIMP2
-#define DRAWABLE_ID(d)     ((d)->id)
-#define gimp_image_undo_group_start       gimp_undo_push_group_start
-#define gimp_image_undo_group_end         gimp_undo_push_group_end
-#define gimp_drawable_set_name            gimp_layer_set_name
-#else
 #define DRAWABLE_ID(d)     ((d)->drawable_id)
-#endif
-
-#endif
 
 #endif

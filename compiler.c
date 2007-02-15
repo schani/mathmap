@@ -4136,18 +4136,10 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
 	fprintf(out, "%d", MAX_TUPLE_LENGTH);
     else if (strcmp(directive, "g") == 0)
     {
-#ifdef GIMP
-	putc('1', out);
-#else
+#ifdef OPENSTEP
 	putc('0', out);
-#endif
-    }
-    else if (strcmp(directive, "2") == 0)
-    {
-#ifdef GIMP2
-	putc('1', out);
 #else
-	putc('0', out);
+	putc('1', out);
 #endif
     }
     else if (strcmp(directive, "m") == 0)
@@ -4156,14 +4148,6 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
 	fprintf(out, "%d", USER_CURVE_POINTS);
     else if (strcmp(directive, "q") == 0)
 	fprintf(out, "%d", USER_GRADIENT_POINTS);
-    else if (strcmp(directive, "o") == 0)
-    {
-#ifdef OPENSTEP
-	putc('1', out);
-#else
-	putc('0', out);
-#endif
-    }
     else if (strcmp(directive, "a") == 0)
     {
 #ifdef OPENSTEP
@@ -4309,7 +4293,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     unlink(buf);
 
     sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, last_mathfunc);
-    unlink(buf);
+				//unlink(buf);
 
     *module_info = module;
 #else
@@ -4370,7 +4354,6 @@ unload_c_code (void *module_info)
 
 /*** plug-in generator ***/
 
-#ifdef CMDLINE
 int
 generate_plug_in (char *filter, char *output_filename,
 		  char *template_filename, char *opmacros_filename, int analyze_constants,
@@ -4418,7 +4401,6 @@ generate_plug_in (char *filter, char *output_filename,
 
     return 1;
 }
-#endif
 
 /*** inits ***/
 

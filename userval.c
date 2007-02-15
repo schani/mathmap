@@ -25,11 +25,9 @@
 #include <assert.h>
 #include <math.h>
 
-#ifdef GIMP
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
-#endif
 
 #include "mathmap.h"
 #include "userval.h"
@@ -266,35 +264,16 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
 		int i;
 
 		for (i = 0; i < USER_GRADIENT_POINTS; ++i)
-		{
-#ifdef CMDLINE
-		    val->v.gradient.values[i] = COLOR_BLACK;
-#else
-#ifndef OPENSTEP
 		    val->v.gradient.values[i] = gradient_samples[i];
-#else
-		    unsigned char v = i * 255 / USER_GRADIENT_POINTS;
-
-		    val->v.gradient.values[i] = MAKE_RGBA_COLOR(v,v,v,255);
-#endif
-#endif
-		}
 	    }
 	    break;
 
 	case USERVAL_COLOR :
 #ifndef OPENSTEP
-#ifndef GIMP2
-	    val->v.color.button_value[0] =
-		val->v.color.button_value[1] =
-		val->v.color.button_value[2] = 0;
-	    val->v.color.button_value[3] = 255;
-#else
 	    val->v.color.button_value.r =
 		val->v.color.button_value.g =
 		val->v.color.button_value.b = 0.0;
 	    val->v.color.button_value.a = 1.0;
-#endif
 #endif
 
 	    val->v.color.value = COLOR_BLACK;
@@ -350,7 +329,7 @@ instantiate_uservals (userval_info_t *infos)
 }
 
 void
-free_uservals (userval_t *uservals, userval_info_t *infos)
+free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline)
 {
     userval_info_t *info;
 
@@ -367,10 +346,9 @@ free_uservals (userval_t *uservals, userval_info_t *infos)
 		break;
 
 	    case USERVAL_IMAGE :
-#ifdef GIMP
-		if (uservals[info->index].v.image.index != -1)
-		    free_input_drawable(uservals[info->index].v.image.index);
-#endif
+		if (!cmdline)
+		    if (uservals[info->index].v.image.index != -1)
+			free_input_drawable(uservals[info->index].v.image.index);
 		break;
 	}
     }
@@ -391,7 +369,7 @@ free_userval_infos (userval_info_t *infos)
 }
 
 void
-copy_userval (userval_t *dst, userval_t *src, int type)
+copy_userval (userval_t *dst, userval_t *src, int type, int cmdline)
 {
     switch (type)
     {
@@ -403,14 +381,10 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    break;
 
 	case USERVAL_IMAGE :
-#ifdef GIMP
-	    if (src->v.image.index > 0)
+	    if (!cmdline && src->v.image.index > 0)
 		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
 	    else
 		dst->v = src->v;
-#else
-	    dst->v = src->v;
-#endif
 	    break;
 
 	case USERVAL_CURVE :
@@ -426,7 +400,6 @@ copy_userval (userval_t *dst, userval_t *src, int type)
     }
 }
 
-#ifdef GIMP
 static void
 userval_int_update (GtkAdjustment *adjustment, userval_t *userval)
 {
@@ -457,18 +430,11 @@ userval_bool_update (GtkToggleButton *button, userval_t *userval)
 static void
 userval_color_update (GtkWidget *color_well, userval_t *userval)
 {
-#ifndef GIMP2
-    userval->v.color.value = MAKE_RGBA_COLOR(userval->v.color.button_value[0],
-					     userval->v.color.button_value[1],
-					     userval->v.color.button_value[2],
-					     userval->v.color.button_value[3]);
-#else
     gimp_color_button_get_color(GIMP_COLOR_BUTTON(color_well), &userval->v.color.button_value);
     userval->v.color.value = MAKE_RGBA_COLOR_FLOAT(userval->v.color.button_value.r,
 						   userval->v.color.button_value.g,
 						   userval->v.color.button_value.b,
 						   userval->v.color.button_value.a);
-#endif
 
     user_value_changed();
 }
@@ -615,11 +581,8 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		break;
 
 	    case USERVAL_COLOR :
-#ifndef GIMP2
-		widget = gimp_color_button_new(info->name, 32, 16, uservals[info->index].v.color.button_value, 4);
-#else
-		widget = gimp_color_button_new(info->name, 32, 16, &uservals[info->index].v.color.button_value, GIMP_COLOR_AREA_SMALL_CHECKS);
-#endif
+		widget = gimp_color_button_new(info->name, 32, 16, &uservals[info->index].v.color.button_value,
+					       GIMP_COLOR_AREA_SMALL_CHECKS);
 		gtk_signal_connect(GTK_OBJECT(widget), "color_changed",
 				   (GtkSignalFunc)userval_color_update,
 				   &uservals[info->index]);
@@ -698,4 +661,3 @@ update_uservals (userval_info_t *infos, userval_t *uservals)
 				 USER_CURVE_POINTS,
 				 uservals[info->index].v.curve.values);
 }
-#endif

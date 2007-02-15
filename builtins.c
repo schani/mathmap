@@ -30,9 +30,7 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 
-#ifdef GIMP
 #include <libgimp/gimp.h>
-#endif
 
 #include "builtins.h"
 #include "postfix.h"
@@ -40,12 +38,10 @@
 #include "overload.h"
 #include "mathmap.h"
 
-#ifdef GIMP
 extern int previewing;
 extern gint preview_width, preview_height;
 extern guchar *fast_image_source;
 extern gint sel_x1, sel_y1, sel_width, sel_height;
-#endif
 
 builtin *firstBuiltin = 0;
 
@@ -53,7 +49,6 @@ static color_t
 get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, int frame)
 { 
     int width, height;
-    int index;
 
 #ifndef OPENSTEP
     width = invocation->image_W;
@@ -90,23 +85,22 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, i
 	    y = (height - 1) - (y % height);
     }
 
-#ifndef CMDLINE
-    index = invocation->uservals[drawable_index].v.image.index;
-#else
-    index = drawable_index;
-#endif
-
-#ifdef GIMP
-    if (previewing)
-    {
-	x = (x - sel_x1) * preview_width / sel_width;
-	y = (y - sel_y1) * preview_height / sel_height;
-
-	return mathmap_get_fast_pixel(invocation, index, x, y);
-    }
+    if (invocation->cmdline)
+	return mathmap_get_pixel(invocation, drawable_index, frame, x, y);
     else
-#endif
-	return mathmap_get_pixel(invocation, index, frame, x, y);
+    {
+	int index = invocation->uservals[drawable_index].v.image.index;
+
+	if (previewing)
+	{
+	    x = (x - sel_x1) * preview_width / sel_width;
+	    y = (y - sel_y1) * preview_height / sel_height;
+
+	    return mathmap_get_fast_pixel(invocation, index, x, y);
+	}
+	else
+	    return mathmap_get_pixel(invocation, index, frame, x, y);
+    }
 }
 
 color_t

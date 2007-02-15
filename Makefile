@@ -1,10 +1,5 @@
-# If you want to build the command line version (which you can use to
-# generate Blender sequence plug-ins) instead of the GIMP plug-in,
-# uncomment the following line
-#CMDLINE = YES
-
-# If you build the command line version and want to have movie
-# (quicktime) support, uncomment the following line.
+# If want to have movie (Quicktime) support in the command line,
+# uncomment the following line.
 #MOVIES = YES
 
 # If you are building on MacOS X, uncomment the following line
@@ -23,14 +18,13 @@ GIMP_BIN = /usr/bin/
 # Prefix for the software installation
 PREFIX = /usr/local
 
-# Directory where the command line binary should be installed in
+# Directory where the binary should be installed in
 BINDIR = $(PREFIX)/bin
 
 # Directory where the localization files should be installed in
 LOCALEDIR = $(PREFIX)/share/locale
 
-# Directory where the template files (only for the command line version)
-# should be installed in
+# Directory where the template files should be installed in
 TEMPLATE_DIR = $(PREFIX)/share/mathmap
 
 # You should not need to change anything beyond this line.
@@ -54,28 +48,17 @@ endif
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
 
-ifeq ($(CMDLINE),YES)
-
-GLIB_CFLAGS = `pkg-config --cflags glib-2.0`
-GLIB_LDFLAGS = `pkg-config --libs glib-2.0 gmodule-2.0`
-
-CFLAGS = -I. $(CGEN_CFLAGS) -Wall $(OPT_CFLAGS) $(GLIB_CFLAGS) -DCMDLINE $(MACOSX_CFLAGS) -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\"
-LDFLAGS = $(GLIB_LDFLAGS) $(MACOSX_LIBS) -lm -ljpeg -lpng -lz
-ifeq ($(MOVIES),YES)
-CFLAGS += -I/usr/local/include/quicktime -DMOVIES
-LDFLAGS += -lquicktime -lpthread -lz
-endif
-
-else
-
 GIMPTOOL = $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
-GIMP_CFLAGS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0` -DGIMP2
+GIMP_CFLAGS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
 GIMP_LDFLAGS = `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0`
 
-CFLAGS = -I. $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DGIMP -DLOCALEDIR=\"$(LOCALEDIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
-LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS)
+CFLAGS = -I. $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
+LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -ljpeg -lpng -lgsl -lgslcblas
 
+ifeq ($(MOVIES),YES)
+CFLAGS += -I/usr/local/include/quicktime -DMOVIES
+LDFLAGS += -lquicktime -lpthread
 endif
 
 ifeq ($(ENABLE_NLS),YES)
@@ -89,14 +72,14 @@ CC = gcc
 
 COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o lispreader.o spec_func.o compiler.o bitvector.o pools.o
 
-ifeq ($(CMDLINE),YES)
-OBJECTS = $(COMMON_OBJECTS) mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o generators/blender/blender.o generators/pixeltree/pixeltree.o
-else
-OBJECTS = $(COMMON_OBJECTS) mathmap.o
-endif
+CMDLINE_OBJECTS = mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o generators/blender/blender.o generators/pixeltree/pixeltree.o
+
+GIMP_OBJECTS = mathmap.o
+
+OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
 mathmap : $(OBJECTS)
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LDFLAGS) -lgsl -lgslcblas
+	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LDFLAGS)
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(LDFLAGS) -lgsl -lgslcblas
@@ -124,17 +107,18 @@ new_builtins.c opdefs.h : builtins.lisp ops.lisp
 blender.o : generators/blender/blender.c
 
 install : mathmap
-ifneq ($(CMDLINE),YES)
-	$(GIMPTOOL) --install-bin mathmap
+	cp mathmap $(BINDIR)
+	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
+	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)
+
+	if [ ! -d $(HOME)/$(GIMPDIR) ] ; then mkdir $(HOME)/$(GIMPDIR) ; fi
+	if [ ! -d $(HOME)/$(GIMPDIR)/plug-ins ] ; then mkdir $(HOME)/$(GIMPDIR)/plug-ins ; fi
+	ln -s $(BINDIR)/mathmap $(HOME)/$(GIMPDIR)/plug-ins/
+
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap ] ; then mkdir $(HOME)/$(GIMPDIR)/mathmap ; fi
 	if [ ! -f $(HOME)/$(GIMPDIR)/mathmap/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/mathmap/ ; fi
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
-else
-	cp mathmap $(BINDIR)
-	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
-	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)
-endif
 
 install-mos : $(MOS)
 	if [ ! -d $(LOCALEDIR)/fr ] ; then mkdir $(LOCALEDIR)/fr ; fi
@@ -142,7 +126,7 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *~ *.o generators/blender/*~ generators/blender/*.o mathmap compiler scanner.c parser.[ch] parser.output core
+	rm -f *~ *.o generators/blender/*~ generators/pixeltree/*.o mathmap compiler scanner.c parser.[ch] parser.output core
 
 realclean : clean
 	rm -f new_builtins.c opdefs.h .nfs* mathmap-*.tar.gz

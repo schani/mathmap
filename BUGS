@@ -9,12 +9,12 @@ Two inputs can have the same name
 GIMP Plug-In
 ------------
 
+i18n is terribly old.  maybe we should axe it?
+
 supersampling does not work in the compiler (row length is changed for
 each second line computed)
 
 the interpreter does not work at all
-
-crashes when "ESC" is pressed
 
 grid example doesn't work
 

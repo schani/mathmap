@@ -1,0 +1,3 @@
+jpeg, png, gsl, gslcblas, gimp
+
+for compiler: gcc, gsl, gslcblas

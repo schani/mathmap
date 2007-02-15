@@ -25,12 +25,8 @@
 
 #include "gtypes.h"
 
-#ifdef GIMP
 #include <gtk/gtk.h>
-#ifdef GIMP2
 #include <libgimp/gimp.h>
-#endif
-#endif
 
 #include "tuples.h"
 #include "exprtree.h"
@@ -83,11 +79,7 @@ typedef struct _userval_t
 	struct
 	{
 #ifndef OPENSTEP
-#ifndef GIMP2
-	    guchar button_value[4];
-#else
 	    GimpRGB button_value;
-#endif
 #endif
 	    color_t value;
 	} color;
@@ -117,9 +109,7 @@ typedef struct _userval_t
 	} image;
     } v;
 
-#ifdef GIMP
     GtkWidget *widget;
-#endif
 } userval_t;
 
 userval_info_t* lookup_userval (userval_info_t *infos, const char *name);
@@ -136,16 +126,14 @@ userval_info_t* register_image (userval_info_t **infos, const char *name);
 void set_userval_to_default (userval_t *val, userval_info_t *info);
 void instantiate_userval (userval_t *val, userval_info_t *info);
 userval_t* instantiate_uservals (userval_info_t *infos);
-void free_uservals (userval_t *uservals, userval_info_t *infos);
+void free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline);
 void free_userval_infos (userval_info_t *infos);
 
-void copy_userval (userval_t *dst, userval_t *src, int type);
+void copy_userval (userval_t *dst, userval_t *src, int type, int cmdline);
 
 void set_userval_to_default (userval_t *dst, userval_info_t *info);
 
-#ifdef GIMP
 GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
 void update_uservals (userval_info_t *infos, userval_t *uservals);
-#endif
 
 #endif

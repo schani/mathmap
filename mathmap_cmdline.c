@@ -91,7 +91,7 @@ mathmap_t *mathmap;
 mathmap_invocation_t *invocation;
 
 color_t
-mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y)
+cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y)
 {
     guchar *p;
     int i;
@@ -191,7 +191,7 @@ usage (void)
 }
 
 int
-main (int argc, char *argv[])
+cmdline_main (int argc, char *argv[])
 {
     guchar *output;
     int i;
@@ -379,7 +379,7 @@ main (int argc, char *argv[])
 	    exit(1);
 	}
 
-	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
+	invocation = invoke_mathmap(mathmap, 0, img_width, img_height, 1);
 
 	invocation->antialiasing = antialiasing;
 	invocation->supersampling = supersampling;

@@ -23,11 +23,9 @@
 /*
  * $$l -> MAX_TUPLE_LENGTH
  * $$g -> GIMP ? 1 : 0
- * $$2 -> GIMP2 ? 1 : 0
  * $$m -> mathmap code
  * $$p -> USER_CURVE_POINTS
  * $$q -> USER_GRADIENT_POINTS
- * $$o -> OPENSTEP
  * $$a -> has altivec
  * $$xy_decls         -> declarations for xy-constant variables
  * $$xy_code          -> code for xy-constant variables
@@ -58,7 +56,7 @@
 
 #define USERVAL_IMAGE       7
 
-#if $o
+#if !$g
 #define OPENSTEP
 #endif
 
@@ -94,12 +92,8 @@ typedef struct _userval_t
 
 	struct
 	{
-#if !$o
-#if !$2
-	    unsigned char button_value[4];
-#else
+#if $g
 	    struct { double r, g, b, a; } button_value;
-#endif
 #endif
 	    color_t value;
 	} color;
@@ -116,15 +110,15 @@ typedef struct _userval_t
 
 	struct
 	{
-#if $o
+#if $g
+	    int index;
+#else
 	    int width;
 	    int height;
 	    int row_stride;
 	    float middle_x;
 	    float middle_y;
 	    void *data;
-#else
-	    int index;
 #endif
 	} image;
     } v;
@@ -215,7 +209,7 @@ typedef struct _mathmap_invocation_t
     tuple_t debug_tuples[MAX_DEBUG_TUPLES];
 } mathmap_invocation_t;
 
-#if $o
+#if !$g
 static color_t
 get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, int drawable_index, int frame)
 {
@@ -446,16 +440,16 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, invocation->img_height);
 
-#if $o
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel_fast;
-#else
+#if $g
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
+#else
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel_fast;
 #endif
 
     for (row = first_row; row < last_row; ++row)

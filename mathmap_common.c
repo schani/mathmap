@@ -156,12 +156,11 @@ free_invocation (mathmap_invocation_t *invocation)
 		    free(invocation->uservals[info->index].v.gradient.values);
 		    break;
 
-#ifdef GIMP
 		case USERVAL_IMAGE :
-		    if (invocation->uservals[info->index].v.image.index > 0)
-			free_input_drawable(invocation->uservals[info->index].v.image.index);
+		    if (!invocation->cmdline)
+			if (invocation->uservals[info->index].v.image.index > 0)
+			    free_input_drawable(invocation->uservals[info->index].v.image.index);
 		    break;
-#endif
 	    }
 	}
 	free(invocation->uservals);
@@ -350,17 +349,20 @@ init_invocation (mathmap_invocation_t *invocation)
 }
 
 mathmap_invocation_t*
-invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height)
+invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height, int cmdline)
 {
     mathmap_invocation_t *invocation = (mathmap_invocation_t*)malloc(sizeof(mathmap_invocation_t));
 
     invocation->mathmap = mathmap;
 
+    invocation->cmdline = cmdline;
+
     invocation->mathfuncs.init_frame = 0;
     invocation->mathfuncs.calc_lines = 0;
 
     invocation->uservals = instantiate_uservals(mathmap->userval_infos);
-#ifdef GIMP
+
+    if (!invocation->cmdline)
     {
 	userval_info_t *info;
 
@@ -372,7 +374,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 		break;
 	    }
     }
-#endif
 
     invocation->variables = instantiate_variables(mathmap->variables);
 
@@ -629,7 +630,8 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 	userval_info_t *template_info = lookup_matching_userval(template->mathmap->userval_infos, info);
 
 	if (template_info != 0)
-	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);
+	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type,
+			 invocation->cmdline);
     }
 }
 
