@@ -32,60 +32,67 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 
 VERSION = 1.1.1
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g
+#OPT_CCOPTS := -O2
+OPT_CCOPTS := -g
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
 CGEN_LD=-DCGEN_LD="\"cc -bundle -flat_namespace -undefined suppress -o\""
 MACOSX_LIBS=-lmx
-MACOSX_CFLAGS=-I/sw/include
+MACOSX_CCOPTS=-I/sw/include
 else
 CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 endif
 
-CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
+CGEN_CCOPTS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
 
 GIMPTOOL = $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
-GIMP_CFLAGS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
+GIMP_CCOPTS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
 GIMP_LDFLAGS = `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0`
 
-CFLAGS = -I. $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
-LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -ljpeg -lpng -lgsl -lgslcblas
+CCOPTS = -I. -D_GNU_SOURCE $(CGEN_CCOPTS) $(OPT_CCOPTS) -Wall $(GIMP_CCOPTS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CCOPTS) $(MACOSX_CCOPTS)
+LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -ljpeg -lpng -lgif -lgsl -lgslcblas
 
 ifeq ($(MOVIES),YES)
-CFLAGS += -I/usr/local/include/quicktime -DMOVIES
+CCOPTS += -I/usr/local/include/quicktime -DMOVIES
 LDFLAGS += -lquicktime -lpthread
 endif
 
 ifeq ($(ENABLE_NLS),YES)
-NLS_CFLAGS = -DENABLE_NLS
+NLS_CCOPTS = -DENABLE_NLS
 MOS = fr.mo
 endif
 
-CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
+CCOPTS += -DMATHMAP_VERSION=\"$(VERSION)\"
 
 CC = gcc
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o lispreader.o spec_func.o compiler.o bitvector.o pools.o
+FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 
-CMDLINE_OBJECTS = mathmap_cmdline.o readimage.o writeimage.o rwjpeg.o rwpng.o getopt.o getopt1.o generators/blender/blender.o generators/pixeltree/pixeltree.o
+export CCOPTS CC FORMATDEFS
+
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o pools.o expression_db.o lispreader.o
+
+CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o generators/pixeltree/pixeltree.o
 
 GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-mathmap : $(OBJECTS)
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(LDFLAGS)
+mathmap : $(OBJECTS) librwimg
+	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) rwimg/librwimg.a $(LDFLAGS)
+
+librwimg :
+	$(MAKE) -C rwimg
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(LDFLAGS) -lgsl -lgslcblas
 
 %.o : %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(CCOPTS) -o $@ -c $<
 
 %.mo : %.po
 	msgfmt -o $@ $<

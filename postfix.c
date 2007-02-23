@@ -662,7 +662,7 @@ output_tuple (tuple_t *tuple)
 
     printf("%s:[", tag_name_for_number(tuple->number));
     for (i = 0; i < tuple->length; ++i)
-	printf(i == tuple->length - 1 ? "%f]" : "%f,", tuple->data[i]);
+	fprintf_c(stdout, i == tuple->length - 1 ? "%f]" : "%f,", tuple->data[i]);
 }
 
 void

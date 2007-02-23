@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
+#include <locale.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -40,6 +42,30 @@ mathmap_t *the_mathmap = 0;
 
 /* from parser.y */
 int yyparse (void);
+
+int
+fprintf_c (FILE *stream, const char *format, ...)
+{
+    va_list ap;
+    char *saved_locale;
+    int result;
+
+    va_start(ap, format);
+
+    saved_locale = strdup(setlocale(LC_ALL, NULL));
+    assert(saved_locale != 0);
+
+    setlocale(LC_ALL, "C");
+
+    result = vfprintf(stream, format, ap);
+
+    setlocale(LC_ALL, saved_locale);
+    free(saved_locale);
+
+    va_end(ap);
+
+    return result;
+}
 
 void
 register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)

@@ -1,11 +1,11 @@
 /* -*- c -*- */
 
 /*
- * readimage.h
+ * expression_db.h
  *
  * MathMap
  *
- * Copyright (C) 2000 Mark Probst
+ * Copyright (C) 2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,26 +22,33 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __READIMAGE_H__
-#define __READIMAGE_H__
+#ifndef __EXPRESSION_DB_H__
+#define __EXPRESSION_DB_H__
 
-typedef void (*image_read_func_t) (void *data, unsigned char *lines, int num_lines);
-typedef void (*image_reader_free_func_t) (void *data);
+#define EXPRESSION_DB_EXPRESSION        1
+#define EXPRESSION_DB_GROUP             2
 
-typedef struct
+typedef struct _expression_db_t
 {
-    int width;
-    int height;
-    int num_lines_read;
-    void *data;
-    image_read_func_t read_func;
-    image_reader_free_func_t free_func;
-} image_reader_t;
+    char *name;
+    int kind;
+    union
+    {
+	struct
+	{
+	    char *path;
+	} expression;
+	struct
+	{
+	    struct _expression_db_t *subs;
+	} group;
+    } v;
+    struct _expression_db_t *next;
+} expression_db_t;
 
-image_reader_t* open_image_reading (char *filename);
-void read_lines (image_reader_t *reader, unsigned char *lines, int num_lines);
-void free_image_reader (image_reader_t *reader);
+extern expression_db_t* read_expression_db (char *path);
+extern void free_expression_db (expression_db_t *edb);
 
-unsigned char* read_image (char *filename, int *width, int *height);
+extern char* read_expression (const char *path);
 
 #endif

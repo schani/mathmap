@@ -1,11 +1,11 @@
 /* -*- c -*- */
 
 /*
- * MathMap.h
+ * mathmap.h
  *
  * MathMap
  *
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,9 @@
 #ifndef __MATHMAP_H__
 #define __MATHMAP_H__
 
+#include <stdio.h>
+#include <math.h>
+
 #include "gtypes.h"
 #include "exprtree.h"
 #include "userval.h"
@@ -36,7 +39,7 @@
 
 #include <libgimp/gimp.h>
 
-#define MATHMAP_DATE          "November 2005"
+#define MATHMAP_DATE          "February 2007"
 
 typedef struct _mathmap_t
 {
@@ -133,6 +136,9 @@ typedef struct
 #ifndef M_PI
 #define M_PI     3.14159265358979323846
 #endif
+
+// fprintf with the C locale
+int fprintf_c (FILE *stream, const char *format, ...);
 
 int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y);

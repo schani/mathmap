@@ -42,7 +42,6 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
-#include "lispreader.h"
 #include "exprtree.h"
 #include "builtins.h"
 #include "postfix.h"
@@ -56,6 +55,7 @@
 #include "mathmap.h"
 #include "noise.h"
 #include "cgen.h"
+#include "expression_db.h"
 
 #define INIT_LOCALE(x)
 #define _(x)             (x)
@@ -70,7 +70,9 @@
 #define CHECK_DARK  ((int) (1.0 / 3.0 * 255))
 #define CHECK_LIGHT ((int) (2.0 / 3.0 * 255))   
 
+#define EXPRESSIONS_DIR         "expressions"
 
+// FIXME: this isn't valid anymore!
 #define DEFAULT_EXPRESSION      "origVal(xy*xy:[cos(pi/2/Y*y+t*2*pi),1])"
 #define DEFAULT_NUMBER_FRAMES   10
 
@@ -145,6 +147,8 @@ static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_periodic_update (GtkWidget *widget, gpointer data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);
+static void dialog_save_callback (GtkWidget *widget, gpointer data);
+static void dialog_save_as_callback (GtkWidget *widget, gpointer data);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
@@ -197,7 +201,8 @@ GtkWidget *expression_entry = 0,
     *t_table,
     *edge_color_well,
     *uservalues_scrolled_window,
-    *uservalues_table;
+    *uservalues_table,
+    *tree_scrolled_window;
 GtkColorSelectionDialog *color_selection_dialog;
 
 int img_width, img_height;
@@ -211,6 +216,8 @@ static GimpRGB edge_color = { 0.0, 0.0, 0.0, 0.0 };
 
 mathmap_t *mathmap = 0;
 mathmap_invocation_t *invocation = 0;
+
+static char *current_filename = 0;
 
 /***** Functions *****/
 
@@ -292,66 +299,36 @@ open_rc_file (const char *name)
 
 /*****/
 
-static lisp_object_t*
-read_rc_file (void)
+static expression_db_t*
+read_expressions (void)
 {
-    static lisp_object_t *obj = 0;
+    static char *path = 0;
 
-    FILE *file;
-    lisp_stream_t stream;
+    if (path == 0)
+	path = get_rc_file_name(EXPRESSIONS_DIR);
 
-    if (obj != 0)
-	return obj;
-
-    file = open_rc_file("mathmaprc");
-
-    if (file == 0)
-	return lisp_nil();
-
-    obj = lisp_read(lisp_stream_init_file(&stream, file));
-    fclose(file);
-
-    return obj;
+    return read_expression_db(path);
 }
 
 static void
-register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
+register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_prefix)
 {
     int symbol_prefix_len = strlen(symbol_prefix);
     int menu_prefix_len = strlen(menu_prefix);
 
-    for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
+    for (; edb != 0; edb = edb->next)
     {
-	lisp_object_t *vars[2];
-	int is_group = 0;
-	lisp_object_t *name_obj, *data;
 	char *symbol, *menu;
 	int i;
 	int name_len;
 
-	assert(lisp_type(obj) == LISP_TYPE_CONS);
-
-	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
-	    is_group = 1;
-	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
-	    is_group = 0;
-	else
-	    assert(0);
-
-	name_obj = vars[0];
-	data = vars[1];
-
-	name_len = strlen(lisp_string(name_obj));
+	name_len = strlen(edb->name);
 
 	symbol = g_malloc(symbol_prefix_len + name_len + 2);
-	strcpy(symbol, symbol_prefix);
-	strcat(symbol, "_");
-	strcat(symbol, lisp_string(name_obj));
+	sprintf(symbol, "%s_%s", symbol_prefix, edb->name);
 
 	menu = g_malloc(menu_prefix_len + name_len + 2);
-	strcpy(menu, menu_prefix);
-	strcat(menu, "/");
-	strcat(menu, lisp_string(name_obj));
+	sprintf(menu, "%s/%s", menu_prefix, edb->name);
 
 	for (i = symbol_prefix_len + 1; i < symbol_prefix_len + 1 + name_len; ++i)
 	    if (symbol[i] == ' ')
@@ -359,8 +336,8 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 	    else
 		symbol[i] = tolower(symbol[i]);
 
-	if (is_group)
-	    register_lisp_obj(data, symbol, menu);
+	if (edb->kind == EXPRESSION_DB_GROUP)
+	    register_expression_db(edb->v.group.subs, symbol, menu);
 	else
 	{
 	    static GimpParamDef args[] = {
@@ -403,37 +380,25 @@ register_lisp_obj (lisp_object_t *obj, char *symbol_prefix, char *menu_prefix)
 static void
 register_examples (void)
 {
-    lisp_object_t *obj = read_rc_file();
+    expression_db_t *edb = read_expressions();
 
-    if (obj == 0)
+    if (edb == 0)
 	return;
 
-    register_lisp_obj(obj, "mathmap", "<Image>/Filters/Generic/MathMap");
-    lisp_free(obj);
+    register_expression_db(edb, "mathmap", "<Image>/Filters/Generic/MathMap");
+    free_expression_db(edb);
 }
 
 static char*
-expression_for_symbol (const char *symbol, lisp_object_t *obj)
+expression_for_symbol (const char *symbol, expression_db_t *edb)
 {
-    for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
+    for (; edb != 0; edb = edb->next)
     {
-	lisp_object_t *vars[2];
-	int is_group = 0;
-	char *name;
 	int i;
 	int name_len;
+	int is_group = edb->kind == EXPRESSION_DB_GROUP;
 
-	assert(lisp_type(obj) == LISP_TYPE_CONS);
-
-	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
-	    is_group = 1;
-	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
-	    is_group = 0;
-	else
-	    assert(0);
-
-	name = lisp_string(vars[0]);
-	name_len = strlen(name);
+	name_len = strlen(edb->name);
 
 	if (name_len > strlen(symbol))
 	    continue;
@@ -444,25 +409,33 @@ expression_for_symbol (const char *symbol, lisp_object_t *obj)
 	    continue;
 
 	for (i = 0; i < name_len; ++i)
-	    if ((name[i] == ' ' && symbol[i] != '_')
-		|| (name[i] != ' ' && symbol[i] != tolower(name[i])))
+	    if ((edb->name[i] == ' ' && symbol[i] != '_')
+		|| (edb->name[i] != ' ' && symbol[i] != tolower(edb->name[i])))
 		break;
 
 	if (i == name_len)
 	{
 	    if (is_group)
 	    {
-		char *exp = expression_for_symbol(symbol + name_len + 1, vars[1]);
+		char *exp = expression_for_symbol(symbol + name_len + 1, edb->v.group.subs);
 
 		if (exp != 0)
 		    return exp;
 	    }
 	    else
-		return lisp_string(vars[1]);
+		return read_expression(edb->v.expression.path);
 	}
     }
 
     return 0;
+}
+
+static void
+set_current_filename (const char *new_filename)
+{
+    if (current_filename != 0)
+	g_free(current_filename);
+    current_filename = g_strdup(new_filename);
 }
 
 static void
@@ -518,7 +491,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
     if (strncmp(name, "mathmap_", 8) == 0)
     {
-	char *exp = expression_for_symbol(name + 8, read_rc_file());
+	char *exp = expression_for_symbol(name + 8, read_expressions());
 
 	fprintf(stderr, "found %s\n", exp);
 
@@ -1063,33 +1036,26 @@ build_fast_image_source (input_drawable_t *drawable)
 /*****/
 
 static void
-tree_from_lisp_object (GtkTreeStore *store,
-		       GtkTreeIter *parent, lisp_object_t *obj)
+tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db_t *edb)
 {
-    for (; lisp_type(obj) != LISP_TYPE_NIL; obj = lisp_cdr(obj))
+    for (; edb != 0; edb = edb->next)
     {
-	lisp_object_t *vars[2];
 	GtkTreeIter iter;
 
-	if (lisp_match_string("(group #?(string) . #?(list))", lisp_car(obj), vars))
+	if (edb->kind == EXPRESSION_DB_GROUP)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter, 0, lisp_string(vars[0]), -1);
+	    gtk_tree_store_set(store, &iter, 0, edb->name, -1);
 
-	    tree_from_lisp_object(store, &iter, vars[1]);
+	    tree_from_expression_db(store, &iter, edb->v.group.subs);
 	}
-	else if (lisp_match_string("(expression #?(string) #?(string))", lisp_car(obj), vars))
+	else if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter, 0, lisp_string(vars[0]),
-			       1, lisp_string(vars[1]), -1);
+	    gtk_tree_store_set(store, &iter, 0, edb->name, 1, edb->v.expression.path, -1);
 	}
 	else
-	{
-	    fprintf(stderr, "illegal expression: ");
-	    lisp_dump(obj, stderr);
 	    assert(0);
-	}
     }
 }
 
@@ -1101,16 +1067,16 @@ read_tree_from_rc (void)
     GtkTreeViewColumn *column;
     GtkTreeSelection *selection;
     GtkWidget *tree;
-    lisp_object_t *obj;
+    expression_db_t *edb;
 
     /* model */
     store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
 
-    obj = read_rc_file();
-    if (obj != 0)
+    edb = read_expressions();
+    if (edb != 0)
     {
-    	tree_from_lisp_object(store, NULL, obj);
-    	lisp_free(obj);
+    	tree_from_expression_db(store, NULL, edb);
+	free_expression_db(edb);
     }
 
     /* view */
@@ -1138,10 +1104,7 @@ static void
 update_userval_table (void)
 {
     if (uservalues_table != 0)
-    {
 	gtk_container_remove(GTK_CONTAINER(GTK_BIN(uservalues_scrolled_window)->child), uservalues_table);
-	uservalues_table = 0;
-    }
 
     uservalues_table = make_userval_table(mathmap->userval_infos, invocation->uservals);
 
@@ -1155,6 +1118,20 @@ update_userval_table (void)
     }
 }
 
+static void
+update_expression_tree (void)
+{
+    GtkWidget *tree;
+
+    if (gtk_bin_get_child(GTK_BIN(tree_scrolled_window)) != 0)
+	gtk_container_remove(GTK_CONTAINER(tree_scrolled_window), gtk_bin_get_child(GTK_BIN(tree_scrolled_window)));
+
+    tree = read_tree_from_rc();
+
+    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(tree_scrolled_window), tree);
+    gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)), GTK_SELECTION_BROWSE);
+    gtk_widget_show(tree);
+}
 
 /*****/
 
@@ -1176,7 +1153,6 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *label;
     GtkWidget *toggle;
     GtkWidget *alignment;
-    GtkWidget *root_tree;
     GtkWidget *scale;
     GtkWidget *vscrollbar;
     GtkWidget *notebook;
@@ -1472,25 +1448,28 @@ mathmap_dialog (int mutable_expression)
 	{
 	    GtkTextBuffer *buffer;
 	    PangoFontDescription *font_desc;
+	    GtkWidget *scrolled_window;
 
-	    table = gtk_scrolled_window_new (NULL, NULL);
-	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(table),
+	    table = gtk_table_new(2, 2, FALSE);
+	    gtk_container_border_width(GTK_CONTAINER(table), 0);
+	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
+	    gtk_widget_show(table);
+
+	    /* Editor */
+	    scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(scrolled_window),
 					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	    gtk_widget_show (table);
+	    gtk_widget_show (scrolled_window);
+
+	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
 
 	    expression_entry = gtk_text_view_new();
-	    gtk_container_add(GTK_CONTAINER(table), expression_entry);
+	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 	    gtk_text_view_set_editable(GTK_TEXT_VIEW(expression_entry), TRUE);
 	    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(expression_entry),
 			    		GTK_WRAP_CHAR);
 
 	    gtk_widget_show(expression_entry);
-
-	    label = gtk_label_new(_("Expression"));
-	    gtk_widget_show(label);
-
-	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook),
-			    		  table, label, label);
 
 	    font_desc = pango_font_description_from_string("Courier 10");
 	    gtk_widget_modify_font(expression_entry, font_desc);
@@ -1505,6 +1484,21 @@ mathmap_dialog (int mutable_expression)
 
 	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT_VIEW(expression_entry)->vadjustment);
 	    gtk_widget_realize(expression_entry);
+
+	    button = gtk_button_new_with_label(_("Save"));
+	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_callback, 0);
+	    gtk_table_attach(GTK_TABLE(table), button, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+	    gtk_widget_show(button);
+
+	    button = gtk_button_new_with_label(_("Save As..."));
+	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_as_callback, 0);
+	    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
+	    gtk_widget_show(button);
+
+	    label = gtk_label_new(_("Expression"));
+	    gtk_widget_show(label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook),
+			    		  table, label, label);
 	}
 
 	/* User Values */
@@ -1524,19 +1518,16 @@ mathmap_dialog (int mutable_expression)
 
 	if (mutable_expression)
 	{
-	    table = gtk_scrolled_window_new (NULL, NULL);
-	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(table),
+	    tree_scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scrolled_window),
 					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	    gtk_widget_show (table);
+	    gtk_widget_show (tree_scrolled_window);
 
-	    root_tree = read_tree_from_rc();
-	    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(table), root_tree);
-	    gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(root_tree)), GTK_SELECTION_BROWSE);
-	    gtk_widget_show(root_tree);
+	    update_expression_tree();
 
 	    label = gtk_label_new(_("Examples"));
 	    gtk_widget_show(label);
-	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), tree_scrolled_window, label, label);
 	}
 
     /* Done */
@@ -1548,7 +1539,6 @@ mathmap_dialog (int mutable_expression)
 
     gtk_main();
     gdk_flush();
-    /* gimp_dialog_run(GIMP_DIALOG(dialog)); */
 
     unref_tiles();
 
@@ -1856,7 +1846,7 @@ print_tuple (tuple_t tuple)
     printf("%s:[", name);
     for (i = 0; i < tuple.length; ++i)
     {
-	printf("%f", tuple.data[i]);
+	fprintf_c(stdout, "%f", tuple.data[i]);
 	if (i + 1 < tuple.length)
 	    printf(",");
     }
@@ -1899,6 +1889,91 @@ dialog_preview_click (GtkWidget *widget, GdkEvent *event)
 /*****/
 
 static void
+save_expression (void)
+{
+    FILE *file;
+    size_t len;
+
+    assert(current_filename != 0);
+
+    dialog_text_update();
+
+    file = fopen(current_filename, "w");
+    if (file == 0)
+    {
+	char *message = g_strdup_printf(_("Cannot open file `%s': %m"), current_filename);
+
+	gimp_message(message);
+	g_free(message);
+
+	return;
+    }
+
+    len = strlen(mmvals.expression);
+    if (fwrite(mmvals.expression, 1, len, file) != len)
+    {
+	char *message = g_strdup_printf(_("Could not write to file `%s': %m"), current_filename);
+
+	gimp_message(message);
+	g_free(message);
+    }
+
+    fclose(file);
+}
+
+static void
+dialog_save_as_callback (GtkWidget *widget, gpointer data)
+{
+    GtkWidget *dialog;
+
+    dialog = gtk_file_chooser_dialog_new ("Save Expression",
+					  NULL,
+					  GTK_FILE_CHOOSER_ACTION_SAVE,
+					  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+					  NULL);
+    gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+
+    if (current_filename == 0)
+    {
+	char *default_path = get_rc_file_name(EXPRESSIONS_DIR);
+
+	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), default_path);
+	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), "Untitled expression.mm");
+
+	g_free(default_path);
+    }
+    else
+	gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (dialog), current_filename);
+
+    if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+	char *filename;
+
+	filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+	set_current_filename(filename);
+	g_free(filename);
+
+	save_expression();
+
+	update_expression_tree();
+    }
+
+    gtk_widget_destroy (dialog);
+}
+
+static void
+dialog_save_callback (GtkWidget *widget, gpointer data)
+{
+    if (current_filename == 0)
+	dialog_save_as_callback(widget, data);
+    else
+	save_expression();
+}
+
+/*****/
+
+static void
 dialog_ok_callback (GtkWidget *widget, gpointer data)
 {
     if (generate_code(0, 0))
@@ -1906,7 +1981,7 @@ dialog_ok_callback (GtkWidget *widget, gpointer data)
 	wint.run = TRUE;
 	gtk_widget_destroy(GTK_WIDGET(data));
     }
-} /* dialog_ok_callback */
+}
 
 /*****/
 
@@ -1998,18 +2073,33 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
     {
 	GtkTextBuffer *buffer;
 	GValue value = { 0, };
-	const gchar *expression;
+	const gchar *path;
+	char *expression;
 
 	gtk_tree_model_get_value(model, &iter, 1, &value);
-	expression = g_value_get_string(&value);
-
-	if (expression == 0)
+	path = g_value_get_string(&value);
+	if (path == 0)
 	    return;
+
+	expression = read_expression(path);
+	if (expression == 0)
+	{
+	    char *message = g_strdup_printf(_("Could not read expression from file `%s'"), path);
+
+	    gimp_message(message);
+	    g_free(message);
+
+	    return;
+	}
+
+	set_current_filename(path);
 
 	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
 	gtk_text_buffer_set_text(buffer, expression, strlen(expression));
 
 	expression_copy(mmvals.expression, expression);
+
+	free(expression);
     }
 
     if (auto_preview)

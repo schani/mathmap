@@ -1261,11 +1261,11 @@ print_primary (primary_t *primary)
 	    break;
 
 	case PRIMARY_FLOAT_CONST :
-	    printf("%f", primary->v.float_const);
+	    fprintf_c(stdout, "%f", primary->v.float_const);
 	    break;
 
 	case PRIMARY_COMPLEX_CONST :
-	    printf("%f + %f i", crealf(primary->v.complex_const), cimagf(primary->v.complex_const));
+	    fprintf_c(stdout, "%f + %f i", crealf(primary->v.complex_const), cimagf(primary->v.complex_const));
 	    break;
 
 	case PRIMARY_COLOR_CONST :
@@ -3807,11 +3807,11 @@ output_primary (FILE *out, primary_t *prim)
 	    break;
 
 	case PRIMARY_FLOAT_CONST :
-	    fprintf(out, "%f", prim->v.float_const);
+	    fprintf_c(out, "%f", prim->v.float_const);
 	    break;
 
 	case PRIMARY_COMPLEX_CONST :
-	    fprintf(out, "COMPLEX(%f,%f)", crealf(prim->v.complex_const), cimagf(prim->v.complex_const));
+	    fprintf_c(out, "COMPLEX(%f,%f)", crealf(prim->v.complex_const), cimagf(prim->v.complex_const));
 	    break;
 
 	case PRIMARY_COLOR_CONST :
