@@ -345,6 +345,13 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	    JUMP(1);
 	}
 
+	if (exprtree->val.int_const < arg_decl->v.integer.min
+	    || exprtree->val.int_const > arg_decl->v.integer.max)
+	{
+	    strcpy(error_string, "Default value outside of bounds");
+	    JUMP(1);
+	}
+
 	arg_decl->v.integer.default_value = exprtree->val.int_const;
     }
     else if (arg_decl->type == ARG_TYPE_FLOAT)
@@ -358,6 +365,13 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	else
 	{
 	    strcpy(error_string, "Only floats can be defaults for a float argument");
+	    JUMP(1);
+	}
+
+	if (default_value < arg_decl->v.floating.min
+	    || default_value > arg_decl->v.floating.max)
+	{
+	    strcpy(error_string, "Default value outside of bounds");
 	    JUMP(1);
 	}
 

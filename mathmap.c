@@ -2,15 +2,13 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
  *   Whirl plug-in --- distort an image into a whirlpool
  *   Copyright (C) 1997 Federico Mena Quintero
  *   federico@nuclecu.unam.mx
- *
- * Version 1.1.0
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -905,8 +903,6 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->scale_x = invocation->scale_y = 1.0;
 	    invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
-	    init_frame(invocation);
-
 	    call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
 
 	    /* Update progress */
@@ -1591,8 +1587,6 @@ dialog_update_preview (void)
 	}
 	else
 	    disable_debugging(invocation);
-
-	init_frame(invocation);
 
 	call_invocation(invocation, 0, preview_height, buf);
 

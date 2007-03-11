@@ -47,8 +47,8 @@
 #include "mathmap.h"
 #include "noise.h"
 #include "cgen.h"
-#include "readimage.h"
-#include "writeimage.h"
+#include "rwimg/readimage.h"
+#include "rwimg/writeimage.h"
 
 #include "generators/blender/blender.h"
 #include "generators/pixeltree/pixeltree.h"
@@ -204,7 +204,7 @@ cmdline_main (int argc, char *argv[])
     int antialiasing = 0, supersampling = 0;
     int img_width, img_height;
     FILE *template;
-    char *generator;
+    char *generator = 0;
 
     for (;;)
     {
@@ -242,7 +242,7 @@ cmdline_main (int argc, char *argv[])
 	    case 256 :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
-		       "Copyright (C) 1997-2005 Mark Probst\n"
+		       "Copyright (C) 1997-2007 Mark Probst\n"
 		       "\n"
 		       "This program is free software; you can redistribute it and/or modify\n"
 		       "it under the terms of the GNU General Public License as published by\n"
@@ -427,7 +427,7 @@ cmdline_main (int argc, char *argv[])
 	    quicktime_close(output_movie);
 	else
 #endif
-	    write_image(argv[optind + 1], img_width, img_height, output, IMAGE_FORMAT_PNG);
+	    write_image(argv[optind + 1], img_width, img_height, output, 3, img_width * 3, IMAGE_FORMAT_PNG);
     }
     else
     {

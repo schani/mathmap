@@ -81,17 +81,19 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 	    case ARG_TYPE_INT :
 		if (arg_decls->v.integer.have_limits)
 		    result = register_int_const(&mathmap->userval_infos, arg_decls->name,
-						arg_decls->v.integer.min, arg_decls->v.integer.max);
+						arg_decls->v.integer.min, arg_decls->v.integer.max,
+						arg_decls->v.integer.default_value);
 		else
-		    result = register_int_const(&mathmap->userval_infos, arg_decls->name, -100000, 100000);
+		    result = register_int_const(&mathmap->userval_infos, arg_decls->name, -100000, 100000, 0);
 		break;
 
 	    case ARG_TYPE_FLOAT :
 		if (arg_decls->v.floating.have_limits)
 		    result = register_float_const(&mathmap->userval_infos, arg_decls->name,
-						  arg_decls->v.floating.min, arg_decls->v.floating.max);
+						  arg_decls->v.floating.min, arg_decls->v.floating.max,
+						  arg_decls->v.floating.default_value);
 		else
-		    result = register_float_const(&mathmap->userval_infos, arg_decls->name, -100000.0, 100000.0);
+		    result = register_float_const(&mathmap->userval_infos, arg_decls->name, -1.0, 1.0, 0.0);
 		break;
 
 	    case ARG_TYPE_BOOL :
@@ -578,6 +580,7 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 
 	invocation->img_width = img_width + 1;
+	init_frame(invocation);
 	calc_lines(invocation, first_row, first_row + 1, line1);
 
 	for (row = first_row; row < last_row; ++row)
@@ -618,7 +621,10 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	free(line3);
     }
     else
+    {
+	init_frame(invocation);
 	calc_lines(invocation, first_row, last_row, q);
+    }
 }
 
 void

@@ -134,8 +134,9 @@ limits_opt :                 { $<limits>$ = 0; }
 	   ;
 
 default_opt :		     { $<exprtree>$ = 0; }
-	    | '(' T_INT ')'  { $<exprtree>$ = $<exprtree>2; }
-	    | '(' T_FLOAT ')'
+	    | '(' int_const ')'
+			     { $<exprtree>$ = $<exprtree>2; }
+	    | '(' float_const ')'
 			     { $<exprtree>$ = $<exprtree>2; }
 	    ;
 

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,6 +35,7 @@
 #include "mathmap.h"
 #include "jump.h"
 #include "userval.h"
+#include "lispreader/pools.h"
 
 #include "postfix.h"
 

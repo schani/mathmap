@@ -6,19 +6,23 @@ Compiler
 
 Two inputs can have the same name
 
+Command Line Tool
+-----------------
+
+Completely untested
+
 GIMP Plug-In
 ------------
 
 i18n is terribly old.  maybe we should axe it?
-
-supersampling does not work in the compiler (row length is changed for
-each second line computed)
 
 the interpreter does not work at all
 
 grid example doesn't work
 
 when there are no user values the user values tab doesn't scale when window is resized
+
+should ask to save before quitting or selecting another expression
 
 Limitations in Blender Plug-In Generation
 -----------------------------------------

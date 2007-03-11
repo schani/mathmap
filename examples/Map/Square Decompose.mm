@@ -1,4 +1,4 @@
-filter square_decompose (image in, float width: 1-200, float skip: 0-200)
+filter square_decompose (image in, float width: 1-200 (50), float skip: 0-200 (30))
     pd=width+skip;
     mx=pmod(x,pd);
     my=pmod(y,pd);

@@ -141,7 +141,7 @@ read_expression_db (char *path)
     {
 	dirent = readdir(dir);
 
-	if (dirent != 0 && strcmp(dirent->d_name, ".") != 0 && strcmp(dirent->d_name, "..") != 0)
+	if (dirent != 0 && dirent->d_name[0] != '.')
 	{
 	    char *name = strdup(dirent->d_name);
 	    expression_db_t *subs;

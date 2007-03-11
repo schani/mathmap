@@ -1,4 +1,5 @@
-filter disco (int red_wavelength: 1-50,  int green_wavelength: 1-50, int blue_wavelength: 1-50)
+filter disco (int red_wavelength: 1-50 (10),  int green_wavelength: 1-50 (15),
+              int blue_wavelength: 1-50 (20))
     rl=red_wavelength;
     gl=green_wavelength;
     bl=blue_wavelength;

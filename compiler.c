@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2005 Mark Probst
+ * Copyright (C) 2002-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -48,7 +48,7 @@
 #include "jump.h"
 #include "scanner.h"
 #include "bitvector.h"
-#include "pools.h"
+#include "lispreader/pools.h"
 
 //#define NO_CONSTANTS_ANALYSIS
 

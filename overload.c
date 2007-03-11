@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,7 +25,7 @@
 #include <assert.h>
 #include <ctype.h>
 
-#include "lispreader.h"
+#include "lispreader/lispreader.h"
 #include "tags.h"
 
 #include "overload.h"
@@ -34,8 +34,7 @@ extern int intersamplingEnabled;
 
 extern int oaparse (void);
 
-static overload_entry_t *first_overload_entry = 0,
-    *last_overload_entry = 0;
+static overload_entry_t *first_overload_entry = 0, *last_overload_entry = 0;
 static named_binding_t *first_named_binding = 0;
 
 binding_t*

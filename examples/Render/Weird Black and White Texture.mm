@@ -1,4 +1,7 @@
-filter wbawt (float granularity: 0-50, float z1: 0-10, float z2: 0-10, float w2: 0-1, float f2: 1-10, float threshold: -1-1)
+filter wbawt (float granularity: 0-50 (10),
+              float z1: 0-10 (0), float z2: 0-10 (2),
+              float w2: 0-1 (0.5), float f2: 1-10 (3),
+              float threshold: -1-1 (0))
     g = granularity;
     nxy = xy/R*g;
     thr = threshold;

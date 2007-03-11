@@ -1,3 +1,8 @@
+disable animation settings if expression doesn't use t
+document print function
+uncoupled edge behaviour (x/y)
+
+
 Why is there no error message when i assign to "r"???
 
 merge changes from 1.0

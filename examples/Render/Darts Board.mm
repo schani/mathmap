@@ -1,4 +1,5 @@
-filter darts (image in, int subdivisions: 1-30, float distance: 10-200, float width: 0-100)
+filter darts (image in, int subdivisions: 1-30 (10),
+              float distance: 10-200 (100), float width: 0-100 (20))
     ang=2*pi/subdivisions;
     p=in(xy);
     q=if inintv((a-ang/4)%ang,0,ang/2)

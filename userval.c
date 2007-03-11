@@ -96,9 +96,11 @@ lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info)
 }
 
 userval_info_t*
-register_int_const (userval_info_t **infos, const char *name, int min, int max)
+register_int_const (userval_info_t **infos, const char *name, int min, int max, int default_value)
 {
     userval_info_t *info;
+
+    assert(default_value >= min && default_value <= max);
 
     info = lookup_userval(*infos, name);
     if (info != 0)
@@ -106,7 +108,10 @@ register_int_const (userval_info_t **infos, const char *name, int min, int max)
 	if (info->type != USERVAL_INT_CONST)
 	    return 0;
 	if (info->v.int_const.min == min && info->v.int_const.max == max)
+	{
+	    info->v.int_const.default_value = default_value;
 	    return info;
+	}
 	return 0;
     }
     else
@@ -114,15 +119,18 @@ register_int_const (userval_info_t **infos, const char *name, int min, int max)
 	info = alloc_and_register_userval(infos, name, USERVAL_INT_CONST);
 	info->v.int_const.min = min;
 	info->v.int_const.max = max;
+	info->v.int_const.default_value = default_value;
     }
 
     return info;
 }
 
 userval_info_t*
-register_float_const (userval_info_t **infos, const char *name, float min, float max)
+register_float_const (userval_info_t **infos, const char *name, float min, float max, float default_value)
 {
     userval_info_t *info;
+
+    assert(default_value >= min && default_value <= max);
 
     info = lookup_userval(*infos, name);
     if (info != 0)
@@ -130,7 +138,10 @@ register_float_const (userval_info_t **infos, const char *name, float min, float
 	if (info->type != USERVAL_FLOAT_CONST)
 	    return 0;
 	if (info->v.float_const.min == min && info->v.float_const.max == max)
+	{
+	    info->v.float_const.default_value = default_value;
 	    return info;
+	}
 	return 0;
     }
     else
@@ -138,6 +149,7 @@ register_float_const (userval_info_t **infos, const char *name, float min, float
 	info = alloc_and_register_userval(infos, name, USERVAL_FLOAT_CONST);
 	info->v.float_const.min = min;
 	info->v.float_const.max = max;
+	info->v.float_const.default_value = default_value;
     }
 
     return info;
@@ -239,11 +251,11 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
     switch (info->type)
     {
 	case USERVAL_INT_CONST :
-	    val->v.int_const = info->v.int_const.min;
+	    val->v.int_const = info->v.int_const.default_value;
 	    break;
 
 	case USERVAL_FLOAT_CONST :
-	    val->v.float_const = info->v.float_const.min;
+	    val->v.float_const = info->v.float_const.default_value;
 	    break;
 
 	case USERVAL_BOOL_CONST :

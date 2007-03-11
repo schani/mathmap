@@ -1,5 +1,5 @@
 # by Herbert Poetzl
-filter rmbe (image in, float pixel_area: 10-5000, float aspect_ratio: 0.1-10)
+filter rmbe (image in, float pixel_area: 10-5000 (1000), float aspect_ratio: 0.1-10 (1.0))
     A=pixel_area;
     asp=aspect_ratio;
     B=(A*asp)^0.5;

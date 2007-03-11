@@ -1,5 +1,5 @@
 # by Herbert Poetzl
-filter mugl (image in, int edges: 3-10, float size: 1.2-5)
+filter mugl (image in, int edges: 3-10 (5), float size: 1.2-5 (2.0))
     sl=30;
     nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
     alpha=[0,0,0,0];

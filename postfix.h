@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,7 +26,7 @@
 #include "tuples.h"
 #include "vars.h"
 #include "internals.h"
-#include "pools.h"
+#include "lispreader/pools.h"
 
 #define POSTFIX_STACKSIZE     256
 
