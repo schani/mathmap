@@ -4226,13 +4226,44 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     return 1;
 }
 
+static int
+exec_cmd (char *log_filename, char *format, ...)
+{
+    va_list ap;
+    char *cmdline, *full_cmdline;
+    int result;
+    FILE *log;
+
+    va_start(ap, format);
+    cmdline = g_strdup_vprintf(format, ap);
+    va_end(ap);
+
+    log = fopen(log_filename, "a");
+    if (log != 0)
+    {
+	fprintf(log, "\n%s\n", cmdline);
+	fclose(log);
+    }
+
+    full_cmdline = g_strdup_printf("%s >>%s 2>&1", cmdline, log_filename);
+ 
+    result = system(full_cmdline);
+
+    g_free(full_cmdline);
+    g_free(cmdline);
+
+    return result;
+}
+
+#define TMP_PREFIX		"/tmp/mathfunc"
+
 initfunc_t
 gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename)
 {
     static int last_mathfunc = 0;
 
     FILE *out;
-    char *buf;
+    char *c_filename, *o_filename, *so_filename, *log_filename;
     int pid = getpid();
     initfunc_t initfunc;
 #ifndef OPENSTEP
@@ -4243,14 +4274,11 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     generate_ir_code(mathmap, 1);
 
-    buf = (char*)alloca(MAX(strlen(CGEN_CC), strlen(CGEN_LD)) + 512);
-    assert(buf != 0);
-
-    sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, ++last_mathfunc);
-    out = fopen(buf, "w");
+    c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);
+    out = fopen(c_filename, "w");
     if (out == 0)
     {
-	fprintf(stderr, "cannot write temporary file %s\n", buf);
+	sprintf(error_string, "Could not write temporary file `%s'", c_filename);
 	return 0;
     }
 
@@ -4259,41 +4287,34 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     fclose(out);
 
-    sprintf(buf, "%s /tmp/mathfunc%d_%d.o /tmp/mathfunc%d_%d.c", CGEN_CC, pid, last_mathfunc, pid, last_mathfunc);
-    if (system(buf) != 0)
+    o_filename = g_strdup_printf("%s%d_%d.o", TMP_PREFIX, pid, last_mathfunc);
+    log_filename = g_strdup_printf("%s%d_%d.log", TMP_PREFIX, pid, last_mathfunc);
+
+    if (exec_cmd(log_filename, "%s %s %s", CGEN_CC, o_filename, c_filename) != 0)
     {
-	fprintf(stderr, "compiler failed\n");
+	sprintf(error_string, "C compiler failed.  See logfile `%s'.", log_filename);
 	return 0;
     }
 
-    sprintf(buf, "%s /tmp/mathfunc%d_%d.so /tmp/mathfunc%d_%d.o", CGEN_LD, pid, last_mathfunc, pid, last_mathfunc);
-    if (system(buf) != 0)
+    so_filename = g_strdup_printf("%s%d_%d.so", TMP_PREFIX, pid, last_mathfunc);
+
+    if (exec_cmd(log_filename, "%s %s %s", CGEN_LD, so_filename, o_filename) != 0)
     {
-	fprintf(stderr, "linker failed\n");
+	sprintf(error_string, "Linker failed.  See logfile `%s'.", log_filename);
 	return 0;
     }
-
-    sprintf(buf, "/tmp/mathfunc%d_%d.so", pid, last_mathfunc);
 
 #ifndef OPENSTEP
-    module = g_module_open(buf, 0);
+    module = g_module_open(so_filename, 0);
     if (module == 0)
     {
-	fprintf(stderr, "could not load module: %s\n", g_module_error());
+	sprintf(error_string, "Could not load module `%s': %s.", so_filename, g_module_error());
 	return 0;
     }
 
     printf("loaded %p\n", module);
 
     assert(g_module_symbol(module, "mathmapinit", (void**)&initfunc));
-
-    unlink(buf);
-
-    sprintf(buf, "/tmp/mathfunc%d_%d.o", pid, last_mathfunc);
-    unlink(buf);
-
-    sprintf(buf, "/tmp/mathfunc%d_%d.c", pid, last_mathfunc);
-				//unlink(buf);
 
     *module_info = module;
 #else
@@ -4333,6 +4354,18 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 	*module_info = module;
     }
 #endif
+
+    unlink(so_filename);
+    g_free(so_filename);
+
+    unlink(o_filename);
+    g_free(o_filename);
+
+    unlink(c_filename);
+    g_free(c_filename);
+
+    unlink(log_filename);
+    g_free(log_filename);
 
     forget_ir_code(mathmap);
 

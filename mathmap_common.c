@@ -342,7 +342,22 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 	}
 
 	if (try_compiler)
+	{
 	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template, opmacros_filename);
+	    if (mathmap->initfunc == 0)
+	    {
+		char *message = g_strdup_printf("The MathMap compiler failed.  This development version\n"
+						"does not have a fallback interpreter, so it will not work.\n"
+						"This is the reason why the compiler failed:\n%s", error_string);
+
+		strcpy(error_string, message);
+
+		g_free(message);
+
+		mathmap = 0;
+		JUMP(1);
+	    }
+	}
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{
