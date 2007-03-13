@@ -51,7 +51,7 @@
 #include "rwimg/writeimage.h"
 
 #include "generators/blender/blender.h"
-#include "generators/pixeltree/pixeltree.h"
+//#include "generators/pixeltree/pixeltree.h"
 
 typedef struct
 {
@@ -436,11 +436,13 @@ cmdline_main (int argc, char *argv[])
 	    if (!blender_generate_plug_in(argv[optind], argv[optind + 1]))
 		return 1;
 	}
+	/*
 	else if (strcmp(generator, "pixeltree") == 0)
 	{
 	    if (!pixeltree_generate_plug_in(argv[optind], argv[optind + 1]))
 		return 1;
 	}
+	*/
 	else
 	{
 	    fprintf(stderr, "Unknown generator `%s'\n", generator);

@@ -71,8 +71,7 @@
 
 #define EXPRESSIONS_DIR         "expressions"
 
-// FIXME: this isn't valid anymore!
-#define DEFAULT_EXPRESSION      "origVal(xy*xy:[cos(pi/2/Y*y+t*2*pi),1])"
+#define DEFAULT_EXPRESSION      "filter ident (image in)\n  in(xy)\nend"
 #define DEFAULT_NUMBER_FRAMES   10
 
 #define FLAG_ANTIALIASING       1

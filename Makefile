@@ -12,8 +12,8 @@ ENABLE_NLS = YES
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
 # should give the prefix for the one which you want to build MathMap
-# for.  Only relevant for the plug-in.
-GIMP_BIN = /usr/bin/
+# for.
+#GIMP_BIN = /usr/bin/
 
 # Prefix for the software installation
 PREFIX = /usr/local
@@ -76,7 +76,7 @@ export CFLAGS CC FORMATDEFS
 
 COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o
 
-CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o generators/pixeltree/pixeltree.o
+CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o #generators/pixeltree/pixeltree.o
 
 GIMP_OBJECTS = mathmap.o
 
@@ -154,5 +154,7 @@ dist : new_builtins.c clean
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/graygradient.png html/clown.jpg html/sinegraph.png html/sineclown.jpg html/polar.png html/clownpond.jpg html/target.png html/rmod.jpg html/clownhole.jpg html/redgreengradient.png html/noise.jpg mathmap-$(VERSION)/doc
+	cp -r examples lispreader rwimg mathmap-$(VERSION)/
+	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)

@@ -19,8 +19,7 @@ Configuration
 -------------
 
 Edit the Makefile if necessary.  Usually you shouldn't have to do
-this, unless you want to install MathMap in a location other than
-/usr/local.
+this, unless you have more than one version of GIMP installed.
 
 Compiling
 ---------
