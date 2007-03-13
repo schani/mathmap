@@ -1,3 +1,21 @@
+typedef struct
+{
+    float v[2];
+} mm_v2_t;
+
+typedef struct
+{
+    float v[3];
+} mm_v3_t;
+
+typedef struct
+{
+    float a00;
+    float a01;
+    float a10;
+    float a11;
+} mm_m2x2_t;
+
 #define NOP()                 (0.0)
 #define ADD(a,b)              ((a)+(b))
 #define SUB(a,b)              ((a)-(b))
@@ -26,23 +44,43 @@
                                       0; })
 
 #define COMPLEX(r,i)          ((r) + (i) * I)
-#define MAKE_M2X2(a,b,c,d)           ({ gsl_matrix *m = gsl_matrix_alloc(2,2); \
-                                        gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,1,0,(c)); gsl_matrix_set(m,1,1,(d)); m; })
+
+// matrices
+#define MAKE_M2X2(a,b,c,d)	     ({ mm_m2x2_t m = { (a), (b), (c), (d) }; m; })
+#define MAKE_GSL_M2X2(m)             ({ mm_m2x2_t mm = (m); gsl_matrix *gm = gsl_matrix_alloc(2,2); \
+                                        gsl_matrix_set(gm,0,0,mm.a00); gsl_matrix_set(gm,0,1,mm.a01); \
+					gsl_matrix_set(gm,1,0,mm.a10); gsl_matrix_set(gm,1,1,mm.a11); gm; })
 #define MAKE_M3X3(a,b,c,d,e,f,g,h,i) ({ gsl_matrix *m = gsl_matrix_alloc(3,3); \
                                         gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,0,2,(c)); \
                                         gsl_matrix_set(m,1,0,(d)); gsl_matrix_set(m,1,1,(e)); gsl_matrix_set(m,1,2,(f)); \
                                         gsl_matrix_set(m,2,0,(g)); gsl_matrix_set(m,2,1,(h)); gsl_matrix_set(m,2,2,(i)); m; })
 #define FREE_MATRIX(m)        (gsl_matrix_free((m)), 0)
-#define MAKE_V2(a,b)          ({ gsl_vector *v = gsl_vector_alloc(2); gsl_vector_set(v,0,(a)); gsl_vector_set(v,1,(b)); v; })
-#define MAKE_V3(a,b,c)        ({ gsl_vector *v = gsl_vector_alloc(3); gsl_vector_set(v,0,(a)); gsl_vector_set(v,1,(b)); gsl_vector_set(v,2,(c)); v; })
-#define FREE_VECTOR(v)        (gsl_vector_free((v)), 0)
-#define VECTOR_NTH(i,v)       gsl_vector_get((v), (i))
-#define SOLVE_LINEAR_2(m,v)   ({ gsl_vector *r = gsl_vector_alloc(2); gsl_linalg_HH_solve(m,v,r); r; })
-#define SOLVE_LINEAR_3(m,v)   ({ gsl_vector *r = gsl_vector_alloc(3); gsl_linalg_HH_solve(m,v,r); r; })
-/* FIXME: implement these! */
-#define SOLVE_POLY_2(a,b,c)   0
-#define SOLVE_POLY_3(a,b,c,d) 0
 
+// vectors
+#define MAKE_V2(a,b)	      ({ mm_v2_t v = { { (a), (b) } }; v; })
+#define MAKE_V3(a,b,c)	      ({ mm_v3_t v = { { (a), (b), (c) } }; v; })
+
+#define MAKE_GSL_V2(_mv)      ({ mm_v2_t mv = (_mv); gsl_vector *gv = gsl_vector_alloc(2); \
+				 gsl_vector_set(gv,0,mv.v[0]); gsl_vector_set(gv,1,mv.v[1]); gv; })
+#define MAKE_GSL_V3(_mv)      ({ mm_v3_t mv = (_mv); gsl_vector *gv = gsl_vector_alloc(3); \
+				 gsl_vector_set(gv,0,mv.v[0]); gsl_vector_set(gv,1,mv.v[1]); gsl_vector_set(gv,2,mv.v[2]); gv; })
+#define FREE_GSL_VECTOR(gv)   (gsl_vector_free((gv)), 0)
+#define VECTOR_NTH(i,vec)     ((vec).v[(int)(i)])
+
+// solvers
+#define SOLVE_LINEAR_2(mm,mv) ({ gsl_vector *gv = MAKE_GSL_V2((mv)); gsl_matrix *gm = MAKE_GSL_M2X2((mm)); \
+	    			 gsl_vector *gr = gsl_vector_alloc(2); gsl_linalg_HH_solve(gm,gv,gr); \
+				 mm_v2_t r = { { gsl_vector_get(gr, 0), gsl_vector_get(gr, 1) } }; \
+				 FREE_GSL_VECTOR(gv); FREE_GSL_VECTOR(gr); FREE_MATRIX(gm); r; })
+#define SOLVE_LINEAR_3(gm,mv) ({ gsl_vector *gv = MAKE_GSL_V3((mv)); \
+	    			 gsl_vector *gr = gsl_vector_alloc(3); gsl_linalg_HH_solve(gm,gv,gr); \
+				 mm_v3_t r = { { gsl_vector_get(gr, 0), gsl_vector_get(gr, 1), gsl_vector_get(gr, 2) } }; \
+				 FREE_GSL_VECTOR(gv); FREE_GSL_VECTOR(gr); r; })
+/* FIXME: implement these! */
+#define SOLVE_POLY_2(a,b,c)   ({ mm_v2_t v = { { 0.0, 0.0 } }; v; })
+#define SOLVE_POLY_3(a,b,c,d) ({ mm_v3_t v = { { 0.0, 0.0, 0.0 } }; v; })
+
+// elliptics
 #define ELL_INT_K_COMP(k)     gsl_sf_ellint_Kcomp((k), GSL_PREC_SINGLE)
 #define ELL_INT_E_COMP(k)     gsl_sf_ellint_Ecomp((k), GSL_PREC_SINGLE)
 
@@ -56,11 +94,9 @@
 #define ELL_INT_RF(x,y,z)     gsl_sf_ellint_RF((x), (y), (z), GSL_PREC_SINGLE)
 #define ELL_INT_RJ(x,y,z,p)   gsl_sf_ellint_RJ((x), (y), (z), (p), GSL_PREC_SINGLE)
 
-#define ELL_JAC(u,m)	      ({ gsl_vector *v = gsl_vector_alloc(3); \
-	    			 double sn, cn, dn; \
+#define ELL_JAC(u,m)	      ({ double sn, cn, dn; \
 				 gsl_sf_elljac_e((u), (m), &sn, &cn, &dn); \
-				 gsl_vector_set(v, 0, sn); gsl_vector_set(v, 1, cn); gsl_vector_set(v, 2, dn); \
-				 v; })
+				 mm_v3_t v = { { sn, cn, dn } }; v; })
 
 #define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))

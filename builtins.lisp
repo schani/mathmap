@@ -70,8 +70,8 @@
 
 (defun c-type (type)
   (second (assoc type '((nil "float") (float "float") (int "int")
-			(color "color_t") (complex "complex float") (m2x2 "gsl_matrix *")
-			(m3x3 "gsl_matrix *") (v2 "gsl_vector *") (v3 "gsl_vector *")))))
+			(color "color_t") (complex "complex float") (m2x2 "mm_m2x2_t")
+			(m3x3 "gsl_matrix *") (v2 "mm_v2_t") (v3 "mm_v3_t")))))
 
 (defun gen-builtin (overloaded-name name type args body for-compiler-p)
   (labels ((length-of-arg-pos (pos)
@@ -595,10 +595,7 @@
   (let ((m (make-m2x2 (nth 0 b) (nth 1 b) (nth 2 b) (nth 3 b)))
 	(v (make-v2 (nth 0 a) (nth 1 a))))
     (let ((r (solve-linear-2 m v)))
-      (set result (make (v2 2) (vector-nth 0 r) (vector-nth 1 r)))
-      (forget (free-vector r))
-      (forget (free-vector v))
-      (forget (free-matrix m)))))
+      (set result (make (v2 2) (vector-nth 0 r) (vector-nth 1 r))))))
 
 (defbuiltin "__div" div_v3m3x3 (v3 3) ((a (? 3)) (b (m3x3 9)))
   (let ((m (make-m3x3 (nth 0 b) (nth 1 b) (nth 2 b)
@@ -607,8 +604,6 @@
 	(v (make-v3 (nth 0 a) (nth 1 a) (nth 2 a))))
     (let ((r (solve-linear-3 m v)))
       (set result (make (v3 3) (vector-nth 0 r) (vector-nth 1 r) (vector-nth 2 r)))
-      (forget (free-vector r))
-      (forget (free-vector v))
       (forget (free-matrix m)))))
 
 (defbuiltin "__div" div_1 (?T 1) ((a (?T 1)) (b (?T 1)))
@@ -875,8 +870,7 @@
 
 (defbuiltin "ell_jac" ell_jac (?T 3) ((u (?T 1)) (m (?T 1)))
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
-    (set result (make (?T 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))
-    (forget (free-vector v))))
+    (set result (make (?T 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))))
 
 ;;; floor and friends
 
@@ -935,13 +929,11 @@
 
 (defbuiltin "solve" solve-poly-2 (nil 2) ((p (poly 3)))
   (let ((v (solve-poly-2 (nth 0 p) (nth 1 p) (nth 2 p))))
-    (set result (make (nil 2) (vector-nth 0 v) (vector-nth 1 v)))
-    (forget (free-vector v))))
+    (set result (make (nil 2) (vector-nth 0 v) (vector-nth 1 v)))))
 
 (defbuiltin "solve" solve-poly-3 (nil 3) ((p (poly 4)))
   (let ((v (solve-poly-3 (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p))))
-    (set result (make (nil 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))
-    (forget (free-vector v))))
+    (set result (make (nil 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))))
 
 ;;; logic
 

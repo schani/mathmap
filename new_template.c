@@ -41,6 +41,12 @@
 #include <math.h>
 #include <complex.h>
 
+#if !$g
+#define OPENSTEP
+#endif
+
+#include "$opmacros_h"
+
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))
 #endif
@@ -55,10 +61,6 @@
 #define EDGE_BEHAVIOUR_REFLECT        3
 
 #define USERVAL_IMAGE       7
-
-#if !$g
-#define OPENSTEP
-#endif
 
 #define USER_CURVE_POINTS             $p
 #define USER_GRADIENT_POINTS          $q
@@ -434,8 +436,6 @@ int gsl_sf_elljac_e (double u, double m, double *sn, double *cn, double *dn);
 complex float cgamma (complex float z);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
-
-#include "$opmacros_h"
 
 static void
 calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)

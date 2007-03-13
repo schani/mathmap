@@ -50,6 +50,10 @@
 #include "bitvector.h"
 #include "lispreader/pools.h"
 
+#define INTERPRETER
+#include "opmacros.h"
+#undef INTERPRETER
+
 //#define NO_CONSTANTS_ANALYSIS
 
 struct _value_t;
@@ -65,10 +69,12 @@ typedef struct
 #define TYPE_FLOAT           2
 #define TYPE_COMPLEX         3
 #define TYPE_COLOR           4
-#define TYPE_MATRIX          5
-#define TYPE_VECTOR          6
+#define TYPE_GSL_MATRIX      5
+#define TYPE_V2              6
+#define TYPE_V3		     7
+#define TYPE_M2X2	     8
 
-#define MAX_TYPE             TYPE_VECTOR
+#define MAX_TYPE             TYPE_M2X2
 
 #define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
 
@@ -121,6 +127,9 @@ typedef struct _value_list_t
 #define PRIMARY_FLOAT_CONST    3
 #define PRIMARY_COMPLEX_CONST  4
 #define PRIMARY_COLOR_CONST    5
+#define PRIMARY_V2_CONST       6
+#define PRIMARY_V3_CONST       7
+#define PRIMARY_M2X2_CONST     8
 
 typedef struct
 {
@@ -132,6 +141,9 @@ typedef struct
 	float float_const;
 	complex float complex_const;
 	color_t color_const;
+	mm_v2_t v2_const;
+	mm_v3_t v3_const;
+	mm_m2x2_t m2x2_const;
     } v;
 } primary_t;
 
@@ -260,6 +272,9 @@ primary_t make_int_const_primary (int int_const);
 primary_t make_float_const_primary (float float_const);
 primary_t make_complex_const_primary (complex float complex_const);
 primary_t make_color_const_primary (color_t color_const);
+primary_t make_v2_const_primary (mm_v2_t v2_const);
+primary_t make_v3_const_primary (mm_v3_t v3_const);
+primary_t make_m2x2_const_primary (mm_m2x2_t m2x2_const);
 
 #include <complex.h>
 #include <gsl/gsl_vector.h>
@@ -271,10 +286,6 @@ primary_t make_color_const_primary (color_t color_const);
 #include "spec_func.h"
 #include "builtins.h"
 #include "noise.h"
-
-#define INTERPRETER
-#include "opmacros.h"
-#undef INTERPRETER
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
 #define OP_CONST_FLOAT_VAL(i)     (RHS_ARG((i)).type == PRIMARY_INT_CONST ? (float)(RHS_ARG((i)).v.int_const) : \
@@ -507,49 +518,23 @@ assign_value_index_and_make_current (value_t *val)
     set_value_current(val, val);
 }
 
-primary_t
-make_int_const_primary (int int_const)
-{
-    primary_t primary;
+#define MAKE_CONST_PRIMARY(name, c_type,type_name)	\
+	primary_t \
+	make_ ## name ## _const_primary (c_type name ## _const) \
+	{ \
+	    primary_t primary; \
+	    primary.type = type_name; \
+	    primary.v.name ## _const = name ## _const; \
+	    return primary; \
+	}
 
-    primary.type = PRIMARY_INT_CONST;
-    primary.v.int_const = int_const;
-
-    return primary;
-}
-
-primary_t
-make_float_const_primary (float float_const)
-{
-    primary_t primary;
-
-    primary.type = PRIMARY_FLOAT_CONST;
-    primary.v.float_const = float_const;
-
-    return primary;
-}
-
-primary_t
-make_complex_const_primary (complex float complex_const)
-{
-    primary_t primary;
-
-    primary.type = PRIMARY_COMPLEX_CONST;
-    primary.v.complex_const = complex_const;
-
-    return primary;
-}
-
-primary_t
-make_color_const_primary (color_t color_const)
-{
-    primary_t primary;
-
-    primary.type = PRIMARY_COLOR_CONST;
-    primary.v.color_const = color_const;
-
-    return primary;
-}
+MAKE_CONST_PRIMARY(int, int, PRIMARY_INT_CONST)
+MAKE_CONST_PRIMARY(float, float, PRIMARY_FLOAT_CONST)
+MAKE_CONST_PRIMARY(complex, complex float, PRIMARY_COMPLEX_CONST)
+MAKE_CONST_PRIMARY(color, color_t, PRIMARY_COLOR_CONST)
+MAKE_CONST_PRIMARY(v2, mm_v2_t, PRIMARY_V2_CONST)
+MAKE_CONST_PRIMARY(v3, mm_v3_t, PRIMARY_V3_CONST)
+MAKE_CONST_PRIMARY(m2x2, mm_m2x2_t, PRIMARY_M2X2_CONST)
 
 primary_t
 make_compvar_primary (compvar_t *compvar)
@@ -1275,6 +1260,20 @@ print_primary (primary_t *primary)
 		   BLUE(primary->v.color_const), ALPHA(primary->v.color_const));
 	    break;
 
+	case PRIMARY_V2_CONST :
+	    fprintf_c(stdout, "[%f,%f]", primary->v.v2_const.v[0], primary->v.v2_const.v[1]);
+	    break;
+
+	case PRIMARY_V3_CONST :
+	    fprintf_c(stdout, "[%f,%f,%f]", primary->v.v2_const.v[0], primary->v.v2_const.v[1], primary->v.v2_const.v[2]);
+	    break;
+
+	case PRIMARY_M2X2_CONST :
+	    fprintf_c(stdout, "[[%f,%f],[%f,%f]]",
+		      primary->v.m2x2_const.a00, primary->v.m2x2_const.a01,
+		      primary->v.m2x2_const.a10, primary->v.m2x2_const.a11);
+	    break;
+
 	default :
 	    assert(0);
     }
@@ -1911,6 +1910,15 @@ primary_type (primary_t *primary)
 	case PRIMARY_COLOR_CONST :
 	    return TYPE_COLOR;
 
+	case PRIMARY_V2_CONST :
+	    return TYPE_V2;
+
+	case PRIMARY_V3_CONST :
+	    return TYPE_V3;
+
+	case PRIMARY_M2X2_CONST :
+	    return TYPE_M2X2;
+
 	default :
 	    assert(0);
     }
@@ -2058,6 +2066,9 @@ primary_constant (primary_t *primary)
 	case PRIMARY_FLOAT_CONST :
 	case PRIMARY_COMPLEX_CONST :
 	case PRIMARY_COLOR_CONST :
+	case PRIMARY_V2_CONST :
+	case PRIMARY_V3_CONST :
+	case PRIMARY_M2X2_CONST :
 	    return CONST_MAX;
 
 	default :
@@ -2718,6 +2729,9 @@ is_const_primary_rhs_true (rhs_t *rhs)
 
 	case PRIMARY_COMPLEX_CONST :
 	case PRIMARY_COLOR_CONST :
+	case PRIMARY_V2_CONST :
+	case PRIMARY_V3_CONST :
+	case PRIMARY_M2X2_CONST :
 	    assert(0);
 
 	default :
@@ -2882,6 +2896,21 @@ primaries_equal (primary_t *prim1, primary_t *prim2)
 
 	case PRIMARY_COLOR_CONST :
 	    return prim1->v.color_const == prim2->v.color_const;
+
+	case PRIMARY_V2_CONST :
+	    return prim1->v.v2_const.v[0] == prim2->v.v2_const.v[0]
+		&& prim1->v.v2_const.v[1] == prim2->v.v2_const.v[1];
+
+	case PRIMARY_V3_CONST :
+	    return prim1->v.v3_const.v[0] == prim2->v.v3_const.v[0]
+		&& prim1->v.v3_const.v[1] == prim2->v.v3_const.v[1]
+		&& prim1->v.v3_const.v[2] == prim2->v.v3_const.v[2];
+
+	case PRIMARY_M2X2_CONST :
+	    return prim1->v.m2x2_const.a00 == prim2->v.m2x2_const.a00
+		&& prim1->v.m2x2_const.a01 == prim2->v.m2x2_const.a01
+		&& prim1->v.m2x2_const.a10 == prim2->v.m2x2_const.a10
+		&& prim1->v.m2x2_const.a11 == prim2->v.m2x2_const.a11;
 
 	default :
 	    assert(0);
@@ -3370,8 +3399,10 @@ register_allocation (void)
     init_type_info(TYPE_FLOAT, 128);
     init_type_info(TYPE_COMPLEX, 128);
     init_type_info(TYPE_COLOR, 128);
-    init_type_info(TYPE_MATRIX, 128);
-    init_type_info(TYPE_VECTOR, 128);
+    init_type_info(TYPE_GSL_MATRIX, 128);
+    init_type_info(TYPE_V2, 128);
+    init_type_info(TYPE_V3, 128);
+    init_type_info(TYPE_M2X2, 128);
 
     for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
     {
@@ -3770,13 +3801,24 @@ output_value_decl (FILE *out, value_t *value)
 		fputs("complex float ", out);
 		break;
 
-	    case TYPE_MATRIX :
+	    case TYPE_GSL_MATRIX :
 		fputs("gsl_matrix *", out);
 		break;
 
-	    case TYPE_VECTOR :
-		fputs("gsl_vector *", out);
+	    case TYPE_V2 :
+		fputs("mm_v2_t ", out);
 		break;
+
+	    case TYPE_V3 :
+		fputs("mm_v3_t ", out);
+		break;
+
+	    case TYPE_M2X2 :
+		fputs("mm_m2x2_t ", out);
+		break;
+
+	    default :
+		assert(0);
 	}
 
 	output_value_name(out, value, 1);
@@ -3819,6 +3861,22 @@ output_primary (FILE *out, primary_t *prim)
 	    fprintf(out, "MAKE_RGBA_COLOR(%d,%d,%d,%d)",
 		    RED(prim->v.color_const), GREEN(prim->v.color_const),
 		    BLUE(prim->v.color_const), ALPHA(prim->v.color_const));
+	    break;
+
+	case PRIMARY_V2_CONST :
+	    fprintf(out, "MAKE_V2(%f,%f)",
+		    prim->v.v2_const.v[0], prim->v.v2_const.v[1]);
+	    break;
+
+	case PRIMARY_V3_CONST :
+	    fprintf(out, "MAKE_V3(%f,%f,%f)",
+		    prim->v.v3_const.v[0], prim->v.v3_const.v[1], prim->v.v3_const.v[2]);
+	    break;
+
+	case PRIMARY_M2X2_CONST :
+	    fprintf(out, "MAKE_M2X2(%f,%f,%f,%f)",
+		    prim->v.m2x2_const.a00, prim->v.m2x2_const.a01,
+		    prim->v.m2x2_const.a10, prim->v.m2x2_const.a11);
 	    break;
 
 	default :

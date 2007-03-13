@@ -110,16 +110,15 @@
 (defop ell-int-rf 3 "OP_ELL_INT_RF" "ELL_INT_RF")
 (defop ell-int-rj 4 "OP_ELL_INT_RJ" "ELL_INT_RJ")
 
-(defop ell-jac 2 "OP_ELL_JAC" "ELL_JAC" :type v3 :pure nil)
+(defop ell-jac 2 "OP_ELL_JAC" "ELL_JAC" :type v3)
 
-(defop make-m2x2 4 "OP_MAKE_M2X2" "MAKE_M2X2" :type m2x2 :pure nil)
+(defop make-m2x2 4 "OP_MAKE_M2X2" "MAKE_M2X2" :type m2x2)
 (defop make-m3x3 9 "OP_MAKE_M3X3" "MAKE_M3X3" :type m3x3 :pure nil)
 (defop free-matrix 1 "OP_FREE_MATRIX" "FREE_MATRIX" :type int :pure nil)
 
-(defop make-v2 2 "OP_MAKE_V2" "MAKE_V2" :type v2 :pure nil)
-(defop make-v3 3 "OP_MAKE_V3" "MAKE_V3" :type v3 :pure nil)
-(defop free-vector 1 "OP_FREE_VECTOR" "FREE_VECTOR" :type int :pure nil)
-(defop vector-nth 2 "OP_VECTOR_NTH" "VECTOR_NTH" :pure nil)
+(defop make-v2 2 "OP_MAKE_V2" "MAKE_V2" :type v2)
+(defop make-v3 3 "OP_MAKE_V3" "MAKE_V3" :type v3)
+(defop vector-nth 2 "OP_VECTOR_NTH" "VECTOR_NTH" :foldable nil)
 
 (defop solve-linear-2 2 "OP_SOLVE_LINEAR_2" "SOLVE_LINEAR_2" :type v2 :pure nil)
 (defop solve-linear-3 2 "OP_SOLVE_LINEAR_3" "SOLVE_LINEAR_3" :type v3 :pure nil)
@@ -144,8 +143,8 @@
   (cdr (assoc type '((nil . "0")
 		     (int . "TYPE_INT") (float . "TYPE_FLOAT")
 		     (complex . "TYPE_COMPLEX") (color . "TYPE_COLOR")
-		     (m2x2 . "TYPE_MATRIX") (m3x3 . "TYPE_MATRIX")
-		     (v2 . "TYPE_VECTOR") (v3 . "TYPE_VECTOR")))))
+		     (m2x2 . "TYPE_M2X2") (m3x3 . "TYPE_GSL_MATRIX")
+		     (v2 . "TYPE_V2") (v3 . "TYPE_V3")))))
 
 (defun max-type (types)
   (cond ((null types)
