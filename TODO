@@ -1,15 +1,17 @@
 disable animation settings if expression doesn't use t
 document print function
 uncoupled edge behaviour (x/y)
-
-
+make vectors and matrix operations in compiler code not allocate stuff (use a struct), then we can also make them pure
+merge changes from 1.0
 Why is there no error message when i assign to "r"???
 
-merge changes from 1.0
+
+
+
+
+
 add gsl-config to Makefile
 MERD!!!!!!!
-supersampling does not work in constant optimized compiler (row length is changed for each second line computed)
-make matrix operations pure (i.e. no memory allocation or think of something else)
 in blender:
   noise, cgamma, vector/matrix div
   edge behaviour

@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2002-2004 Mark Probst
+;; Copyright (C) 2002-2007 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -60,6 +60,13 @@
 
 (defmacro defbuiltin (overloaded-name name type args &rest body)
   `(setq *builtins* (cons (list ',overloaded-name ',name ',type ',args ',body) *builtins*)))
+
+(defmacro def-simple-builtin (overloaded-name name op-name num-args)
+  (let* ((arg-names (map-times num-args #'(lambda (i) (gensym))))
+	 (args-decl (mapcar #'(lambda (arg-name) `(,arg-name (?T 1))) arg-names))
+	 (actual-args (mapcar #'(lambda (arg-name) `(nth 0 ,arg-name)) arg-names)))
+  `(defbuiltin ,overloaded-name ,name (?T 1) ,args-decl
+    (set result (make (?T 1) (,op-name ,@actual-args))))))
 
 (defun c-type (type)
   (second (assoc type '((nil "float") (float "float") (int "int")
@@ -850,6 +857,26 @@
   (if (< (nth 0 a) 0)
       (set result (make (?T 1) 0))
       (set result (make (?T 1) (gamma (nth 0 a))))))
+
+;;; elliptic
+
+(def-simple-builtin "ell_int_Kcomp" ell_int_Kcomp ell-int-k-comp 1)
+(def-simple-builtin "ell_int_Ecomp" ell_int_Ecomp ell-int-e-comp 1)
+
+(def-simple-builtin "ell_int_F" ell_int_F ell-int-f 2)
+(def-simple-builtin "ell_int_E" ell_int_E ell-int-e 2)
+(def-simple-builtin "ell_int_P" ell_int_P ell-int-p 3)
+(def-simple-builtin "ell_int_D" ell_int_D ell-int-d 3)
+
+(def-simple-builtin "ell_int_RC" ell_int_RC ell-int-rc 2)
+(def-simple-builtin "ell_int_RD" ell_int_RD ell-int-rd 3)
+(def-simple-builtin "ell_int_RF" ell_int_RF ell-int-rf 3)
+(def-simple-builtin "ell_int_RJ" ell_int_RJ ell-int-rj 4)
+
+(defbuiltin "ell_jac" ell_jac (?T 3) ((u (?T 1)) (m (?T 1)))
+  (let ((v (ell-jac (nth 0 u) (nth 0 m))))
+    (set result (make (?T 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))
+    (forget (free-vector v))))
 
 ;;; floor and friends
 

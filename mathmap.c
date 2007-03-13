@@ -39,6 +39,7 @@
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
+#include <gsl/gsl_errno.h>
 
 #include "exprtree.h"
 #include "builtins.h"
@@ -235,6 +236,8 @@ static gint
 my_gimp_main (const GimpPlugInInfo *info, int argc, char *argv[])
 {
     int i;
+
+    gsl_set_error_handler_off();
 
     for (i = 0; i < USER_GRADIENT_POINTS; ++i)
     {
@@ -1690,9 +1693,9 @@ dialog_text_changed (GtkTextBuffer *buffer, gpointer user_data)
 static void
 dialog_text_update (void)
 {
-    GtkTextBuffer * buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
     GtkTextIter start, end;
-    gchar * expression;
+    gchar *expression;
 
     gtk_text_buffer_get_bounds(buffer, &start, &end);
     expression = gtk_text_buffer_get_text(buffer, &start, &end, TRUE);
@@ -1700,7 +1703,21 @@ dialog_text_update (void)
     expression_copy(mmvals.expression, expression);
 
     g_free(expression);
-} /* dialog_text_update */
+}
+
+void
+set_expression_cursor (int line, int column)
+{
+    if (expression_entry != 0)
+    {
+	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
+	GtkTextIter start, end;
+
+	gtk_text_buffer_get_iter_at_line_index(buffer, &start, line, 0);
+	gtk_text_buffer_get_iter_at_line_index(buffer, &end, line + 1, 0);
+	gtk_text_buffer_select_range(buffer, &start, &end);
+    }
+}
 
 /*****/
 

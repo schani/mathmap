@@ -32,8 +32,8 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 
 VERSION = 1.1.1
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -117,18 +117,20 @@ new_builtins.c opdefs.h : builtins.lisp ops.lisp
 blender.o : generators/blender/blender.c
 
 install : mathmap
-	cp mathmap $(BINDIR)
-	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
-	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)
+#	cp mathmap $(BINDIR)
+#	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
+#	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)
 
 	if [ ! -d $(HOME)/$(GIMPDIR) ] ; then mkdir $(HOME)/$(GIMPDIR) ; fi
 	if [ ! -d $(HOME)/$(GIMPDIR)/plug-ins ] ; then mkdir $(HOME)/$(GIMPDIR)/plug-ins ; fi
-	ln -s $(BINDIR)/mathmap $(HOME)/$(GIMPDIR)/plug-ins/
+	cp mathmap $(HOME)/$(GIMPDIR)/plug-ins/
+#	ln -s $(BINDIR)/mathmap $(HOME)/$(GIMPDIR)/plug-ins/
 
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap ] ; then mkdir $(HOME)/$(GIMPDIR)/mathmap ; fi
-	if [ ! -f $(HOME)/$(GIMPDIR)/mathmap/mathmaprc ] ; then cp mathmaprc $(HOME)/$(GIMPDIR)/mathmap/ ; fi
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
+
+	cp -r examples $(HOME)/$(GIMPDIR)/mathmap/expressions
 
 install-mos : $(MOS)
 	if [ ! -d $(LOCALEDIR)/fr ] ; then mkdir $(LOCALEDIR)/fr ; fi
@@ -137,6 +139,8 @@ install-mos : $(MOS)
 
 clean :
 	rm -f *~ *.o generators/blender/*~ generators/pixeltree/*.o mathmap compiler scanner.c parser.[ch] parser.output core
+	$(MAKE) -C rwimg clean
+	$(MAKE) -C lispreader clean
 
 realclean : clean
 	rm -f new_builtins.c opdefs.h .nfs* mathmap-*.tar.gz
@@ -144,7 +148,7 @@ realclean : clean
 dist : new_builtins.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender BUGS ANNOUNCEMENT COPYING INSTALL *.[ch] *.lisp parser.y scanner.fl mathmaprc *.po mathmap-$(VERSION)
+	cp Makefile README README.blender BUGS ANNOUNCEMENT COPYING INSTALL *.[ch] *.lisp parser.y scanner.fl *.po mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/generators
 	mkdir mathmap-$(VERSION)/generators/blender
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender

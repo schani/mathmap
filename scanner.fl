@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "mathmap.h"
 #include "exprtree.h"
 #include "builtins.h"
 #include "parser.h"
@@ -84,7 +85,15 @@ xor                         return T_XOR;
 \.\.                        return T_RANGE;
 [-<>!,()+*/%=;^:\[\]]       return yytext[0];
 #.*                         ;
-[ \t\n]                     ;
+[ \t\n]                     {
+				char *p = yytext;
+
+				while ((p = strchr(p, '\n')) != 0)
+				{
+				    ++scanner_line_num;
+				    ++p;
+				}
+			    }
 
 %%
 

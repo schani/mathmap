@@ -243,6 +243,7 @@ int
 yyerror (char *s)
 {
     sprintf(error_string, "Parse error.");
+    set_expression_cursor(scanner_line_num, 0);
     JUMP(1);
 
     return 0;

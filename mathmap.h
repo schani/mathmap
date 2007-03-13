@@ -63,12 +63,13 @@ typedef struct _mathmap_t
     struct _mathmap_t *next;
 } mathmap_t;
 
-/*
- * This variable is set by the compiler.  It's ok that it is global
- * because the compiler is non-reentrant (which is ok because it's
- * fast and more convenient to write).
- */
+/* This variable is set by the compiler.  It's ok that it is global
+   because the compiler is non-reentrant (which is ok because it's
+   fast and more convenient to write). */
 extern mathmap_t *the_mathmap;
+
+/* This is incremented by the scanner for each line scanned. */
+extern int scanner_line_num;
 
 extern color_t gradient_samples[USER_GRADIENT_POINTS];
 
@@ -177,6 +178,8 @@ int generate_plug_in (char *filter, char *output_filename,
 		      template_processor_func_t template_processor);
 
 void user_value_changed (void);
+
+void set_expression_cursor (int line, int column);
 
 int alloc_input_drawable (GimpDrawable *drawable);
 void free_input_drawable (int index);

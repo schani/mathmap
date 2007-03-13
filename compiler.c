@@ -266,6 +266,7 @@ primary_t make_color_const_primary (color_t color_const);
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_specfunc.h>
+#include <gsl/gsl_sf_elljac.h>
 
 #include "spec_func.h"
 #include "builtins.h"
@@ -4265,6 +4266,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     FILE *out;
     char *c_filename, *o_filename, *so_filename, *log_filename;
     int pid = getpid();
+    void *initfunc_ptr;
     initfunc_t initfunc;
 #ifndef OPENSTEP
     GModule *module = 0;
@@ -4314,7 +4316,8 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     printf("loaded %p\n", module);
 
-    assert(g_module_symbol(module, "mathmapinit", (void**)&initfunc));
+    assert(g_module_symbol(module, "mathmapinit", &initfunc_ptr));
+    initfunc = (initfunc_t)initfunc_ptr;
 
     *module_info = module;
 #else

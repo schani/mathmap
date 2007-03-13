@@ -39,6 +39,7 @@
 #include "mathmap.h"
 
 mathmap_t *the_mathmap = 0;
+int scanner_line_num;
 
 /* from parser.y */
 int yyparse (void);
@@ -265,6 +266,7 @@ parse_mathmap (char *expression)
     the_mathmap = mathmap;
 
     DO_JUMP_CODE {
+	scanner_line_num = 0;
 	scanFromString(expression);
 	yyparse();
 	endScanningFromString();

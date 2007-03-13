@@ -1,34 +1,42 @@
 Installing MathMap
 ==================
 
-Edit the Makefile if necessary.  These are, amongst more obscure
-things, these reasons why you might have to do this:
+This development version has only been tested on Linux (Fedora Core
+6), and will probably not work on other operating systems without some
+adjustments.
 
-  * You want to build for GIMP 1.2 instead of the new GIMP 2.0.
+Requirements
+------------
 
-  * You are building on MacOS X.  This is only tested with GIMP 1.2 on
-    Fink.
+MathMap requires the following software packages, including
+development packages, to compile and to run:
 
-  * You are building on an Alpha. If you don't know what an Alpha is,
-    this does not apply to you.
+  * The GIMP 2.2
+  * GSL (GNU Scientific Library), including GSL CBLAS
+  * libjpeg, libpng, libgif
 
-  * If you want to build the command line version instead of the GIMP
-    plug-in.  For additional animation support, you must have
-    libquicktime installed, which you can get from this URL:
+Configuration
+-------------
 
-      http://heroinewarrior.com/quicktime.php3
+Edit the Makefile if necessary.  Usually you shouldn't have to do
+this, unless you want to install MathMap in a location other than
+/usr/local.
 
-  * You don't have gettext or do not want localization.
+Compiling
+---------
 
 After you are finished with the Makefile, just type
 
 	make
 
-It should compile on most systems.  If it does not work, the most probable
-cause is that you do not have either the GIMP development package or the GSL
-library installed.  Consult the documentation of your Linux distribution or
-whatever you have on how to install packages.  The packages you're looking for
-are probably called something like "gimp-devel" and "gsl-devel" or just "gsl".
+If it does not work, the most probable cause is that you don't have
+all the required packages (see above) installed.  Consult the
+documentation of your Linux distribution or whatever you have on how
+to install packages.  The packages you're looking for are probably
+called something like "gimp-devel" and "gsl-devel" or just "gsl".
+
+Installation
+------------
 
 If you want to install mathmap on your account, type
 

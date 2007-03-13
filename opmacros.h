@@ -39,8 +39,29 @@
 #define VECTOR_NTH(i,v)       gsl_vector_get((v), (i))
 #define SOLVE_LINEAR_2(m,v)   ({ gsl_vector *r = gsl_vector_alloc(2); gsl_linalg_HH_solve(m,v,r); r; })
 #define SOLVE_LINEAR_3(m,v)   ({ gsl_vector *r = gsl_vector_alloc(3); gsl_linalg_HH_solve(m,v,r); r; })
+/* FIXME: implement these! */
 #define SOLVE_POLY_2(a,b,c)   0
 #define SOLVE_POLY_3(a,b,c,d) 0
+
+#define ELL_INT_K_COMP(k)     gsl_sf_ellint_Kcomp((k), GSL_PREC_SINGLE)
+#define ELL_INT_E_COMP(k)     gsl_sf_ellint_Ecomp((k), GSL_PREC_SINGLE)
+
+#define ELL_INT_F(phi,k)      gsl_sf_ellint_F((phi), (k), GSL_PREC_SINGLE)
+#define ELL_INT_E(phi,k)      gsl_sf_ellint_E((phi), (k), GSL_PREC_SINGLE)
+#define ELL_INT_P(phi,k,n)    gsl_sf_ellint_P((phi), (k), (n), GSL_PREC_SINGLE)
+#define ELL_INT_D(phi,k,n)    gsl_sf_ellint_D((phi), (k), (n), GSL_PREC_SINGLE)
+
+#define ELL_INT_RC(x,y)       gsl_sf_ellint_RC((x), (y), GSL_PREC_SINGLE)
+#define ELL_INT_RD(x,y,z)     gsl_sf_ellint_RD((x), (y), (z), GSL_PREC_SINGLE)
+#define ELL_INT_RF(x,y,z)     gsl_sf_ellint_RF((x), (y), (z), GSL_PREC_SINGLE)
+#define ELL_INT_RJ(x,y,z,p)   gsl_sf_ellint_RJ((x), (y), (z), (p), GSL_PREC_SINGLE)
+
+#define ELL_JAC(u,m)	      ({ gsl_vector *v = gsl_vector_alloc(3); \
+	    			 double sn, cn, dn; \
+				 gsl_sf_elljac_e((u), (m), &sn, &cn, &dn); \
+				 gsl_vector_set(v, 0, sn); gsl_vector_set(v, 1, cn); gsl_vector_set(v, 2, dn); \
+				 v; })
+
 #define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
 #define USERVAL_INT_ACCESS(x)        (invocation->uservals[(x)].v.int_const)

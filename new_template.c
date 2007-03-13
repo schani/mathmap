@@ -412,6 +412,23 @@ void gsl_vector_set (gsl_vector * v, const size_t i, double x);
 
 int gsl_linalg_HH_solve (gsl_matrix * A, const gsl_vector * b, gsl_vector * x);
 
+#define GSL_PREC_SINGLE		1
+
+double gsl_sf_ellint_Kcomp (double k, unsigned int mode);
+double gsl_sf_ellint_Ecomp (double k, unsigned int mode);
+
+double gsl_sf_ellint_F (double phi, double k, unsigned int mode);
+double gsl_sf_ellint_E (double phi, double k, unsigned int mode);
+double gsl_sf_ellint_P (double phi, double k, double n, unsigned int mode);
+double gsl_sf_ellint_D (double phi, double k, double n, unsigned int mode);
+
+double gsl_sf_ellint_RC (double x, double y, unsigned int mode);
+double gsl_sf_ellint_RD (double x, double y, double z, unsigned int mode);
+double gsl_sf_ellint_RF (double x, double y, double z, unsigned int mode);
+double gsl_sf_ellint_RJ (double x, double y, double z, double p, unsigned int mode);
+
+int gsl_sf_elljac_e (double u, double m, double *sn, double *cn, double *dn);
+
 complex float cgamma (complex float z);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);

@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2004 Mark Probst
+;; Copyright (C) 2004-2007 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -96,6 +96,21 @@
 (defop c-acosh 1 "OP_C_ACOSH" "cacoshf" :type complex)
 (defop c-atanh 1 "OP_C_ATANH" "catanhf" :type complex)
 (defop c-gamma 1 "OP_C_GAMMA" "cgamma" :type complex)
+
+(defop ell-int-k-comp 1 "OP_ELL_INT_K_COMP" "ELL_INT_K_COMP")
+(defop ell-int-e-comp 1 "OP_ELL_INT_E_COMP" "ELL_INT_E_COMP")
+
+(defop ell-int-f 2 "OP_ELL_INT_F" "ELL_INT_F")
+(defop ell-int-e 2 "OP_ELL_INT_E" "ELL_INT_E")
+(defop ell-int-p 3 "OP_ELL_INT_P" "ELL_INT_P")
+(defop ell-int-d 3 "OP_ELL_INT_D" "ELL_INT_D")
+
+(defop ell-int-rc 2 "OP_ELL_INT_RC" "ELL_INT_RC")
+(defop ell-int-rd 3 "OP_ELL_INT_RD" "ELL_INT_RD")
+(defop ell-int-rf 3 "OP_ELL_INT_RF" "ELL_INT_RF")
+(defop ell-int-rj 4 "OP_ELL_INT_RJ" "ELL_INT_RJ")
+
+(defop ell-jac 2 "OP_ELL_JAC" "ELL_JAC" :type v3 :pure nil)
 
 (defop make-m2x2 4 "OP_MAKE_M2X2" "MAKE_M2X2" :type m2x2 :pure nil)
 (defop make-m3x3 9 "OP_MAKE_M3X3" "MAKE_M3X3" :type m3x3 :pure nil)
