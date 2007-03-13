@@ -105,6 +105,8 @@ make_simple_arg_decl (const char *type_name, const char *name, const char *docst
 	    arg_decl->v.floating.have_limits = 0;
 	    arg_decl->v.floating.default_value = 0.0;
 	}
+	else if (type == ARG_TYPE_BOOL)
+	    arg_decl->v.boolean.default_value = 0;
 
 	return arg_decl;
     }
@@ -302,7 +304,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
 	arg_decl->v.integer.max = limits->v.integer.max;
 	arg_decl->v.integer.default_value = arg_decl->v.integer.min;
     }
-    else if (arg_decl->type ==ARG_TYPE_FLOAT)
+    else if (arg_decl->type == ARG_TYPE_FLOAT)
     {
 	float min = 0.0, max = 0.0;
 
@@ -337,50 +339,63 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
 void
 apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 {
-    if (arg_decl->type == ARG_TYPE_INT)
+    switch (arg_decl->type)
     {
-	if (exprtree->type != EXPR_INT_CONST)
-	{
-	    strcpy(error_string, "Only integers can be defaults for an int argument");
+	case ARG_TYPE_INT :
+	    if (exprtree->type != EXPR_INT_CONST)
+	    {
+		strcpy(error_string, "Only integers can be defaults for an int argument");
+		JUMP(1);
+	    }
+
+	    if (exprtree->val.int_const < arg_decl->v.integer.min
+		|| exprtree->val.int_const > arg_decl->v.integer.max)
+	    {
+		strcpy(error_string, "Default value outside of bounds");
+		JUMP(1);
+	    }
+
+	    arg_decl->v.integer.default_value = exprtree->val.int_const;
+	    break;
+
+	case ARG_TYPE_FLOAT :
+	    {
+		float default_value = 0.0;
+
+		if (exprtree->type == EXPR_INT_CONST)
+		    default_value = (float)exprtree->val.int_const;
+		else if (exprtree->type == EXPR_FLOAT_CONST)
+		    default_value = exprtree->val.float_const;
+		else
+		{
+		    strcpy(error_string, "Only floats can be defaults for a float argument");
+		    JUMP(1);
+		}
+
+		if (default_value < arg_decl->v.floating.min
+		    || default_value > arg_decl->v.floating.max)
+		{
+		    strcpy(error_string, "Default value outside of bounds");
+		    JUMP(1);
+		}
+
+		arg_decl->v.floating.default_value = default_value;
+	    }
+	    break;
+
+	case ARG_TYPE_BOOL :
+	    if (exprtree->type != EXPR_INT_CONST)
+	    {
+		strcpy(error_string, "Only integers can be defaults for a bool argument");
+		JUMP(1);
+	    }
+
+	    arg_decl->v.boolean.default_value = exprtree->val.int_const ? 1 : 0;
+	    break;
+
+	default :
+	    strcpy(error_string, "Default applied to wrongly typed argument");
 	    JUMP(1);
-	}
-
-	if (exprtree->val.int_const < arg_decl->v.integer.min
-	    || exprtree->val.int_const > arg_decl->v.integer.max)
-	{
-	    strcpy(error_string, "Default value outside of bounds");
-	    JUMP(1);
-	}
-
-	arg_decl->v.integer.default_value = exprtree->val.int_const;
-    }
-    else if (arg_decl->type == ARG_TYPE_FLOAT)
-    {
-	float default_value = 0.0;
-
-	if (exprtree->type == EXPR_INT_CONST)
-	    default_value = (float)exprtree->val.int_const;
-	else if (exprtree->type == EXPR_FLOAT_CONST)
-	    default_value = exprtree->val.float_const;
-	else
-	{
-	    strcpy(error_string, "Only floats can be defaults for a float argument");
-	    JUMP(1);
-	}
-
-	if (default_value < arg_decl->v.floating.min
-	    || default_value > arg_decl->v.floating.max)
-	{
-	    strcpy(error_string, "Default value outside of bounds");
-	    JUMP(1);
-	}
-
-	arg_decl->v.floating.default_value = default_value;
-    }
-    else
-    {
-	strcpy(error_string, "Default applied to wrongly typed argument");
-	JUMP(1);
     }
 }
 

@@ -156,7 +156,7 @@ register_float_const (userval_info_t **infos, const char *name, float min, float
 }
 
 userval_info_t*
-register_bool (userval_info_t **infos, const char *name)
+register_bool (userval_info_t **infos, const char *name, int default_value)
 {
     userval_info_t *info;
 
@@ -169,6 +169,7 @@ register_bool (userval_info_t **infos, const char *name)
     }
 
     info = alloc_and_register_userval(infos, name, USERVAL_BOOL_CONST);
+    info->v.bool_const.default_value = default_value;
 
     return info;
 }

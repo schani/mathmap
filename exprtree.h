@@ -86,6 +86,10 @@ typedef struct _arg_decl_t
 	{
 	    struct _arg_decl_t *args;
 	} filter;
+	struct
+	{
+	    int default_value;
+	} boolean;
     } v;
     struct _arg_decl_t *next;
 } arg_decl_t;

@@ -17,12 +17,16 @@ i18n is terribly old.  maybe we should axe it?
 Command Line Tool
 -----------------
 
-Completely untested
+Not tested
+
+Header and template files don't have path
 
 Compiler
 --------
 
 Two inputs can have the same name
+
+Why is there no error message when i assign to "r"???
 
 Limitations in Blender Plug-In Generation
 -----------------------------------------

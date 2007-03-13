@@ -204,6 +204,8 @@ typedef struct _mathmap_invocation_t
     xy_const_vars_t *xy_vars;
     y_const_vars_t *y_vars;
 
+    int cmdline;
+
     int do_debug;
     int num_debug_tuples;
     tuple_t debug_tuples[MAX_DEBUG_TUPLES];

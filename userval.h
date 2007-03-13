@@ -63,6 +63,10 @@ typedef struct _userval_info_t
 	    float max;
 	    float default_value;
 	} float_const;
+	struct
+	{
+	    int default_value;
+	} bool_const;
     } v;
 
     struct _userval_info_t *next;
@@ -119,7 +123,7 @@ userval_info_t* lookup_matching_userval (userval_info_t *infos, userval_info_t *
 
 userval_info_t* register_int_const (userval_info_t **infos, const char *name, int min, int max, int default_value);
 userval_info_t* register_float_const (userval_info_t **infos, const char *name, float min, float max, float default_value);
-userval_info_t* register_bool (userval_info_t **infos, const char *name);
+userval_info_t* register_bool (userval_info_t **infos, const char *name, int default_value);
 userval_info_t* register_color (userval_info_t **infos, const char *name);
 userval_info_t* register_curve (userval_info_t **infos, const char *name);
 userval_info_t* register_gradient (userval_info_t **infos, const char *name);

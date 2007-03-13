@@ -98,7 +98,7 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 		break;
 
 	    case ARG_TYPE_BOOL :
-		result = register_bool(&mathmap->userval_infos, arg_decls->name);
+		result = register_bool(&mathmap->userval_infos, arg_decls->name, arg_decls->v.boolean.default_value);
 		break;
 
 	    case ARG_TYPE_COLOR :

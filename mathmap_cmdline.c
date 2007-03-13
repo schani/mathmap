@@ -427,7 +427,8 @@ cmdline_main (int argc, char *argv[])
 	    quicktime_close(output_movie);
 	else
 #endif
-	    write_image(argv[optind + 1], img_width, img_height, output, 3, img_width * 3, IMAGE_FORMAT_PNG);
+	    write_image(argv[optind + 1], img_width, img_height, output,
+			invocation->output_bpp, img_width * invocation->output_bpp, IMAGE_FORMAT_PNG);
     }
     else
     {
