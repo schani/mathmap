@@ -74,7 +74,7 @@ CC = gcc
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o postfix.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o
 
 CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o #generators/pixeltree/pixeltree.o
 
@@ -109,9 +109,9 @@ scanner.c : scanner.fl parser.h
 	flex scanner.fl
 	mv lex.yy.c scanner.c
 
-compiler.o : new_builtins.c opdefs.h
+compiler.o : new_builtins.c opdefs.h compiler_types.h
 
-new_builtins.c opdefs.h : builtins.lisp ops.lisp
+new_builtins.c opdefs.h compiler_types.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
 blender.o : generators/blender/blender.c

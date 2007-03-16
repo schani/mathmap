@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <glib.h>
+#include <gsl/gsl_matrix.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
 #else
@@ -43,7 +44,6 @@
 #include "tags.h"
 #include "exprtree.h"
 #include "overload.h"
-#include "postfix.h"
 #include "internals.h"
 #include "jump.h"
 #include "scanner.h"
@@ -64,17 +64,7 @@ typedef struct
     int last_index;
 } temporary_t;
 
-#define TYPE_NIL             0
-#define TYPE_INT             1
-#define TYPE_FLOAT           2
-#define TYPE_COMPLEX         3
-#define TYPE_COLOR           4
-#define TYPE_GSL_MATRIX      5
-#define TYPE_V2              6
-#define TYPE_V3		     7
-#define TYPE_M2X2	     8
-
-#define MAX_TYPE             TYPE_M2X2
+#include "compiler_types.h"
 
 #define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
 
@@ -123,29 +113,32 @@ typedef struct _value_list_t
 /* is_rhs_const_primary() assumes that PRIMARY_VALUE is the only non-const
  * primary type.  */
 #define PRIMARY_VALUE          1
-#define PRIMARY_INT_CONST      2
-#define PRIMARY_FLOAT_CONST    3
-#define PRIMARY_COMPLEX_CONST  4
-#define PRIMARY_COLOR_CONST    5
-#define PRIMARY_V2_CONST       6
-#define PRIMARY_V3_CONST       7
-#define PRIMARY_M2X2_CONST     8
+#define PRIMARY_CONST	       2
 
 typedef struct
 {
     int type;
+    int const_type;		/* only valid if type == PRIMARY_VALUE */
     union
     {
 	value_t *value;
-	int int_const;
-	float float_const;
-	complex float complex_const;
-	color_t color_const;
-	mm_v2_t v2_const;
-	mm_v3_t v3_const;
-	mm_m2x2_t m2x2_const;
+	PRIMARY_CONST_DECLS
     } v;
 } primary_t;
+
+#define MAKE_CONST_PRIMARY(name, c_type, type_name)	\
+	primary_t \
+	make_ ## name ## _const_primary (c_type name ## _const) \
+	{ \
+	    primary_t primary; \
+	    primary.type = PRIMARY_CONST; \
+	    primary.const_type = type_name; \
+	    primary.v.name ## _const = name ## _const; \
+	    return primary; \
+	}
+
+// defined in compiler_types.h
+MAKE_CONST_PRIMARY_FUNCS
 
 #define TYPE_PROP_CONST      1
 #define TYPE_PROP_MAX        2
@@ -252,29 +245,9 @@ typedef struct _pre_native_insn_t
     struct _pre_native_insn_t *next;
 } pre_native_insn_t;
 
-typedef struct _native_register_t
-{
-    int native_index;
-    struct _value_t *value_allocated_to;
-    int used_anywhere;
-} native_register_t;
-
-typedef struct
-{
-    int num_registers;
-    native_register_t *registers;
-} type_info_t;
-
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable);
 static int rhs_is_foldable (rhs_t *rhs);
-primary_t make_int_const_primary (int int_const);
-primary_t make_float_const_primary (float float_const);
-primary_t make_complex_const_primary (complex float complex_const);
-primary_t make_color_const_primary (color_t color_const);
-primary_t make_v2_const_primary (mm_v2_t v2_const);
-primary_t make_v3_const_primary (mm_v3_t v3_const);
-primary_t make_m2x2_const_primary (mm_m2x2_t m2x2_const);
 
 #include <complex.h>
 #include <gsl/gsl_vector.h>
@@ -288,9 +261,10 @@ primary_t make_m2x2_const_primary (mm_m2x2_t m2x2_const);
 #include "noise.h"
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
-#define OP_CONST_FLOAT_VAL(i)     (RHS_ARG((i)).type == PRIMARY_INT_CONST ? (float)(RHS_ARG((i)).v.int_const) : \
-                                   RHS_ARG((i)).type == PRIMARY_FLOAT_CONST ? RHS_ARG((i)).v.float_const : \
-                                   ({ assert(0); 0.0; }))
+#define OP_CONST_FLOAT_VAL(i)     ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
+				     (RHS_ARG((i)).const_type == TYPE_INT ? (float)(RHS_ARG((i)).v.int_const) : \
+				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
+				      ({ assert(0); 0.0; })); })
 
 #include "opdefs.h"
 
@@ -306,8 +280,6 @@ static statement_t dummy_stmt = { STMT_NIL };
 
 static pre_native_insn_t *first_pre_native_insn;
 static pre_native_insn_t *last_pre_native_insn;
-
-static type_info_t type_infos[MAX_TYPE + 1];
 
 #define STMT_STACK_SIZE            64
 
@@ -518,24 +490,6 @@ assign_value_index_and_make_current (value_t *val)
     set_value_current(val, val);
 }
 
-#define MAKE_CONST_PRIMARY(name, c_type,type_name)	\
-	primary_t \
-	make_ ## name ## _const_primary (c_type name ## _const) \
-	{ \
-	    primary_t primary; \
-	    primary.type = type_name; \
-	    primary.v.name ## _const = name ## _const; \
-	    return primary; \
-	}
-
-MAKE_CONST_PRIMARY(int, int, PRIMARY_INT_CONST)
-MAKE_CONST_PRIMARY(float, float, PRIMARY_FLOAT_CONST)
-MAKE_CONST_PRIMARY(complex, complex float, PRIMARY_COMPLEX_CONST)
-MAKE_CONST_PRIMARY(color, color_t, PRIMARY_COLOR_CONST)
-MAKE_CONST_PRIMARY(v2, mm_v2_t, PRIMARY_V2_CONST)
-MAKE_CONST_PRIMARY(v3, mm_v3_t, PRIMARY_V3_CONST)
-MAKE_CONST_PRIMARY(m2x2, mm_m2x2_t, PRIMARY_M2X2_CONST)
-
 primary_t
 make_compvar_primary (compvar_t *compvar)
 {
@@ -553,8 +507,7 @@ make_int_const_rhs (int int_const)
     rhs_t *rhs = alloc_rhs();
 
     rhs->type = RHS_PRIMARY;
-    rhs->v.primary.type = PRIMARY_INT_CONST;
-    rhs->v.primary.v.int_const = int_const;
+    rhs->v.primary = make_int_const_primary(int_const);
 
     return rhs;
 }
@@ -565,8 +518,7 @@ make_float_const_rhs (float float_const)
     rhs_t *rhs = alloc_rhs();
 
     rhs->type = RHS_PRIMARY;
-    rhs->v.primary.type = PRIMARY_FLOAT_CONST;
-    rhs->v.primary.v.float_const = float_const;
+    rhs->v.primary = make_float_const_primary(float_const);
 
     return rhs;
 }
@@ -1236,42 +1188,22 @@ print_value (value_t *val)
 static void
 print_primary (primary_t *primary)
 {
+    FILE *out = stdout;
+
     switch (primary->type)
     {
 	case PRIMARY_VALUE :
 	    print_value(primary->v.value);
 	    break;
 
-	case PRIMARY_INT_CONST :
-	    printf("%d", primary->v.int_const);
-	    break;
+	case PRIMARY_CONST :
+	    switch (primary->const_type)
+	    {
+		TYPE_DEBUG_PRINTER
 
-	case PRIMARY_FLOAT_CONST :
-	    fprintf_c(stdout, "%f", primary->v.float_const);
-	    break;
-
-	case PRIMARY_COMPLEX_CONST :
-	    fprintf_c(stdout, "%f + %f i", crealf(primary->v.complex_const), cimagf(primary->v.complex_const));
-	    break;
-
-	case PRIMARY_COLOR_CONST :
-	    printf("(%d,%d,%d,%d)",
-		   RED(primary->v.color_const), GREEN(primary->v.color_const),
-		   BLUE(primary->v.color_const), ALPHA(primary->v.color_const));
-	    break;
-
-	case PRIMARY_V2_CONST :
-	    fprintf_c(stdout, "[%f,%f]", primary->v.v2_const.v[0], primary->v.v2_const.v[1]);
-	    break;
-
-	case PRIMARY_V3_CONST :
-	    fprintf_c(stdout, "[%f,%f,%f]", primary->v.v2_const.v[0], primary->v.v2_const.v[1], primary->v.v2_const.v[2]);
-	    break;
-
-	case PRIMARY_M2X2_CONST :
-	    fprintf_c(stdout, "[[%f,%f],[%f,%f]]",
-		      primary->v.m2x2_const.a00, primary->v.m2x2_const.a01,
-		      primary->v.m2x2_const.a10, primary->v.m2x2_const.a11);
+		default :
+		    assert(0);
+	    }
 	    break;
 
 	default :
@@ -1693,7 +1625,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
 			dest[i] = make_temporary();
 
-		tree->val.func.entry->v.builtin.generator(args, arglengths, argnumbers, dest);
+		tree->val.func.entry->v.builtin_generator(args, arglengths, argnumbers, dest);
 	    }
 	    break;
  
@@ -1898,26 +1830,8 @@ primary_type (primary_t *primary)
 	case PRIMARY_VALUE :
 	    return primary->v.value->compvar->type;
 
-	case PRIMARY_INT_CONST :
-	    return TYPE_INT;
-
-	case PRIMARY_FLOAT_CONST :
-	    return TYPE_FLOAT;
-
-	case PRIMARY_COMPLEX_CONST :
-	    return TYPE_COMPLEX;
-
-	case PRIMARY_COLOR_CONST :
-	    return TYPE_COLOR;
-
-	case PRIMARY_V2_CONST :
-	    return TYPE_V2;
-
-	case PRIMARY_V3_CONST :
-	    return TYPE_V3;
-
-	case PRIMARY_M2X2_CONST :
-	    return TYPE_M2X2;
+	case PRIMARY_CONST :
+	    return primary->const_type;
 
 	default :
 	    assert(0);
@@ -2062,13 +1976,7 @@ primary_constant (primary_t *primary)
 	case PRIMARY_VALUE :
 	    return LEAST_CONST_TYPE(primary->v.value);
 
-	case PRIMARY_INT_CONST :
-	case PRIMARY_FLOAT_CONST :
-	case PRIMARY_COMPLEX_CONST :
-	case PRIMARY_COLOR_CONST :
-	case PRIMARY_V2_CONST :
-	case PRIMARY_V3_CONST :
-	case PRIMARY_M2X2_CONST :
+	case PRIMARY_CONST :
 	    return CONST_MAX;
 
 	default :
@@ -2705,13 +2613,7 @@ remove_dead_assignments (void)
 static int
 is_rhs_const_primary (rhs_t *rhs)
 {
-    if (rhs->type != RHS_PRIMARY)
-	return 0;
-
-    if (rhs->v.primary.type == PRIMARY_VALUE)
-	return 0;
-
-    return 1;
+    return rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_CONST;
 }
 
 static int
@@ -2719,20 +2621,13 @@ is_const_primary_rhs_true (rhs_t *rhs)
 {
     assert(is_rhs_const_primary(rhs));
 
-    switch (rhs->v.primary.type)
+    switch (rhs->v.primary.const_type)
     {
-	case PRIMARY_INT_CONST :
+	case TYPE_INT :
 	    return rhs->v.primary.v.int_const != 0;
 
-	case PRIMARY_FLOAT_CONST :
+	case TYPE_FLOAT :
 	    return rhs->v.primary.v.float_const != 0.0;
-
-	case PRIMARY_COMPLEX_CONST :
-	case PRIMARY_COLOR_CONST :
-	case PRIMARY_V2_CONST :
-	case PRIMARY_V3_CONST :
-	case PRIMARY_M2X2_CONST :
-	    assert(0);
 
 	default :
 	    assert(0);
@@ -2885,32 +2780,44 @@ primaries_equal (primary_t *prim1, primary_t *prim2)
 	case PRIMARY_VALUE :
 	    return prim1->v.value == prim2->v.value;
 
-	case PRIMARY_INT_CONST :
-	    return prim1->v.int_const == prim2->v.int_const;
+	case PRIMARY_CONST :
+	    if (prim1->const_type != prim2->const_type)
+		return 0;
 
-	case PRIMARY_FLOAT_CONST :
-	    return prim1->v.float_const == prim2->v.float_const;
+	    // FIXME: generate this from lisp as well
+	    switch (prim1->const_type)
+	    {
+		case TYPE_INT :
+		    return prim1->v.int_const == prim2->v.int_const;
 
-	case PRIMARY_COMPLEX_CONST :
-	    return prim1->v.complex_const == prim2->v.complex_const;
+		case TYPE_FLOAT :
+		    return prim1->v.float_const == prim2->v.float_const;
 
-	case PRIMARY_COLOR_CONST :
-	    return prim1->v.color_const == prim2->v.color_const;
+		case TYPE_COMPLEX :
+		    return prim1->v.complex_const == prim2->v.complex_const;
 
-	case PRIMARY_V2_CONST :
-	    return prim1->v.v2_const.v[0] == prim2->v.v2_const.v[0]
-		&& prim1->v.v2_const.v[1] == prim2->v.v2_const.v[1];
+		case TYPE_COLOR :
+		    return prim1->v.color_const == prim2->v.color_const;
 
-	case PRIMARY_V3_CONST :
-	    return prim1->v.v3_const.v[0] == prim2->v.v3_const.v[0]
-		&& prim1->v.v3_const.v[1] == prim2->v.v3_const.v[1]
-		&& prim1->v.v3_const.v[2] == prim2->v.v3_const.v[2];
+		case TYPE_V2 :
+		    return prim1->v.v2_const.v[0] == prim2->v.v2_const.v[0]
+			&& prim1->v.v2_const.v[1] == prim2->v.v2_const.v[1];
 
-	case PRIMARY_M2X2_CONST :
-	    return prim1->v.m2x2_const.a00 == prim2->v.m2x2_const.a00
-		&& prim1->v.m2x2_const.a01 == prim2->v.m2x2_const.a01
-		&& prim1->v.m2x2_const.a10 == prim2->v.m2x2_const.a10
-		&& prim1->v.m2x2_const.a11 == prim2->v.m2x2_const.a11;
+		case TYPE_V3 :
+		    return prim1->v.v3_const.v[0] == prim2->v.v3_const.v[0]
+			&& prim1->v.v3_const.v[1] == prim2->v.v3_const.v[1]
+			&& prim1->v.v3_const.v[2] == prim2->v.v3_const.v[2];
+
+		case TYPE_M2X2 :
+		    return prim1->v.m2x2_const.a00 == prim2->v.m2x2_const.a00
+			&& prim1->v.m2x2_const.a01 == prim2->v.m2x2_const.a01
+			&& prim1->v.m2x2_const.a10 == prim2->v.m2x2_const.a10
+			&& prim1->v.m2x2_const.a11 == prim2->v.m2x2_const.a11;
+
+		default :
+		    assert(0);
+	    }
+	    break;
 
 	default :
 	    assert(0);
@@ -3200,263 +3107,6 @@ generate_pre_native_code (void)
     last_pre_native_insn = 0;
 
     generate_pre_native_code_recursively(first_stmt);
-}
-
-/*** register allocation ***/
-
-/*
-static statement_t*
-least_common_ancestor (statement_t *stmt1, statement_t *stmt2)
-{
-    while (stmt1 != 0)
-    {
-	statement_t *stmt;
-
-	for (stmt = stmt2; stmt != 0; stmt = stmt->parent)
-	    if (stmt == stmt1)
-		return stmt;
-
-	stmt1 = stmt1->parent;
-    }
-
-    return stmt1;
-}
-
-static void
-determine_live_range (value_t *value, statement_t *stmt)
-{
-    statement_list_t *lst;
-    statement_t *largest_loop = 0;
-
-    if (value->index < 0)
-	return;
-
-    if (value->live_start != 0)
-    {
-	assert(value->live_end != 0);
-	return;
-    }
-
-    for (lst = value->uses; lst != 0; lst = lst->next)
-	if (lst->stmt->type == STMT_PHI_ASSIGN
-	    && lst->stmt->parent->type == STMT_WHILE_LOOP
-	    && rhs_contains(lst->stmt->v.assign.rhs2, value))
-	    if (largest_loop == 0 || lst->stmt->parent->index < largest_loop->index)
-		largest_loop = lst->stmt->parent;
-
-    if (largest_loop != 0)
-    {
-	value->live_start = value->def;
-	value->live_end = largest_loop;
-    }
-    else
-    {
-	value->live_start = value->def;
-
-	for (lst = value->uses; lst != 0; lst = lst->next)
-	    if (value->live_end == 0 || lst->stmt->index > value->live_end->index)
-		value->live_end = lst->stmt;
-
-	if (value->live_end == 0)
-	    value->live_end = value->live_start;
-    }
-}
-*/
-
-static void
-for_each_value_in_pre_native_insn (pre_native_insn_t *insn, void (*func) (value_t *value))
-{
-    switch (insn->type)
-    {
-	case PRE_NATIVE_INSN_LABEL :
-	case PRE_NATIVE_INSN_GOTO :
-	    break;
-
-	case PRE_NATIVE_INSN_ASSIGN :
-	    func(insn->stmt->v.assign.lhs);
-	    for_each_value_in_rhs(insn->stmt->v.assign.rhs, func);
-	    break;
-
-	case PRE_NATIVE_INSN_PHI_ASSIGN :
-	    assert(insn->v.phi_rhs == 1 || insn->v.phi_rhs == 2);
-
-	    func(insn->stmt->v.assign.lhs);
-	    if (insn->v.phi_rhs == 1)
-		for_each_value_in_rhs(insn->stmt->v.assign.rhs, func);
-	    else
-		for_each_value_in_rhs(insn->stmt->v.assign.rhs2, func);
-	    break;
-
-	case PRE_NATIVE_INSN_IF_COND_FALSE_GOTO :
-	    assert(insn->stmt->type == STMT_IF_COND || insn->stmt->type == STMT_WHILE_LOOP);
-
-	    if (insn->stmt->type == STMT_IF_COND)
-		for_each_value_in_rhs(insn->stmt->v.if_cond.condition, func);
-	    else
-		for_each_value_in_rhs(insn->stmt->v.while_loop.invariant, func);
-	    break;
-
-	default :
-	    assert(0);
-    }
-}
-
-static void
-determine_live_ranges (void)
-{
-    pre_native_insn_t *insn;
-
-    void update (value_t *value)
-	{
-	    if (value->live_start == 0)
-	    {
-		assert(value->live_end == 0);
-
-		value->live_start = value->live_end = insn;
-	    }
-	    else
-	    {
-		assert(value->live_end != 0);
-
-		value->live_end = insn;
-	    }
-	}
-
-    for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
-	for_each_value_in_pre_native_insn(insn, &update);
-}
-
-static void
-init_type_info (int type, int num_registers)
-{
-    int i;
-
-    assert(type >= 0 && type <= MAX_TYPE);
-    assert(num_registers >= 0);
-
-    type_infos[type].num_registers = num_registers;
-    if (num_registers > 0)
-	type_infos[type].registers = (native_register_t*)malloc(sizeof(native_register_t) * num_registers);
-    else
-	type_infos[type].registers = 0;
-
-    for (i = 0; i < num_registers; ++i)
-    {
-	type_infos[type].registers[i].value_allocated_to = 0;
-	type_infos[type].registers[i].used_anywhere = 0;
-    }
-}
-
-static void
-allocate_reg_for_value (value_t *value)
-{
-    int type = value->compvar->type;
-    int i;
-
-    assert(value->allocated_register == 0);
-
-    for (i = 0; i < type_infos[type].num_registers; ++i)
-	if (type_infos[type].registers[i].value_allocated_to == 0)
-	{
-	    value->allocated_register = &type_infos[type].registers[i];
-	    type_infos[type].registers[i].value_allocated_to = value;
-	    type_infos[type].registers[i].used_anywhere = 1;
-
-	    break;
-	}
-}
-
-static void
-register_allocation (void)
-{
-    int i;
-    pre_native_insn_t *insn;
-
-    void allocate (value_t *value)
-	{
-	    if (value->index < 0)
-		return;
-	    if (value->live_start == insn && value->allocated_register == 0)
-		allocate_reg_for_value(value);
-	}
-
-    void deallocate (value_t *value)
-	{
-	    if (value->index < 0)
-		return;
-	    if (value->live_end == insn)
-		if (value->allocated_register != 0
-		    && value->allocated_register->value_allocated_to != 0)
-		{
-		    assert(value->allocated_register->value_allocated_to == value);
-
-		    value->allocated_register->value_allocated_to = 0;
-		}
-	}
-
-    init_type_info(TYPE_NIL, 0);
-    init_type_info(TYPE_INT, 128);
-    init_type_info(TYPE_FLOAT, 128);
-    init_type_info(TYPE_COMPLEX, 128);
-    init_type_info(TYPE_COLOR, 128);
-    init_type_info(TYPE_GSL_MATRIX, 128);
-    init_type_info(TYPE_V2, 128);
-    init_type_info(TYPE_V3, 128);
-    init_type_info(TYPE_M2X2, 128);
-
-    for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
-    {
-	if (insn->type == PRE_NATIVE_INSN_ASSIGN
-	    || insn->type == PRE_NATIVE_INSN_PHI_ASSIGN)
-	{
-	    value_t *lhs = insn->stmt->v.assign.lhs;
-	    rhs_t *rhs;
-
-	    if (insn->type == PRE_NATIVE_INSN_ASSIGN
-		|| insn->v.phi_rhs == 1)
-		rhs = insn->stmt->v.assign.rhs;
-	    else
-		rhs = insn->stmt->v.assign.rhs2;
-
-	    if (rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_VALUE
-		&& lhs->index >= 0 && rhs->v.primary.v.value->index >= 0
-		&& lhs->live_start == insn && rhs->v.primary.v.value->live_end == insn)
-	    {
-		value_t *rhs_value = rhs->v.primary.v.value;
-
-		assert(rhs_value->allocated_register != 0);
-		assert(lhs->allocated_register == 0);
-
-		lhs->allocated_register = rhs_value->allocated_register;
-
-		lhs->allocated_register->value_allocated_to = lhs;
-
-		/* this may be necessary if there was no dead code removal */
-		deallocate(lhs);
-
-		continue;
-	    }
-	}
-
-	for_each_value_in_pre_native_insn(insn, &allocate);
-	for_each_value_in_pre_native_insn(insn, &deallocate);
-    }
-
-    for (i = 0; i < MAX_TYPE; ++i)
-    {
-	int num_used = 0;
-	int j;
-
-	for (j = 0; j < type_infos[i].num_registers; ++j)
-	{
-	    assert(type_infos[i].registers[j].value_allocated_to == 0);
-
-	    if (type_infos[i].registers[j].used_anywhere)
-		++num_used;
-	}
-
-	printf("type %d : %d regs used\n", i, num_used);
-    }
 }
 
 /*** ssa well-formedness check ***/
@@ -3783,44 +3433,7 @@ output_value_decl (FILE *out, value_t *value)
 {
     if (!value->have_defined && value->index >= 0)
     {
-	switch (value->compvar->type)
-	{
-	    case TYPE_INT :
-		fputs("int ", out);
-		break;
-
-	    case TYPE_FLOAT :
-		fputs("float ", out);
-		break;
-
-	    case TYPE_COLOR :
-		fputs("color_t ", out);
-		break;
-
-	    case TYPE_COMPLEX :
-		fputs("complex float ", out);
-		break;
-
-	    case TYPE_GSL_MATRIX :
-		fputs("gsl_matrix *", out);
-		break;
-
-	    case TYPE_V2 :
-		fputs("mm_v2_t ", out);
-		break;
-
-	    case TYPE_V3 :
-		fputs("mm_v3_t ", out);
-		break;
-
-	    case TYPE_M2X2 :
-		fputs("mm_m2x2_t ", out);
-		break;
-
-	    default :
-		assert(0);
-	}
-
+	fprintf(out, "%s ", type_c_type_name(value->compvar->type));
 	output_value_name(out, value, 1);
 	fputs(";\n", out);
 	value->have_defined = 1;
@@ -3837,46 +3450,22 @@ reset_have_defined (statement_t *stmt)
 }
 
 void
-output_primary (FILE *out, primary_t *prim)
+output_primary (FILE *out, primary_t *primary)
 {
-    switch (prim->type)
+    switch (primary->type)
     {
 	case PRIMARY_VALUE :
-	    output_value_name(out, prim->v.value, 0);
+	    output_value_name(out, primary->v.value, 0);
 	    break;
 
-	case PRIMARY_INT_CONST :
-	    fprintf(out, "%d", prim->v.int_const);
-	    break;
+	case PRIMARY_CONST :
+	    switch (primary->const_type)
+	    {
+		TYPE_C_PRINTER
 
-	case PRIMARY_FLOAT_CONST :
-	    fprintf_c(out, "%f", prim->v.float_const);
-	    break;
-
-	case PRIMARY_COMPLEX_CONST :
-	    fprintf_c(out, "COMPLEX(%f,%f)", crealf(prim->v.complex_const), cimagf(prim->v.complex_const));
-	    break;
-
-	case PRIMARY_COLOR_CONST :
-	    fprintf(out, "MAKE_RGBA_COLOR(%d,%d,%d,%d)",
-		    RED(prim->v.color_const), GREEN(prim->v.color_const),
-		    BLUE(prim->v.color_const), ALPHA(prim->v.color_const));
-	    break;
-
-	case PRIMARY_V2_CONST :
-	    fprintf(out, "MAKE_V2(%f,%f)",
-		    prim->v.v2_const.v[0], prim->v.v2_const.v[1]);
-	    break;
-
-	case PRIMARY_V3_CONST :
-	    fprintf(out, "MAKE_V3(%f,%f,%f)",
-		    prim->v.v3_const.v[0], prim->v.v3_const.v[1], prim->v.v3_const.v[2]);
-	    break;
-
-	case PRIMARY_M2X2_CONST :
-	    fprintf(out, "MAKE_M2X2(%f,%f,%f,%f)",
-		    prim->v.m2x2_const.a00, prim->v.m2x2_const.a01,
-		    prim->v.m2x2_const.a10, prim->v.m2x2_const.a11);
+		default :
+		    assert(0);
+	    }
 	    break;
 
 	default :
@@ -4159,11 +3748,8 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
 
     /* no statement reordering after this point */
     generate_pre_native_code();
-    determine_live_ranges();
 
     dump_pre_native_code();
-
-    register_allocation();
 }
 
 void

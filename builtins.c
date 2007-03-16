@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,7 +33,6 @@
 #include <libgimp/gimp.h>
 
 #include "builtins.h"
-#include "postfix.h"
 #include "tags.h"
 #include "overload.h"
 #include "mathmap.h"
@@ -42,8 +41,6 @@ extern int previewing;
 extern gint preview_width, preview_height;
 extern guchar *fast_image_source;
 extern gint sel_x1, sel_y1, sel_width, sel_height;
-
-builtin *firstBuiltin = 0;
 
 static color_t
 get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, int frame)

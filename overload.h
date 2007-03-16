@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -68,11 +68,7 @@ typedef struct _overload_entry_t
     int num_args;
     union
     {
-	struct
-	{
-	    builtin_function_t builtin;
-	    generator_function_t generator;
-	} builtin;
+	generator_function_t builtin_generator;
 	macro_function_t macro;
     } v;
 
@@ -93,11 +89,8 @@ overload_arg_t* new_overload_argument (binding_t *tag, binding_t *length, overlo
 void clear_bindings (void);
 binding_t* free_binding_with_name (const char *name);
 
-void register_overloaded_builtin (const char *name, const char *argstring,
-				  builtin_function_t func, generator_function_t gen);
+void register_overloaded_builtin (const char *name, const char *argstring, generator_function_t gen);
 void register_overloaded_macro (const char *name, const char *argstring, macro_function_t func);
-
-overload_entry_t* overloaded_builtin_with_function (builtin_function_t function);
 
 overload_entry_t* resolve_function_call (const char *name, function_arg_info_t *args, tuple_info_t *result);
 

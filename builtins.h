@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,7 +28,6 @@
 #include <stdio.h>
 
 #include "tuples.h"
-#include "postfix.h"
 #include "color.h"
 
 struct _mathmap_invocation_t;
@@ -36,18 +35,18 @@ struct _compvar_t;
 
 #define MAX_BUILTIN_LENGTH     63
 
-typedef void (*builtin_function_t) (struct _mathmap_invocation_t*, postfix_arg_t*);
 typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
 
+/*
 typedef struct _builtin
 {
     char name[MAX_BUILTIN_LENGTH + 1];
-    builtin_function_t function;
     generator_function_t generator;
     int numParams;
     tuple_info_t tuple_info;
     struct _builtin *next;
 } builtin;
+*/
 
 double color_to_double (unsigned int red, unsigned int green,
 			unsigned int blue, unsigned int alpha);

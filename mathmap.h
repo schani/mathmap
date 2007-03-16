@@ -34,7 +34,6 @@
 #include "internals.h"
 #include "vars.h"
 #include "cgen.h"
-#include "postfix.h"
 #include "color.h"
 
 #include <libgimp/gimp.h>
@@ -56,9 +55,6 @@ typedef struct _mathmap_t
 
     initfunc_t initfunc;
     void *module_info;
-
-    postfix_insn_t *expression;
-    int exprlen;
 
     struct _mathmap_t *next;
 } mathmap_t;
@@ -103,8 +99,6 @@ typedef struct _mathmap_invocation_t
     float scale_x, scale_y;
 
     float current_x, current_y, current_r, current_a, current_t;
-
-    postfix_machine_t *stack_machine;
 
     int row_stride;
     volatile int num_rows_finished;

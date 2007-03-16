@@ -1,8 +1,6 @@
 Compiler
 --------
 
-make vectors and matrix operations in compiler code not allocate stuff (use a struct), then we can also make them pure
-
 GIMP Plug-In
 ------------
 

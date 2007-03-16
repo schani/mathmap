@@ -161,8 +161,7 @@ interpret_arg_string (const char *string, overload_arg_t **result, overload_arg_
 }
 
 void
-register_overloaded_builtin (const char *name, const char *argstring,
-			     builtin_function_t func, generator_function_t gen)
+register_overloaded_builtin (const char *name, const char *argstring, generator_function_t gen)
 {
     overload_entry_t *entry = (overload_entry_t*)malloc(sizeof(overload_entry_t));
     overload_arg_t *arg;
@@ -175,8 +174,7 @@ register_overloaded_builtin (const char *name, const char *argstring,
 
     for (arg = entry->args, entry->num_args = 0; arg != 0; arg = arg->next)
 	++entry->num_args;
-    entry->v.builtin.builtin = func;
-    entry->v.builtin.generator = gen;
+    entry->v.builtin_generator = gen;
 
     entry->next = 0;
 
@@ -208,18 +206,6 @@ register_overloaded_macro (const char *name, const char *argstring, macro_functi
 	first_overload_entry = last_overload_entry = entry;
     else
 	last_overload_entry = last_overload_entry->next = entry;
-}
-
-overload_entry_t*
-overloaded_builtin_with_function (builtin_function_t function)
-{
-    overload_entry_t *entry;
-
-    for (entry = first_overload_entry; entry != 0; entry = entry->next)
-	if (entry->type == OVERLOAD_BUILTIN && entry->v.builtin.builtin == function)
-	    return entry;
-
-    return 0;
 }
 
 overload_entry_t*

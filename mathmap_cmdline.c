@@ -36,7 +36,6 @@
 
 #include "exprtree.h"
 #include "builtins.h"
-#include "postfix.h"
 #include "tags.h"
 #include "scanner.h"
 #include "vars.h"

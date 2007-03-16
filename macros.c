@@ -25,7 +25,6 @@
 #include <assert.h>
 #include <math.h>
 
-#include "postfix.h"
 #include "internals.h"
 #include "tags.h"
 #include "exprtree.h"

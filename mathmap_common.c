@@ -34,7 +34,6 @@
 #include "tags.h"
 #include "jump.h"
 #include "scanner.h"
-#include "postfix.h"
 #include "cgen.h"
 #include "mathmap.h"
 
@@ -153,8 +152,6 @@ free_mathmap (mathmap_t *mathmap)
 	free_top_level_decls(mathmap->top_level_decls);
     if (mathmap->userval_infos != 0)
 	free_userval_infos(mathmap->userval_infos);
-    if (!mathmap->is_native && mathmap->expression != 0)
-	free(mathmap->expression);
     unload_mathmap(mathmap);
 
     free(mathmap);
@@ -169,8 +166,6 @@ free_invocation (mathmap_invocation_t *invocation)
 	free(invocation->internals);
     if (invocation->variables != 0)
 	free(invocation->variables);
-    if (invocation->stack_machine != 0)
-	free_postfix_machine(invocation->stack_machine);
     if (invocation->uservals != 0)
     {
 	for (info = invocation->mathmap->userval_infos; info != 0; info = info->next)
@@ -258,7 +253,6 @@ parse_mathmap (char *expression)
     mathmap->internals = 0;
     mathmap->is_native = 0;
     mathmap->module_info = 0;
-    mathmap->expression = 0;
     mathmap->top_level_decls = 0;
 
     init_internals(mathmap);
@@ -363,8 +357,9 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{
-	    mathmap->expression = make_postfix(mathmap->top_level_decls->v.filter.body, &mathmap->exprlen);
-	    output_postfix(mathmap->expression, mathmap->exprlen);
+	    assert(0);
+
+	    // FIXME: generate interpreter code here
 
 	    mathmap->is_native = 0;
 
@@ -462,11 +457,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->row_stride = img_width * 4;
     invocation->num_rows_finished = 0;
 
-    if (!mathmap->is_native)
-	invocation->stack_machine = make_postfix_machine();
-    else
-	invocation->stack_machine = 0;
-
     invocation->xy_vars = 0;
     invocation->y_vars = 0;
 
@@ -538,6 +528,11 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	invocation->mathfuncs.calc_lines(invocation, first_row, last_row, q);
     else
     {
+	assert(0);
+
+	// FIXME: call interpreter here
+
+	/*
 	int row, col;
 	int output_bpp = invocation->output_bpp;
 	int origin_x = invocation->origin_x, origin_y = invocation->origin_y;
@@ -579,6 +574,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	    if (!invocation->supersampling)
 		invocation->num_rows_finished = row + 1;
 	}
+	*/
     }
 }
 

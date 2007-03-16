@@ -21,8 +21,46 @@
 
 (defparameter *operators* nil)
 
+(defparameter *types* '((nil         nil            ("NIL" "NIL" ()))
+			(int        "int"           ("%d" "%d" ("~A")))
+			(float      "float"         ("%f" "%f" ("~A")))
+			(complex    "complex float" ("%f + %f i"
+						     "COMPLEX(%f,%f)"
+						     ("crealf(~A)" "cimagf(~A)")))
+			(color      "color_t"       ("(%d,%d,%d,%d)" "MAKE_RGBA_COLOR(%d,%d,%d,%d)"
+						     ("RED(~A)" "GREEN(~A)" "BLUE(~A)" "ALPHA(~A)")))
+			(gsl-matrix "gsl_matrix *"  ("***MAXTRIX***" "***MATRIX***" ()))
+			(v2         "mm_v2_t"       ("[%f,%f]" "MAKE_V2(%f,%f)"
+						     ("~A.v[0]" "~A.v[1]")))
+			(v3         "mm_v3_t"       ("[%f,%f,%f]" "MAKE_V3(%f,%f,%f)"
+						     ("~A.v[0]" "~A.v[1]" "~A.v[2]")))
+			(m2x2       "mm_m2x2_t"     ("[[%f,%f],[%f,%f]]" "MAKE_M2X2(%f,%f,%f,%f)"
+						     ("~A.a00" "~A.a01" "~A.a10" "~A.a11")))))
+
+(defun type-with-name (name)
+  (assoc name *types*))
+
+(defparameter *int-type* (type-with-name 'int))
+(defparameter *float-type* (type-with-name 'float))
+(defparameter *complex-type* (type-with-name 'complex))
+
+(defparameter *max-float-types* (list *int-type* *float-type*))
+(defparameter *max-types* (list *int-type* *float-type* *complex-type*))
+
+(defun type-name (type)
+  (first type))
+
+(defun type-c-define (type)
+  (format nil "TYPE_~A" (ucs (first type))))
+
+(defun type-c-type (type)
+  (second type))
+
+(defun type-print-info (type)
+  (third type))
+
 (defmacro defop (name arity c-define c-name &key (type-prop 'const) (type 'float) (pure t) (foldable t))
-  `(push '(,name ,arity ,c-define ,c-name ,type-prop ,type ,pure ,(if pure foldable nil)) *operators*))
+  `(push '(,name ,arity ,c-define ,c-name ,type-prop ,(type-with-name type) ,pure ,(if pure foldable nil)) *operators*))
 
 (defop nop 0 "OP_NOP" "NOP" :type int)
 
@@ -139,13 +177,6 @@
 (defop make-color 4 "OP_MAKE_COLOR" "MAKE_COLOR" :type color)
 (defop output-color 1 "OP_OUTPUT_COLOR" "OUTPUT_COLOR" :type int :pure nil)
 
-(defun c-type-define (type)
-  (cdr (assoc type '((nil . "0")
-		     (int . "TYPE_INT") (float . "TYPE_FLOAT")
-		     (complex . "TYPE_COMPLEX") (color . "TYPE_COLOR")
-		     (m2x2 . "TYPE_M2X2") (m3x3 . "TYPE_GSL_MATRIX")
-		     (v2 . "TYPE_V2") (v3 . "TYPE_V3")))))
-
 (defun max-type (types)
   (cond ((null types)
 	 (error "cannot determine max type of empty list"))
@@ -153,15 +184,15 @@
 	 (car types))
 	(t
 	 (let ((rest-max (max-type (cdr types))))
-	   (cond ((eq (car types) 'complex)
-		  'complex)
-		 ((eq (car types) 'int)
+	   (cond ((eq (car types) *complex-type*)
+		  *complex-type*)
+		 ((eq (car types) *int-type*)
 		  rest-max)
 		 (t
-		  (assert (eq (car types) 'float))
-		  (if (eq rest-max 'complex)
-		      'complex
-		    'float)))))))
+		  (assert (eq (car types) *float-type*))
+		  (if (eq rest-max *complex-type*)
+		      *complex-type*
+		    *float-type*)))))))
 
 (defun make-op-defines ()
   (apply #'string-concat
@@ -176,7 +207,7 @@
 			 op
 		       (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~], ~:[0~;1~]);~%"
 			       c-define c-name arity (ucs type-prop)
-			       (c-type-define type) pure foldable)))
+			       (type-c-define type) pure foldable)))
 		 (reverse *operators*))))
 
 (defun make-op-folders ()
@@ -188,34 +219,77 @@
 				  (if (= (length arg-types) arity)
 				      (let ((max-type (max-type arg-types)))
 					(format nil "return make_~A_const_primary(~A(~{(~A)rhs->v.op.args[~A].v.~A_const~^, ~}));~%"
-						(dcs max-type) c-name
+						(dcs (type-name max-type)) c-name
 						(mappend #'(lambda (i arg-type)
-							     (list (c-type max-type) i (dcs arg-type)))
+							     (list (type-c-type max-type) i (dcs (type-name arg-type))))
 							 (integers-upto arity) arg-types)))
-				    (format nil "switch (rhs->v.op.args[~A].type) {~%~Adefault : assert(0); break;~%}~%"
-					    (length arg-types)
-					    (apply #'string-concat
-						   (mapcar #'(lambda (type)
-							       (format nil "case PRIMARY_~A_CONST :~%~A"
-								       type
-								       (switch-args (append arg-types (list type)))))
-							   (if (eq type-prop 'max)
-							       '(int float complex)
-							     '(int float))))))))
+				      (format nil "switch (rhs->v.op.args[~A].const_type) {~%~Adefault : assert(0); break;~%}~%"
+					      (length arg-types)
+					      (apply #'string-concat
+						     (mapcar #'(lambda (type)
+								 (format nil "case ~A :~%~A"
+									 (type-c-define type)
+									 (switch-args (append arg-types (list type)))))
+							     (if (eq type-prop 'max)
+								 *max-types*
+								 *max-float-types*)))))))
 			 (if foldable
 			     (if (eq type-prop 'const)
 				 (format nil "case ~A :~%return make_~A_const_primary(~A(~{OP_CONST_FLOAT_VAL(~A)~^, ~}));~%"
-					 c-define (dcs type) c-name
+					 c-define (dcs (type-name type)) c-name
 					 (integers-upto arity))
-			       (format nil "case ~A :~%~A"
-				       c-define
-				       (switch-args '())))
-			   ""))))
+				 (format nil "case ~A :~%~A"
+					 c-define
+					 (switch-args '())))
+			     ""))))
 		 (reverse *operators*))))
+
+(defun make-types-file ()
+  (with-open-file (out "compiler_types.h" :direction :output :if-exists :supersede)
+    (format out "~{#define ~A ~A~%~}"
+	    (mappend #'(lambda (type index)
+			 (list (type-c-define type) index))
+		     *types* (integers-upto (length *types*))))
+    (format out "~%#define MAX_TYPE ~A~%~%" (type-c-define (car (last *types*))))
+    (format out "#define PRIMARY_CONST_DECLS ~{~A ~A_const;~^ ~}~%~%"
+	    (mappend #'(lambda (type)
+			 (let ((c-type (type-c-type type)))
+			   (if (null c-type)
+			       '()
+			       (list c-type (dcs (type-name type))))))
+		     *types*))
+    (format out "static char*~%type_c_type_name (int type)~%{~%switch (type)~%{~%~{case ~A : return ~A;~%~}default : assert(0); return 0;~%}~%}~%~%"
+	    (mappend #'(lambda (type)
+			 (let ((c-type (type-c-type type)))
+			   (list (type-c-define type)
+				 (if (null c-type)
+				     "0"
+				     (format nil "\"~A\"" c-type)))))
+		     *types*))
+    (format out "#define MAKE_CONST_PRIMARY_FUNCS \\~%~{MAKE_CONST_PRIMARY(~A, ~A, ~A)~^ \\~%~}~%~%"
+	    (mappend #'(lambda (type)
+			 (if (null (type-c-type type))
+			     nil
+			     (list (dcs (type-name type)) (type-c-type type) (type-c-define type))))
+		     *types*))
+    (labels ((printer (name spec-accessor)
+	       (format out "#define ~A \\~%~{case ~A : fprintf_c(out, \"~A\"~{, ~A~}); break;~^ \\~%~}~%~%"
+		       name
+		       (mappend #'(lambda (type)
+				    (let ((print-info (type-print-info type)))
+				      (list (type-c-define type)
+					    (funcall spec-accessor print-info)
+					    (mapcar #'(lambda (arg-spec)
+							(format nil arg-spec
+								(format nil "primary->v.~A_const" (dcs (type-name type)))))
+						    (car (last print-info))))))
+				*types*))))
+      (printer "TYPE_DEBUG_PRINTER" #'first)
+      (printer "TYPE_C_PRINTER" #'second))))
 
 (defun make-ops-file ()
   (with-open-file (out "opdefs.h" :direction :output :if-exists :supersede)
     (let ((*standard-output* out))
       (format t "~A~%#define NUM_OPS ~A~%~%" (make-op-defines) (length *operators*))
       (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
-      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%~%" (make-op-folders)))))
+      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%" (make-op-folders)))))

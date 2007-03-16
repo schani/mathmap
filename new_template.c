@@ -146,8 +146,7 @@ typedef struct _mathmap_t
     void *initfunc;
     void *module_info;
 
-    void *expression;
-    int exprlen;
+    struct _mathmap_t *next;
 } mathmap_t;
 
 typedef struct
@@ -195,8 +194,6 @@ typedef struct _mathmap_invocation_t
     float scale_x, scale_y;
 
     float current_x, current_y, current_r, current_a, current_t;
-
-    void *stack_machine;
 
     int row_stride;
     volatile int num_rows_finished;
