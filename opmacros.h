@@ -17,6 +17,11 @@ typedef struct
 } mm_m2x2_t;
 
 #define NOP()                 (0.0)
+
+#define INT2FLOAT(x)          ((float)(x))
+#define INT2COMPLEX(x)        ((complex float)(x))
+#define FLOAT2COMPLEX(x)      ((complex float)(x))
+
 #define ADD(a,b)              ((a)+(b))
 #define SUB(a,b)              ((a)-(b))
 #define NEG(a)                (-(a))

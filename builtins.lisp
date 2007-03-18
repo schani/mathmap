@@ -47,7 +47,8 @@
 		      (abs-v 1 "OP_ABS" "fabs")))
 
 (defparameter *primops* (mapcar #'(lambda (op)
-				    (destructuring-bind (name arity c-define c-name type-prop type pure foldable)
+				    (destructuring-bind (name arity c-define c-name type-prop type
+							      pure foldable arg-type-name)
 					op
 				      (list name arity c-define c-name type)))
 				*operators*))
@@ -162,7 +163,7 @@
 				 (error "cannot declare expr ~A of type ~A" expr type)))))
 			  (gen-op (op-name args lval allocatedp gen-sub)
 			    (let ((arg-names (mapcar #'(lambda (x) (make-tmp-name)) args)))
-			      (format nil "~A{~%compvar_t ~{*~A~^, ~};~%~{~A~}emit_assign(make_lhs(~A), make_op_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
+			      (format nil "~A{~%~@[compvar_t ~{*~A~^, ~};~%~]~{~A~}emit_assign(make_lhs(~A), make_op_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
 				      (make-allocated lval allocatedp)
 				      arg-names
 				      (mapcar #'(lambda (arg name) (funcall gen-sub arg name nil)) args arg-names)
@@ -359,18 +360,6 @@
 			(format nil "{~%~A~%~A}~%"
 				(expr-decl primary dummy)
 				(gen-primary primary dummy nil))))
-		     ((print ?arg)
-		      (let ((name (make-tmp-name)))
-			(let ((dummy (make-tmp-name)))
-			  (format nil "{~%compvar_t *~A, *~A = make_temporary();~%~Aemit_assign(make_lhs(~A), make_op_rhs(OP_PRINT, make_compvar_primary(~A)));~%}~%"
-				  name dummy
-				  (gen-primary arg name nil)
-				  dummy name))))
-		     ((newline)
-		      (let ((dummy (make-tmp-name)))
-			(format nil "{~%compvar_t *~A = make_temporary();~%emit_assign(make_lhs(~A), make_op_rhs(OP_NEWLINE));~%}~%"
-				dummy
-				dummy)))
 		     ((progn . ?body)
 		      (reduce #'string-concat (mapcar #'(lambda (s) (gen s bindings)) body)))
 		     ((if ?condition ?consequent ?alternative)
@@ -387,7 +376,9 @@
 				(mapcar #'third lets)
 				(let ((bindings (append (mapcar #'(lambda (l) (list (first l) (fourth l) (fifth l) (sixth l) (seventh l))) lets)
 							bindings)))
-				  (mapcar #'(lambda (s) (gen s bindings)) body)))))))))
+				  (mapcar #'(lambda (s) (gen s bindings)) body)))))
+		     (?
+		      (error "unknown statement ~A" stmt))))))
 	(format t "static void~%gen_~A (compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%" (dcs name))
 	(dolist (stmt body)
 	  (princ (gen stmt nil)))
@@ -401,8 +392,8 @@
 
 (defbuiltin "print" print (nil 1) ((val (_ _)))
   (forarglength val i
-    (print (nth i val)))
-  (newline)
+    (forget (print (nth i val))))
+  (forget (newline))
   (set result (make (nil 1) 0)))
 
 (defbuiltin "__add" add_ri (ri 2) ((a (ri 2)) (b (ri 2)))
@@ -672,7 +663,7 @@
   (set result (make (?T 1) (atan (nth 0 a)))))
 
 (defbuiltin "atan" atan2 (?T 1) ((a (?T 1)) (b (?T 1)))
-  (set result (make (?T 1) (atan (nth 0 a) (nth 0 b)))))
+  (set result (make (?T 1) (atan2 (nth 0 a) (nth 0 b)))))
 
 ;;; exp and friends
 

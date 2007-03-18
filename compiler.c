@@ -261,9 +261,17 @@ static int rhs_is_foldable (rhs_t *rhs);
 #include "noise.h"
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
+#define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
+				     (RHS_ARG((i)).const_type == TYPE_INT ? RHS_ARG((i)).v.int_const : \
+				      ({ assert(0); 0.0; })); })
 #define OP_CONST_FLOAT_VAL(i)     ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? (float)(RHS_ARG((i)).v.int_const) : \
 				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
+				      ({ assert(0); 0.0; })); })
+#define OP_CONST_COMPLEX_VAL(i)   ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
+				     (RHS_ARG((i)).const_type == TYPE_INT ? (complex float)(RHS_ARG((i)).v.int_const) : \
+				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
+				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.complex_const : \
 				      ({ assert(0); 0.0; })); })
 
 #include "opdefs.h"
@@ -2784,35 +2792,9 @@ primaries_equal (primary_t *prim1, primary_t *prim2)
 	    if (prim1->const_type != prim2->const_type)
 		return 0;
 
-	    // FIXME: generate this from lisp as well
 	    switch (prim1->const_type)
 	    {
-		case TYPE_INT :
-		    return prim1->v.int_const == prim2->v.int_const;
-
-		case TYPE_FLOAT :
-		    return prim1->v.float_const == prim2->v.float_const;
-
-		case TYPE_COMPLEX :
-		    return prim1->v.complex_const == prim2->v.complex_const;
-
-		case TYPE_COLOR :
-		    return prim1->v.color_const == prim2->v.color_const;
-
-		case TYPE_V2 :
-		    return prim1->v.v2_const.v[0] == prim2->v.v2_const.v[0]
-			&& prim1->v.v2_const.v[1] == prim2->v.v2_const.v[1];
-
-		case TYPE_V3 :
-		    return prim1->v.v3_const.v[0] == prim2->v.v3_const.v[0]
-			&& prim1->v.v3_const.v[1] == prim2->v.v3_const.v[1]
-			&& prim1->v.v3_const.v[2] == prim2->v.v3_const.v[2];
-
-		case TYPE_M2X2 :
-		    return prim1->v.m2x2_const.a00 == prim2->v.m2x2_const.a00
-			&& prim1->v.m2x2_const.a01 == prim2->v.m2x2_const.a01
-			&& prim1->v.m2x2_const.a10 == prim2->v.m2x2_const.a10
-			&& prim1->v.m2x2_const.a11 == prim2->v.m2x2_const.a11;
+		MAKE_CONST_COMPARATOR
 
 		default :
 		    assert(0);
@@ -3374,6 +3356,37 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
     return non_empty;
 }
 
+/*** type promotion ***/
+
+static void
+promote_types_recursively (statement_t **stmtp)
+{
+    while (*stmtp != 0)
+    {
+	switch (stmt->type)
+	    {
+	    case STMT_NIL :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_ASSIGN :
+		
+		break;
+
+	    default :
+		assert(0);
+	    }
+
+	stmtp = &(*stmtp)->next;
+    }
+}
+
+stativ void
+promote_types (void)
+{
+    promote_types_recursively(&first_stmt);
+}
+
 /*** c code output ***/
 
 /* permanent const values must be calculated once and then available for the
@@ -3720,6 +3733,12 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
     propagate_types();
 
     check_ssa(first_stmt);
+
+    /* FIXME: enable!
+    promote_types();
+
+    check_ssa(first_stmt);
+    */
 
     optimize_make_color(first_stmt);
 

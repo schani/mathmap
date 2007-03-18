@@ -30,10 +30,10 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.1.1
+VERSION = 1.1.2
 
-OPT_CFLAGS := -O2
-#OPT_CFLAGS := -g
+#OPT_CFLAGS := -O2
+OPT_CFLAGS := -g
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -138,12 +138,12 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *~ *.o generators/blender/*~ generators/pixeltree/*.o mathmap compiler scanner.c parser.[ch] parser.output core
+	rm -f *~ *.o generators/blender/*.o generators/pixeltree/*.o mathmap compiler scanner.c parser.[ch] parser.output core
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h compiler_types.h .nfs* mathmap-*.tar.gz
 
 dist : new_builtins.c clean
 	rm -rf mathmap-$(VERSION)
