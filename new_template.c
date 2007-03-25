@@ -518,10 +518,23 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 static void
 init_frame (mathmap_invocation_t *invocation)
 {
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
+
+#if $g
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel;
+#else
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel_fast;
+#endif
 
     if (invocation->xy_vars != 0)
 	free(invocation->xy_vars);

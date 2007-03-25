@@ -138,12 +138,12 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *~ *.o generators/blender/*.o generators/pixeltree/*.o mathmap compiler scanner.c parser.[ch] parser.output core
+	rm -f *~ *.o generators/blender/*.o generators/pixeltree/*.o mathmap compiler parser.output core
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h compiler_types.h .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
 
 dist : new_builtins.c clean
 	rm -rf mathmap-$(VERSION)

@@ -304,7 +304,11 @@ read_expressions (void)
     static char *path = 0;
 
     if (path == 0)
+    {
 	path = get_rc_file_name(EXPRESSIONS_DIR);
+	if (path == 0)
+	    return 0;
+    }
 
     return read_expression_db(path);
 }
@@ -728,7 +732,7 @@ generate_code (int current_frame, float current_t)
 	template = open_rc_file("new_template.c");
 	if (template == 0)
 	{
-	    sprintf(error_string, "Cannot read template file new_template.c");
+	    sprintf(error_string, "Cannot read template file new_template.c.  MathMap is not installed correctly.");
 	    new_mathmap = 0;
 	}
 	else
@@ -737,7 +741,7 @@ generate_code (int current_frame, float current_t)
 
 	    if (opmacros_name == 0)
 	    {
-		sprintf(error_string, "Support file opmacros.h does not exist");
+		sprintf(error_string, "Support file opmacros.h does not exist.  MathMap is not installed correctly.");
 		new_mathmap = 0;
 	    }
 	    else

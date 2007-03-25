@@ -245,6 +245,12 @@ typedef struct _pre_native_insn_t
     struct _pre_native_insn_t *next;
 } pre_native_insn_t;
 
+typedef union
+{
+    // defined in compiler_types.h
+    BUILTIN_ARGS_DECL
+} builtin_arg_t;
+
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable);
 static int rhs_is_foldable (rhs_t *rhs);
@@ -273,6 +279,10 @@ static int rhs_is_foldable (rhs_t *rhs);
 				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
 				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.complex_const : \
 				      ({ assert(0); 0.0; })); })
+
+#define OUTPUT_COLOR_INTERPRETER(c)  0 /* FIXME: implement */
+
+typedef void (*builtin_func_t) (mathmap_invocation_t*, builtin_arg_t*);
 
 #include "opdefs.h"
 
@@ -3358,34 +3368,51 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 
 /*** type promotion ***/
 
+/*
 static void
 promote_types_recursively (statement_t **stmtp)
 {
     while (*stmtp != 0)
     {
+	statement_t *stmt = *stmtp;
+
 	switch (stmt->type)
-	    {
+	{
 	    case STMT_NIL :
+		break;
+
 	    case STMT_PHI_ASSIGN :
+		assert(rhs_type(stmt->v.assign.rhs) == rhs_type(stmt->v.assign.rhs2));
 		break;
 
 	    case STMT_ASSIGN :
-		
+		break;
+
+	    case STMT_IF_COND :
+		promote_types_recursively(&stmt->v.if_cond.consequent);
+		promote_types_recursively(&stmt->v.if_cond.alternative);
+		promote_types_recursively(&stmt->v.if_cond.exit);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		promote_types_recursively(&stmt->v.while_loop.entry);
+		promote_types_recursively(&stmt->v.while_loop.body);
 		break;
 
 	    default :
 		assert(0);
-	    }
+	}
 
 	stmtp = &(*stmtp)->next;
     }
 }
 
-stativ void
+static void
 promote_types (void)
 {
     promote_types_recursively(&first_stmt);
 }
+*/
 
 /*** c code output ***/
 
@@ -3733,12 +3760,6 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
     propagate_types();
 
     check_ssa(first_stmt);
-
-    /* FIXME: enable!
-    promote_types();
-
-    check_ssa(first_stmt);
-    */
 
     optimize_make_color(first_stmt);
 

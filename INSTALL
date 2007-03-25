@@ -13,7 +13,7 @@ development packages, to compile and to run:
 
   * The GIMP 2.2
   * GSL (GNU Scientific Library), including GSL CBLAS
-  * libjpeg, libpng, libgif
+  * libjpeg, libpng, giflib
 
 Configuration
 -------------

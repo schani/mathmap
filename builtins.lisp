@@ -19,8 +19,13 @@
 ;; program's maintainer or write to: The Free Software Foundation,
 ;; Inc.; 675 Massachusetts Avenue; Cambridge, MA 02139, USA.
 
-(load "utils.lisp")
-(load "let-match.lisp")
+(load "lisp-utils/utils.lisp")
+(load "lisp-utils/let-match.lisp")
+
+(defpackage "MATHMAP"
+  (:use "CL" "EXT" "UTILS" "LET-MATCH"))
+
+(in-package :mathmap)
 
 (load "ops.lisp")
 
@@ -47,10 +52,7 @@
 		      (abs-v 1 "OP_ABS" "fabs")))
 
 (defparameter *primops* (mapcar #'(lambda (op)
-				    (destructuring-bind (name arity c-define c-name type-prop type
-							      pure foldable arg-type-name)
-					op
-				      (list name arity c-define c-name type)))
+				    (list (op-name op) (op-arity op) (op-c-define op) (op-c-name op) (op-type op)))
 				*operators*))
 
 (defparameter *condops* '((= 2 "OP_EQ" "EQ")
@@ -509,7 +511,7 @@
   (let ((m (make-m2x2 (nth 0 b) (nth 1 b) (nth 2 b) (nth 3 b)))
 	(v (make-v2 (nth 0 a) (nth 1 a))))
     (let ((r (solve-linear-2 m v)))
-      (set result (make (v2 2) (vector-nth 0 r) (vector-nth 1 r))))))
+      (set result (make (v2 2) (v2-nth 0 r) (v2-nth 1 r))))))
 
 (defbuiltin "__div" div_v3m3x3 (v3 3) ((a (? 3)) (b (m3x3 9)))
   (let ((m (make-m3x3 (nth 0 b) (nth 1 b) (nth 2 b)
@@ -517,7 +519,7 @@
 		      (nth 6 b) (nth 7 b) (nth 8 b)))
 	(v (make-v3 (nth 0 a) (nth 1 a) (nth 2 a))))
     (let ((r (solve-linear-3 m v)))
-      (set result (make (v3 3) (vector-nth 0 r) (vector-nth 1 r) (vector-nth 2 r)))
+      (set result (make (v3 3) (v3-nth 0 r) (v3-nth 1 r) (v3-nth 2 r)))
       (forget (free-matrix m)))))
 
 (defbuiltin "__div" div_1 (?T 1) ((a (?T 1)) (b (?T 1)))
@@ -784,7 +786,7 @@
 
 (defbuiltin "ell_jac" ell_jac (?T 3) ((u (?T 1)) (m (?T 1)))
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
-    (set result (make (?T 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))))
+    (set result (make (?T 3) (v3-nth 0 v) (v3-nth 1 v) (v3-nth 2 v)))))
 
 ;;; floor and friends
 
@@ -843,11 +845,11 @@
 
 (defbuiltin "solve" solve-poly-2 (nil 2) ((p (poly 3)))
   (let ((v (solve-poly-2 (nth 0 p) (nth 1 p) (nth 2 p))))
-    (set result (make (nil 2) (vector-nth 0 v) (vector-nth 1 v)))))
+    (set result (make (nil 2) (v2-nth 0 v) (v2-nth 1 v)))))
 
 (defbuiltin "solve" solve-poly-3 (nil 3) ((p (poly 4)))
   (let ((v (solve-poly-3 (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p))))
-    (set result (make (nil 3) (vector-nth 0 v) (vector-nth 1 v) (vector-nth 2 v)))))
+    (set result (make (nil 3) (v3-nth 0 v) (v3-nth 1 v) (v3-nth 2 v)))))
 
 ;;; logic
 
