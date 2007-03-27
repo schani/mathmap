@@ -113,7 +113,7 @@
 			  (make-allocated (name allocatedp)
 			    (if allocatedp
 				""
-				(format nil "~A = make_temporary();~%" name)))
+				(format nil "~A = make_temporary(TYPE_INT);~%" name)))
 			  ;; returns type, length, c-type
 			  (expr-type (expr)
 			    (case-match expr

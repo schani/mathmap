@@ -145,6 +145,9 @@ clean :
 realclean : clean
 	rm -f new_builtins.c opdefs.h compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
 
+TAGS : *.c *.h *.lisp
+	etags *.c *.h *.lisp
+
 dist : new_builtins.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)

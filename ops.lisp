@@ -93,9 +93,10 @@
 
 (defop 'nop 0 "NOP" :type 'int)
 
-;(defop int-to-float 1 "INT2FLOAT" :type 'float :arg-type 'int)
-;(defop int-to-complex 1 "INT2COMPLEX" :type 'complex :arg-type 'int)
-;(defop float-to-complex 1 "FLOAT2COMPLEX" :type 'complex :arg-type 'float)
+(defop 'int-to-float 1 "INT2FLOAT" :type 'float :arg-type 'int)
+(defop 'float-to-int 1 "FLOAT2INT" :type 'int :arg-type 'float)
+(defop 'int-to-complex 1 "INT2COMPLEX" :type 'complex :arg-type 'int)
+(defop 'float-to-complex 1 "FLOAT2COMPLEX" :type 'complex :arg-type 'float)
 
 (defop '+ 2 "ADD" :type-prop 'max :type nil :c-define "OP_ADD")
 (defop '- 2 "SUB" :type-prop 'max :type nil :c-define "OP_SUB")
@@ -132,7 +133,7 @@
 (defop '= 2 "EQ" :type 'int :c-define "OP_EQ")
 (defop '< 2 "LESS" :type 'int :c-define "OP_LESS")
 (defop '<= 2 "LEQ" :type 'int :c-define "OP_LEQ")
-(defop 'not 1 "NOT" :type 'int)		;FIXME: shouldn't the arg type be int?
+(defop 'not 1 "NOT" :type 'int :arg-type 'int)
 
 (defop 'print 1 "PRINT_FLOAT" :type 'int :pure nil)
 (defop 'newline 0 "NEWLINE" :type 'int :pure nil)
@@ -237,9 +238,12 @@
 (defun make-init-ops ()
   (apply #'string-concat
 	 (mapcar #'(lambda (op)
-		     (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~], ~:[0~;1~]);~%"
+		     (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~], ~:[0~;1~]~{, ~A~});~%"
 			     (op-c-define op) (op-c-name op) (op-arity op) (ucs (op-type-prop op))
-			     (type-c-define (op-type op)) (op-pure op) (op-foldable op)))
+			     (type-c-define (op-type op)) (op-pure op) (op-foldable op)
+			     (if (eq (op-type-prop op) 'const)
+				 (mapcar #'type-c-define (op-arg-types op))
+				 '())))
 		 (reverse *operators*))))
 
 (defun max-type-prop-types (type-prop)
@@ -311,7 +315,7 @@
 					  (list c-type (funcall element-namer type)))))
 				*types*))))
       (value-decls "PRIMARY_CONST_DECLS" #'(lambda (type) (format nil "~A_const" (dcs (type-name type)))))
-      (value-decls "BUILTIN_ARGS_DECL" #'(lambda (type) (format nil "~A_value" (dcs (type-name type))))))
+      (value-decls "BUILTIN_ARGS_DECL" #'(lambda (type) (format nil "*~A_value" (dcs (type-name type))))))
     (format out "static char*~%type_c_type_name (int type)~%{~%switch (type)~%{~%~{case ~A : return ~A;~%~}default : assert(0); return 0;~%}~%}~%~%"
 	    (mappend #'(lambda (type)
 			 (let ((c-type (type-c-type type)))
@@ -322,7 +326,7 @@
 		     *types*))
     (dolist (type *types*)
       (unless (null (type-c-type type))
-	(format out "#define BUILTIN_~A_ARG(i) (args[(i)].~A_value)~%"
+	(format out "#define BUILTIN_~A_ARG(i) (*(args[(i)].~A_value))~%"
 		(ucs (type-name type)) (dcs (type-name type)))))
     (format out "#define MAKE_CONST_PRIMARY_FUNCS \\~%~{MAKE_CONST_PRIMARY(~A, ~A, ~A)~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)

@@ -117,7 +117,7 @@ typedef struct _value_list_t
 
 typedef struct
 {
-    int type;
+    int kind;
     int const_type;		/* only valid if type == PRIMARY_VALUE */
     union
     {
@@ -131,7 +131,7 @@ typedef struct
 	make_ ## name ## _const_primary (c_type name ## _const) \
 	{ \
 	    primary_t primary; \
-	    primary.type = PRIMARY_CONST; \
+	    primary.kind = PRIMARY_CONST; \
 	    primary.const_type = type_name; \
 	    primary.v.name ## _const = name ## _const; \
 	    return primary; \
@@ -146,26 +146,27 @@ MAKE_CONST_PRIMARY_FUNCS
 
 typedef int type_prop_t;
 
+#define MAX_OP_ARGS          9
+
 typedef struct _operation_t
 {
     int index;
     char *name;
     int num_args;
     type_prop_t type_prop;
-    type_t const_type;		/* used only if type_prop == TYPE_PROP_CONST */
     int is_pure;
     int is_foldable;
+    type_t const_type;		/* used only if type_prop == TYPE_PROP_CONST */
+    type_t arg_types[MAX_OP_ARGS]; /* used only if type_prop == TYPE_PROP_CONST */
 } operation_t;
 
 #define RHS_PRIMARY          1
 #define RHS_INTERNAL         2
 #define RHS_OP               3
 
-#define MAX_OP_ARGS          9
-
 typedef struct
 {
-    int type;
+    int kind;
     union
     {
 	primary_t primary;
@@ -191,7 +192,7 @@ typedef struct
 
 typedef struct _statement_t
 {
-    int type;
+    int kind;
     union
     {
 	struct
@@ -234,7 +235,7 @@ typedef struct _statement_list_t
 
 typedef struct _pre_native_insn_t
 {
-    int type;
+    int kind;
     int index;
     statement_t *stmt;
     union
@@ -252,7 +253,7 @@ typedef union
 } builtin_arg_t;
 
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
-		     type_t const_type, int is_pure, int is_foldable);
+		     type_t const_type, int is_pure, int is_foldable, ...);
 static int rhs_is_foldable (rhs_t *rhs);
 
 #include <complex.h>
@@ -267,14 +268,14 @@ static int rhs_is_foldable (rhs_t *rhs);
 #include "noise.h"
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
-#define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
+#define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? RHS_ARG((i)).v.int_const : \
 				      ({ assert(0); 0.0; })); })
-#define OP_CONST_FLOAT_VAL(i)     ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
+#define OP_CONST_FLOAT_VAL(i)     ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? (float)(RHS_ARG((i)).v.int_const) : \
 				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
 				      ({ assert(0); 0.0; })); })
-#define OP_CONST_COMPLEX_VAL(i)   ({ assert(RHS_ARG((i)).type == PRIMARY_CONST); \
+#define OP_CONST_COMPLEX_VAL(i)   ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? (complex float)(RHS_ARG((i)).v.int_const) : \
 				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
 				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.complex_const : \
@@ -395,7 +396,7 @@ new_value (compvar_t *compvar)
 }
 
 compvar_t*
-make_temporary (void)
+make_temporary (type_t type)
 {
     temporary_t *temp = (temporary_t*)pools_alloc(&compiler_pools, sizeof(temporary_t));
     compvar_t *compvar = alloc_compvar();
@@ -406,7 +407,7 @@ make_temporary (void)
 
     compvar->var = 0;
     compvar->temp = temp;
-    compvar->type = TYPE_INT;
+    compvar->type = type;
     compvar->current = val;
     compvar->values = val;
 
@@ -513,7 +514,7 @@ make_compvar_primary (compvar_t *compvar)
 {
     primary_t primary;
 
-    primary.type = PRIMARY_VALUE;
+    primary.kind = PRIMARY_VALUE;
     primary.v.value = current_value(compvar);
 
     return primary;
@@ -524,7 +525,7 @@ make_int_const_rhs (int int_const)
 {
     rhs_t *rhs = alloc_rhs();
 
-    rhs->type = RHS_PRIMARY;
+    rhs->kind = RHS_PRIMARY;
     rhs->v.primary = make_int_const_primary(int_const);
 
     return rhs;
@@ -535,7 +536,7 @@ make_float_const_rhs (float float_const)
 {
     rhs_t *rhs = alloc_rhs();
 
-    rhs->type = RHS_PRIMARY;
+    rhs->kind = RHS_PRIMARY;
     rhs->v.primary = make_float_const_primary(float_const);
 
     return rhs;
@@ -548,8 +549,8 @@ make_value_rhs (value_t *val)
 
     assert(val != 0);
 
-    rhs->type = RHS_PRIMARY;
-    rhs->v.primary.type = PRIMARY_VALUE;
+    rhs->kind = RHS_PRIMARY;
+    rhs->v.primary.kind = PRIMARY_VALUE;
     rhs->v.primary.v.value = val;
 
     return rhs;
@@ -560,7 +561,7 @@ make_primary_rhs (primary_t primary)
 {
     rhs_t *rhs = alloc_rhs();
 
-    rhs->type = RHS_PRIMARY;
+    rhs->kind = RHS_PRIMARY;
     rhs->v.primary = primary;
 
     return rhs;
@@ -577,28 +578,38 @@ make_internal_rhs (internal_t *internal)
 {
     rhs_t *rhs = alloc_rhs();
 
-    rhs->type = RHS_INTERNAL;
+    rhs->kind = RHS_INTERNAL;
     rhs->v.internal = internal;
 
     return rhs;
 }
 
-rhs_t*
-make_op_rhs (int op_index, ...)
+static rhs_t*
+make_op_rhs_from_array (int op_index, primary_t *args)
 {
     rhs_t *rhs = alloc_rhs();
+
+    rhs->kind = RHS_OP;
+    rhs->v.op.op = &ops[op_index];
+
+    memcpy(rhs->v.op.args, args, sizeof(primary_t) * rhs->v.op.op->num_args);
+
+    return rhs;
+}
+
+static rhs_t*
+make_op_rhs (int op_index, ...)
+{
+    primary_t args[MAX_OP_ARGS];
     va_list ap;
     int i;
 
-    rhs->type = RHS_OP;
-    rhs->v.op.op = &ops[op_index];
-
     va_start(ap, op_index);
     for (i = 0; i < ops[op_index].num_args; ++i)
-	rhs->v.op.args[i] = va_arg(ap, primary_t);
+	args[i] = va_arg(ap, primary_t);
     va_end(ap);
 
-    return rhs;
+    return make_op_rhs_from_array(op_index, args);
 }
 
 statement_t*
@@ -610,7 +621,7 @@ find_phi_assign (statement_t *stmts, compvar_t *compvar)
 	   optimization takes place, hence no statements are changed to
 	   nils */
 
-	assert(stmts->type == STMT_PHI_ASSIGN);
+	assert(stmts->kind == STMT_PHI_ASSIGN);
 
 	if (stmts->v.assign.lhs->compvar == compvar)
 	    return stmts;
@@ -622,10 +633,10 @@ find_phi_assign (statement_t *stmts, compvar_t *compvar)
 primary_t*
 find_value_in_rhs (value_t *val, rhs_t *rhs)
 {
-    switch (rhs->type)
+    switch (rhs->kind)
     {
 	case RHS_PRIMARY :
-	    if (rhs->v.primary.type == PRIMARY_VALUE
+	    if (rhs->v.primary.kind == PRIMARY_VALUE
 		&& rhs->v.primary.v.value == val)
 		return &rhs->v.primary;
 	    else
@@ -640,7 +651,7 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 		int i;
 
 		for (i = 0; i < rhs->v.op.op->num_args; ++i)
-		    if (rhs->v.op.args[i].type == PRIMARY_VALUE
+		    if (rhs->v.op.args[i].kind == PRIMARY_VALUE
 			&& rhs->v.op.args[i].v.value == val)
 			return &rhs->v.op.args[i];
 		return 0;
@@ -654,9 +665,9 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 static void
 for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
 {
-    if (rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_VALUE)
+    if (rhs->kind == RHS_PRIMARY && rhs->v.primary.kind == PRIMARY_VALUE)
 	func(rhs->v.primary.v.value);
-    else if (rhs->type == RHS_OP)
+    else if (rhs->kind == RHS_OP)
     {
 	int i;
 
@@ -664,7 +675,7 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
 	{
 	    primary_t *arg = &rhs->v.op.args[i];
 
-	    if (arg->type == PRIMARY_VALUE)
+	    if (arg->kind == PRIMARY_VALUE)
 		func(arg->v.value);
 	}
     }
@@ -690,7 +701,7 @@ for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
 {
     while (stmts != 0)
     {
-	switch (stmts->type)
+	switch (stmts->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -727,7 +738,7 @@ for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, s
 
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -783,7 +794,7 @@ rewrite_uses (value_t *old, primary_t new, statement_t *limit)
 {
     statement_list_t **lst;
 
-    if (new.type == PRIMARY_VALUE)
+    if (new.kind == PRIMARY_VALUE)
 	assert(old != new.v.value);
 
     lst = &old->uses;
@@ -795,9 +806,9 @@ rewrite_uses (value_t *old, primary_t new, statement_t *limit)
 
 	/* we do not rewrite phis in the loop we're currently working on */
 	if (stmt_is_within_limit(stmt, limit)
-	    && !(stmt->type == STMT_PHI_ASSIGN && stmt->parent == limit))
+	    && !(stmt->kind == STMT_PHI_ASSIGN && stmt->parent == limit))
 	{
-	    switch (stmt->type)
+	    switch (stmt->kind)
 	    {
 		case STMT_ASSIGN :
 		    primary = find_value_in_rhs(old, stmt->v.assign.rhs);
@@ -824,7 +835,7 @@ rewrite_uses (value_t *old, primary_t new, statement_t *limit)
 	    assert(primary != 0 && primary->v.value == old);
 
 	    *primary = new;
-	    if (new.type == PRIMARY_VALUE)
+	    if (new.kind == PRIMARY_VALUE)
 		add_use(new.v.value, stmt);
 
 	    *lst = elem->next;
@@ -842,7 +853,7 @@ rewrite_uses_to_value (value_t *old, value_t *new, statement_t *limit)
     if (old == new)
 	return;
 
-    primary.type = PRIMARY_VALUE;
+    primary.kind = PRIMARY_VALUE;
     primary.v.value = new;
 
     rewrite_uses(old, primary, limit);
@@ -857,7 +868,7 @@ commit_assign (statement_t *stmt)
     {
 	tos = stmt_stack[stmt_stackp - 1];
 
-	switch (tos->type)
+	switch (tos->kind)
 	{
 	    case STMT_IF_COND :
 		{
@@ -868,7 +879,7 @@ commit_assign (statement_t *stmt)
 		    {
 			phi_assign = alloc_stmt();
 
-			phi_assign->type = STMT_PHI_ASSIGN;
+			phi_assign->kind = STMT_PHI_ASSIGN;
 
 			phi_assign->v.assign.lhs = make_value_copy(stmt->v.assign.lhs);
 
@@ -887,8 +898,8 @@ commit_assign (statement_t *stmt)
 
 		    if (tos->v.if_cond.alternative == 0)
 		    {
-			assert(phi_assign->v.assign.rhs->type = RHS_PRIMARY
-			       && phi_assign->v.assign.rhs->v.primary.type == PRIMARY_VALUE);
+			assert(phi_assign->v.assign.rhs->kind == RHS_PRIMARY
+			       && phi_assign->v.assign.rhs->v.primary.kind == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs->v.primary.v.value, phi_assign);
 
 			phi_assign->v.assign.rhs = make_value_rhs(stmt->v.assign.lhs);
@@ -896,8 +907,8 @@ commit_assign (statement_t *stmt)
 		    }
 		    else
 		    {
-			assert(phi_assign->v.assign.rhs2->type = RHS_PRIMARY
-			       && phi_assign->v.assign.rhs2->v.primary.type == PRIMARY_VALUE);
+			assert(phi_assign->v.assign.rhs2->kind == RHS_PRIMARY
+			       && phi_assign->v.assign.rhs2->v.primary.kind == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs2->v.primary.v.value, phi_assign);
 
 			phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
@@ -914,7 +925,7 @@ commit_assign (statement_t *stmt)
 		    {
 			phi_assign = alloc_stmt();
 
-			phi_assign->type = STMT_PHI_ASSIGN;
+			phi_assign->kind = STMT_PHI_ASSIGN;
 
 			phi_assign->v.assign.lhs = make_value_copy(stmt->v.assign.lhs);
 
@@ -935,8 +946,8 @@ commit_assign (statement_t *stmt)
 		    }
 		    else
 		    {
-			assert(phi_assign->v.assign.rhs2->type = RHS_PRIMARY
-			       && phi_assign->v.assign.rhs2->v.primary.type == PRIMARY_VALUE);
+			assert(phi_assign->v.assign.rhs2->kind = RHS_PRIMARY
+			       && phi_assign->v.assign.rhs2->v.primary.kind == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs2->v.primary.v.value, phi_assign);
 
 			phi_assign->v.assign.rhs2 = make_value_rhs(stmt->v.assign.lhs);
@@ -966,7 +977,7 @@ emit_stmt (statement_t *stmt)
     *emit_loc = stmt;
     emit_loc = &stmt->next;
 
-    switch (stmt->type)
+    switch (stmt->kind)
     {
 	case STMT_NIL :
 	    break;
@@ -1000,22 +1011,30 @@ emit_nil (void)
 {
     statement_t *stmt = alloc_stmt();
 
-    stmt->type = STMT_NIL;
+    stmt->kind = STMT_NIL;
     stmt->next = 0;
 
     emit_stmt(stmt);
 }
 
-void
-emit_assign (value_t *lhs, rhs_t *rhs)
+static statement_t*
+make_assign (value_t *lhs, rhs_t *rhs)
 {
     statement_t *stmt = alloc_stmt();
 
-    stmt->type = STMT_ASSIGN;
+    stmt->kind = STMT_ASSIGN;
     stmt->next = 0;
 
     stmt->v.assign.lhs = lhs;
     stmt->v.assign.rhs = rhs;
+
+    return stmt;
+}
+
+void
+emit_assign (value_t *lhs, rhs_t *rhs)
+{
+    statement_t *stmt = make_assign(lhs, rhs);
 
     emit_stmt(stmt);
 
@@ -1027,7 +1046,7 @@ start_if_cond (rhs_t *condition)
 {
     statement_t *stmt = alloc_stmt();
 
-    stmt->type = STMT_IF_COND;
+    stmt->kind = STMT_IF_COND;
     stmt->next = 0;
 
     stmt->v.if_cond.condition = condition;
@@ -1046,7 +1065,7 @@ reset_values_for_phis (statement_t *phi, int delete)
 {
     for (; phi != 0; phi = phi->next)
     {
-	assert(phi->type == STMT_PHI_ASSIGN);
+	assert(phi->kind == STMT_PHI_ASSIGN);
 
 	set_value_current(phi->v.assign.lhs, phi->v.assign.old_value);
 
@@ -1064,7 +1083,7 @@ switch_if_branch (void)
 
     stmt = stmt_stack[stmt_stackp - 1];
 
-    assert(stmt->type == STMT_IF_COND && stmt->v.if_cond.alternative == 0);
+    assert(stmt->kind == STMT_IF_COND && stmt->v.if_cond.alternative == 0);
 
     if (stmt->v.if_cond.consequent == 0)
 	emit_nil();
@@ -1083,7 +1102,7 @@ end_if_cond (void)
 
     stmt = stmt_stack[stmt_stackp - 1];
 
-    assert(stmt->type == STMT_IF_COND && stmt->v.if_cond.consequent != 0);
+    assert(stmt->kind == STMT_IF_COND && stmt->v.if_cond.consequent != 0);
 
     if (stmt->v.if_cond.alternative == 0)
 	emit_nil();
@@ -1092,7 +1111,7 @@ end_if_cond (void)
     {
 	statement_t *nil = alloc_stmt();
 
-	nil->type = STMT_NIL;
+	nil->kind = STMT_NIL;
 
 	UNSAFE_EMIT_STMT(nil, stmt->v.if_cond.exit);
     }
@@ -1103,7 +1122,7 @@ end_if_cond (void)
 
     for (phi = stmt->v.if_cond.exit; phi != 0; phi = phi->next)
     {
-	assert(phi->type == STMT_PHI_ASSIGN);
+	assert(phi->kind == STMT_PHI_ASSIGN);
 
 	commit_assign(phi);
     }
@@ -1118,19 +1137,19 @@ start_while_loop (rhs_t *invariant)
     value_t *value;
     statement_t *phi_assign;
 
-    stmt->type = STMT_WHILE_LOOP;
+    stmt->kind = STMT_WHILE_LOOP;
     stmt->next = 0;
 
     stmt->v.while_loop.entry = 0;
     stmt->v.while_loop.body = 0;
 
-    assert(invariant->type == RHS_PRIMARY && invariant->v.primary.type == PRIMARY_VALUE);
+    assert(invariant->kind == RHS_PRIMARY && invariant->v.primary.kind == PRIMARY_VALUE);
 
     value = invariant->v.primary.v.value;
 
     phi_assign = alloc_stmt();
 
-    phi_assign->type = STMT_PHI_ASSIGN;
+    phi_assign->kind = STMT_PHI_ASSIGN;
     phi_assign->v.assign.lhs = make_value_copy(value);
     phi_assign->v.assign.rhs = make_value_rhs(current_value(value->compvar));
     phi_assign->v.assign.rhs2 = make_value_rhs(current_value(value->compvar));
@@ -1161,7 +1180,7 @@ end_while_loop (void)
 
     stmt = stmt_stack[--stmt_stackp];
 
-    assert(stmt->type == STMT_WHILE_LOOP);
+    assert(stmt->kind == STMT_WHILE_LOOP);
 
     if (stmt->v.while_loop.body == 0)
 	emit_nil();
@@ -1170,7 +1189,7 @@ end_while_loop (void)
 
     for (phi = stmt->v.while_loop.entry; phi != 0; phi = phi->next)
     {
-	assert(phi->type == STMT_PHI_ASSIGN);
+	assert(phi->kind == STMT_PHI_ASSIGN);
 
 	commit_assign(phi);
     }
@@ -1208,7 +1227,7 @@ print_primary (primary_t *primary)
 {
     FILE *out = stdout;
 
-    switch (primary->type)
+    switch (primary->kind)
     {
 	case PRIMARY_VALUE :
 	    print_value(primary->v.value);
@@ -1232,7 +1251,7 @@ print_primary (primary_t *primary)
 static void
 print_rhs (rhs_t *rhs)
 {
-    switch (rhs->type)
+    switch (rhs->kind)
     {
 	case RHS_PRIMARY :
 	    print_primary(&rhs->v.primary);
@@ -1288,7 +1307,7 @@ count_uses (value_t *val)
 static void
 print_assign_statement (statement_t *stmt)
 {
-    switch (stmt->type)
+    switch (stmt->kind)
     {
 	case STMT_ASSIGN :
 	    print_value(stmt->v.assign.lhs);
@@ -1326,10 +1345,10 @@ dump_code (statement_t *stmt, int indent)
 {
     while (stmt != 0)
     {
-	if (stmt->type != STMT_NIL)
+	if (stmt->kind != STMT_NIL)
 	    print_indent(indent);
 
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -1387,7 +1406,7 @@ dump_pre_native_code (void)
     while (insn != 0)
     {
 	printf("%4d ", insn->index);
-	switch (insn->type)
+	switch (insn->kind)
 	{
 	    case PRE_NATIVE_INSN_LABEL :
 		printf("label\n");
@@ -1419,10 +1438,10 @@ dump_pre_native_code (void)
 		break;
 
 	    case PRE_NATIVE_INSN_IF_COND_FALSE_GOTO :
-		assert(insn->stmt->type == STMT_IF_COND || insn->stmt->type == STMT_WHILE_LOOP);
+		assert(insn->stmt->kind == STMT_IF_COND || insn->stmt->kind == STMT_WHILE_LOOP);
 
 		printf("  if not ");
-		if (insn->stmt->type == STMT_IF_COND)
+		if (insn->stmt->kind == STMT_IF_COND)
 		    print_rhs(insn->stmt->v.if_cond.condition);
 		else
 		    print_rhs(insn->stmt->v.while_loop.invariant);
@@ -1458,13 +1477,13 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
     {
 	case EXPR_INT_CONST :
 	    if (!is_alloced)
-		dest[0] = make_temporary();
+		dest[0] = make_temporary(TYPE_INT);
 	    emit_assign(make_lhs(dest[0]), make_int_const_rhs(tree->val.int_const));
 	    break;
 
 	case EXPR_FLOAT_CONST :
 	    if (!is_alloced)
-		dest[0] = make_temporary();
+		dest[0] = make_temporary(TYPE_FLOAT);
 	    emit_assign(make_lhs(dest[0]), make_float_const_rhs(tree->val.float_const));
 	    break;
 
@@ -1472,7 +1491,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    for (i = 0; i < tree->val.tuple_const.length; ++i)
 	    {
 		if (!is_alloced)
-		    dest[i] = make_temporary();
+		    dest[i] = make_temporary(TYPE_FLOAT);
 		emit_assign(make_lhs(dest[i]), make_float_const_rhs(tree->val.tuple_const.data[i]));
 	    }
 	    break;
@@ -1517,7 +1536,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			int j;
 
 			if (!is_alloced)
-			    dest[i] = make_temporary();
+			    dest[i] = make_temporary(TYPE_INT);
 
 			gen_code(sub, &subscript, 0);
 
@@ -1546,7 +1565,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 	case EXPR_INTERNAL :
 	    if (!is_alloced)
-		dest[0] = make_temporary();
+		dest[0] = make_temporary(TYPE_INT);
 	    emit_assign(make_lhs(dest[0]), make_internal_rhs(tree->val.internal));
 	    break;
 
@@ -1590,7 +1609,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			int j;
 
 			if (!is_alloced)
-			    dest[i] = make_temporary();
+			    dest[i] = make_temporary(TYPE_INT);
 
 			gen_code(sub, &subscript, 0);
 
@@ -1641,7 +1660,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		if (!is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
-			dest[i] = make_temporary();
+			dest[i] = make_temporary(TYPE_INT);
 
 		tree->val.func.entry->v.builtin_generator(args, arglengths, argnumbers, dest);
 	    }
@@ -1665,7 +1684,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t **result = (compvar_t**)alloca(tree->result.length * sizeof(compvar_t*));
 
 		for (i = 0; i < tree->result.length; ++i)
-		    result[i] = make_temporary();
+		    result[i] = make_temporary(TYPE_INT);
 
 		gen_code(tree->val.ifExpr.condition, &condition, 0);
 
@@ -1691,7 +1710,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	case EXPR_DO_WHILE :
 	case EXPR_WHILE :
 	    {
-		compvar_t *invariant = make_temporary();
+		compvar_t *invariant = make_temporary(TYPE_INT);
 		compvar_t **body_result = (compvar_t**)alloca(tree->val.whileExpr.body->result.length * sizeof(compvar_t*));
 
 		if (tree->type == EXPR_DO_WHILE)
@@ -1704,7 +1723,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		end_while_loop();
 
 		if (!is_alloced)
-		    dest[0] = make_temporary();
+		    dest[0] = make_temporary(TYPE_INT);
 		emit_assign(make_lhs(dest[0]), make_int_const_rhs(0));
 	    }
 	    break;
@@ -1714,19 +1733,19 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    {
 		case USERVAL_INT_CONST :
 		    if (!is_alloced)
-			dest[0] = make_temporary();
+			dest[0] = make_temporary(TYPE_INT);
 		    emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_INT, make_int_const_primary(tree->val.userval.info->index)));
 		    break;
 
 		case USERVAL_FLOAT_CONST :
 		    if (!is_alloced)
-			dest[0] = make_temporary();
+			dest[0] = make_temporary(TYPE_FLOAT);
 		    emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_FLOAT, make_int_const_primary(tree->val.userval.info->index)));
 		    break;
 
 		case USERVAL_BOOL_CONST :
 		    if (!is_alloced)
-			dest[0] = make_temporary();
+			dest[0] = make_temporary(TYPE_INT);
 		    emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_BOOL, make_int_const_primary(tree->val.userval.info->index)));
 		    break;
 
@@ -1735,7 +1754,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			compvar_t *pos;
 
 			if (!is_alloced)
-			    dest[0] = make_temporary();
+			    dest[0] = make_temporary(TYPE_FLOAT);
 
 			gen_code(tree->val.userval.args, &pos, 0);
 
@@ -1748,12 +1767,12 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		case USERVAL_GRADIENT :
 		    {
 			compvar_t *pos;
-			compvar_t *temp = make_temporary();
+			compvar_t *temp = make_temporary(TYPE_INT);
 			int i;
 
 			if (!is_alloced)
 			    for (i = 0; i < 4; ++i)
-				dest[i] = make_temporary();
+				dest[i] = make_temporary(TYPE_FLOAT);
 
 			if (tree->val.userval.info->type == USERVAL_COLOR)
 			    emit_assign(make_lhs(temp), make_op_rhs(OP_USERVAL_COLOR, make_int_const_primary(tree->val.userval.info->index)));
@@ -1773,7 +1792,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		case USERVAL_IMAGE :
 		    if (!is_alloced)
-			dest[0] = make_temporary();
+			dest[0] = make_temporary(TYPE_INT);
 		    emit_assign(make_lhs(dest[0]), make_int_const_rhs(tree->val.userval.info->index));
 		    break;
 
@@ -1843,7 +1862,7 @@ perform_worklist_dfa (statement_t *stmts,
 static type_t
 primary_type (primary_t *primary)
 {
-    switch (primary->type)
+    switch (primary->kind)
     {
 	case PRIMARY_VALUE :
 	    return primary->v.value->compvar->type;
@@ -1859,7 +1878,7 @@ primary_type (primary_t *primary)
 static type_t
 rhs_type (rhs_t *rhs)
 {
-    switch (rhs->type)
+    switch (rhs->kind)
     {
 	case RHS_PRIMARY :
 	    return primary_type(&rhs->v.primary);
@@ -1902,7 +1921,7 @@ propagate_types_builder (statement_t *stmt, statement_list_t *worklist)
 {
     int type, type2;
 
-    switch (stmt->type)
+    switch (stmt->kind)
     {
 	case STMT_ASSIGN :
 	    type = rhs_type(stmt->v.assign.rhs);
@@ -1939,14 +1958,14 @@ propagate_types_builder (statement_t *stmt, statement_list_t *worklist)
 static statement_list_t*
 propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 {
-    switch (stmt->type)
+    switch (stmt->kind)
     {
 	case STMT_ASSIGN :
 	case STMT_PHI_ASSIGN :
 	{
 	    int type, type2;
 	    type = rhs_type(stmt->v.assign.rhs);
-	    if (stmt->type == STMT_PHI_ASSIGN)
+	    if (stmt->kind == STMT_PHI_ASSIGN)
 	    {
 		type2 = rhs_type(stmt->v.assign.rhs2);
 		if (type != type2)
@@ -1989,7 +2008,7 @@ propagate_types (void)
 int
 primary_constant (primary_t *primary)
 {
-    switch (primary->type)
+    switch (primary->kind)
     {
 	case PRIMARY_VALUE :
 	    return LEAST_CONST_TYPE(primary->v.value);
@@ -2005,7 +2024,7 @@ primary_constant (primary_t *primary)
 int
 rhs_constant (rhs_t *rhs)
 {
-    switch (rhs->type)
+    switch (rhs->kind)
     {
 	case RHS_PRIMARY :
 	    return primary_constant(&rhs->v.primary);
@@ -2044,13 +2063,13 @@ analyze_phis_constant (statement_t *phis, int const_max, int *changed)
     {
 	int const_type, const_type2;
 
-	if (phis->type == STMT_NIL)
+	if (phis->kind == STMT_NIL)
 	{
 	    phis = phis->next;
 	    continue;
 	}
 
-	assert(phis->type == STMT_PHI_ASSIGN);
+	assert(phis->kind == STMT_PHI_ASSIGN);
 
 	const_type = rhs_constant(phis->v.assign.rhs);
 	const_type2 = rhs_constant(phis->v.assign.rhs2);
@@ -2074,7 +2093,7 @@ analyze_stmts_constants (statement_t *stmt, int *changed, unsigned int inherited
 
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -2125,7 +2144,7 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -2204,7 +2223,7 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -2326,10 +2345,10 @@ analyze_constants (void)
 static int
 is_color_def (statement_t *stmt, int op, value_t **value)
 {
-    if (stmt->type == STMT_ASSIGN
-	&& stmt->v.assign.rhs->type == RHS_OP
+    if (stmt->kind == STMT_ASSIGN
+	&& stmt->v.assign.rhs->kind == RHS_OP
 	&& op_index(stmt->v.assign.rhs->v.op.op) == op
-	&& stmt->v.assign.rhs->v.op.args[0].type == PRIMARY_VALUE)
+	&& stmt->v.assign.rhs->v.op.args[0].kind == PRIMARY_VALUE)
     {
 	*value = stmt->v.assign.rhs->v.op.args[0].v.value;
 	return 1;
@@ -2342,14 +2361,14 @@ optimize_make_color (statement_t *stmt)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		stmt = stmt->next;
 		break;
 
 	    case STMT_ASSIGN :
-		if (stmt->v.assign.rhs->type == RHS_OP
+		if (stmt->v.assign.rhs->kind == RHS_OP
 		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_MAKE_COLOR)
 		{
 		    static int ops[] = { OP_RED, OP_GREEN, OP_BLUE, OP_ALPHA };
@@ -2358,7 +2377,7 @@ optimize_make_color (statement_t *stmt)
 		    int i;
 
 		    for (i = 0; i < 4; ++i)
-			if (stmt->v.assign.rhs->v.op.args[i].type != PRIMARY_VALUE
+			if (stmt->v.assign.rhs->v.op.args[i].kind != PRIMARY_VALUE
 			    || !is_color_def(stmt->v.assign.rhs->v.op.args[i].v.value->def, ops[i], &vals[i]))
 			    break;
 
@@ -2405,10 +2424,10 @@ copy_propagation (void)
 
     void propagate_copy (statement_t *stmt)
 	{
-	    if (stmt->type == STMT_ASSIGN
+	    if (stmt->kind == STMT_ASSIGN
 		&& stmt->v.assign.lhs->uses != 0
-		&& stmt->v.assign.rhs->type == RHS_PRIMARY
-		&& (stmt->v.assign.rhs->v.primary.type != PRIMARY_VALUE
+		&& stmt->v.assign.rhs->kind == RHS_PRIMARY
+		&& (stmt->v.assign.rhs->v.primary.kind != PRIMARY_VALUE
 		    || stmt->v.assign.rhs->v.primary.v.value != stmt->v.assign.lhs))
 	    {
 		rewrite_uses(stmt->v.assign.lhs, stmt->v.assign.rhs->v.primary, 0);
@@ -2434,14 +2453,14 @@ rhs_is_foldable (rhs_t *rhs)
 {
     int i;
 
-    if (rhs->type != RHS_OP)
+    if (rhs->kind != RHS_OP)
 	return 0;
 
     if (!rhs->v.op.op->is_foldable)
 	return 0;
 
     for (i = 0; i < rhs->v.op.op->num_args; ++i)
-	if (rhs->v.op.args[i].type == PRIMARY_VALUE)
+	if (rhs->v.op.args[i].kind == PRIMARY_VALUE)
 	    return 0;
 
     return 1;
@@ -2462,7 +2481,7 @@ fold_constants_recursively (statement_t *stmt, int *changed)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -2527,7 +2546,7 @@ remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *cha
 {
     void remove_value (value_t *value)
 	{
-	    assert(value->index < 0 || value->def->type != STMT_NIL);
+	    assert(value->index < 0 || value->def->kind != STMT_NIL);
 	    remove_use(value, stmt);
 	    if (value->uses == 0)
 		*worklist = add_value_if_new(*worklist, value);
@@ -2537,18 +2556,18 @@ remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *cha
 
     assert(stmt->v.assign.lhs->uses == 0);
 
-    if ((stmt->v.assign.rhs->type == RHS_OP
+    if ((stmt->v.assign.rhs->kind == RHS_OP
 	 && !stmt->v.assign.rhs->v.op.op->is_pure)
-	|| (stmt->type == STMT_PHI_ASSIGN
-	    && stmt->v.assign.rhs2->type == RHS_OP
+	|| (stmt->kind == STMT_PHI_ASSIGN
+	    && stmt->v.assign.rhs2->kind == RHS_OP
 	    && !stmt->v.assign.rhs2->v.op.op->is_pure))
 	return;
 
     for_each_value_in_rhs(stmt->v.assign.rhs, &remove_value);
-    if (stmt->type == STMT_PHI_ASSIGN)
+    if (stmt->kind == STMT_PHI_ASSIGN)
 	for_each_value_in_rhs(stmt->v.assign.rhs2, &remove_value);
 
-    stmt->type = STMT_NIL;
+    stmt->kind = STMT_NIL;
 }
 
 static void
@@ -2556,7 +2575,7 @@ remove_dead_code_initially (statement_t *stmt, value_list_t **worklist)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -2593,12 +2612,12 @@ remove_dead_code_from_worklist (value_list_t *worklist, value_list_t **new_workl
     {
 	assert(worklist->value->uses == 0);
 
-	if (worklist->value->def->type == STMT_NIL)
+	if (worklist->value->def->kind == STMT_NIL)
 	    assert(worklist->value->def == &dummy_stmt);
 	else
 	{
-	    assert(worklist->value->def->type == STMT_ASSIGN
-		   || worklist->value->def->type == STMT_PHI_ASSIGN);
+	    assert(worklist->value->def->kind == STMT_ASSIGN
+		   || worklist->value->def->kind == STMT_PHI_ASSIGN);
 
 	    remove_assign_stmt_if_pure(worklist->value->def, new_worklist, changed);
 	}
@@ -2631,7 +2650,7 @@ remove_dead_assignments (void)
 static int
 is_rhs_const_primary (rhs_t *rhs)
 {
-    return rhs->type == RHS_PRIMARY && rhs->v.primary.type == PRIMARY_CONST;
+    return rhs->kind == RHS_PRIMARY && rhs->v.primary.kind == PRIMARY_CONST;
 }
 
 static int
@@ -2683,7 +2702,7 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 	    case STMT_ASSIGN :
@@ -2702,7 +2721,7 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 		    {
 			statement_t *next = branch->next;
 
-			if (branch->type == STMT_ASSIGN)
+			if (branch->kind == STMT_ASSIGN)
 			{
 			    statement_list_t *lst;
 
@@ -2710,7 +2729,7 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 				assert(has_indirect_parent(lst->stmt, stmt));
 			}
 
-			if (branch->type != STMT_NIL)
+			if (branch->kind != STMT_NIL)
 			{
 			    branch->parent = stmt->parent;
 
@@ -2726,14 +2745,14 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 		    {
 			statement_t *next = phi->next;
 
-			if (phi->type == STMT_PHI_ASSIGN)
+			if (phi->kind == STMT_PHI_ASSIGN)
 			{
 			    if (condition_true)
 				remove_uses_in_rhs(phi->v.assign.rhs2, phi);
 			    else
 				remove_uses_in_rhs(phi->v.assign.rhs, phi);
 
-			    phi->type = STMT_ASSIGN;
+			    phi->kind = STMT_ASSIGN;
 			    if (!condition_true)
 				phi->v.assign.rhs = phi->v.assign.rhs2;
 
@@ -2743,12 +2762,12 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 			    insertion_point = insertion_point->next = phi;
 			}
 			else
-			    assert(phi->type == STMT_NIL);
+			    assert(phi->kind == STMT_NIL);
 
 			phi = next;
 		    }
 
-		    stmt->type = STMT_NIL;
+		    stmt->kind = STMT_NIL;
 
 		    /* we don't need to handle the consequent/alternative
 		     * here, because we have inserted it after the if
@@ -2790,10 +2809,10 @@ remove_dead_branches (void)
 static int
 primaries_equal (primary_t *prim1, primary_t *prim2)
 {
-    if (prim1->type != prim2->type)
+    if (prim1->kind != prim2->kind)
 	return 0;
 
-    switch (prim1->type)
+    switch (prim1->kind)
     {
 	case PRIMARY_VALUE :
 	    return prim1->v.value == prim2->v.value;
@@ -2821,10 +2840,10 @@ primaries_equal (primary_t *prim1, primary_t *prim2)
 static int
 rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 {
-    if (rhs1->type != rhs2->type)
+    if (rhs1->kind != rhs2->kind)
 	return 0;
 
-    switch (rhs1->type)
+    switch (rhs1->kind)
     {
 	case RHS_PRIMARY :
 	    return primaries_equal(&rhs1->v.primary, &rhs2->v.primary);
@@ -2870,7 +2889,7 @@ replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val, int *chang
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -2923,14 +2942,14 @@ cse_recursively (statement_t *stmt, int *changed)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
 
 	    case STMT_ASSIGN :
-		if (stmt->v.assign.rhs->type == RHS_INTERNAL
-		    || (stmt->v.assign.rhs->type == RHS_OP
+		if (stmt->v.assign.rhs->kind == RHS_INTERNAL
+		    || (stmt->v.assign.rhs->kind == RHS_OP
 			&& stmt->v.assign.rhs->v.op.op->is_pure))
 		    replace_rhs_recursively(stmt->next, stmt->v.assign.rhs, stmt->v.assign.lhs, changed);
 		break;
@@ -2968,11 +2987,11 @@ common_subexpression_elimination (void)
 /*** pre native code generation ***/
 
 static pre_native_insn_t*
-new_pre_native_insn (int type, statement_t *stmt)
+new_pre_native_insn (int kind, statement_t *stmt)
 {
     pre_native_insn_t *insn = (pre_native_insn_t*)pools_alloc(&compiler_pools, sizeof(pre_native_insn_t));
 
-    insn->type = type;
+    insn->kind = kind;
     insn->index = -1;
     insn->stmt = stmt;
     insn->next = 0;
@@ -2981,9 +3000,9 @@ new_pre_native_insn (int type, statement_t *stmt)
 }
 
 static pre_native_insn_t*
-new_pre_native_insn_goto (int type, statement_t *stmt, pre_native_insn_t *target)
+new_pre_native_insn_goto (int kind, statement_t *stmt, pre_native_insn_t *target)
 {
-    pre_native_insn_t *insn = new_pre_native_insn(type, stmt);
+    pre_native_insn_t *insn = new_pre_native_insn(kind, stmt);
 
     insn->v.target = target;
 
@@ -3023,47 +3042,285 @@ emit_pre_native_insn (pre_native_insn_t *insn)
     }
 }
 
+/*
+static int
+can_be_converted (type_t src, type_t dst)
+{
+    return src <= MAX_PROMOTABLE_TYPE && dst <= MAX_PROMOTABLE_TYPE
+	&& (src < dst
+	    || (src == TYPE_FLOAT && dst == TYPE_INT));
+}
+*/
+
+static int
+get_conversion_op (type_t src, type_t dst)
+{
+    switch (src)
+    {
+	case TYPE_INT :
+	    switch (dst)
+	    {
+		case TYPE_FLOAT :
+		    return OP_INT_TO_FLOAT;
+		case TYPE_COMPLEX :
+		    return OP_INT_TO_COMPLEX;
+		default :
+		    assert(0);
+	    }
+	    break;
+
+	case TYPE_FLOAT :
+	    switch (dst)
+	    {
+		case TYPE_INT :
+		    return OP_FLOAT_TO_INT;
+		case TYPE_COMPLEX :
+		    return OP_FLOAT_TO_COMPLEX;
+		default :
+		    assert(0);
+	    }
+	    break;
+
+	default :
+	    assert(0);
+    }
+}
+
+static rhs_t*
+make_convert_rhs (compvar_t *compvar, type_t type)
+{
+    int op = get_conversion_op(compvar->type, type);
+
+    return make_op_rhs(op, make_compvar_primary(compvar));
+}
+
+static statement_t*
+convert_primary (primary_t *src, type_t type, primary_t *dst)
+{
+    type_t src_type = primary_type(src);
+    value_t *temp = make_lhs(make_temporary(src_type));
+
+    *dst = make_compvar_primary(temp->compvar);
+
+    return make_assign(temp, make_op_rhs(get_conversion_op(src_type, type), *src));
+}
+
+static statement_t*
+convert_rhs (rhs_t *rhs, value_t *lhs)
+{
+    value_t *temp = make_lhs(make_temporary(rhs_type(rhs)));
+    statement_t *stmts;
+
+    stmts = make_assign(temp, rhs);
+    stmts->next = make_assign(lhs, make_convert_rhs(temp->compvar, lhs->compvar->type));
+
+    return stmts;
+}
+
 static void
-generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs)
+generate_pre_native_assigns (statement_t *stmt)
 {
     while (stmt != 0)
     {
-	if (stmt->type == STMT_PHI_ASSIGN)
-	    emit_pre_native_insn(new_pre_native_insn_phi_assign(stmt, phi_rhs));
-	else
-	    assert(stmt->type == STMT_NIL);
+	switch (stmt->kind)
+	{
+	    case STMT_ASSIGN :
+		emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
+		break;
+
+	    default :
+		assert(0);
+	}
 
 	stmt = stmt->next;
     }
 }
 
 static void
-generate_pre_native_code_recursively (statement_t *stmt)
+emit_pre_native_assign_with_conversion (statement_t *stmt)
+{
+    type_t lhs_type = stmt->v.assign.lhs->compvar->type;
+    rhs_t *rhs = stmt->v.assign.rhs;
+
+    switch (rhs->kind)
+    {
+	case RHS_PRIMARY :
+	case RHS_INTERNAL :
+	    if (rhs_type(rhs) != lhs_type)
+		generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
+	    else
+		emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
+	    break;
+
+	case RHS_OP :
+	    {
+		operation_t *op = rhs->v.op.op;
+		type_t arg_types[MAX_OP_ARGS];
+		primary_t args[MAX_OP_ARGS];
+		type_t op_type;
+		int i;
+
+		if (op->type_prop == TYPE_PROP_CONST)
+		{
+		    op_type = op->const_type;
+		    memcpy(arg_types, op->arg_types, sizeof(type_t) * op->num_args);
+		}
+		else
+		{
+		    op_type = TYPE_INT;
+		    for (i = 0; i < op->num_args; ++i)
+		    {
+			type_t arg_type = primary_type(&rhs->v.op.args[i]);
+
+			if (arg_type > op_type)
+			{
+			    assert(arg_type <= MAX_PROMOTABLE_TYPE);
+			    op_type = arg_type;
+			}
+		    }
+
+		    for (i = 0; i < op->num_args; ++i)
+			arg_types[i] = op_type;
+		}
+
+		for (i = 0; i < op->num_args; ++i)
+		    if (arg_types[i] != primary_type(&rhs->v.op.args[i]))
+		    {
+			statement_t *stmts = convert_primary(&rhs->v.op.args[i], arg_types[i], &args[i]);
+
+			generate_pre_native_assigns(stmts);
+		    }
+		    else
+			args[i] = rhs->v.op.args[i];
+
+		if (op_type != lhs_type)
+		{
+		    value_t *temp = make_lhs(make_temporary(op_type));
+		    rhs_t *rhs = make_op_rhs_from_array(rhs->v.op.op->index, args);
+		    statement_t *stmts;
+
+		    stmts = make_assign(temp, rhs);
+		    stmts->next = make_assign(stmt->v.assign.lhs, make_convert_rhs(temp->compvar, lhs_type));
+
+		    generate_pre_native_assigns(stmts);
+		}
+		else
+		{
+		    statement_t *stmts = make_assign(stmt->v.assign.lhs, make_op_rhs_from_array(rhs->v.op.op->index, args));
+
+		    generate_pre_native_assigns(stmts);
+		}
+	    }
+	    break;
+
+	default :
+	    assert(0);
+    }
+}
+
+static statement_t*
+convert_if_stmt (statement_t *stmt)
+{
+    if (rhs_type(stmt->v.if_cond.condition) == TYPE_INT)
+	return stmt;
+    else
+    {
+	value_t *temp = make_lhs(make_temporary(TYPE_INT));
+	statement_t *new_stmt = alloc_stmt();
+
+	generate_pre_native_assigns(convert_rhs(stmt->v.if_cond.condition, temp));
+
+	memcpy(new_stmt, stmt, sizeof(statement_t));
+	new_stmt->next = 0;
+	new_stmt->v.if_cond.condition = make_value_rhs(temp);
+
+	return new_stmt;
+    }
+}
+
+static statement_t*
+convert_while_stmt (statement_t *stmt)
+{
+    if (rhs_type(stmt->v.while_loop.invariant) == TYPE_INT)
+	return stmt;
+    else
+    {
+	value_t *temp = make_lhs(make_temporary(TYPE_INT));
+	statement_t *new_stmt = alloc_stmt();
+
+	generate_pre_native_assigns(convert_rhs(stmt->v.while_loop.invariant, temp));
+
+	memcpy(new_stmt, stmt, sizeof(statement_t));
+	new_stmt->next = 0;
+	new_stmt->v.while_loop.invariant = make_value_rhs(temp);
+
+	return new_stmt;
+    }
+}
+
+static void
+generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs, int convert_types)
 {
     while (stmt != 0)
     {
-	switch (stmt->type)
+	if (stmt->kind == STMT_PHI_ASSIGN)
+	{
+	    if (convert_types)
+	    {
+		rhs_t *rhs = (phi_rhs == 1) ? stmt->v.assign.rhs : stmt->v.assign.rhs2;
+
+		if (rhs_type(rhs) != stmt->v.assign.lhs->compvar->type)
+		{
+		    generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
+		    return;
+		}
+	    }
+
+	    emit_pre_native_insn(new_pre_native_insn_phi_assign(stmt, phi_rhs));
+	}
+	else
+	    assert(stmt->kind == STMT_NIL);
+
+	stmt = stmt->next;
+    }
+}
+
+static void
+generate_pre_native_code_recursively (statement_t *stmt, int convert_types)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
 
 	    case STMT_ASSIGN :
-		emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
+		if (convert_types)
+		    emit_pre_native_assign_with_conversion(stmt);
+		else
+		    emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
 		break;
 
 	    case STMT_IF_COND :
 		{
 		    pre_native_insn_t *label_alternative = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
 		    pre_native_insn_t *label_end = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
+		    statement_t *converted_stmt;
+
+		    if (convert_types)
+			converted_stmt = convert_if_stmt(stmt);
+		    else
+			converted_stmt = stmt;
 
 		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_IF_COND_FALSE_GOTO,
-								  stmt, label_alternative));
-		    generate_pre_native_code_recursively(stmt->v.if_cond.consequent);
-		    generate_pre_native_code_for_phis(stmt->v.if_cond.exit, 1);
-		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_GOTO, stmt, label_end));
+								  converted_stmt, label_alternative));
+		    generate_pre_native_code_recursively(converted_stmt->v.if_cond.consequent, convert_types);
+		    generate_pre_native_code_for_phis(converted_stmt->v.if_cond.exit, 1, convert_types);
+		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_GOTO, converted_stmt, label_end));
 		    emit_pre_native_insn(label_alternative);
-		    generate_pre_native_code_recursively(stmt->v.if_cond.alternative);
-		    generate_pre_native_code_for_phis(stmt->v.if_cond.exit, 2);
+		    generate_pre_native_code_recursively(converted_stmt->v.if_cond.alternative, convert_types);
+		    generate_pre_native_code_for_phis(converted_stmt->v.if_cond.exit, 2, convert_types);
 		    emit_pre_native_insn(label_end);
 		}
 		break;
@@ -3072,13 +3329,19 @@ generate_pre_native_code_recursively (statement_t *stmt)
 		{
 		    pre_native_insn_t *label_start = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
 		    pre_native_insn_t *label_end = new_pre_native_insn(PRE_NATIVE_INSN_LABEL, 0);
+		    statement_t *converted_stmt;
 
-		    generate_pre_native_code_for_phis(stmt->v.while_loop.entry, 1);
+		    if (convert_types)
+			converted_stmt = convert_while_stmt(stmt);
+		    else
+			converted_stmt = stmt;
+
+		    generate_pre_native_code_for_phis(stmt->v.while_loop.entry, 1, convert_types);
 		    emit_pre_native_insn(label_start);
 		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_IF_COND_FALSE_GOTO,
 								  stmt, label_end));
-		    generate_pre_native_code_recursively(stmt->v.while_loop.body);
-		    generate_pre_native_code_for_phis(stmt->v.while_loop.entry, 2);
+		    generate_pre_native_code_recursively(stmt->v.while_loop.body, convert_types);
+		    generate_pre_native_code_for_phis(stmt->v.while_loop.entry, 2, convert_types);
 		    emit_pre_native_insn(new_pre_native_insn_goto(PRE_NATIVE_INSN_GOTO, stmt, label_start));
 		    emit_pre_native_insn(label_end);
 		}
@@ -3093,12 +3356,12 @@ generate_pre_native_code_recursively (statement_t *stmt)
 }
 
 static void
-generate_pre_native_code (void)
+generate_pre_native_code (int convert_types)
 {
     first_pre_native_insn = 0;
     last_pre_native_insn = 0;
 
-    generate_pre_native_code_recursively(first_stmt);
+    generate_pre_native_code_recursively(first_stmt, convert_types);
 }
 
 /*** ssa well-formedness check ***/
@@ -3119,7 +3382,7 @@ last_assignment_to_compvar (statement_t *stmts, compvar_t *compvar)
 
     while (stmts != 0)
     {
-	switch (stmts->type)
+	switch (stmts->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -3175,9 +3438,9 @@ check_phis (statement_t *stmts, statement_t *parent, statement_t *body1, stateme
     {
 	assert(stmts->parent == parent);
 
-	assert(stmts->type == STMT_NIL || stmts->type == STMT_PHI_ASSIGN);
+	assert(stmts->kind == STMT_NIL || stmts->kind == STMT_PHI_ASSIGN);
 
-	if (stmts->type == STMT_PHI_ASSIGN)
+	if (stmts->kind == STMT_PHI_ASSIGN)
 	{
 /*
 	    void check_value (value_t *value)
@@ -3243,7 +3506,7 @@ check_ssa_recursively (statement_t *stmts, statement_t *parent, GHashTable *curr
     {
 	assert(stmts->parent == parent);
 
-	switch (stmts->type)
+	switch (stmts->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -3310,7 +3573,7 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 
     while (stmt != 0)
     {
-	switch (stmt->type)
+	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
@@ -3365,54 +3628,6 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 
     return non_empty;
 }
-
-/*** type promotion ***/
-
-/*
-static void
-promote_types_recursively (statement_t **stmtp)
-{
-    while (*stmtp != 0)
-    {
-	statement_t *stmt = *stmtp;
-
-	switch (stmt->type)
-	{
-	    case STMT_NIL :
-		break;
-
-	    case STMT_PHI_ASSIGN :
-		assert(rhs_type(stmt->v.assign.rhs) == rhs_type(stmt->v.assign.rhs2));
-		break;
-
-	    case STMT_ASSIGN :
-		break;
-
-	    case STMT_IF_COND :
-		promote_types_recursively(&stmt->v.if_cond.consequent);
-		promote_types_recursively(&stmt->v.if_cond.alternative);
-		promote_types_recursively(&stmt->v.if_cond.exit);
-		break;
-
-	    case STMT_WHILE_LOOP :
-		promote_types_recursively(&stmt->v.while_loop.entry);
-		promote_types_recursively(&stmt->v.while_loop.body);
-		break;
-
-	    default :
-		assert(0);
-	}
-
-	stmtp = &(*stmtp)->next;
-    }
-}
-
-static void
-promote_types (void)
-{
-    promote_types_recursively(&first_stmt);
-}
-*/
 
 /*** c code output ***/
 
@@ -3492,7 +3707,7 @@ reset_have_defined (statement_t *stmt)
 void
 output_primary (FILE *out, primary_t *primary)
 {
-    switch (primary->type)
+    switch (primary->kind)
     {
 	case PRIMARY_VALUE :
 	    output_value_name(out, primary->v.value, 0);
@@ -3516,7 +3731,7 @@ output_primary (FILE *out, primary_t *primary)
 void
 output_rhs (FILE *out, rhs_t *rhs)
 {
-    switch (rhs->type)
+    switch (rhs->kind)
     {
 	case RHS_PRIMARY :
 	    output_primary(out, &rhs->v.primary);
@@ -3557,19 +3772,19 @@ output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
 #ifndef NO_CONSTANTS_ANALYSIS
 	if ((phis->slice_flags & slice_flag) == 0)
 #else
-        if (phis->type == STMT_NIL)
+        if (phis->kind == STMT_NIL)
 #endif
 	{
 	    phis = phis->next;
 	    continue;
 	}
 
-	assert(phis->type == STMT_PHI_ASSIGN);
+	assert(phis->kind == STMT_PHI_ASSIGN);
 
 	rhs = ((branch == 0) ? phis->v.assign.rhs : phis->v.assign.rhs2);
 
-	if (rhs->type != RHS_PRIMARY
-	    || rhs->v.primary.type != PRIMARY_VALUE
+	if (rhs->kind != RHS_PRIMARY
+	    || rhs->v.primary.kind != PRIMARY_VALUE
 	    || rhs->v.primary.v.value != phis->v.assign.lhs)
 	{
 	    output_value_name(out, phis->v.assign.lhs, 0);
@@ -3590,7 +3805,7 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 #ifndef NO_CONSTANTS_ANALYSIS
 	if (stmt->slice_flags & slice_flag)
 #endif
-	    switch (stmt->type)
+	    switch (stmt->kind)
 	    {
 		case STMT_NIL :
 #ifndef NO_CONSTANTS_ANALYSIS
@@ -3674,7 +3889,7 @@ output_permanent_const_code (FILE *out, int const_type)
 
     int const_predicate (statement_t *stmt)
 	{
-	    assert(stmt->type == STMT_ASSIGN || stmt->type == STMT_PHI_ASSIGN);
+	    assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
 
 	    return is_value_needed(stmt->v.assign.lhs);
 	}
@@ -3749,7 +3964,7 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
 
     gen_code(mathmap->top_level_decls->v.filter.body, result, 0);
     {
-	compvar_t *color_tmp = make_temporary(), *dummy = make_temporary();
+	compvar_t *color_tmp = make_temporary(TYPE_COLOR), *dummy = make_temporary(TYPE_INT);
 
 	emit_assign(make_lhs(color_tmp), make_op_rhs(OP_MAKE_COLOR,
 						     make_compvar_primary(result[0]), make_compvar_primary(result[1]),
@@ -3787,7 +4002,8 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
     check_ssa(first_stmt);
 
     /* no statement reordering after this point */
-    generate_pre_native_code();
+
+    generate_pre_native_code(0);
 
     dump_pre_native_code();
 }
@@ -4125,9 +4341,13 @@ generate_plug_in (char *filter, char *output_filename,
 /*** inits ***/
 
 static void
-init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure, int is_foldable)
+init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t const_type, int is_pure, int is_foldable, ...)
 {
+    va_list ap;
+
     assert(num_args <= MAX_OP_ARGS);
+
+    va_start(ap, is_foldable);
 
     ops[index].index = index;
     ops[index].name = name;
@@ -4136,6 +4356,16 @@ init_op (int index, char *name, int num_args, type_prop_t type_prop, type_t cons
     ops[index].const_type = const_type;
     ops[index].is_pure = is_pure;
     ops[index].is_foldable = is_foldable;
+
+    if (type_prop == TYPE_PROP_CONST)
+    {
+	int i;
+
+	for (i = 0; i < num_args; ++i)
+	    ops[index].arg_types[i] = va_arg(ap, type_t);
+    }
+
+    va_end(ap);
 }
 
 void
