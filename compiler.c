@@ -3098,7 +3098,7 @@ static statement_t*
 convert_primary (primary_t *src, type_t type, primary_t *dst)
 {
     type_t src_type = primary_type(src);
-    value_t *temp = make_lhs(make_temporary(src_type));
+    value_t *temp = make_lhs(make_temporary(type));
 
     *dst = make_compvar_primary(temp->compvar);
 
@@ -3272,7 +3272,7 @@ generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs, int convert_t
 		if (rhs_type(rhs) != stmt->v.assign.lhs->compvar->type)
 		{
 		    generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
-		    return;
+		    goto next_stmt;
 		}
 	    }
 
@@ -3281,6 +3281,7 @@ generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs, int convert_t
 	else
 	    assert(stmt->kind == STMT_NIL);
 
+    next_stmt:
 	stmt = stmt->next;
     }
 }
@@ -3362,6 +3363,66 @@ generate_pre_native_code (int convert_types)
     last_pre_native_insn = 0;
 
     generate_pre_native_code_recursively(first_stmt, convert_types);
+}
+
+/*** pre-native code typechecking ***/
+
+static void
+typecheck_pre_native_code (void)
+{
+    pre_native_insn_t *insn = first_pre_native_insn;
+
+    while (insn != 0)
+    {
+	switch (insn->kind)
+	{
+	    case PRE_NATIVE_INSN_ASSIGN :
+		{
+		    rhs_t *rhs = insn->stmt->v.assign.rhs;
+		    type_t lhs_type = insn->stmt->v.assign.lhs->compvar->type;
+
+		    if (rhs->kind == RHS_OP)
+		    {
+			int num_args = rhs->v.op.op->num_args;
+			type_t result_type;
+			type_t arg_types[MAX_OP_ARGS];
+			int i;
+
+			if (rhs->v.op.op->type_prop == TYPE_PROP_CONST)
+			{
+			    result_type = rhs->v.op.op->const_type;
+			    memcpy(arg_types, rhs->v.op.op->arg_types, sizeof(type_t) * num_args);
+			}
+			else
+			{
+			    result_type = lhs_type;
+			    for (i = 0; i < num_args; ++i)
+				arg_types[i] = result_type;
+			}
+
+			assert(lhs_type == result_type);
+			for (i = 0; i < num_args; ++i)
+			    assert(primary_type(&rhs->v.op.args[i]) == arg_types[i]);
+		    }
+		    else
+			assert(lhs_type == rhs_type(rhs));
+		}
+		break;
+
+	    case PRE_NATIVE_INSN_PHI_ASSIGN :
+		{
+		    rhs_t *rhs = (insn->v.phi_rhs == 1) ? insn->stmt->v.assign.rhs : insn->stmt->v.assign.rhs2;
+
+		    assert(insn->stmt->v.assign.lhs->compvar->type == rhs_type(rhs));
+		}
+		break;
+
+	    default :
+		break;
+	}
+
+	insn = insn->next;
+    }
 }
 
 /*** ssa well-formedness check ***/
@@ -4003,9 +4064,9 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
 
     /* no statement reordering after this point */
 
-    generate_pre_native_code(0);
-
+    generate_pre_native_code(1);
     dump_pre_native_code();
+    typecheck_pre_native_code();
 }
 
 void
