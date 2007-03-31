@@ -382,7 +382,7 @@ free_userval_infos (userval_info_t *infos)
 }
 
 void
-copy_userval (userval_t *dst, userval_t *src, int type, int cmdline)
+copy_userval (userval_t *dst, userval_t *src, int type)
 {
     switch (type)
     {
@@ -394,7 +394,7 @@ copy_userval (userval_t *dst, userval_t *src, int type, int cmdline)
 	    break;
 
 	case USERVAL_IMAGE :
-	    if (!cmdline && src->v.image.index > 0)
+	    if (!cmd_line_mode && src->v.image.index > 0)
 		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
 	    else
 		dst->v = src->v;

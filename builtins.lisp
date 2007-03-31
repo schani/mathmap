@@ -793,6 +793,9 @@
 (defbuiltin "floor" floor (?T 1) ((a (?T 1)))
   (set result (make (?T 1) (floor (nth 0 a)))))
 
+(defbuiltin "ceil" ceil (?T 1) ((a (?T 1)))
+  (set result (make (?T 1) (ceil (nth 0 a)))))
+
 (defbuiltin "sign" sign_n (?T ?L) ((a (?T ?L)))
   (forarglength a i
     (if (< (nth i a) 0)

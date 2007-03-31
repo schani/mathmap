@@ -33,12 +33,14 @@
 #include "userval.h"
 #include "internals.h"
 #include "vars.h"
-#include "cgen.h"
+#include "compiler.h"
 #include "color.h"
 
 #include <libgimp/gimp.h>
 
-#define MATHMAP_DATE          "February 2007"
+#define MATHMAP_DATE          "March 2007"
+
+typedef struct _interpreter_insn_t interpreter_insn_t;
 
 typedef struct _mathmap_t
 {
@@ -56,8 +58,16 @@ typedef struct _mathmap_t
     initfunc_t initfunc;
     void *module_info;
 
+    interpreter_insn_t *interpreter_insns;
+    // FIXME: This should be in the invocation!
+    GArray *interpreter_values;
+
     struct _mathmap_t *next;
 } mathmap_t;
+
+/* If this is in the plug-in then 0, otherwise it's in the command
+   line. */
+extern int cmd_line_mode;
 
 /* This variable is set by the compiler.  It's ok that it is global
    because the compiler is non-reentrant (which is ok because it's
@@ -81,7 +91,7 @@ typedef struct _mathmap_invocation_t
 
     userval_t *uservals;
     tuple_t *variables;
-    tuple_t *internals;
+    //tuple_t *internals;
 
     int antialiasing;
     int supersampling;
@@ -95,6 +105,7 @@ typedef struct _mathmap_invocation_t
     int origin_x, origin_y;
     int img_width, img_height;
     float middle_x, middle_y;
+    float sampling_offset_x, sampling_offset_y;
     float image_R, image_X, image_Y, image_W, image_H;
     float scale_x, scale_y;
 
@@ -108,11 +119,12 @@ typedef struct _mathmap_invocation_t
     void *xy_vars;
     void *y_vars;
 
-    int cmdline; /* if this is in the plug-in then 0, otherwise it's in the command line */
-
     int do_debug;
     int num_debug_tuples;
     tuple_t debug_tuples[MAX_DEBUG_TUPLES];
+
+    int interpreter_ip;
+    color_t interpreter_output_color;
 } mathmap_invocation_t;
 
 typedef struct
@@ -153,7 +165,7 @@ int does_mathmap_use_t (mathmap_t *mathmap);
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_filename);
-mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height, int cmdline);
+mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_frame (mathmap_invocation_t *invocation);
 void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
 

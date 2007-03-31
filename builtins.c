@@ -82,7 +82,7 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, i
 	    y = (height - 1) - (y % height);
     }
 
-    if (invocation->cmdline)
+    if (cmd_line_mode)
 	return mathmap_get_pixel(invocation, drawable_index, frame, x, y);
     else
     {

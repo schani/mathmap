@@ -64,6 +64,7 @@ lookup_internal (internal_t *internals, const char *name, int dont_touch)
     return 0;
 }
 
+/*
 tuple_t*
 instantiate_internals (internal_t *internals)
 {
@@ -85,6 +86,7 @@ instantiate_internals (internal_t *internals)
 
     return tuples;
 }
+*/
 
 void
 free_internals (internal_t *internals)
@@ -97,4 +99,19 @@ free_internals (internal_t *internals)
 
 	internals = next;
     }
+}
+
+int
+number_of_internals (internal_t *internals)
+{
+    int i;
+
+    while (internals != 0)
+    {
+	++i;
+
+	internals = internals->next;
+    }
+
+    return i;
 }

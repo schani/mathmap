@@ -130,8 +130,10 @@
 (defop 'gamma 1 "GAMMA")
 
 (defop 'floor 1 "floor" :type 'int)
+(defop 'ceil 1 "ceil" :type 'int)
 (defop '= 2 "EQ" :type 'int :c-define "OP_EQ")
 (defop '< 2 "LESS" :type 'int :c-define "OP_LESS")
+(defop '<i 2 "LESS" :type 'int :arg-type 'int :c-define "OP_LESS_INT")
 (defop '<= 2 "LEQ" :type 'int :c-define "OP_LEQ")
 (defop 'not 1 "NOT" :type 'int :arg-type 'int)
 
@@ -141,7 +143,7 @@
 (defop 'start-debug-tuple 1 "START_DEBUG_TUPLE" :type 'int :arg-type 'int :pure nil)
 (defop 'set-debug-tuple-data 2 "SET_DEBUG_TUPLE_DATA" :type 'int :arg-types '(int float) :pure nil)
 
-(defop 'orig-val 4 "ORIG_VAL" :type 'color :arg-types '(float float int float) :foldable nil)
+(defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'color :arg-types '(float float int float) :foldable nil)
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)
 (defop 'green 1 "GREEN_FLOAT" :arg-type 'color :foldable nil)
 (defop 'blue 1 "BLUE_FLOAT" :arg-type 'color :foldable nil)
@@ -251,13 +253,13 @@
     (max *max-types*)
     (max-float *max-float-types*)))
 
-(defun make-rhs-op-switch (const-handler max-handler)
+(defun make-rhs-op-switch (const-handler max-handler only-foldables)
   (apply #'string-concat
 	 (mapcar #'(lambda (op)
 		     (labels ((switch-args (arg-types)
 				(if (= (length arg-types) (op-arity op))
 				    (format nil "~A~%" (funcall max-handler op arg-types))
-				    (format nil "switch (rhs->v.op.args[~A].const_type) {~%~Adefault : assert(0); break;~%}~%"
+				    (format nil "switch (primary_type(&rhs->v.op.args[~A])) {~%~Adefault : assert(0); break;~%}~%"
 					    (length arg-types)
 					    (apply #'string-concat
 						   (mapcar #'(lambda (type)
@@ -265,7 +267,7 @@
 								       (type-c-define type)
 								       (switch-args (append arg-types (list type)))))
 							   (max-type-prop-types (op-type-prop op))))))))
-		       (if (op-foldable op)
+		       (if (or (not only-foldables) (op-foldable op))
 			   (if (eq (op-type-prop op) 'const)
 			       (format nil "case ~A :~%~A~%"
 				       (op-c-define op)
@@ -285,18 +287,20 @@
 					   (integers-upto (op-arity op)))))
 		      #'(lambda (op arg-types)
 			  (let ((max-type (max-type arg-types)))
-			    (format nil "return make_~A_const_primary(~A(~{(~A)rhs->v.op.args[~A].v.~A_const~^, ~}));"
+			    (format nil "return make_~A_const_primary(~A(~{(~A)rhs->v.op.args[~A].v.constant.~A_value~^, ~}));"
 				    (dcs (type-name max-type)) (op-c-name op)
 				    (mappend #'(lambda (i arg-type)
 						 (list (type-c-type max-type) i (dcs (type-name arg-type))))
-					     (integers-upto (op-arity op)) arg-types))))))
+					     (integers-upto (op-arity op)) arg-types))))
+		      t))
 
 (defun make-builtin-getter ()
   (make-rhs-op-switch #'(lambda (op)
 			  (format nil "return builtin_~A;" (string-downcase (op-c-define op))))
 		      #'(lambda (op arg-types)
 			  (let ((max-type (max-type arg-types)))
-			    (format nil "return builtin_~A_~A;" (string-downcase (op-c-define op)) (dcs (type-name max-type)))))))
+			    (format nil "return builtin_~A_~A;" (string-downcase (op-c-define op)) (dcs (type-name max-type)))))
+		      nil))
 
 (defun make-types-file ()
   (with-open-file (out "compiler_types.h" :direction :output :if-exists :supersede)
@@ -314,9 +318,8 @@
 					  '()
 					  (list c-type (funcall element-namer type)))))
 				*types*))))
-      (value-decls "PRIMARY_CONST_DECLS" #'(lambda (type) (format nil "~A_const" (dcs (type-name type)))))
-      (value-decls "BUILTIN_ARGS_DECL" #'(lambda (type) (format nil "*~A_value" (dcs (type-name type))))))
-    (format out "static char*~%type_c_type_name (int type)~%{~%switch (type)~%{~%~{case ~A : return ~A;~%~}default : assert(0); return 0;~%}~%}~%~%"
+      (value-decls "RUNTIME_VALUE_DECL" #'(lambda (type) (format nil "~A_value" (dcs (type-name type))))))
+    (format out "#define MAKE_TYPE_C_TYPE_NAME static char* \\~%type_c_type_name (int type) \\~%{ \\~%switch (type) \\~%{ \\~%~{case ~A : return ~A; \\~%~}default : assert(0); return 0; \\~%} \\~%}~%~%"
 	    (mappend #'(lambda (type)
 			 (let ((c-type (type-c-type type)))
 			   (list (type-c-define type)
@@ -326,7 +329,7 @@
 		     *types*))
     (dolist (type *types*)
       (unless (null (type-c-type type))
-	(format out "#define BUILTIN_~A_ARG(i) (*(args[(i)].~A_value))~%"
+	(format out "#define BUILTIN_~A_ARG(i) (g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, arg_indexes[(i)]).~A_value)~%"
 		(ucs (type-name type)) (dcs (type-name type)))))
     (format out "#define MAKE_CONST_PRIMARY_FUNCS \\~%~{MAKE_CONST_PRIMARY(~A, ~A, ~A)~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
@@ -334,7 +337,7 @@
 			     nil
 			     (list (dcs (type-name type)) (type-c-type type) (type-c-define type))))
 		     *types*))
-    (format out "#define MAKE_CONST_COMPARATOR \\~%~{case ~A : return ~{prim1->v.~A_const~A == prim2->v.~2:*~A_const~A~^ && ~};~^ \\~%~}~%~%"
+    (format out "#define MAKE_CONST_COMPARATOR \\~%~{case ~A : return ~{prim1->v.constant.~A_value~A == prim2->v.constant.~2:*~A_value~A~^ && ~};~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
 			 (if (null (type-c-type type))
 			     nil
@@ -355,7 +358,7 @@
 					    (funcall spec-accessor print-info)
 					    (mapcar #'(lambda (arg-spec)
 							(format nil arg-spec
-								(format nil "primary->v.~A_const" (dcs (type-name type)))))
+								(format nil "primary->v.constant.~A_value" (dcs (type-name type)))))
 						    (car (last print-info))))))
 				*types*))))
       (printer "TYPE_DEBUG_PRINTER" #'first)
@@ -363,7 +366,7 @@
 
 (defun print-op-builtins (op)
   (labels ((function-header (name)
-	     (format nil "static void~%builtin_~A (mathmap_invocation_t *invocation, builtin_arg_t *args)"
+	     (format nil "static void~%builtin_~A (mathmap_invocation_t *invocation, int *arg_indexes)"
 		     name))
 	   (print-function (name op type arg-types)
 	     (format t "~A~%{~%BUILTIN_~A_ARG(0) = ~A(~{BUILTIN_~A_ARG(~A)~^, ~});~%}~%"

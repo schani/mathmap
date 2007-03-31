@@ -1,3 +1,4 @@
+heusl
 /*
  * new_template.c
  *
@@ -44,6 +45,8 @@
 #if !$g
 #define OPENSTEP
 #endif
+
+#define IN_COMPILED_CODE
 
 #include "$opmacros_h"
 
@@ -146,6 +149,9 @@ typedef struct _mathmap_t
     void *initfunc;
     void *module_info;
 
+    void *interpreter_insns;
+    void *interpreter_values;
+
     struct _mathmap_t *next;
 } mathmap_t;
 
@@ -176,7 +182,7 @@ typedef struct _mathmap_invocation_t
 
     userval_t *uservals;
     tuple_t *variables;
-    tuple_t *internals;
+    //tuple_t *internals;
 
     int antialiasing;
     int supersampling;
@@ -190,6 +196,7 @@ typedef struct _mathmap_invocation_t
     int origin_x, origin_y;
     int img_width, img_height;
     float middle_x, middle_y;
+    float sampling_offset_x, sampling_offset_y;
     float image_R, image_X, image_Y, image_W, image_H;
     float scale_x, scale_y;
 
@@ -203,11 +210,12 @@ typedef struct _mathmap_invocation_t
     xy_const_vars_t *xy_vars;
     y_const_vars_t *y_vars;
 
-    int cmdline;
-
     int do_debug;
     int num_debug_tuples;
     tuple_t debug_tuples[MAX_DEBUG_TUPLES];
+
+    int interpreter_ip;
+    color_t interpreter_output_color;
 } mathmap_invocation_t;
 
 #if !$g
@@ -444,6 +452,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
     float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
+    float sampling_offset_x = invocation->sampling_offset_x, sampling_offset_y = invocation->sampling_offset_y;
     float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
     int origin_x = invocation->origin_x, origin_y = invocation->origin_y;
     int frame = invocation->current_frame;
@@ -470,7 +479,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
     for (row = first_row; row < last_row; ++row)
     {
-	float y = middle_y - (float)(row + origin_y) * scale_y;
+	float y = middle_y - sampling_offset_y - (float)(row + origin_y) * scale_y;
 	unsigned char *p = q;
 
 	$x_decls
@@ -480,7 +489,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	for (col = 0; col < invocation->img_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
-	    float x = (float)(col + origin_x) * scale_x - middle_x;
+	    float x = (float)(col + origin_x) * scale_x - middle_x + sampling_offset_x;
 
 #if $uses_ra
 	    float r, a;
@@ -558,7 +567,7 @@ init_frame (mathmap_invocation_t *invocation)
 	for (col = 0; col < invocation->img_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
-	    float x = (float)(col + invocation->origin_x) * invocation->scale_x - invocation->middle_x;
+	    float x = (float)(col + invocation->origin_x) * invocation->scale_x - invocation->middle_x + invocation->sampling_offset_x;
 
 	    {
 		$y_code

@@ -1,10 +1,26 @@
+Packaging
+---------
+
+Command line version optional to obsolete image library dependencies
+
+Don't delete flex and bison output files to remove dependencies
+
 Compiler
 --------
+
+Elliptic jacobi functions for complex arguments
+
+General
+-------
+
+Unit filters and images
+
+Uncoupled edge behaviour (x/y)
 
 GIMP Plug-In
 ------------
 
-disable animation settings if expression doesn't use t
+Disable animation settings if expression doesn't use t
 
 Documentation
 -------------
@@ -17,7 +33,10 @@ Elliptic functions
 
 
 
-uncoupled edge behaviour (x/y)
+
+
+
+
 
 
 

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2004 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -135,7 +135,7 @@ userval_t* instantiate_uservals (userval_info_t *infos);
 void free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline);
 void free_userval_infos (userval_info_t *infos);
 
-void copy_userval (userval_t *dst, userval_t *src, int type, int cmdline);
+void copy_userval (userval_t *dst, userval_t *src, int type);
 
 void set_userval_to_default (userval_t *dst, userval_info_t *info);
 

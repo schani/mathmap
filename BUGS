@@ -4,10 +4,6 @@ Known Bugs
 GIMP Plug-In
 ------------
 
-the interpreter does not work at all
-
-grid example doesn't work
-
 when there are no user values the user values tab doesn't scale when window is resized
 
 should ask to save before quitting or selecting another expression
@@ -17,12 +13,12 @@ i18n is terribly old.  maybe we should axe it?
 Command Line Tool
 -----------------
 
-Not tested
-
 Header and template files don't have path
 
 Compiler
 --------
+
+HSV domain coloring output white?
 
 Two inputs can have the same name
 

@@ -30,7 +30,6 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <glib.h>
-#include <gsl/gsl_matrix.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
 #else
@@ -49,10 +48,8 @@
 #include "scanner.h"
 #include "bitvector.h"
 #include "lispreader/pools.h"
-
-#define INTERPRETER
+#include "compiler.h"
 #include "opmacros.h"
-#undef INTERPRETER
 
 //#define NO_CONSTANTS_ANALYSIS
 
@@ -63,8 +60,6 @@ typedef struct
     int number;
     int last_index;
 } temporary_t;
-
-#include "compiler_types.h"
 
 #define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
 
@@ -122,31 +117,37 @@ typedef struct
     union
     {
 	value_t *value;
-	PRIMARY_CONST_DECLS
+	runtime_value_t constant;
     } v;
 } primary_t;
 
 #define MAKE_CONST_PRIMARY(name, c_type, type_name)	\
+	runtime_value_t \
+	make_ ## name ## _runtime_value (c_type name ## _value) \
+	{ \
+	    runtime_value_t value; \
+	    value.name ## _value = name ## _value; \
+	    return value; \
+	} \
 	primary_t \
 	make_ ## name ## _const_primary (c_type name ## _const) \
 	{ \
 	    primary_t primary; \
 	    primary.kind = PRIMARY_CONST; \
 	    primary.const_type = type_name; \
-	    primary.v.name ## _const = name ## _const; \
+	    primary.v.constant.name ## _value = name ## _const; \
 	    return primary; \
 	}
 
 // defined in compiler_types.h
 MAKE_CONST_PRIMARY_FUNCS
+MAKE_TYPE_C_TYPE_NAME
 
 #define TYPE_PROP_CONST      1
 #define TYPE_PROP_MAX        2
 #define TYPE_PROP_MAX_FLOAT  3
 
 typedef int type_prop_t;
-
-#define MAX_OP_ARGS          9
 
 typedef struct _operation_t
 {
@@ -246,15 +247,11 @@ typedef struct _pre_native_insn_t
     struct _pre_native_insn_t *next;
 } pre_native_insn_t;
 
-typedef union
-{
-    // defined in compiler_types.h
-    BUILTIN_ARGS_DECL
-} builtin_arg_t;
-
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable, ...);
 static int rhs_is_foldable (rhs_t *rhs);
+
+static type_t primary_type (primary_t *primary);
 
 #include <complex.h>
 #include <gsl/gsl_vector.h>
@@ -269,21 +266,26 @@ static int rhs_is_foldable (rhs_t *rhs);
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
 #define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
-				     (RHS_ARG((i)).const_type == TYPE_INT ? RHS_ARG((i)).v.int_const : \
+				     (RHS_ARG((i)).const_type == TYPE_INT ? RHS_ARG((i)).v.constant.int_value : \
 				      ({ assert(0); 0.0; })); })
 #define OP_CONST_FLOAT_VAL(i)     ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
-				     (RHS_ARG((i)).const_type == TYPE_INT ? (float)(RHS_ARG((i)).v.int_const) : \
-				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
+				     (RHS_ARG((i)).const_type == TYPE_INT ? (float)(RHS_ARG((i)).v.constant.int_value) : \
+				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.constant.float_value : \
 				      ({ assert(0); 0.0; })); })
 #define OP_CONST_COMPLEX_VAL(i)   ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
-				     (RHS_ARG((i)).const_type == TYPE_INT ? (complex float)(RHS_ARG((i)).v.int_const) : \
-				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.float_const : \
-				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.complex_const : \
+				     (RHS_ARG((i)).const_type == TYPE_INT ? (complex float)(RHS_ARG((i)).v.constant.int_value) : \
+				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.constant.float_value : \
+				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.constant.complex_value : \
 				      ({ assert(0); 0.0; })); })
 
-#define OUTPUT_COLOR_INTERPRETER(c)  0 /* FIXME: implement */
+#define OUTPUT_COLOR_INTERPRETER(c)  ({ invocation->interpreter_output_color = (c); invocation->interpreter_ip = -1; 0; })
 
-typedef void (*builtin_func_t) (mathmap_invocation_t*, builtin_arg_t*);
+#define ORIG_VAL_INTERPRETER(x,y,d,f)     ({ color_t c; \
+                                 	     if (invocation->antialiasing) \
+                                     	         c = get_orig_val_intersample_pixel(invocation, (x), (y), (d), (f)); \
+                                 	     else \
+                                     		 c = get_orig_val_pixel(invocation, (x), (y), (d), (f)); \
+                                 	     c; })
 
 #include "opdefs.h"
 
@@ -510,14 +512,20 @@ assign_value_index_and_make_current (value_t *val)
 }
 
 primary_t
-make_compvar_primary (compvar_t *compvar)
+make_value_primary (value_t *value)
 {
     primary_t primary;
 
     primary.kind = PRIMARY_VALUE;
-    primary.v.value = current_value(compvar);
+    primary.v.value = value;
 
     return primary;
+}
+
+primary_t
+make_compvar_primary (compvar_t *compvar)
+{
+    return make_value_primary(current_value(compvar));
 }
 
 rhs_t*
@@ -1217,9 +1225,9 @@ static void
 print_value (value_t *val)
 {
     if (val->compvar->var != 0)
-	printf("%s[%d]_%d", val->compvar->var->name, val->compvar->n, val->index);
+	printf("%s[%d]_%d (%p)", val->compvar->var->name, val->compvar->n, val->index, val);
     else
-	printf("$t%d_%d", val->compvar->temp->number, val->index);
+	printf("$t%d_%d (%p)", val->compvar->temp->number, val->index, val);
 }
 
 static void
@@ -1398,6 +1406,27 @@ print_liveness (value_t *value)
 	printf("  (%d - %d)", value->live_start->index, value->live_end->index);
 }
 
+static rhs_t*
+pre_native_condition (pre_native_insn_t *insn)
+{
+    assert(insn->kind == PRE_NATIVE_INSN_IF_COND_FALSE_GOTO);
+
+    switch (insn->stmt->kind)
+    {
+	case STMT_IF_COND :
+	    return insn->stmt->v.if_cond.condition;
+	    break;
+
+	case STMT_WHILE_LOOP :
+	    return insn->stmt->v.while_loop.invariant;
+	    break;
+
+	default :
+	    assert(0);
+	    return 0;
+    }
+}
+
 static void
 dump_pre_native_code (void)
 {
@@ -1441,10 +1470,7 @@ dump_pre_native_code (void)
 		assert(insn->stmt->kind == STMT_IF_COND || insn->stmt->kind == STMT_WHILE_LOOP);
 
 		printf("  if not ");
-		if (insn->stmt->kind == STMT_IF_COND)
-		    print_rhs(insn->stmt->v.if_cond.condition);
-		else
-		    print_rhs(insn->stmt->v.while_loop.invariant);
+		print_rhs(pre_native_condition(insn));
 		printf(" goto %d\n", insn->v.target->index);
 		break;
 
@@ -1542,7 +1568,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 			for (j = 1; j < length; ++j)
 			{
-			    start_if_cond(make_op_rhs(OP_LESS, make_compvar_primary(subscript), make_int_const_primary(j)));
+			    start_if_cond(make_op_rhs(OP_LESS_INT, make_compvar_primary(subscript), make_int_const_primary(j)));
 			    emit_assign(make_lhs(dest[i]), make_compvar_rhs(temps[j - 1]));
 			    switch_if_branch();
 			}
@@ -1615,7 +1641,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 			for (j = 1; j < length; ++j)
 			{
-			    start_if_cond(make_op_rhs(OP_LESS, make_compvar_primary(subscript), make_int_const_primary(j)));
+			    start_if_cond(make_op_rhs(OP_LESS_INT, make_compvar_primary(subscript), make_int_const_primary(j)));
 			    emit_assign(make_lhs(tree->val.sub_assignment.var->compvar[j - 1]), make_compvar_rhs(temps[i]));
 			    switch_if_branch();
 			}
@@ -2661,10 +2687,10 @@ is_const_primary_rhs_true (rhs_t *rhs)
     switch (rhs->v.primary.const_type)
     {
 	case TYPE_INT :
-	    return rhs->v.primary.v.int_const != 0;
+	    return rhs->v.primary.v.constant.int_value != 0;
 
 	case TYPE_FLOAT :
-	    return rhs->v.primary.v.float_const != 0.0;
+	    return rhs->v.primary.v.constant.float_value != 0.0;
 
 	default :
 	    assert(0);
@@ -3087,11 +3113,11 @@ get_conversion_op (type_t src, type_t dst)
 }
 
 static rhs_t*
-make_convert_rhs (compvar_t *compvar, type_t type)
+make_convert_rhs (value_t *value, type_t type)
 {
-    int op = get_conversion_op(compvar->type, type);
+    int op = get_conversion_op(value->compvar->type, type);
 
-    return make_op_rhs(op, make_compvar_primary(compvar));
+    return make_op_rhs(op, make_value_primary(value));
 }
 
 static statement_t*
@@ -3100,7 +3126,7 @@ convert_primary (primary_t *src, type_t type, primary_t *dst)
     type_t src_type = primary_type(src);
     value_t *temp = make_lhs(make_temporary(type));
 
-    *dst = make_compvar_primary(temp->compvar);
+    *dst = make_value_primary(temp);
 
     return make_assign(temp, make_op_rhs(get_conversion_op(src_type, type), *src));
 }
@@ -3112,7 +3138,7 @@ convert_rhs (rhs_t *rhs, value_t *lhs)
     statement_t *stmts;
 
     stmts = make_assign(temp, rhs);
-    stmts->next = make_assign(lhs, make_convert_rhs(temp->compvar, lhs->compvar->type));
+    stmts->next = make_assign(lhs, make_convert_rhs(temp, lhs->compvar->type));
 
     return stmts;
 }
@@ -3200,7 +3226,7 @@ emit_pre_native_assign_with_conversion (statement_t *stmt)
 		    statement_t *stmts;
 
 		    stmts = make_assign(temp, rhs);
-		    stmts->next = make_assign(stmt->v.assign.lhs, make_convert_rhs(temp->compvar, lhs_type));
+		    stmts->next = make_assign(stmt->v.assign.lhs, make_convert_rhs(temp, lhs_type));
 
 		    generate_pre_native_assigns(stmts);
 		}
@@ -3572,7 +3598,7 @@ check_ssa_recursively (statement_t *stmts, statement_t *parent, GHashTable *curr
 	    case STMT_NIL :
 		break;
 
-	    case STMT_ASSIGN:
+	    case STMT_ASSIGN :
 		check_rhs_defined(stmts->v.assign.rhs, defined_set);
 		assert(!value_set_contains(defined_set, stmts->v.assign.lhs));
 		set_value_defined_and_current_for_checking(stmts->v.assign.lhs, current_value_hash, defined_set);
@@ -3976,6 +4002,272 @@ output_permanent_const_code (FILE *out, int const_type)
     output_stmts(out, first_stmt, slice_flag);
 }
 
+/*** generating interpreter code ***/
+
+static int
+add_interpreter_value (GArray *array, runtime_value_t value)
+{
+    g_array_append_val(array, value);
+    return array->len - 1;
+}
+
+static int
+lookup_value_index (GHashTable *value_hash, value_t *value)
+{
+    gpointer dummy_key, hash_pointer;
+
+    if (g_hash_table_lookup_extended(value_hash, value, &dummy_key, &hash_pointer))
+	return GPOINTER_TO_INT(hash_pointer);
+    else
+	return -1;
+}
+
+static int
+lookup_goto_target (GHashTable *label_hash, pre_native_insn_t *target_insn)
+{
+    gpointer dummy_key, hash_pointer;
+
+    assert(g_hash_table_lookup_extended(label_hash, target_insn, &dummy_key, &hash_pointer));
+    return GPOINTER_TO_INT(hash_pointer);
+}
+
+static int
+lookup_value_arg (value_t *value, mathmap_t *mathmap, GHashTable *value_hash)
+{
+    int index = lookup_value_index(value_hash, value);
+
+    if (index < 0)
+	// FIXME: uninitialized - would be nice if it was of the right type
+	return add_interpreter_value(mathmap->interpreter_values, make_int_runtime_value(0));
+    else
+	return index;
+}
+
+static int
+lookup_primary_arg (primary_t *primary, mathmap_t *mathmap, GHashTable *value_hash)
+{
+    switch (primary->kind)
+    {
+	case PRIMARY_VALUE :
+	    return lookup_value_arg(primary->v.value, mathmap, value_hash);
+
+	case PRIMARY_CONST :
+	    return add_interpreter_value(mathmap->interpreter_values, primary->v.constant);
+
+	default :
+	    assert(0);
+	    return -1;
+    }
+}
+
+static int
+lookup_rhs_arg (rhs_t *rhs, mathmap_t *mathmap, GHashTable *value_hash)
+{
+    switch (rhs->kind)
+    {
+	case RHS_PRIMARY :
+	    return lookup_primary_arg(&rhs->v.primary, mathmap, value_hash);
+
+	case RHS_INTERNAL :
+	    return rhs->v.internal->index;
+
+	default :
+	    assert(0);
+	    return -1;
+    }
+}
+
+static interpreter_insn_t
+make_interpreter_insn (builtin_func_t func, int num_args, int *arg_indexes)
+{
+    interpreter_insn_t insn;
+
+    insn.func = func;
+    memcpy(insn.arg_indexes, arg_indexes, sizeof(int) * num_args);
+
+    return insn;
+}
+
+static void
+builtin_copy (mathmap_invocation_t *invocation, int *arg_indexes)
+{
+    g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, arg_indexes[0])
+	= g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, arg_indexes[1]);
+}
+
+static void
+builtin_goto (mathmap_invocation_t *invocation, int *arg_indexes)
+{
+    invocation->interpreter_ip = BUILTIN_INT_ARG(0);
+}
+
+static void
+builtin_if_cond_false_goto (mathmap_invocation_t *invocation, int *arg_indexes)
+{
+    if (!BUILTIN_INT_ARG(0))
+	invocation->interpreter_ip = BUILTIN_INT_ARG(1);
+}
+
+static interpreter_insn_t
+make_op_rhs_interpreter_insn (int lhs_arg_index, rhs_t *rhs, mathmap_t *mathmap, GHashTable *value_hash)
+{
+    int arg_indexes[MAX_OP_ARGS + 1];
+    int i;
+    builtin_func_t func;
+
+    assert(rhs->kind == RHS_OP);
+
+    arg_indexes[0] = lhs_arg_index;
+    for (i = 0; i < rhs->v.op.op->num_args; ++i)
+	arg_indexes[i + 1] = lookup_primary_arg(&rhs->v.op.args[i], mathmap, value_hash);
+    func = get_builtin(rhs);
+
+    return make_interpreter_insn(func, rhs->v.op.op->num_args + 1, arg_indexes);
+}
+
+static void
+generate_interpreter_code_from_ir (mathmap_t *mathmap)
+{
+    GHashTable *value_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
+    GHashTable *label_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
+    /* the first few values are the internals */
+    int num_values = number_of_internals(mathmap->internals);
+    int num_insns = 0;
+    pre_native_insn_t *insn;
+    int index;
+
+    assert(value_hash != 0);
+    assert(label_hash != 0);
+
+    for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
+    {
+	switch (insn->kind)
+	{
+	    case PRE_NATIVE_INSN_LABEL :
+		g_hash_table_insert(label_hash, insn, GINT_TO_POINTER(num_insns));
+		break;
+
+	    case PRE_NATIVE_INSN_ASSIGN :
+	    case PRE_NATIVE_INSN_PHI_ASSIGN :
+		{
+		    value_t *value = insn->stmt->v.assign.lhs;
+		    gpointer dummy_key, dummy_value;
+
+		    if (!g_hash_table_lookup_extended(value_hash, value, &dummy_key, &dummy_value))
+		    {
+			g_hash_table_insert(value_hash, value, GINT_TO_POINTER(num_values));
+			++num_values;
+		    }
+		}
+		break;
+
+	    case PRE_NATIVE_INSN_IF_COND_FALSE_GOTO :
+		if (pre_native_condition(insn)->kind == RHS_OP)
+		    ++num_insns;
+		break;
+
+	    default :
+		break;
+	}
+
+	if (insn->kind != PRE_NATIVE_INSN_LABEL)
+	    ++num_insns;
+    }
+
+    mathmap->interpreter_insns = (interpreter_insn_t*)malloc(sizeof(interpreter_insn_t) * num_insns);
+    assert(mathmap->interpreter_insns != 0);
+
+    mathmap->interpreter_values = g_array_new(FALSE, TRUE, sizeof(runtime_value_t));
+    assert(mathmap->interpreter_values != 0);
+
+    /* make room for the internals and variable values.  constants are
+       appended after them.  */
+    g_array_set_size(mathmap->interpreter_values, num_values);
+
+    index = 0;
+    for (insn = first_pre_native_insn; insn != 0; insn = insn->next)
+    {
+	switch (insn->kind)
+	{
+	    case PRE_NATIVE_INSN_LABEL :
+		break;
+
+	    case PRE_NATIVE_INSN_GOTO :
+		{
+		    int target = lookup_goto_target(label_hash, insn->v.target);
+		    int arg_index;
+
+		    assert(target >= 0 && target < num_insns);
+		    arg_index = add_interpreter_value(mathmap->interpreter_values, make_int_runtime_value(target));
+
+		    mathmap->interpreter_insns[index] = make_interpreter_insn(builtin_goto, 1, &arg_index);
+		}
+		break;
+
+	    case PRE_NATIVE_INSN_IF_COND_FALSE_GOTO :
+		{
+		    int target;
+		    int arg_indexes[2];
+		    rhs_t *rhs = pre_native_condition(insn);
+
+		    if (rhs->kind == RHS_OP)
+		    {
+			arg_indexes[0] = add_interpreter_value(mathmap->interpreter_values, make_int_runtime_value(0));
+			mathmap->interpreter_insns[index++] = make_op_rhs_interpreter_insn(arg_indexes[0], rhs, mathmap, value_hash);
+		    }
+		    else
+			arg_indexes[0] = lookup_rhs_arg(rhs, mathmap, value_hash);
+
+		    target = lookup_goto_target(label_hash, insn->v.target);
+		    assert(target >= 0 && target < num_insns);
+		    arg_indexes[1] = add_interpreter_value(mathmap->interpreter_values, make_int_runtime_value(target));
+
+		    mathmap->interpreter_insns[index] = make_interpreter_insn(builtin_if_cond_false_goto, 2, arg_indexes);
+		}
+		break;
+
+	    case PRE_NATIVE_INSN_ASSIGN :
+	    case PRE_NATIVE_INSN_PHI_ASSIGN :
+		{
+		    rhs_t *rhs;
+		    int arg_indexes[2];
+
+		    if (insn->kind == PRE_NATIVE_INSN_ASSIGN || insn->v.phi_rhs == 1)
+			rhs = insn->stmt->v.assign.rhs;
+		    else
+			rhs = insn->stmt->v.assign.rhs2;
+
+		    arg_indexes[0] = lookup_value_arg(insn->stmt->v.assign.lhs, mathmap, value_hash);
+
+		    switch (rhs->kind)
+		    {
+			case RHS_OP :
+			    mathmap->interpreter_insns[index]
+				= make_op_rhs_interpreter_insn(arg_indexes[0], rhs, mathmap, value_hash);
+			    break;
+
+			default :
+			    arg_indexes[1] = lookup_rhs_arg(rhs, mathmap, value_hash);
+			    mathmap->interpreter_insns[index] = make_interpreter_insn(builtin_copy, 2, arg_indexes);
+			    break;
+		    }
+		}
+		break;
+
+	    default :
+		break;
+	}
+
+	if (insn->kind != PRE_NATIVE_INSN_LABEL)
+	    ++index;
+    }
+
+    assert(index == num_insns);
+
+    g_hash_table_destroy(value_hash);
+    g_hash_table_destroy(label_hash);
+}
+
 /*** compiling and loading ***/
 
 #ifdef OPENSTEP
@@ -4010,8 +4302,8 @@ has_altivec (void)
 }
 #endif
 
-void
-generate_ir_code (mathmap_t *mathmap, int constant_analysis)
+static void
+generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 {
     compvar_t *result[MAX_TUPLE_LENGTH];
     int changed;
@@ -4064,9 +4356,10 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis)
 
     /* no statement reordering after this point */
 
-    generate_pre_native_code(1);
+    generate_pre_native_code(convert_types);
     dump_pre_native_code();
-    typecheck_pre_native_code();
+    if (convert_types)
+	typecheck_pre_native_code();
 }
 
 void
@@ -4235,7 +4528,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 
     assert(template != 0);
 
-    generate_ir_code(mathmap, 1);
+    generate_ir_code(mathmap, 1, 0);
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);
     out = fopen(c_filename, "w");
@@ -4349,6 +4642,16 @@ unload_c_code (void *module_info)
 #endif
 }
 
+void
+generate_interpreter_code (mathmap_t *mathmap)
+{
+    generate_ir_code(mathmap, 1, 1);
+
+    generate_interpreter_code_from_ir(mathmap);
+
+    forget_ir_code(mathmap);
+}
+
 /*** plug-in generator ***/
 
 int
@@ -4372,7 +4675,7 @@ generate_plug_in (char *filter, char *output_filename,
 	return 0;
     }
 
-    generate_ir_code(mathmap, analyze_constants);
+    generate_ir_code(mathmap, analyze_constants, 0);
 
     template = fopen(template_path, "r");
     out = fopen(output_filename, "w");

@@ -1,3 +1,6 @@
+#ifndef __OPMACROS_H__
+#define __OPMACROS_H__
+
 typedef struct
 {
     float v[2];
@@ -112,15 +115,9 @@ typedef struct
 #define USERVAL_CURVE_ACCESS(x,p)    (invocation->uservals[(x)].v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
 #define USERVAL_COLOR_ACCESS(x)      (invocation->uservals[(x)].v.color.value)
 #define USERVAL_GRADIENT_ACCESS(x,p) (invocation->uservals[(x)].v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
-#ifdef INTERPRETER
-#define ORIG_VAL(x,y,d,f)     ({ color_t c; \
-                                 if (invocation->antialiasing) \
-                                     c = get_orig_val_intersample_pixel(invocation, (x), (y), (d), (f)); \
-                                 else \
-                                     c = get_orig_val_pixel(invocation, (x), (y), (d), (f)); \
-                                 c; })
-#else
 #define ORIG_VAL(x,y,d,f)     get_orig_val_pixel_func(invocation, (x), (y), (d), (f))
+
+#ifdef IN_COMPILED_CODE
 #ifdef OPENSTEP
 #define RED_FLOAT(c)          (((RED(c)*(ALPHA(c)+1))>>8)/255.0)
 #define GREEN_FLOAT(c)        (((GREEN(c)*(ALPHA(c)+1))>>8)/255.0)
@@ -149,4 +146,6 @@ typedef struct
 	p[alpha_index] = ALPHA(c); \
     0; \
     })
+#endif
+
 #endif

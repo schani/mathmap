@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,7 +49,8 @@ typedef struct _internal_t
 internal_t* register_internal (internal_t **internals, const char *name, int const_type);
 internal_t* lookup_internal (internal_t *internals, const char *name, int dont_touch);
 
-tuple_t* instantiate_internals (internal_t *internals);
 void free_internals (internal_t *internals);
+
+int number_of_internals (internal_t *internals);
 
 #endif

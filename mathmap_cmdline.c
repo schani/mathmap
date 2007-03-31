@@ -45,7 +45,6 @@
 #include "jump.h"
 #include "mathmap.h"
 #include "noise.h"
-#include "cgen.h"
 #include "rwimg/readimage.h"
 #include "rwimg/writeimage.h"
 
@@ -378,7 +377,7 @@ cmdline_main (int argc, char *argv[])
 	    exit(1);
 	}
 
-	invocation = invoke_mathmap(mathmap, 0, img_width, img_height, 1);
+	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
 
 	invocation->antialiasing = antialiasing;
 	invocation->supersampling = supersampling;

@@ -34,8 +34,10 @@
 #include "tags.h"
 #include "jump.h"
 #include "scanner.h"
-#include "cgen.h"
+#include "compiler.h"
 #include "mathmap.h"
+
+int cmd_line_mode = 0; 
 
 mathmap_t *the_mathmap = 0;
 int scanner_line_num;
@@ -152,6 +154,10 @@ free_mathmap (mathmap_t *mathmap)
 	free_top_level_decls(mathmap->top_level_decls);
     if (mathmap->userval_infos != 0)
 	free_userval_infos(mathmap->userval_infos);
+    if (mathmap->interpreter_insns != 0)
+	free(mathmap->interpreter_insns);
+    if (mathmap->interpreter_values != 0)
+	g_array_free(mathmap->interpreter_values, 1);
     unload_mathmap(mathmap);
 
     free(mathmap);
@@ -162,8 +168,10 @@ free_invocation (mathmap_invocation_t *invocation)
 {
     userval_info_t *info;
 
+    /*
     if (invocation->internals != 0)
 	free(invocation->internals);
+    */
     if (invocation->variables != 0)
 	free(invocation->variables);
     if (invocation->uservals != 0)
@@ -181,7 +189,7 @@ free_invocation (mathmap_invocation_t *invocation)
 		    break;
 
 		case USERVAL_IMAGE :
-		    if (!invocation->cmdline)
+		    if (!cmd_line_mode)
 			if (invocation->uservals[info->index].v.image.index > 0)
 			    free_input_drawable(invocation->uservals[info->index].v.image.index);
 		    break;
@@ -193,6 +201,10 @@ free_invocation (mathmap_invocation_t *invocation)
 	free(invocation->xy_vars);
     if (invocation->y_vars != 0)
 	free(invocation->y_vars);
+    /*
+    if (invocation->interpreter_values != 0)
+	g_array_free(invocation->interpreter_values, TRUE);
+    */
     free(invocation);
 }
 
@@ -248,12 +260,7 @@ parse_mathmap (char *expression)
     mathmap = (mathmap_t*)malloc(sizeof(mathmap_t));
     assert(mathmap != 0);
 
-    mathmap->variables = 0;
-    mathmap->userval_infos = 0;
-    mathmap->internals = 0;
-    mathmap->is_native = 0;
-    mathmap->module_info = 0;
-    mathmap->top_level_decls = 0;
+    memset(mathmap, 0, sizeof(mathmap_t));
 
     init_internals(mathmap);
 
@@ -330,36 +337,40 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
     static int try_compiler = 1;
 
     DO_JUMP_CODE {
-	mathmap = parse_mathmap(expression);
-
-	if (mathmap == 0)
-	{
-	    JUMP(1);
-	}
-
 	if (try_compiler)
 	{
-	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template, opmacros_filename);
-	    if (mathmap->initfunc == 0)
+	    mathmap = parse_mathmap(expression);
+
+	    if (mathmap == 0)
 	    {
-		char *message = g_strdup_printf("The MathMap compiler failed.  This development version\n"
-						"does not have a fallback interpreter, so it will not work.\n"
+		JUMP(1);
+	    }
+
+	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template, opmacros_filename);
+	    if (mathmap->initfunc == 0 && !cmd_line_mode)
+	    {
+		char *message = g_strdup_printf("The MathMap compiler failed.  This is not a fatal error,\n"
+						"because MathMap has a fallback interpreter which can do\n"
+						"everything the compiler does, but it is much slower, so it\n"
+						"is recommended that you use the compiler.\n"
 						"This is the reason why the compiler failed:\n%s", error_string);
 
-		strcpy(error_string, message);
+		gimp_message(message);
 
 		g_free(message);
-
-		mathmap = 0;
-		JUMP(1);
 	    }
 	}
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{
-	    assert(0);
+	    mathmap = parse_mathmap(expression);
 
-	    // FIXME: generate interpreter code here
+	    if (mathmap == 0)
+	    {
+		JUMP(1);
+	    }
+
+	    generate_interpreter_code(mathmap);
 
 	    mathmap->is_native = 0;
 
@@ -386,23 +397,33 @@ init_invocation (mathmap_invocation_t *invocation)
 {
     if (invocation->mathmap->is_native)
 	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
+    else
+    {
+	/*
+	int i;
+
+	invocation->interpreter_values = g_array_new(FALSE, TRUE, sizeof(runtime_value_t));
+	g_array_set_size(invocation->interpreter_values, invocation->mathmap->interpreter_values->len);
+	for (i = 0; i < invocation->mathmap->interpreter_values->len; ++i)
+	    g_array_index(invocation->interpreter_values, runtime_value_t, i)
+		= g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, i);
+	*/
+    }
 }
 
 mathmap_invocation_t*
-invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height, int cmdline)
+invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height)
 {
     mathmap_invocation_t *invocation = (mathmap_invocation_t*)malloc(sizeof(mathmap_invocation_t));
 
+    assert(invocation != 0);
+    memset(invocation, 0, sizeof(mathmap_invocation_t));
+
     invocation->mathmap = mathmap;
-
-    invocation->cmdline = cmdline;
-
-    invocation->mathfuncs.init_frame = 0;
-    invocation->mathfuncs.calc_lines = 0;
 
     invocation->uservals = instantiate_uservals(mathmap->userval_infos);
 
-    if (!invocation->cmdline)
+    if (!cmd_line_mode)
     {
 	userval_info_t *info;
 
@@ -417,7 +438,7 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->variables = instantiate_variables(mathmap->variables);
 
-    invocation->internals = instantiate_internals(mathmap->internals);
+    //invocation->internals = instantiate_internals(mathmap->internals);
 
     invocation->antialiasing = 0;
     invocation->supersampling = 0;
@@ -432,18 +453,13 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->image_W = img_width;
     invocation->image_H = img_height;
 
-    invocation->middle_x = img_width / 2.0;
-    invocation->middle_y = img_height / 2.0;
+    invocation->middle_x = (img_width - 1) / 2.0;
+    invocation->middle_y = (img_height - 1) / 2.0;
 
-    if (invocation->middle_x > img_width - invocation->middle_x)
-	invocation->image_X = invocation->middle_x;
-    else
-	invocation->image_X = img_width - invocation->middle_x;
+    invocation->sampling_offset_x = invocation->sampling_offset_y = 0.0;
 
-    if (invocation->middle_y > img_height - invocation->middle_y)
-	invocation->image_Y = invocation->middle_y;
-    else
-	invocation->image_Y = img_height - invocation->middle_y;
+    invocation->image_X = invocation->middle_x;
+    invocation->image_Y = invocation->middle_y;
     
     invocation->image_R = hypot(invocation->image_X, invocation->image_Y);
 
@@ -456,9 +472,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->row_stride = img_width * 4;
     invocation->num_rows_finished = 0;
-
-    invocation->xy_vars = 0;
-    invocation->y_vars = 0;
 
     invocation->do_debug = 0;
 
@@ -480,38 +493,65 @@ disable_debugging (mathmap_invocation_t *invocation)
 }
 
 static void
-update_pixel_internals (mathmap_invocation_t *invocation, float x, float y, float r, float a)
+set_float_internal (mathmap_invocation_t *invocation, int index, float value)
 {
-    invocation->internals[X_INTERNAL_INDEX].data[0] = x;
-    invocation->internals[Y_INTERNAL_INDEX].data[0] = y;
+    g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, index).float_value = value;
+}
 
-    invocation->internals[R_INTERNAL_INDEX].data[0] = r;
-    invocation->internals[A_INTERNAL_INDEX].data[0] = a;
+void
+update_image_internals (mathmap_invocation_t *invocation)
+{
+    internal_t *internal;
+
+    if (invocation->mathmap->is_native)
+	return;
+
+    internal = lookup_internal(invocation->mathmap->internals, "t", 1);
+    set_float_internal(invocation, internal->index, invocation->current_t);
+
+    internal = lookup_internal(invocation->mathmap->internals, "X", 1);
+    set_float_internal(invocation, internal->index, invocation->image_X);
+    internal = lookup_internal(invocation->mathmap->internals, "Y", 1);
+    set_float_internal(invocation, internal->index, invocation->image_Y);
+    
+    internal = lookup_internal(invocation->mathmap->internals, "W", 1);
+    set_float_internal(invocation, internal->index, invocation->image_W);
+    internal = lookup_internal(invocation->mathmap->internals, "H", 1);
+    set_float_internal(invocation, internal->index, invocation->image_H);
+    
+    internal = lookup_internal(invocation->mathmap->internals, "R", 1);
+    set_float_internal(invocation, internal->index, invocation->image_R);
+
+    internal = lookup_internal(invocation->mathmap->internals, "frame", 1);
+    set_float_internal(invocation, internal->index, invocation->current_frame);
 }
 
 static void
-write_tuple_to_pixel (tuple_t *tuple, guchar *dest, int output_bpp)
+update_pixel_internals (mathmap_invocation_t *invocation, float x, float y, float r, float a)
 {
-    float redf,
-	greenf,
-	bluef,
-	alphaf;
+    set_float_internal(invocation, X_INTERNAL_INDEX, x);
+    set_float_internal(invocation, Y_INTERNAL_INDEX, y);
 
-    tuple_to_color(tuple, &redf, &greenf, &bluef, &alphaf);
+    set_float_internal(invocation, R_INTERNAL_INDEX, r);
+    set_float_internal(invocation, A_INTERNAL_INDEX, a);
+}
 
+static void
+write_color_to_pixel (color_t color, guchar *dest, int output_bpp)
+{
     if (output_bpp == 1 || output_bpp == 2)
-	dest[0] = (0.299 * redf + 0.587 * greenf + 0.114 * bluef) * 255;
+	dest[0] = (RED(color) * 299 + GREEN(color) * 587 + BLUE(color) * 114) / 1000;
     else if (output_bpp == 3 || output_bpp == 4)
     {
-	dest[0] = redf * 255;
-	dest[1] = greenf * 255;
-	dest[2] = bluef * 255;
+	dest[0] = RED(color);
+	dest[1] = GREEN(color);
+	dest[2] = BLUE(color);
     }
     else
 	assert(0);
 
     if (output_bpp == 2 || output_bpp == 4)
-	dest[output_bpp - 1] = alphaf * 255;
+	dest[output_bpp - 1] = ALPHA(color);
 }
 
 void
@@ -522,32 +562,41 @@ init_frame (mathmap_invocation_t *invocation)
 }
 
 static void
+run_interpreter (mathmap_invocation_t *invocation)
+{
+    invocation->interpreter_ip = 0;
+    do
+    {
+	interpreter_insn_t *insn = &invocation->mathmap->interpreter_insns[invocation->interpreter_ip];
+
+	++invocation->interpreter_ip;
+	insn->func(invocation, insn->arg_indexes);
+    } while (invocation->interpreter_ip >= 0);
+}
+
+static void
 calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
     if (invocation->mathmap->is_native)
 	invocation->mathfuncs.calc_lines(invocation, first_row, last_row, q);
     else
     {
-	assert(0);
-
-	// FIXME: call interpreter here
-
-	/*
 	int row, col;
 	int output_bpp = invocation->output_bpp;
 	int origin_x = invocation->origin_x, origin_y = invocation->origin_y;
 	float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
+	float sampling_offset_x = invocation->sampling_offset_x, sampling_offset_y = invocation->sampling_offset_y;
 	float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
 	int uses_ra = does_mathmap_use_ra(invocation->mathmap);
 
 	for (row = first_row; row < last_row; ++row)
 	{
-	    float y = middle_y - (float)(row + origin_y) * scale_y;
+	    float y = middle_y - sampling_offset_y - (float)(row + origin_y) * scale_y;
 	    unsigned char *p = q;
 
 	    for (col = 0; col < invocation->img_width; ++col)
 	    {
-		float x = (float)(col + origin_x) * scale_x - middle_x;
+		float x = (float)(col + origin_x) * scale_x - middle_x + sampling_offset_x;
 		float r, a;
 
 		if (uses_ra)
@@ -564,7 +613,9 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
 		update_pixel_internals(invocation, x, y, r, a);
 
-		write_tuple_to_pixel(eval_postfix(invocation), p, output_bpp);
+		run_interpreter(invocation);
+
+		write_color_to_pixel(invocation->interpreter_output_color, p, output_bpp);
 
 		p += output_bpp;
 	    }
@@ -574,7 +625,6 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	    if (!invocation->supersampling)
 		invocation->num_rows_finished = row + 1;
 	}
-	*/
     }
 }
 
@@ -584,7 +634,6 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
     if (invocation->supersampling)
     {
 	guchar *line1, *line2, *line3;
-	float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
 	int row, col;
 	int img_width = invocation->img_width;
 
@@ -593,6 +642,8 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 
 	invocation->img_width = img_width + 1;
+	invocation->sampling_offset_x = -0.5;
+	invocation->sampling_offset_y = -0.5;
 	init_frame(invocation);
 	calc_lines(invocation, first_row, first_row + 1, line1);
 
@@ -601,13 +652,15 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	    unsigned char *p = q;
 
 	    invocation->img_width = img_width;
-	    invocation->middle_x = middle_x - 0.5;
-	    invocation->middle_y = middle_y - 0.5;
+	    invocation->sampling_offset_x = 0;
+	    invocation->sampling_offset_y = 0;
+	    init_frame(invocation);
 	    calc_lines(invocation, row, row + 1, line2);
 
 	    invocation->img_width = img_width + 1;
-	    invocation->middle_x = middle_x;
-	    invocation->middle_y = middle_y;
+	    invocation->sampling_offset_x = -0.5;
+	    invocation->sampling_offset_y = -0.5;
+	    init_frame(invocation);
 	    calc_lines(invocation, row + 1, row + 2, line3);
 	    
 	    for (col = 0; col < img_width; ++col)
@@ -640,30 +693,6 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
     }
 }
 
-void
-update_image_internals (mathmap_invocation_t *invocation)
-{
-    internal_t *internal;
-
-    internal = lookup_internal(invocation->mathmap->internals, "t", 1);
-    invocation->internals[internal->index].data[0] = invocation->current_t;
-
-    internal = lookup_internal(invocation->mathmap->internals, "X", 1);
-    invocation->internals[internal->index].data[0] = invocation->image_X;
-    internal = lookup_internal(invocation->mathmap->internals, "Y", 1);
-    invocation->internals[internal->index].data[0] = invocation->image_Y;
-    
-    internal = lookup_internal(invocation->mathmap->internals, "W", 1);
-    invocation->internals[internal->index].data[0] = invocation->image_W;
-    internal = lookup_internal(invocation->mathmap->internals, "H", 1);
-    invocation->internals[internal->index].data[0] = invocation->image_H;
-    
-    internal = lookup_internal(invocation->mathmap->internals, "R", 1);
-    invocation->internals[internal->index].data[0] = invocation->image_R;
-
-    internal = lookup_internal(invocation->mathmap->internals, "frame", 1);
-    invocation->internals[internal->index].data[0] = invocation->current_frame;
-}
 
 void
 carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template)
@@ -675,8 +704,7 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 	userval_info_t *template_info = lookup_matching_userval(template->mathmap->userval_infos, info);
 
 	if (template_info != 0)
-	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type,
-			 invocation->cmdline);
+	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);
     }
 }
 

@@ -52,7 +52,6 @@
 #include "jump.h"
 #include "mathmap.h"
 #include "noise.h"
-#include "cgen.h"
 #include "expression_db.h"
 
 #define INIT_LOCALE(x)
@@ -246,8 +245,12 @@ my_gimp_main (const GimpPlugInInfo *info, int argc, char *argv[])
 
     for (i = 1; i < argc; ++i)
 	if (strcmp(argv[i], "-gimp") == 0)
+	{
+	    cmd_line_mode = 0;
 	    return gimp_main(info, argc, argv);
+	}
 
+    cmd_line_mode = 1;
     return cmdline_main(argc, argv);
 }
 
@@ -763,7 +766,7 @@ generate_code (int current_frame, float current_t)
 	{
 	    mathmap_invocation_t *new_invocation;
 
-	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height, 0);
+	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height);
 	    assert(new_invocation != 0);
 
 	    new_invocation->output_bpp = output_bpp;
@@ -936,7 +939,7 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int fra
 
     ++num_pixels_requested;
 
-    if (invocation->cmdline)
+    if (cmd_line_mode)
 	return cmdline_mathmap_get_pixel(invocation, drawable_index, frame, x, y);
 
     if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)

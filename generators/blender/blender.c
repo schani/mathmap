@@ -21,11 +21,11 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <assert.h>
 
 #include "../../jump.h"
 #include "../../mathmap.h"
-#include "../../cgen.h"
 
 #include "blender.h"
 
