@@ -1,4 +1,4 @@
-MathMap 1.1.1
+MathMap 1.1.2
 =============
 
 MathMap is a GIMP plug-in and a standalone command-line tool which
@@ -14,6 +14,18 @@ The MathMap homepage can be found at
     http://www.complang.tuwien.ac.at/schani/mathmap/
 
 It features a user's manual as well as screenshots and examples.
+
+Changes since 1.1.2:
+
+  * The command-line tool is optional to remove dependencies on image
+    IO libraries.
+  * Bison and Flex are not required for compiling the distribution.
+  * Should work with GIMP 2.3 as well (untested).
+  * A working interpreter.
+  * Elliptic Jacobi functions for real and complex arguments.
+  * New "ceil" function.
+  * New and improved examples.
+  * Several bugfixes.
 
 Changes since 1.1.1:
 

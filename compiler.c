@@ -1960,11 +1960,9 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 	{
 	    int type, type2;
 
-	    /*
 	    printf("propagating types on ");
 	    print_assign_statement(stmt);
 	    printf("   ***   ");
-	    */
 
 	    type = rhs_type(stmt->v.assign.rhs);
 	    if (stmt->kind == STMT_PHI_ASSIGN)
@@ -1978,9 +1976,9 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 		}
 	    }
 
-	    //printf("lhs %d   rhs %d\n", stmt->v.assign.lhs->compvar->type, type);
+	    printf("lhs %d   rhs %d\n", stmt->v.assign.lhs->compvar->type, type);
 
-	    if (type != stmt->v.assign.lhs->compvar->type)
+	    if (type > stmt->v.assign.lhs->compvar->type)
 	    {
 		stmt->v.assign.lhs->compvar->type = type;
 		worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, worklist);

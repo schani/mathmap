@@ -147,8 +147,10 @@ typedef struct
 // fprintf with the C locale
 int fprintf_c (FILE *stream, const char *format, ...);
 
+#ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y);
+#endif
 
 void register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls);
 

@@ -11,15 +11,20 @@ Requirements
 MathMap requires the following software packages, including
 development packages, to compile and to run:
 
-  * The GIMP 2.2
+  * The GIMP 2.2 or 2.3
   * GSL (GNU Scientific Library), including GSL CBLAS
+
+If you want MathMap to have a command-line interface as well (which is
+optional), you'll also need the following libraries:
+
   * libjpeg, libpng, giflib
 
 Configuration
 -------------
 
 Edit the Makefile if necessary.  Usually you shouldn't have to do
-this, unless you have more than one version of GIMP installed.
+this, unless you have more than one version of GIMP installed or want
+to build the command-line interface as well.
 
 Compiling
 ---------
@@ -37,12 +42,14 @@ called something like "gimp-devel" and "gsl-devel" or just "gsl".
 Installation
 ------------
 
-If you want to install mathmap on your account, type
+If you want to install mathmap on your account, type (without becoming
+root or using a tool like "checkinstall"):
 
 	make install
 
 If you have compiled the plug-in version and want to install the
-national language translations, become root and type
+national language translations (this is not tested for this
+development release), become root and type
 
 	make install-mos
 

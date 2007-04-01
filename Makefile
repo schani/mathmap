@@ -1,3 +1,14 @@
+# If you want MathMap to provide a command line interface as well,
+# uncomment the following line.  Note that compiling it requires
+# libjpeg, libpng and giflib.
+#CMDLINE = YES
+
+# Prefix of your GIMP binaries.  Usually you can leave this line
+# commented.  If you have more than one GIMP versions installed, you
+# should give the prefix for the one which you want to build MathMap
+# for.
+#GIMP_BIN = /usr/bin/
+
 # If want to have movie (Quicktime) support in the command line,
 # uncomment the following line.
 #MOVIES = YES
@@ -9,11 +20,8 @@
 # comment the following line
 ENABLE_NLS = YES
 
-# Prefix of your GIMP binaries.  Usually you can leave this line
-# commented.  If you have more than one GIMP versions installed, you
-# should give the prefix for the one which you want to build MathMap
-# for.
-#GIMP_BIN = /usr/bin/
+# The settings for the following directories doesn't affect anything
+# because MathMap cannot install system-wide yet.
 
 # Prefix for the software installation
 PREFIX = /usr/local
@@ -54,19 +62,26 @@ GIMP_CFLAGS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
 GIMP_LDFLAGS = `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0`
 
 CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
-LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -ljpeg -lpng -lgif -lgsl -lgslcblas
+LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas
 
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
 LDFLAGS += -lquicktime -lpthread
 endif
 
+ifeq ($(CMDLINE),YES)
+CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o #generators/pixeltree/pixeltree.o
+CMDLINE_LIBS = rwimg/librwimg.a
+CMDLINE_TARGETS = librwimg
+FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
+CFLAGS += -DMATHMAP_CMDLINE
+LDFLAGS += -ljpeg -lpng -lgif
+endif
+
 ifeq ($(ENABLE_NLS),YES)
 NLS_CFLAGS = -DENABLE_NLS
 MOS = fr.mo
 endif
-
-FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 
 CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
 
@@ -76,14 +91,12 @@ export CFLAGS CC FORMATDEFS
 
 COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o
 
-CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o #generators/pixeltree/pixeltree.o
-
 GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-mathmap : $(OBJECTS) librwimg liblispreader
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) rwimg/librwimg.a lispreader/liblispreader.a $(LDFLAGS)
+mathmap : $(OBJECTS) $(CMDLINE_TARGETS) liblispreader
+	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) lispreader/liblispreader.a $(LDFLAGS)
 
 librwimg :
 	$(MAKE) -C rwimg
@@ -130,7 +143,7 @@ install : mathmap
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
 
-	cp -r examples $(HOME)/$(GIMPDIR)/mathmap/expressions
+	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap/expressions ] ; then cp -r examples $(HOME)/$(GIMPDIR)/mathmap/expressions ; fi
 
 install-mos : $(MOS)
 	if [ ! -d $(LOCALEDIR)/fr ] ; then mkdir $(LOCALEDIR)/fr ; fi
