@@ -222,8 +222,8 @@ static char *current_filename = 0;
 static void
 expression_copy (gchar *dest, const gchar *src)
 {
-    strncpy(dest, src, MAX_EXPRESSION_LENGTH);
-    dest[MAX_EXPRESSION_LENGTH - 1] = 0;
+    assert(strlen(src) < MAX_EXPRESSION_LENGTH);
+    strcpy(dest, src);
 }
 
 
@@ -503,7 +503,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
 	if (exp != 0)
 	{
-	    strcpy(mmvals.expression, exp);
+	    expression_copy(mmvals.expression, exp);
 	    mutable_expression = 0;
 	}
     }
@@ -707,11 +707,15 @@ static void
 update_gradient (void)
 {
     gdouble *samples;
-    int i;
+    int i, num_samples;
+    gchar *gradient_name;
 
-    samples = gimp_gradients_sample_uniform(USER_GRADIENT_POINTS, FALSE);
+    gradient_name = gimp_context_get_gradient();
+    assert(gradient_name != 0);
 
-    for (i = 0; i < USER_GRADIENT_POINTS; ++i)
+    gimp_gradient_get_uniform_samples(gradient_name, USER_GRADIENT_POINTS, FALSE, &num_samples, &samples);
+
+    for (i = 0; i < num_samples / 4; ++i)
 	gradient_samples[i] = MAKE_RGBA_COLOR_FLOAT(samples[i * 4 + 0], samples[i * 4 + 1],
 						    samples[i * 4 + 2], samples[i * 4 + 3]);
 }
