@@ -1,6 +1,11 @@
 Known Bugs
 ==========
 
+Image Processing
+----------------
+
+Rounding errors: http://www.flickr.com/groups/mathmap/discuss/72157594586582778/72157600036989745/
+
 GIMP Plug-In
 ------------
 
@@ -17,8 +22,6 @@ Header and template files don't have path
 
 Compiler
 --------
-
-HSV domain coloring output white?
 
 Two inputs can have the same name
 

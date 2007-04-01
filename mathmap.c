@@ -77,7 +77,7 @@
 #define FLAG_ANIMATION          4
 #define FLAG_PERIODIC           8
 
-#define MAX_EXPRESSION_LENGTH   8192
+#define MAX_EXPRESSION_LENGTH   65536
 
 /***** Types *****/
 

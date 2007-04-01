@@ -1225,9 +1225,9 @@ static void
 print_value (value_t *val)
 {
     if (val->compvar->var != 0)
-	printf("%s[%d]_%d (%p)", val->compvar->var->name, val->compvar->n, val->index, val);
+	printf("%s[%d]_%d", val->compvar->var->name, val->compvar->n, val->index);
     else
-	printf("$t%d_%d (%p)", val->compvar->temp->number, val->index, val);
+	printf("$t%d_%d", val->compvar->temp->number, val->index);
 }
 
 static void
@@ -1319,7 +1319,7 @@ print_assign_statement (statement_t *stmt)
     {
 	case STMT_ASSIGN :
 	    print_value(stmt->v.assign.lhs);
-	    printf(" (%d) = ", count_uses(stmt->v.assign.lhs));
+	    printf(" (%s  uses %d) = ", type_c_type_name(stmt->v.assign.lhs->compvar->type), count_uses(stmt->v.assign.lhs));
 	    print_rhs(stmt->v.assign.rhs);
 	    printf("   ");
 	    output_const_type(stdout, stmt->v.assign.lhs->const_type);
@@ -1945,40 +1945,9 @@ rhs_type (rhs_t *rhs)
 static statement_list_t*
 propagate_types_builder (statement_t *stmt, statement_list_t *worklist)
 {
-    int type, type2;
+    assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
 
-    switch (stmt->kind)
-    {
-	case STMT_ASSIGN :
-	    type = rhs_type(stmt->v.assign.rhs);
-	    if (type != stmt->v.assign.lhs->compvar->type)
-	    {
-		stmt->v.assign.lhs->compvar->type = type;
-		worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, worklist);
-	    }
-	    break;
-
-	case STMT_PHI_ASSIGN :
-	    type = rhs_type(stmt->v.assign.rhs);
-	    type2 = rhs_type(stmt->v.assign.rhs2);
-	    if (type != type2)
-	    {
-		assert(type <= MAX_PROMOTABLE_TYPE && type2 <= MAX_PROMOTABLE_TYPE);
-		if (type2 > type)
-		    type = type2;
-	    }
-	    if (type != stmt->v.assign.lhs->compvar->type)
-	    {
-		stmt->v.assign.lhs->compvar->type = type;
-		worklist = prepend_compvar_statements(stmt->v.assign.lhs->compvar, worklist);
-	    }
-	    break;
-
-	default :
-	    assert(0);
-    }
-
-    return worklist;
+    return prepend_statement(stmt, worklist);
 }
 
 static statement_list_t*
@@ -1990,6 +1959,13 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 	case STMT_PHI_ASSIGN :
 	{
 	    int type, type2;
+
+	    /*
+	    printf("propagating types on ");
+	    print_assign_statement(stmt);
+	    printf("   ***   ");
+	    */
+
 	    type = rhs_type(stmt->v.assign.rhs);
 	    if (stmt->kind == STMT_PHI_ASSIGN)
 	    {
@@ -2001,6 +1977,8 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 			type = type2;
 		}
 	    }
+
+	    //printf("lhs %d   rhs %d\n", stmt->v.assign.lhs->compvar->type, type);
 
 	    if (type != stmt->v.assign.lhs->compvar->type)
 	    {

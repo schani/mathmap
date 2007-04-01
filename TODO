@@ -1,14 +1,29 @@
+1.1.2:
+======
+
 Packaging
 ---------
 
 Command line version optional to obsolete image library dependencies
 
-Don't delete flex and bison output files to remove dependencies
-
 Compiler
 --------
 
-Elliptic jacobi functions for complex arguments
+GIMP Plug-In
+------------
+
+Incorporate patch for Gimp 2.3: http://www.flickr.com/groups/mathmap/discuss/72157594586582778/72157600038890438/
+
+
+
+later:
+======
+
+Packaging
+---------
+
+Compiler
+--------
 
 General
 -------

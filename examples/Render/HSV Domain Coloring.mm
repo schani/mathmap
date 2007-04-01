@@ -13,7 +13,7 @@ filter hsv_domain_coloring ()
     w = 1/z;
     hue = arg(w)/2/pi + 1/2;
     if !inintv(hue,0,1) then hue = 0 end;
-    sat = atan(abs(2*w))/90;
-    val = 1 - atan(abs(w/8))/90;
+    sat = atan(abs(2*w))/(pi/2);
+    val = 1 - atan(abs(w/8))/(pi/2);
     toRGBA(hsva:[hue,sat,val,1])
 end

@@ -138,7 +138,8 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *~ *.o generators/blender/*.o generators/pixeltree/*.o mathmap compiler parser.output core
+	rm -f *.o generators/blender/*.o generators/pixeltree/*.o mathmap compiler parser.output core
+	find . -name '*~' | xargs -r -d '\n' rm
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
 
@@ -148,10 +149,12 @@ realclean : clean
 TAGS : *.c *.h *.lisp
 	etags *.c *.h *.lisp
 
-dist : new_builtins.c clean
+dist : new_builtins.c parser.c scanner.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
 	cp Makefile README README.blender BUGS ANNOUNCEMENT COPYING INSTALL *.[ch] *.lisp parser.y scanner.fl *.po mathmap-$(VERSION)
+	mkdir mathmap-$(VERSION)/lisp-utils
+	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils
 	mkdir mathmap-$(VERSION)/generators
 	mkdir mathmap-$(VERSION)/generators/blender
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender

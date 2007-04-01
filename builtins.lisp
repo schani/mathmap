@@ -784,9 +784,36 @@
 (def-simple-builtin "ell_int_RF" ell_int_RF ell-int-rf 3)
 (def-simple-builtin "ell_int_RJ" ell_int_RJ ell-int-rj 4)
 
-(defbuiltin "ell_jac" ell_jac (?T 3) ((u (?T 1)) (m (?T 1)))
+(defbuiltin "ell_jac_sn" ell_jac_sn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
-    (set result (make (?T 3) (v3-nth 0 v) (v3-nth 1 v) (v3-nth 2 v)))))
+    (set result (make (?T 1) (v3-nth 0 v)))))
+
+(defbuiltin "ell_jac_cn" ell_jac_cn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
+  (let ((v (ell-jac (nth 0 u) (nth 0 m))))
+    (set result (make (?T 1) (v3-nth 1 v)))))
+
+(defbuiltin "ell_jac_dn" ell_jac_dn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
+  (let ((v (ell-jac (nth 0 u) (nth 0 m))))
+    (set result (make (?T 1) (v3-nth 2 v)))))
+
+(defmacro def-complex-ell-jac (overloaded-name name r-nom i-nom)
+  `(defbuiltin ,overloaded-name ,name (ri 2) ((u (ri 2)) (m (? 1)))
+    (let ((v (ell-jac (nth 0 u) (nth 0 m)))
+	  (v1 (ell-jac (nth 1 u) (- 1 (nth 0 m)))))
+      (let ((s (v3-nth 0 v))
+	    (c (v3-nth 1 v))
+	    (d (v3-nth 2 v))
+	    (s1 (v3-nth 0 v1))
+	    (c1 (v3-nth 1 v1))
+	    (d1 (v3-nth 2 v1)))
+	(let ((denom (+ (* c1 c1)
+			(* (nth 0 m) (* (* s s) (* s1 s1))))))
+	  (set (nth 0 result) (/ ,r-nom denom))
+	  (set (nth 1 result) (/ ,i-nom denom)))))))
+
+(def-complex-ell-jac "ell_jac_sn" ell_jac_sn_ri (* s d1) (* (* c d) (* s1 c1)))
+(def-complex-ell-jac "ell_jac_cn" ell_jac_cn_ri (* c c1) (- (* (* s d) (* s1 d1))))
+(def-complex-ell-jac "ell_jac_dn" ell_jac_dn_ri (* c1 (* d d1)) (- (* s s1) (* (nth 0 m) c)))
 
 ;;; floor and friends
 
