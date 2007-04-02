@@ -38,7 +38,7 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.1.2
+VERSION = 1.1.3
 
 #OPT_CFLAGS := -O2
 OPT_CFLAGS := -g

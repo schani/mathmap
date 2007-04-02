@@ -317,10 +317,12 @@ static int stmt_stackp = 0;
 static GHashTable*
 direct_hash_table_copy (GHashTable *table)
 {
-    GHashTable *copy = g_hash_table_new(&g_direct_hash, &g_direct_equal);
+    GHashTable *copy = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     void copy_entry (gpointer key, gpointer value, gpointer user_data)
 	{ g_hash_table_insert(copy, key, value); }
+
+    assert(copy != 0);
 
     g_hash_table_foreach(table, &copy_entry, 0);
 
@@ -375,6 +377,7 @@ op_index (operation_t *op)
 #define alloc_value()              ((value_t*)pools_alloc(&compiler_pools, sizeof(value_t)))
 #define alloc_rhs()                ((rhs_t*)pools_alloc(&compiler_pools, sizeof(rhs_t)))
 #define alloc_compvar()            (compvar_t*)pools_alloc(&compiler_pools, sizeof(compvar_t))
+#define alloc_primary()            (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t))
 
 static value_t*
 new_value (compvar_t *compvar)
@@ -797,59 +800,104 @@ stmt_is_within_limit (statement_t *stmt, statement_t *limit)
     return 1;
 }
 
+/* assumes that old is used at least once in stmt */
 static void
-rewrite_uses (value_t *old, primary_t new, statement_t *limit)
+rewrite_use (statement_t *stmt, value_t *old, primary_t new)
 {
+    primary_t *primary;
     statement_list_t **lst;
+    int found_one = 0;
 
     if (new.kind == PRIMARY_VALUE)
 	assert(old != new.v.value);
 
+ restart:
+    /* remove stmt from the uses list of old */
     lst = &old->uses;
-    while (*lst != 0)
+    for (;;)
     {
 	statement_list_t *elem = *lst;
-	statement_t *stmt = elem->stmt;
-	primary_t *primary;
+
+	if (elem == 0)
+	{
+	    /* if we don't find it now we must have done at least one
+	       iteration before */
+	    assert(found_one);
+	    return;
+	}
+
+	if (elem->stmt == stmt)
+	{
+	    *lst = elem->next;
+	    found_one = 1;
+	    break;
+	}
+
+	lst = &elem->next;
+    }
+
+    /* now find out where the use is */
+    switch (stmt->kind)
+    {
+	case STMT_ASSIGN :
+	    primary = find_value_in_rhs(old, stmt->v.assign.rhs);
+	    break;
+
+	case STMT_PHI_ASSIGN :
+	    primary = find_value_in_rhs(old, stmt->v.assign.rhs);
+	    if (primary == 0)
+		primary = find_value_in_rhs(old, stmt->v.assign.rhs2);
+	    break;
+
+	case STMT_IF_COND :
+	    primary = find_value_in_rhs(old, stmt->v.if_cond.condition);
+	    break;
+
+	case STMT_WHILE_LOOP :
+	    primary = find_value_in_rhs(old, stmt->v.while_loop.invariant);
+	    break;
+
+	default :
+	    assert(0);
+    }
+
+    assert(primary != 0 && primary->v.value == old);
+
+    /* rewrite */
+    *primary = new;
+
+    /* add to new use list */
+    if (new.kind == PRIMARY_VALUE)
+	add_use(new.v.value, stmt);
+
+    /* old might be used more than once in stmt */
+    goto restart;
+}
+
+static void
+rewrite_uses (value_t *old, primary_t new, statement_t *limit)
+{
+    statement_list_t *lst;
+
+    if (new.kind == PRIMARY_VALUE)
+	assert(old != new.v.value);
+
+    lst = old->uses;
+    while (lst != 0)
+    {
+	statement_t *stmt = lst->stmt;
 
 	/* we do not rewrite phis in the loop we're currently working on */
 	if (stmt_is_within_limit(stmt, limit)
 	    && !(stmt->kind == STMT_PHI_ASSIGN && stmt->parent == limit))
 	{
-	    switch (stmt->kind)
-	    {
-		case STMT_ASSIGN :
-		    primary = find_value_in_rhs(old, stmt->v.assign.rhs);
-		    break;
-
-		case STMT_PHI_ASSIGN :
-		    primary = find_value_in_rhs(old, stmt->v.assign.rhs);
-		    if (primary == 0)
-			primary = find_value_in_rhs(old, stmt->v.assign.rhs2);
-		    break;
-
-		case STMT_IF_COND :
-		    primary = find_value_in_rhs(old, stmt->v.if_cond.condition);
-		    break;
-
-		case STMT_WHILE_LOOP :
-		    primary = find_value_in_rhs(old, stmt->v.while_loop.invariant);
-		    break;
-
-		default :
-		    assert(0);
-	    }
-
-	    assert(primary != 0 && primary->v.value == old);
-
-	    *primary = new;
-	    if (new.kind == PRIMARY_VALUE)
-		add_use(new.v.value, stmt);
-
-	    *lst = elem->next;
+	    rewrite_use(stmt, old, new);
+	    /* rewrite_use changes the list, so we have to restart -
+	       very inefficient */
+	    lst = old->uses;
 	}
 	else
-	    lst = &elem->next;
+	    lst = lst->next;
     }
 }
 
@@ -1331,7 +1379,7 @@ print_assign_statement (statement_t *stmt)
 
 	case STMT_PHI_ASSIGN :
 	    print_value(stmt->v.assign.lhs);
-	    printf(" (%d) = phi(", count_uses(stmt->v.assign.lhs));
+	    printf(" (%s  uses %d) = phi(", type_c_type_name(stmt->v.assign.lhs->compvar->type), count_uses(stmt->v.assign.lhs));
 	    print_rhs(stmt->v.assign.rhs);
 	    printf(", ");
 	    print_rhs(stmt->v.assign.rhs2);
@@ -2418,34 +2466,77 @@ optimize_make_color (statement_t *stmt)
 
 /*** copy propagation ***/
 
-static int
-copy_propagation (void)
+static void
+copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *changed)
 {
-    int changed_at_all = 0;
-    int changed;
-
-    void propagate_copy (statement_t *stmt)
+    while (stmt != 0)
+    {
+	void rewrite_if_possible (value_t *value)
 	{
-	    if (stmt->kind == STMT_ASSIGN
-		&& stmt->v.assign.lhs->uses != 0
-		&& stmt->v.assign.rhs->kind == RHS_PRIMARY
-		&& (stmt->v.assign.rhs->v.primary.kind != PRIMARY_VALUE
-		    || stmt->v.assign.rhs->v.primary.v.value != stmt->v.assign.lhs))
+	    primary_t *new = (primary_t*)g_hash_table_lookup(copy_hash, value);
+
+	    if (new != 0)
 	    {
-		rewrite_uses(stmt->v.assign.lhs, stmt->v.assign.rhs->v.primary, 0);
-		changed = 1;
+		rewrite_use(stmt, value, *new);
+		*changed = 1;
 	    }
 	}
 
-    do
-    {
-	changed = 0;
-	for_each_assign_statement(first_stmt, &propagate_copy);
-	if (changed)
-	    changed_at_all = 1;
-    } while (changed);
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+		break;
 
-    return changed_at_all;
+	    case STMT_PHI_ASSIGN :
+		for_each_value_in_rhs(stmt->v.assign.rhs, rewrite_if_possible);
+		for_each_value_in_rhs(stmt->v.assign.rhs2, rewrite_if_possible);
+		break;
+
+	    case STMT_ASSIGN :
+		for_each_value_in_rhs(stmt->v.assign.rhs, rewrite_if_possible);
+
+		if (stmt->v.assign.rhs->kind == RHS_PRIMARY)
+		{
+		    primary_t *copy_copy = alloc_primary();
+
+		    assert(copy_copy != 0);
+		    *copy_copy = stmt->v.assign.rhs->v.primary;
+
+		    g_hash_table_insert(copy_hash, stmt->v.assign.lhs, copy_copy);
+		}
+		break;
+
+	    case STMT_IF_COND :
+		copy_propagate_recursively(stmt->v.if_cond.consequent, copy_hash, changed);
+		copy_propagate_recursively(stmt->v.if_cond.alternative, copy_hash, changed);
+		copy_propagate_recursively(stmt->v.if_cond.exit, copy_hash, changed);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		for_each_value_in_rhs(stmt->v.while_loop.invariant, rewrite_if_possible);
+		copy_propagate_recursively(stmt->v.while_loop.entry, copy_hash, changed);
+		copy_propagate_recursively(stmt->v.while_loop.body, copy_hash, changed);
+		break;
+
+	    default :
+		assert(0);
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static int
+copy_propagation (void)
+{
+    GHashTable *copy_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
+    int changed = 0;
+
+    assert(copy_hash != 0);
+
+    copy_propagate_recursively(first_stmt, copy_hash, &changed);
+
+    return changed;
 }
 
 /*** constant folding ***/

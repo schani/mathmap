@@ -38,7 +38,7 @@
 
 #include <libgimp/gimp.h>
 
-#define MATHMAP_DATE          "March 2007"
+#define MATHMAP_DATE          "April 2007"
 
 typedef struct _interpreter_insn_t interpreter_insn_t;
 

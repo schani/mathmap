@@ -1,4 +1,4 @@
-MathMap 1.1.2
+MathMap 1.1.3
 =============
 
 MathMap is a GIMP plug-in and a standalone command-line tool which
@@ -15,7 +15,12 @@ The MathMap homepage can be found at
 
 It features a user's manual as well as screenshots and examples.
 
-Changes since 1.1.2:
+Changes in 1.1.3:
+
+  * New and improved examples.
+  * Bugfixes.
+
+Changes in 1.1.2:
 
   * The command-line tool is optional to remove dependencies on image
     IO libraries.
@@ -27,7 +32,7 @@ Changes since 1.1.2:
   * New and improved examples.
   * Several bugfixes.
 
-Changes since 1.1.1:
+Changes in 1.1.1:
 
   * A new syntax for declaring filters and user values.
   * Default values for integer and float user values.
@@ -39,12 +44,12 @@ Changes since 1.1.1:
   * Works only with GIMP 2.2.
   * Unified binary for plug-in and command-line tool.
 
-Changes since 1.1.0:
+Changes in 1.1.0:
 
   * Compiler does several optimizations.
   * MathMap can now generate sequence plug-ins for Blender.
 
-Changes since 0.13:
+Changes in 0.14:
 
   * Compiles and runs with both GIMP 1.2 and GIMP 2.0.
   * Comes with a Language Tutorial!
@@ -59,14 +64,14 @@ Changes since 0.13:
   * Compiles on MacOS X (tested with GIMP 1.2 on Fink).
   * Bug fixes.
 
-Changes since 0.12:
+Changes in 0.13:
 
   * The command-line version can now read and write animations in the
     MJPEG Quicktime format.
   * A french translation (thanks to Laurent Despeyroux).
   * Bug fixes.
 
-Changes since 0.11:
+Changes in 0.12:
 
   * Requires at least GIMP 1.1.26.
   * MathMap now has a GIMP-independant command line version.
@@ -76,7 +81,7 @@ Changes since 0.11:
     contributed by Hans Lundmark).
   * Some bug fixes.
 
-Changed since 0.10:
+Changed in 0.11:
 
   * Requires at least GIMP 1.1.
   * More than one input image can be specified!!!
@@ -86,7 +91,7 @@ Changed since 0.10:
   * Some internal changes.
   * Fixes some bugs.
 
-Changes since 0.9:
+Changes in 0.10:
 
   * Expressions can now contain values which the user can specify
     through the GUI (numbers, colors, booleans, curves). This is
@@ -101,7 +106,7 @@ Changes since 0.9:
   * New/improved functions: print.
   * Some bug fixes.
 
-Changes since 0.8:
+Changes in 0.9:
 
   * Lots of bug fixes.
   * Simplified build procedure.
@@ -110,7 +115,7 @@ Changes since 0.8:
   * Tuple subscripts can now be assigned to (making morph obsolete).
   * New/improved functions: det, crossp, atan, sum.
 
-Changes since 0.7:
+Changes in 0.8:
 
   * Now runs under both GIMP 1.0 and GIMP 1.1.
   * Features a transparent MathMap->C compiler under GIMP 1.1 boosting
@@ -119,18 +124,18 @@ Changes since 0.7:
   * Pixels outside the image can now be either wrapped or given any
     color (including transparency).
 
-Changes since 0.6
+Changes in 0.7:
 
   * Implemented the tagged tuples type system. This is major feature! 
   * Implemented better error handling by borrowing a piece of code
     from the current development tree of chpp.
 
-Changes since 0.5
+Changes in 0.6:
 
   * Alpha channel now shows up in the preview (thanks to Andy Thomas). 
   * Added the exponentation operator (^). 
 
-Changes since 0.4
+Changes in 0.5:
 
   * Completely redesigned the dialog. 
   * Added a curve widget which allows the user to intuitively specify
@@ -145,7 +150,7 @@ Changes since 0.4
   * Moved the plug-in to Filters/Generic, so as to conform to the new
     menu hierarchy.
 
-Changes since 0.3
+Changes in 0.4:
 
   * Added syntactic sugar for some functions (especially logical
     operators).
@@ -154,12 +159,12 @@ Changes since 0.3
   * Support for grayscale images. 
   * Animation capability. 
 
-Changes since 0.2
+Changes in 0.3:
 
   * if is now a language-level construct. 
   * I have introduced while and do-while loops. 
 
-Changes since 0.1
+Changes in 0.2:
 
   * Fixed the bug that caused it to crash after the first preview.
   * Added a few more functions: red, green, blue and rgbColor. 
