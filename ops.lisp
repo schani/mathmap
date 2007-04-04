@@ -22,11 +22,11 @@
 (in-package :mathmap)
 
 ;;; types
-(defstruct (type (:type list))
+(defstruct (rt-type (:type list))
   name c-type print-info elements)
 
-(defun type-c-define (type)
-  (format nil "TYPE_~A" (ucs (type-name type))))
+(defun rt-type-c-define (type)
+  (format nil "TYPE_~A" (ucs (rt-type-name type))))
 
 (defparameter *types* '((nil         nil            ("NIL" "NIL" ()))
 			(int        "int"           ("%d" "%d" ("~A")))
@@ -47,12 +47,12 @@
 						     ("~A.a00" "~A.a01" "~A.a10" "~A.a11"))
 				    ("a00" "a01" "a10" "a11"))))
 
-(defun type-with-name (name)
+(defun rt-type-with-name (name)
   (assoc name *types*))
 
-(defparameter *int-type* (type-with-name 'int))
-(defparameter *float-type* (type-with-name 'float))
-(defparameter *complex-type* (type-with-name 'complex))
+(defparameter *int-type* (rt-type-with-name 'int))
+(defparameter *float-type* (rt-type-with-name 'float))
+(defparameter *complex-type* (rt-type-with-name 'complex))
 
 (defparameter *max-float-types* (list *int-type* *float-type*))
 (defparameter *max-types* (list *int-type* *float-type* *complex-type*))
@@ -73,10 +73,10 @@
 		    (string-concat "OP_" (ucs name))
 		  c-define))
 	(arg-types (if (null arg-types)
-		       (map-times arity #'(lambda (i) (type-with-name arg-type)))
+		       (map-times arity #'(lambda (i) (rt-type-with-name arg-type)))
 		       (progn
 			 (assert (= (length arg-types) arity))
-			 (mapcar #'type-with-name arg-types))))
+			 (mapcar #'rt-type-with-name arg-types))))
 	(interpreter-c-name (if (null interpreter-c-name)
 				c-name
 				interpreter-c-name)))
@@ -85,7 +85,7 @@
 		   :c-name c-name
 		   :interpreter-c-name interpreter-c-name
 		   :type-prop type-prop
-		   :type (type-with-name type)
+		   :type (rt-type-with-name type)
 		   :pure pure
 		   :foldable (if pure foldable nil)
 		   :arg-types arg-types)
@@ -242,9 +242,9 @@
 	 (mapcar #'(lambda (op)
 		     (format nil "    init_op(~A, \"~A\", ~A, TYPE_PROP_~A, ~A, ~:[0~;1~], ~:[0~;1~]~{, ~A~});~%"
 			     (op-c-define op) (op-c-name op) (op-arity op) (ucs (op-type-prop op))
-			     (type-c-define (op-type op)) (op-pure op) (op-foldable op)
+			     (rt-type-c-define (op-type op)) (op-pure op) (op-foldable op)
 			     (if (eq (op-type-prop op) 'const)
-				 (mapcar #'type-c-define (op-arg-types op))
+				 (mapcar #'rt-type-c-define (op-arg-types op))
 				 '())))
 		 (reverse *operators*))))
 
@@ -264,7 +264,7 @@
 					    (apply #'string-concat
 						   (mapcar #'(lambda (type)
 							       (format nil "case ~A :~%~A"
-								       (type-c-define type)
+								       (rt-type-c-define type)
 								       (switch-args (append arg-types (list type)))))
 							   (max-type-prop-types (op-type-prop op))))))))
 		       (if (or (not only-foldables) (op-foldable op))
@@ -281,16 +281,16 @@
 (defun make-op-folders ()
   (make-rhs-op-switch #'(lambda (op)
 			  (format nil "return make_~A_const_primary(~A(~{OP_CONST_~A_VAL(~A)~^, ~}));"
-				  (dcs (type-name (op-type op))) (op-c-name op)
+				  (dcs (rt-type-name (op-type op))) (op-c-name op)
 				  (mappend #'(lambda (i)
-					       (list (ucs (type-name (nth i (op-arg-types op)))) i))
+					       (list (ucs (rt-type-name (nth i (op-arg-types op)))) i))
 					   (integers-upto (op-arity op)))))
 		      #'(lambda (op arg-types)
 			  (let ((max-type (max-type arg-types)))
 			    (format nil "return make_~A_const_primary(~A(~{(~A)rhs->v.op.args[~A].v.constant.~A_value~^, ~}));"
-				    (dcs (type-name max-type)) (op-c-name op)
+				    (dcs (rt-type-name max-type)) (op-c-name op)
 				    (mappend #'(lambda (i arg-type)
-						 (list (type-c-type max-type) i (dcs (type-name arg-type))))
+						 (list (rt-type-c-type max-type) i (dcs (rt-type-name arg-type))))
 					     (integers-upto (op-arity op)) arg-types))))
 		      t))
 
@@ -299,66 +299,66 @@
 			  (format nil "return builtin_~A;" (string-downcase (op-c-define op))))
 		      #'(lambda (op arg-types)
 			  (let ((max-type (max-type arg-types)))
-			    (format nil "return builtin_~A_~A;" (string-downcase (op-c-define op)) (dcs (type-name max-type)))))
+			    (format nil "return builtin_~A_~A;" (string-downcase (op-c-define op)) (dcs (rt-type-name max-type)))))
 		      nil))
 
 (defun make-types-file ()
   (with-open-file (out "compiler_types.h" :direction :output :if-exists :supersede)
     (format out "~{#define ~A ~A~%~}"
 	    (mappend #'(lambda (type index)
-			 (list (type-c-define type) index))
+			 (list (rt-type-c-define type) index))
 		     *types* (integers-upto (length *types*))))
-    (format out "~%#define MAX_TYPE ~A~%~%" (type-c-define (car (last *types*))))
+    (format out "~%#define MAX_TYPE ~A~%~%" (rt-type-c-define (car (last *types*))))
     (labels ((value-decls (name element-namer)
 	       (format out "#define ~A ~{~A ~A;~^ ~}~%~%"
 		       name
 		       (mappend #'(lambda (type)
-				    (let ((c-type (type-c-type type)))
+				    (let ((c-type (rt-type-c-type type)))
 				      (if (null c-type)
 					  '()
 					  (list c-type (funcall element-namer type)))))
 				*types*))))
-      (value-decls "RUNTIME_VALUE_DECL" #'(lambda (type) (format nil "~A_value" (dcs (type-name type))))))
+      (value-decls "RUNTIME_VALUE_DECL" #'(lambda (type) (format nil "~A_value" (dcs (rt-type-name type))))))
     (format out "#define MAKE_TYPE_C_TYPE_NAME static char* \\~%type_c_type_name (int type) \\~%{ \\~%switch (type) \\~%{ \\~%~{case ~A : return ~A; \\~%~}default : assert(0); return 0; \\~%} \\~%}~%~%"
 	    (mappend #'(lambda (type)
-			 (let ((c-type (type-c-type type)))
-			   (list (type-c-define type)
+			 (let ((c-type (rt-type-c-type type)))
+			   (list (rt-type-c-define type)
 				 (if (null c-type)
 				     "0"
 				     (format nil "\"~A\"" c-type)))))
 		     *types*))
     (dolist (type *types*)
-      (unless (null (type-c-type type))
+      (unless (null (rt-type-c-type type))
 	(format out "#define BUILTIN_~A_ARG(i) (g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, arg_indexes[(i)]).~A_value)~%"
-		(ucs (type-name type)) (dcs (type-name type)))))
+		(ucs (rt-type-name type)) (dcs (rt-type-name type)))))
     (format out "#define MAKE_CONST_PRIMARY_FUNCS \\~%~{MAKE_CONST_PRIMARY(~A, ~A, ~A)~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
-			 (if (null (type-c-type type))
+			 (if (null (rt-type-c-type type))
 			     nil
-			     (list (dcs (type-name type)) (type-c-type type) (type-c-define type))))
+			     (list (dcs (rt-type-name type)) (rt-type-c-type type) (rt-type-c-define type))))
 		     *types*))
     (format out "#define MAKE_CONST_COMPARATOR \\~%~{case ~A : return ~{prim1->v.constant.~A_value~A == prim2->v.constant.~2:*~A_value~A~^ && ~};~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
-			 (if (null (type-c-type type))
+			 (if (null (rt-type-c-type type))
 			     nil
-			   (list (type-c-define type)
-				 (let ((dcsname (dcs (type-name type))))
-				   (if (null (type-elements type))
+			   (list (rt-type-c-define type)
+				 (let ((dcsname (dcs (rt-type-name type))))
+				   (if (null (rt-type-elements type))
 				       (list dcsname "")
 				     (mappend #'(lambda (element)
 						  (list dcsname (string-concat "." element)))
-					      (type-elements type)))))))
+					      (rt-type-elements type)))))))
 		     *types*))
     (labels ((printer (name spec-accessor)
 	       (format out "#define ~A \\~%~{case ~A : fprintf_c(out, \"~A\"~{, ~A~}); break;~^ \\~%~}~%~%"
 		       name
 		       (mappend #'(lambda (type)
-				    (let ((print-info (type-print-info type)))
-				      (list (type-c-define type)
+				    (let ((print-info (rt-type-print-info type)))
+				      (list (rt-type-c-define type)
 					    (funcall spec-accessor print-info)
 					    (mapcar #'(lambda (arg-spec)
 							(format nil arg-spec
-								(format nil "primary->v.constant.~A_value" (dcs (type-name type)))))
+								(format nil "primary->v.constant.~A_value" (dcs (rt-type-name type)))))
 						    (car (last print-info))))))
 				*types*))))
       (printer "TYPE_DEBUG_PRINTER" #'first)
@@ -371,16 +371,16 @@
 	   (print-function (name op type arg-types)
 	     (format t "~A~%{~%BUILTIN_~A_ARG(0) = ~A(~{BUILTIN_~A_ARG(~A)~^, ~});~%}~%"
 		     (function-header name)
-		     (ucs (type-name type))
+		     (ucs (rt-type-name type))
 		     (op-interpreter-c-name op)
 		     (mappend #'(lambda (i)
-				  (list (ucs (type-name (nth i arg-types)))
+				  (list (ucs (rt-type-name (nth i arg-types)))
 					(1+ i)))
 			      (integers-upto (op-arity op))))))
   (if (eq (op-type-prop op) 'const)
       (print-function (string-downcase (op-c-define op)) op (op-type op) (op-arg-types op))
       (dolist (type (max-type-prop-types (op-type-prop op)))
-	(print-function (format nil "~A_~A" (string-downcase (op-c-define op)) (dcs (type-name type)))
+	(print-function (format nil "~A_~A" (string-downcase (op-c-define op)) (dcs (rt-type-name type)))
 			op type (map-times (op-arity op) #'(lambda (i) type)))))))
 
 (defun make-ops-file ()
