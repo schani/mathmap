@@ -51,4 +51,6 @@ extern void free_expression_db (expression_db_t *edb);
 
 extern char* read_expression (const char *path);
 
+extern expression_db_t* merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2);
+
 #endif

@@ -1,11 +1,6 @@
 Known Bugs
 ==========
 
-Image Processing
-----------------
-
-Rounding errors: http://www.flickr.com/groups/mathmap/discuss/72157594586582778/72157600036989745/
-
 GIMP Plug-In
 ------------
 
@@ -14,11 +9,6 @@ when there are no user values the user values tab doesn't scale when window is r
 should ask to save before quitting or selecting another expression
 
 i18n is terribly old.  maybe we should axe it?
-
-Command Line Tool
------------------
-
-Header and template files don't have path
 
 Compiler
 --------

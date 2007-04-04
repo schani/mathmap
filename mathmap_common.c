@@ -642,8 +642,8 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 
 	invocation->img_width = img_width + 1;
-	invocation->sampling_offset_x = -0.5;
-	invocation->sampling_offset_y = -0.5;
+	invocation->sampling_offset_x = -0.5 * invocation->scale_x;
+	invocation->sampling_offset_y = -0.5 * invocation->scale_y;
 	init_frame(invocation);
 	calc_lines(invocation, first_row, first_row + 1, line1);
 
@@ -658,11 +658,11 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	    calc_lines(invocation, row, row + 1, line2);
 
 	    invocation->img_width = img_width + 1;
-	    invocation->sampling_offset_x = -0.5;
-	    invocation->sampling_offset_y = -0.5;
+	    invocation->sampling_offset_x = -0.5 * invocation->scale_x;
+	    invocation->sampling_offset_y = -0.5 * invocation->scale_y;
 	    init_frame(invocation);
 	    calc_lines(invocation, row + 1, row + 2, line3);
-	    
+
 	    for (col = 0; col < img_width; ++col)
 	    {
 		int i;

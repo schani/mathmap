@@ -28,6 +28,8 @@
 #define MATHMAP_MANUAL_URL    "http://www.complang.tuwien.ac.at/schani/mathmap/manual.html"
 
 #include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -266,19 +268,38 @@ MAIN()
 /*****/
 
 static char*
-get_rc_file_name (const char *name)
+get_rc_file_name (char *name, int global)
 {
-    gchar *mathmap_name = g_strconcat("mathmap", G_DIR_SEPARATOR_S, name, NULL);
+    gchar *mathmap_name = (name == 0) ? "mathmap" : g_strconcat("mathmap", G_DIR_SEPARATOR_S, name, NULL);
     gchar *filename;
 
     assert(mathmap_name != 0);
 
-    filename = gimp_personal_rc_file(mathmap_name);
+    if (global)
+	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, mathmap_name, NULL);
+    else
+	filename = gimp_personal_rc_file(mathmap_name);
+
     assert(filename != 0);
+
+    if (name != 0)
+	g_free(mathmap_name);
+
+    return filename;
+}
+
+static char*
+lookup_rc_file (char *name)
+{
+    gchar *filename;
+
+    filename = get_rc_file_name(name, 0);
 
     if (!g_file_test(filename, G_FILE_TEST_EXISTS))
     {
-	filename = g_strconcat(gimp_data_directory(), G_DIR_SEPARATOR_S, mathmap_name, NULL);
+	g_free(filename);
+
+	filename = get_rc_file_name(name, 1);
 
 	if (!g_file_test(filename, G_FILE_TEST_EXISTS))
 	{
@@ -287,16 +308,17 @@ get_rc_file_name (const char *name)
 	}
     }
 
-    g_free(mathmap_name);
-
     return filename;
 }
 
 static FILE*
-open_rc_file (const char *name)
+open_rc_file (char *name)
 {
     FILE *file;
-    gchar *filename = get_rc_file_name(name);
+    gchar *filename = lookup_rc_file(name);
+
+    if (filename == 0)
+	return 0;
 
     file = fopen(filename, "r");
     g_free(filename);
@@ -309,16 +331,24 @@ open_rc_file (const char *name)
 static expression_db_t*
 read_expressions (void)
 {
-    static char *path = 0;
+    static char *path_local = 0, *path_global = 0;
 
-    if (path == 0)
+    expression_db_t *edb_local, *edb_global;
+
+    if (path_local == 0)
     {
-	path = get_rc_file_name(EXPRESSIONS_DIR);
-	if (path == 0)
-	    return 0;
+	path_local = get_rc_file_name(EXPRESSIONS_DIR, 0);
+	path_global = get_rc_file_name(EXPRESSIONS_DIR, 1);
     }
 
-    return read_expression_db(path);
+    edb_local = read_expression_db(path_local);
+    edb_global = read_expression_db(path_global);
+
+    edb_global = merge_expression_dbs(edb_global, edb_local);
+
+    free_expression_db(edb_local);
+
+    return edb_global;
 }
 
 static void
@@ -495,8 +525,6 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     int pwidth, pheight;
 
     int mutable_expression = 1;
-
-    fprintf(stderr, "started as %s\n", name);
 
     INIT_LOCALE("mathmap");
 
@@ -749,7 +777,7 @@ generate_code (int current_frame, float current_t)
 	}
 	else
 	{
-	    char *opmacros_name = get_rc_file_name("opmacros.h");
+	    char *opmacros_name = lookup_rc_file("opmacros.h");
 
 	    if (opmacros_name == 0)
 	    {
@@ -1963,11 +1991,18 @@ dialog_save_as_callback (GtkWidget *widget, gpointer data)
 
     if (current_filename == 0)
     {
-	char *default_path = get_rc_file_name(EXPRESSIONS_DIR);
+	char *mathmap_path = get_rc_file_name(0, 0);
+	char *default_path = get_rc_file_name(EXPRESSIONS_DIR, 0);
+
+	/* We try to create the directory just in case.  If it already
+	   exists, nothing happens and it doesn't hurt. */
+	mkdir(mathmap_path, 0777);
+	mkdir(default_path, 0777);
 
 	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), default_path);
 	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), "Untitled expression.mm");
 
+	g_free(mathmap_path);
 	g_free(default_path);
     }
     else

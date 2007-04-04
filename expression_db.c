@@ -40,8 +40,9 @@ new_expression_db (int kind)
 
     assert(edb != 0);
 
+    memset(edb, 0, sizeof(expression_db_t));
+
     edb->kind = kind;
-    edb->next = 0;
 
     return edb;
 }
@@ -120,6 +121,28 @@ insert_expression_db (expression_db_t *edb, expression_db_t *sub)
     }
 }
 
+static expression_db_t*
+remove_expression_db (expression_db_t *edb, expression_db_t *e)
+{
+    assert(edb != 0 && e != 0);
+
+    if (edb == e)
+    {
+	expression_db_t *next = edb->next;
+
+	edb->next = 0;
+
+	free_expression_db(edb);
+
+	return next;
+    }
+    else
+    {
+	edb->next = remove_expression_db(edb->next, e);
+	return edb;
+    }
+}
+
 expression_db_t*
 read_expression_db (char *path)
 {
@@ -183,6 +206,92 @@ free_expression_db (expression_db_t *edb)
 
 	edb = next;
     }
+}
+
+static expression_db_t*
+lookup (expression_db_t *edb, char *name, int kind)
+{
+    while (edb != 0)
+    {
+	if (edb->kind == kind && strcmp(edb->name, name) == 0)
+	    return edb;
+	edb = edb->next;
+    }
+
+    return 0;
+}
+
+static expression_db_t*
+copy_expression (expression_db_t *edb)
+{
+    expression_db_t *copy;
+
+    assert(edb->kind == EXPRESSION_DB_EXPRESSION);
+
+    copy = new_expression_db(edb->kind);
+
+    copy->name = strdup(edb->name);
+    assert(copy->name != 0);
+
+    copy->v.expression.path = strdup(edb->v.expression.path);
+    assert(copy->v.expression.path != 0);
+
+    return copy;
+}
+
+expression_db_t*
+merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
+{
+    while (edb2 != 0)
+    {
+	expression_db_t *e = lookup(edb1, edb2->name, edb2->kind);
+
+	if (e != 0)
+	{
+	    switch (edb2->kind)
+	    {
+		case EXPRESSION_DB_EXPRESSION :
+		    edb1 = remove_expression_db(edb1, e);
+		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
+		    break;
+
+		case EXPRESSION_DB_GROUP :
+		    e->v.group.subs = merge_expression_dbs(e->v.group.subs, edb2->v.group.subs);
+		    break;
+
+		default :
+		    assert(0);
+		    break;
+	    }
+	}
+	else
+	{
+	    switch (edb2->kind)
+	    {
+		case EXPRESSION_DB_EXPRESSION :
+		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
+		    break;
+
+		case EXPRESSION_DB_GROUP :
+		    e = new_expression_db(EXPRESSION_DB_GROUP);
+
+		    e->name = strdup(edb2->name);
+		    assert(e->name != 0);
+
+		    edb1 = insert_expression_db(edb1, e);
+		    e->v.group.subs = merge_expression_dbs(0, edb2->v.group.subs);
+		    break;
+
+		default :
+		    assert(0);
+		    break;
+	    }
+	}
+
+	edb2 = edb2->next;
+    }
+
+    return edb1;
 }
 
 #define START_SIZE         1024

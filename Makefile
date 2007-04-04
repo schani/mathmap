@@ -58,6 +58,7 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 
 GIMPTOOL = $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
+GIMPDATADIR = `$(GIMPTOOL) --gimpdatadir`
 GIMP_CFLAGS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
 GIMP_LDFLAGS = `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0`
 
@@ -130,6 +131,13 @@ new_builtins.c opdefs.h compiler_types.h : builtins.lisp ops.lisp
 blender.o : generators/blender/blender.c
 
 install : mathmap
+	$(GIMPTOOL) --install-admin-bin mathmap
+	if [ ! -d $(GIMPDATADIR)/mathmap ] ; then mkdir $(GIMPDATADIR)/mathmap ; fi
+	cp new_template.c $(GIMPDATADIR)/mathmap/
+	cp opmacros.h $(GIMPDATADIR)/mathmap/
+	if [ ! -d $(GIMPDATADIR)/mathmap/expressions ] ; then cp -r examples $(GIMPDATADIR)/mathmap/expressions ; fi
+
+install-local : mathmap
 #	cp mathmap $(BINDIR)
 #	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
 #	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)

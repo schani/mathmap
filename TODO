@@ -6,6 +6,16 @@ Packaging
 
 Packages for FC6 and Ubuntu.
 
+Image Processing
+----------------
+
+Rounding errors: http://www.flickr.com/groups/mathmap/discuss/72157594586582778/72157600036989745/
+
+Command Line Tool
+-----------------
+
+Header and template files don't have path
+
 Compiler
 --------
 
@@ -16,8 +26,12 @@ Unit filters and images
 
 Uncoupled edge behaviour (x/y)
 
+Remove tuple limit (9)
+
 GIMP Plug-In
 ------------
+
+Animation bug in GIMP 2.3: http://www.flickr.com/groups/mathmap/discuss/72157600040214636/72157600046525476/
 
 Disable animation settings if expression doesn't use t
 
