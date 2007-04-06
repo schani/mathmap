@@ -1266,6 +1266,65 @@ mathmap_dialog (int mutable_expression)
     gtk_box_pack_start(GTK_BOX(top_table), notebook, TRUE, TRUE, 0);
     gtk_widget_show(notebook);
 
+        /* Expression */
+
+	if (mutable_expression)
+	{
+	    GtkTextBuffer *buffer;
+	    PangoFontDescription *font_desc;
+	    GtkWidget *scrolled_window;
+
+	    table = gtk_table_new(2, 2, FALSE);
+	    gtk_container_border_width(GTK_CONTAINER(table), 0);
+	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
+	    gtk_widget_show(table);
+
+	    /* Editor */
+	    scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(scrolled_window),
+					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	    gtk_widget_show (scrolled_window);
+
+	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
+
+	    expression_entry = gtk_text_view_new();
+	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
+	    gtk_text_view_set_editable(GTK_TEXT_VIEW(expression_entry), TRUE);
+	    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(expression_entry),
+			    		GTK_WRAP_CHAR);
+
+	    gtk_widget_show(expression_entry);
+
+	    font_desc = pango_font_description_from_string("Courier 10");
+	    gtk_widget_modify_font(expression_entry, font_desc);
+	    pango_font_description_free(font_desc);
+
+	    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
+	    g_signal_connect(G_OBJECT(buffer), "changed",
+			     G_CALLBACK(dialog_text_changed),
+			     (gpointer)NULL);
+	    gtk_text_buffer_set_text(buffer, mmvals.expression,
+			    	     strlen(mmvals.expression));
+
+	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT_VIEW(expression_entry)->vadjustment);
+	    gtk_widget_realize(expression_entry);
+
+	    button = gtk_button_new_with_label(_("Save"));
+	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_callback, 0);
+	    gtk_table_attach(GTK_TABLE(table), button, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+	    gtk_widget_show(button);
+
+	    button = gtk_button_new_with_label(_("Save As..."));
+	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_as_callback, 0);
+	    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
+	    gtk_widget_show(button);
+
+	    label = gtk_label_new(_("Expression"));
+	    gtk_widget_show(label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook),
+			    		  table, label, label);
+	}
+
 	/* Settings */
 
 	middle_table = gtk_table_new(3, 2, FALSE);
@@ -1484,65 +1543,6 @@ mathmap_dialog (int mutable_expression)
 	label = gtk_label_new(_("Settings"));
 	gtk_widget_show(label);
 	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), middle_table, label, label);
-
-        /* Expression */
-
-	if (mutable_expression)
-	{
-	    GtkTextBuffer *buffer;
-	    PangoFontDescription *font_desc;
-	    GtkWidget *scrolled_window;
-
-	    table = gtk_table_new(2, 2, FALSE);
-	    gtk_container_border_width(GTK_CONTAINER(table), 0);
-	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
-	    gtk_widget_show(table);
-
-	    /* Editor */
-	    scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(scrolled_window),
-					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	    gtk_widget_show (scrolled_window);
-
-	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
-
-	    expression_entry = gtk_text_view_new();
-	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
-	    gtk_text_view_set_editable(GTK_TEXT_VIEW(expression_entry), TRUE);
-	    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(expression_entry),
-			    		GTK_WRAP_CHAR);
-
-	    gtk_widget_show(expression_entry);
-
-	    font_desc = pango_font_description_from_string("Courier 10");
-	    gtk_widget_modify_font(expression_entry, font_desc);
-	    pango_font_description_free(font_desc);
-
-	    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
-	    g_signal_connect(G_OBJECT(buffer), "changed",
-			     G_CALLBACK(dialog_text_changed),
-			     (gpointer)NULL);
-	    gtk_text_buffer_set_text(buffer, mmvals.expression,
-			    	     strlen(mmvals.expression));
-
-	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT_VIEW(expression_entry)->vadjustment);
-	    gtk_widget_realize(expression_entry);
-
-	    button = gtk_button_new_with_label(_("Save"));
-	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_callback, 0);
-	    gtk_table_attach(GTK_TABLE(table), button, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-	    gtk_widget_show(button);
-
-	    button = gtk_button_new_with_label(_("Save As..."));
-	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_as_callback, 0);
-	    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
-	    gtk_widget_show(button);
-
-	    label = gtk_label_new(_("Expression"));
-	    gtk_widget_show(label);
-	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook),
-			    		  table, label, label);
-	}
 
 	/* User Values */
 
