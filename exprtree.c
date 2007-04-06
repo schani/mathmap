@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -586,7 +586,7 @@ make_var (const char *name)
 }
 
 exprtree*
-make_tuple (exprtree *elems)
+make_tuple_exprtree (exprtree *elems)
 {
     exprtree *tree, *elem;
     int is_const = 1, length;
@@ -607,12 +607,6 @@ make_tuple (exprtree *elems)
 	    is_const = 0;
     }
 
-    if (length > MAX_TUPLE_LENGTH)
-    {
-	sprintf(error_string, "Tuples cannot be longer than %d elements.", MAX_TUPLE_LENGTH);
-	JUMP(1);
-    }
-
     tree = alloc_exprtree();
 
     if (is_const)
@@ -620,16 +614,15 @@ make_tuple (exprtree *elems)
 	int i;
 
 	tree->type = EXPR_TUPLE_CONST;
-	tree->val.tuple_const.number = nil_tag_number;
-	tree->val.tuple_const.length = length;
+	tree->val.tuple_const = make_tuple(nil_tag_number, length);
 
 	elem = elems;
 	for (i = 0; i < length; ++i)
 	{
 	    if (elem->type == EXPR_TUPLE_CONST)
-		tree->val.tuple_const.data[i] = elem->val.tuple_const.data[0];
+		tree->val.tuple_const->data[i] = elem->val.tuple_const->data[0];
 	    else
-		tree->val.tuple_const.data[i] = elem->val.float_const;
+		tree->val.tuple_const->data[i] = elem->val.float_const;
 	    elem = elem->next;
 	}
     }
@@ -669,8 +662,8 @@ make_cast (const char *tagname, exprtree *tuple)
     if (tuple->type == EXPR_TUPLE_CONST)
     {
 	tree->type = EXPR_TUPLE_CONST;
-	tree->val.tuple_const = tuple->val.tuple_const;
-	tree->val.tuple_const.number = tagnum;
+	tree->val.tuple_const = copy_tuple(tuple->val.tuple_const);
+	tree->val.tuple_const->number = tagnum;
     }
     else
     {
@@ -749,36 +742,6 @@ make_function (const char *name, exprtree *args)
 	    tree->val.func.entry = entry;
 	    tree->val.func.args = args;
 	    tree->result = info;
-
-	    /* FIXME: can only do if function is pure */
-	    /*
-	      if (is_constant && 0)
-	      {
-	      tuple_t stack[32];
-	      mathmap_t mathmap;
-	      mathmap_invocation_t invocation;
-
-	      tuple_t *result;
-	      int i;
-
-	      invocation.mathmap = &mathmap;
-
-	      mathmap.expression = make_postfix(tree, &mathmap.exprlen);
-	      invocation.stack = stack;
-
-	      printf("foldings constants:\n");
-	      output_postfix(mathmap.expression, mathmap.exprlen);
-	      result = eval_postfix(&invocation);
-
-	      tree->type = EXPR_TUPLE_CONST;
-	      for (i = 0; i < tree->result.length; ++i)
-	      tree->val.tuple_const.data[i] = result->data[i];
-	      tree->val.tuple_const.number = tree->result.number;
-	      tree->val.tuple_const.length = tree->result.length;
-
-	      free(mathmap.expression);
-	      }
-	    */
 	}
 	else if (entry->type == OVERLOAD_MACRO)
 	    tree = entry->v.macro(args);
@@ -790,16 +753,6 @@ make_function (const char *name, exprtree *args)
 	sprintf(error_string, "Unable to resolve invocation of %s.", name);
 	JUMP(1);
     }
-
-    /*
-      while (first != 0)
-      {
-      function_arg_info_t *next = first->next;
-
-      free(first);
-      first = next;
-      }
-    */
 
     return tree;
 }
@@ -1002,9 +955,9 @@ is_exprtree_single_const (exprtree *tree, int *int_val, float *float_val)
 	else
 	{
 	    if (int_val != 0)
-		*int_val = (int)tree->val.tuple_const.data[0];
+		*int_val = (int)tree->val.tuple_const->data[0];
 	    if (float_val != 0)
-		*float_val = tree->val.tuple_const.data[0];
+		*float_val = tree->val.tuple_const->data[0];
 	}
 
 	return 1;

@@ -64,30 +64,6 @@ lookup_internal (internal_t *internals, const char *name, int dont_touch)
     return 0;
 }
 
-/*
-tuple_t*
-instantiate_internals (internal_t *internals)
-{
-    int n, i;
-    internal_t *internal;
-    tuple_t *tuples;
-
-    n = 0;
-    for (internal = internals; internal != 0; internal = internal->next)
-	++n;
-
-    tuples = (tuple_t*)malloc(n * sizeof(tuple_t));
-
-    for (i = 0, internal = internals; i < n; ++i, internal = internals->next)
-    {
-	tuples[i].number = nil_tag_number;
-	tuples[i].length = 1;
-    }
-
-    return tuples;
-}
-*/
-
 void
 free_internals (internal_t *internals)
 {

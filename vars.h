@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,8 +34,8 @@ typedef struct _variable_t
     tuple_info_t type;
     int index;
 
-    struct _compvar_t *compvar[MAX_TUPLE_LENGTH]; /* only for the compiler */
-    int last_index[MAX_TUPLE_LENGTH]; /* ditto */
+    struct _compvar_t **compvar; /* only for the compiler */
+    int *last_index; /* ditto */
 
     struct _variable_t *next;
 } variable_t;
@@ -44,7 +44,7 @@ variable_t* register_variable (variable_t **vars, const char *name, tuple_info_t
 variable_t* lookup_variable (variable_t *vars, const char *name, tuple_info_t *type);
 variable_t* new_temporary_variable (variable_t **vars, tuple_info_t type);
 
-tuple_t* instantiate_variables (variable_t *vars);
+tuple_t** instantiate_variables (variable_t *vars);
 void free_variables (variable_t *vars);
 
 #endif

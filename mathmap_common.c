@@ -438,8 +438,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->variables = instantiate_variables(mathmap->variables);
 
-    //invocation->internals = instantiate_internals(mathmap->internals);
-
     invocation->antialiasing = 0;
     invocation->supersampling = 0;
 

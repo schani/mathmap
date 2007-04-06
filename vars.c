@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2002 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,6 +38,12 @@ alloc_variable (tuple_info_t type)
     var->name = 0;
     var->type = type;
     var->next = 0;
+
+    var->compvar = (struct _compvar_t**)malloc(sizeof(struct _compvar_t*) * type.length);
+    assert(var->compvar != 0);
+
+    var->last_index = (int*)malloc(sizeof(int) * type.length);
+    assert(var->last_index != 0);
 
     for (i = 0; i < type.length; ++i)
     {
@@ -105,24 +111,21 @@ new_temporary_variable (variable_t **vars, tuple_info_t type)
     return var;
 }
 
-tuple_t*
+tuple_t**
 instantiate_variables (variable_t *vars)
 {
     int n, i;
     variable_t *var;
-    tuple_t *tuples;
+    tuple_t **tuples;
 
     n = 0;
     for (var = vars; var != 0; var = var->next)
 	++n;
 
-    tuples = (tuple_t*)malloc(n * sizeof(tuple_t));
+    tuples = (tuple_t**)malloc(n * sizeof(tuple_t*));
 
     for (i = 0, var = vars; i < n; ++i, var = var->next)
-    {
-	tuples[i].number = var->type.number;
-	tuples[i].length = var->type.length;
-    }
+	tuples[i] = make_tuple(var->type.number, var->type.length);
 
     return tuples;
 }
@@ -135,6 +138,8 @@ free_variables (variable_t *vars)
 	variable_t *next = vars->next;
 
 	free(vars->name);
+	free(vars->compvar);
+	free(vars->last_index);
 	free(vars);
 
 	vars = next;

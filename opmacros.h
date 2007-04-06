@@ -42,14 +42,14 @@ typedef struct
 #define NEWLINE()             (printf("\n"))
 
 #define START_DEBUG_TUPLE(n)       ({ if (invocation->do_debug && invocation->num_debug_tuples < MAX_DEBUG_TUPLES) { \
-                                          invocation->debug_tuples[invocation->num_debug_tuples].length = 0; \
-                                          invocation->debug_tuples[invocation->num_debug_tuples].number = (n); \
+                                          invocation->debug_tuples[invocation->num_debug_tuples]->length = 0; \
+                                          invocation->debug_tuples[invocation->num_debug_tuples]->number = (n); \
                                           ++invocation->num_debug_tuples; } \
                                       0; })
 /* this assumes that operator calls are not reordered */
 #define SET_DEBUG_TUPLE_DATA(i,v)  ({ if (invocation->do_debug && invocation->num_debug_tuples < MAX_DEBUG_TUPLES) { \
-                                          invocation->debug_tuples[invocation->num_debug_tuples - 1].data[(int)(i)] = (v); \
-                                          invocation->debug_tuples[invocation->num_debug_tuples - 1].length = (i) + 1; } \
+                                          invocation->debug_tuples[invocation->num_debug_tuples - 1]->data[(int)(i)] = (v); \
+                                          invocation->debug_tuples[invocation->num_debug_tuples - 1]->length = (i) + 1; } \
                                       0; })
 
 #define COMPLEX(r,i)          ((r) + (i) * I)

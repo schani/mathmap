@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,8 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "tuples.h"
 #include "tags.h"
@@ -33,6 +35,35 @@ make_tuple_info (int number, int length)
     tuple_info_t info = { number, length };
 
     return info;
+}
+
+tuple_t*
+make_tuple (int number, int length)
+{
+    tuple_t *tuple = (tuple_t*)malloc(sizeof(tuple_t) + sizeof(float) * length);
+
+    assert(tuple != 0);
+
+    tuple->number = number;
+    tuple->length = length;
+
+    return tuple;
+}
+
+void
+free_tuple (tuple_t *tuple)
+{
+    free(tuple);
+}
+
+tuple_t*
+copy_tuple (tuple_t *src)
+{
+    tuple_t *dst = make_tuple(src->number, src->length);
+
+    memcpy(dst->data, src->data, sizeof(float) * dst->length);
+
+    return dst;
 }
 
 void
@@ -69,17 +100,16 @@ tuple_to_color (tuple_t *tuple, float *red, float *green, float *blue, float *al
 	*alpha = tuple->data[3];
 }
 
-tuple_t
+tuple_t*
 color_to_tuple (float red, float green, float blue, float alpha)
 {
-    tuple_t tuple;
+    tuple_t *tuple = make_tuple(nil_tag_number, 4); /* FIXME: shouldn't this be rgba? */
 
-    tuple.number = nil_tag_number;
-    tuple.length = 4;
-    tuple.data[0] = red;
-    tuple.data[1] = green;
-    tuple.data[2] = blue;
-    tuple.data[3] = alpha;
+    tuple->data[0] = red;
+    tuple->data[1] = green;
+    tuple->data[2] = blue;
+    tuple->data[3] = alpha;
 
     return tuple;
 }
+

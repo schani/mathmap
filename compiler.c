@@ -1562,11 +1562,11 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    break;
 
 	case EXPR_TUPLE_CONST :
-	    for (i = 0; i < tree->val.tuple_const.length; ++i)
+	    for (i = 0; i < tree->val.tuple_const->length; ++i)
 	    {
 		if (!is_alloced)
 		    dest[i] = make_temporary(TYPE_FLOAT);
-		emit_assign(make_lhs(dest[i]), make_float_const_rhs(tree->val.tuple_const.data[i]));
+		emit_assign(make_lhs(dest[i]), make_float_const_rhs(tree->val.tuple_const->data[i]));
 	    }
 	    break;
 
@@ -3230,80 +3230,93 @@ generate_pre_native_assigns (statement_t *stmt)
 }
 
 static void
-emit_pre_native_assign_with_conversion (statement_t *stmt)
+emit_pre_native_assign_with_op_rhs (value_t *lhs, rhs_t *rhs)
 {
-    type_t lhs_type = stmt->v.assign.lhs->compvar->type;
-    rhs_t *rhs = stmt->v.assign.rhs;
+    type_t lhs_type = lhs->compvar->type;
+    operation_t *op;
+    type_t arg_types[MAX_OP_ARGS];
+    primary_t args[MAX_OP_ARGS];
+    type_t op_type;
+    int i;
+
+    assert(rhs->kind == RHS_OP);
+
+    op = rhs->v.op.op;
+
+    if (op->type_prop == TYPE_PROP_CONST)
+    {
+	op_type = op->const_type;
+	memcpy(arg_types, op->arg_types, sizeof(type_t) * op->num_args);
+    }
+    else
+    {
+	op_type = TYPE_INT;
+	for (i = 0; i < op->num_args; ++i)
+	{
+	    type_t arg_type = primary_type(&rhs->v.op.args[i]);
+
+	    if (arg_type > op_type)
+	    {
+		assert(arg_type <= MAX_PROMOTABLE_TYPE);
+		op_type = arg_type;
+	    }
+	}
+
+	for (i = 0; i < op->num_args; ++i)
+	    arg_types[i] = op_type;
+    }
+
+    for (i = 0; i < op->num_args; ++i)
+	if (arg_types[i] != primary_type(&rhs->v.op.args[i]))
+	{
+	    statement_t *stmts = convert_primary(&rhs->v.op.args[i], arg_types[i], &args[i]);
+
+	    generate_pre_native_assigns(stmts);
+	}
+	else
+	    args[i] = rhs->v.op.args[i];
+
+    if (op_type != lhs_type)
+    {
+	value_t *temp = make_lhs(make_temporary(op_type));
+	rhs_t *rhs = make_op_rhs_from_array(rhs->v.op.op->index, args);
+	statement_t *stmts;
+
+	stmts = make_assign(temp, rhs);
+	stmts->next = make_assign(lhs, make_convert_rhs(temp, lhs_type));
+
+	generate_pre_native_assigns(stmts);
+    }
+    else
+    {
+	statement_t *stmts = make_assign(lhs, make_op_rhs_from_array(rhs->v.op.op->index, args));
+
+	generate_pre_native_assigns(stmts);
+    }
+}
+
+static void
+emit_pre_native_assign_with_conversion (value_t *lhs, rhs_t *rhs, statement_t *stmt)
+{
+    type_t lhs_type = lhs->compvar->type;
 
     switch (rhs->kind)
     {
 	case RHS_PRIMARY :
 	case RHS_INTERNAL :
 	    if (rhs_type(rhs) != lhs_type)
-		generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
+		generate_pre_native_assigns(convert_rhs(rhs, lhs));
 	    else
+	    {
+		if (stmt == 0)
+		    stmt = make_assign(lhs, rhs);
+
 		emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
+	    }
 	    break;
 
 	case RHS_OP :
-	    {
-		operation_t *op = rhs->v.op.op;
-		type_t arg_types[MAX_OP_ARGS];
-		primary_t args[MAX_OP_ARGS];
-		type_t op_type;
-		int i;
-
-		if (op->type_prop == TYPE_PROP_CONST)
-		{
-		    op_type = op->const_type;
-		    memcpy(arg_types, op->arg_types, sizeof(type_t) * op->num_args);
-		}
-		else
-		{
-		    op_type = TYPE_INT;
-		    for (i = 0; i < op->num_args; ++i)
-		    {
-			type_t arg_type = primary_type(&rhs->v.op.args[i]);
-
-			if (arg_type > op_type)
-			{
-			    assert(arg_type <= MAX_PROMOTABLE_TYPE);
-			    op_type = arg_type;
-			}
-		    }
-
-		    for (i = 0; i < op->num_args; ++i)
-			arg_types[i] = op_type;
-		}
-
-		for (i = 0; i < op->num_args; ++i)
-		    if (arg_types[i] != primary_type(&rhs->v.op.args[i]))
-		    {
-			statement_t *stmts = convert_primary(&rhs->v.op.args[i], arg_types[i], &args[i]);
-
-			generate_pre_native_assigns(stmts);
-		    }
-		    else
-			args[i] = rhs->v.op.args[i];
-
-		if (op_type != lhs_type)
-		{
-		    value_t *temp = make_lhs(make_temporary(op_type));
-		    rhs_t *rhs = make_op_rhs_from_array(rhs->v.op.op->index, args);
-		    statement_t *stmts;
-
-		    stmts = make_assign(temp, rhs);
-		    stmts->next = make_assign(stmt->v.assign.lhs, make_convert_rhs(temp, lhs_type));
-
-		    generate_pre_native_assigns(stmts);
-		}
-		else
-		{
-		    statement_t *stmts = make_assign(stmt->v.assign.lhs, make_op_rhs_from_array(rhs->v.op.op->index, args));
-
-		    generate_pre_native_assigns(stmts);
-		}
-	    }
+	    emit_pre_native_assign_with_op_rhs(lhs, rhs);
 	    break;
 
 	default :
@@ -3311,44 +3324,49 @@ emit_pre_native_assign_with_conversion (statement_t *stmt)
     }
 }
 
+static value_t*
+emit_rhs_with_conversion (rhs_t *rhs, type_t target_type)
+{
+    type_t type = rhs_type(rhs);
+    value_t *temp = make_lhs(make_temporary(type));
+    value_t *final_temp;
+
+    emit_pre_native_assign_with_conversion(temp, rhs, 0);
+    if (type == target_type)
+	final_temp = temp;
+    else
+    {
+	final_temp = make_lhs(make_temporary(target_type));
+	generate_pre_native_assigns(convert_rhs(make_value_rhs(temp), final_temp));
+    }
+
+    return final_temp;
+}
+
 static statement_t*
 convert_if_stmt (statement_t *stmt)
 {
-    if (rhs_type(stmt->v.if_cond.condition) == TYPE_INT)
-	return stmt;
-    else
-    {
-	value_t *temp = make_lhs(make_temporary(TYPE_INT));
-	statement_t *new_stmt = alloc_stmt();
+    value_t *temp = emit_rhs_with_conversion(stmt->v.if_cond.condition, TYPE_INT);
+    statement_t *new_stmt = alloc_stmt();
 
-	generate_pre_native_assigns(convert_rhs(stmt->v.if_cond.condition, temp));
+    memcpy(new_stmt, stmt, sizeof(statement_t));
+    new_stmt->next = 0;
+    new_stmt->v.if_cond.condition = make_value_rhs(temp);
 
-	memcpy(new_stmt, stmt, sizeof(statement_t));
-	new_stmt->next = 0;
-	new_stmt->v.if_cond.condition = make_value_rhs(temp);
-
-	return new_stmt;
-    }
+    return new_stmt;
 }
 
 static statement_t*
 convert_while_stmt (statement_t *stmt)
 {
-    if (rhs_type(stmt->v.while_loop.invariant) == TYPE_INT)
-	return stmt;
-    else
-    {
-	value_t *temp = make_lhs(make_temporary(TYPE_INT));
-	statement_t *new_stmt = alloc_stmt();
+    value_t *temp = emit_rhs_with_conversion(stmt->v.while_loop.invariant, TYPE_INT);
+    statement_t *new_stmt = alloc_stmt();
 
-	generate_pre_native_assigns(convert_rhs(stmt->v.while_loop.invariant, temp));
+    memcpy(new_stmt, stmt, sizeof(statement_t));
+    new_stmt->next = 0;
+    new_stmt->v.while_loop.invariant = make_value_rhs(temp);
 
-	memcpy(new_stmt, stmt, sizeof(statement_t));
-	new_stmt->next = 0;
-	new_stmt->v.while_loop.invariant = make_value_rhs(temp);
-
-	return new_stmt;
-    }
+    return new_stmt;
 }
 
 static void
@@ -3391,7 +3409,7 @@ generate_pre_native_code_recursively (statement_t *stmt, int convert_types)
 
 	    case STMT_ASSIGN :
 		if (convert_types)
-		    emit_pre_native_assign_with_conversion(stmt);
+		    emit_pre_native_assign_with_conversion(stmt->v.assign.lhs, stmt->v.assign.rhs, stmt);
 		else
 		    emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
 		break;
@@ -4372,7 +4390,7 @@ has_altivec (void)
 static void
 generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 {
-    compvar_t *result[MAX_TUPLE_LENGTH];
+    compvar_t **result;
     int changed;
 
     first_stmt = 0;
@@ -4381,6 +4399,9 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
     next_value_global_index = 0;
 
     init_pools(&compiler_pools);
+
+    result = (compvar_t**)malloc(sizeof(compvar_t*) * mathmap->top_level_decls->v.filter.body->result.length);
+    assert(result != 0);
 
     gen_code(mathmap->top_level_decls->v.filter.body, result, 0);
     {
@@ -4391,6 +4412,8 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 						     make_compvar_primary(result[2]), make_compvar_primary(result[3])));
 	emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
     }
+
+    free(result);
 
     propagate_types();
 
@@ -4454,9 +4477,7 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     assert(mathmap->top_level_decls != 0
 	   && mathmap->top_level_decls->type == TOP_LEVEL_FILTER);
 
-    if (strcmp(directive, "l") == 0)
-	fprintf(out, "%d", MAX_TUPLE_LENGTH);
-    else if (strcmp(directive, "g") == 0)
+    if (strcmp(directive, "g") == 0)
     {
 #ifdef OPENSTEP
 	putc('0', out);

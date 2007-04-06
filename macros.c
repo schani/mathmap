@@ -67,31 +67,31 @@ lookup_variable_macro (const char *name, tuple_info_t *info)
 exprtree*
 macro_var_xy (exprtree *args)
 {
-    return make_cast("xy", make_tuple(exprlist_append(make_var("x"), make_var("y"))));
+    return make_cast("xy", make_tuple_exprtree(exprlist_append(make_var("x"), make_var("y"))));
 }
 
 exprtree*
 macro_var_ra (exprtree *args)
 {
-    return make_cast("ra", make_tuple(exprlist_append(make_var("r"), make_var("a"))));
+    return make_cast("ra", make_tuple_exprtree(exprlist_append(make_var("r"), make_var("a"))));
 }
 
 exprtree*
 macro_var_big_xy (exprtree *args)
 {
-    return make_cast("xy", make_tuple(exprlist_append(make_var("X"), make_var("Y"))));
+    return make_cast("xy", make_tuple_exprtree(exprlist_append(make_var("X"), make_var("Y"))));
 }
 
 exprtree*
 macro_var_big_wh (exprtree *args)
 {
-    return make_cast("xy", make_tuple(exprlist_append(make_var("W"), make_var("H"))));
+    return make_cast("xy", make_tuple_exprtree(exprlist_append(make_var("W"), make_var("H"))));
 }
 
 exprtree*
 macro_var_big_i (exprtree *args)
 {
-    return make_cast("ri", make_tuple(exprlist_append(make_int_number(0), make_int_number(1))));
+    return make_cast("ri", make_tuple_exprtree(exprlist_append(make_int_number(0), make_int_number(1))));
 }
 
 exprtree*
@@ -131,13 +131,13 @@ macro_func_origValImageFrame (exprtree *args)
 exprtree*
 macro_func_origValXY (exprtree *args)
 {
-    return make_function("origVal", make_cast("xy", make_tuple(args)));
+    return make_function("origVal", make_cast("xy", make_tuple_exprtree(args)));
 }
 
 exprtree*
 macro_func_origValRA (exprtree *args)
 {
-    return make_function("origVal", make_cast("ra", make_tuple(args)));
+    return make_function("origVal", make_cast("ra", make_tuple_exprtree(args)));
 }
 
 exprtree*
@@ -167,13 +167,13 @@ macro_func_alpha (exprtree *arg)
 exprtree*
 macro_func_rgbColor (exprtree *args)
 {
-    return make_cast("rgba", make_tuple(exprlist_append(args, make_int_number(1))));
+    return make_cast("rgba", make_tuple_exprtree(exprlist_append(args, make_int_number(1))));
 }
 
 exprtree*
 macro_func_rgbaColor (exprtree *args)
 {
-    return make_cast("rgba", make_tuple(args));
+    return make_cast("rgba", make_tuple_exprtree(args));
 }
 
 exprtree*
@@ -183,10 +183,10 @@ macro_func_grayColor (exprtree *arg)
 
     return make_sequence(make_assignment(tmpvar->name, arg),
 			 make_cast("rgba",
-				   make_tuple(exprlist_append(make_var(tmpvar->name),
-							      exprlist_append(make_var(tmpvar->name),
-									      exprlist_append(make_var(tmpvar->name),
-											      make_int_number(1)))))));
+				   make_tuple_exprtree(exprlist_append(make_var(tmpvar->name),
+								       exprlist_append(make_var(tmpvar->name),
+										       exprlist_append(make_var(tmpvar->name),
+												       make_int_number(1)))))));
 }
 
 exprtree*
@@ -196,10 +196,10 @@ macro_func_grayaColor (exprtree *arg)
 
     return make_sequence(make_assignment(tmpvar->name, arg),
 			 make_cast("rgba",
-				   make_tuple(exprlist_append(make_var(tmpvar->name),
-							      exprlist_append(make_var(tmpvar->name),
-									      exprlist_append(make_var(tmpvar->name),
-											      arg->next))))));
+				   make_tuple_exprtree(exprlist_append(make_var(tmpvar->name),
+								       exprlist_append(make_var(tmpvar->name),
+										       exprlist_append(make_var(tmpvar->name),
+												       arg->next))))));
 }
 
 exprtree*

@@ -1891,18 +1891,18 @@ save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
 }
 
 static void
-print_tuple (tuple_t tuple)
+print_tuple (tuple_t *tuple)
 {
-    const char *name = tag_name_for_number(tuple.number);
+    const char *name = tag_name_for_number(tuple->number);
     int i;
 
     assert(name != 0);
 
     printf("%s:[", name);
-    for (i = 0; i < tuple.length; ++i)
+    for (i = 0; i < tuple->length; ++i)
     {
-	fprintf_c(stdout, "%f", tuple.data[i]);
-	if (i + 1 < tuple.length)
+	fprintf_c(stdout, "%f", tuple->data[i]);
+	if (i + 1 < tuple->length)
 	    printf(",");
     }
     printf("]");

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -124,7 +124,7 @@ typedef struct _exprtree
 
     union
     {
-	tuple_t tuple_const;
+	tuple_t *tuple_const;
 	variable_t *var;
 	internal_t *internal;
 	int int_const;
@@ -246,7 +246,7 @@ exprtree* make_int_number (int num);
 exprtree* make_float_number (float num);
 exprtree* make_range (int first, int last);
 exprtree* make_var (const char *name); /* should use variable_t instead */
-exprtree* make_tuple (exprtree *elems);
+exprtree* make_tuple_exprtree (exprtree *elems);
 exprtree* make_select (exprtree *tuple, exprtree *subscripts);
 exprtree* make_cast (const char *tagname, exprtree *tuple); /* should use tag number instead */
 exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */

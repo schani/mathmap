@@ -21,7 +21,6 @@
  */
 
 /*
- * $$l -> MAX_TUPLE_LENGTH
  * $$g -> GIMP ? 1 : 0
  * $$m -> mathmap code
  * $$p -> USER_CURVE_POINTS
@@ -71,9 +70,9 @@
 
 typedef struct
 {
-    float data[$l];
     int number;
     int length;
+    float data[];
 } tuple_t;
 
 typedef unsigned int color_t;
@@ -180,8 +179,7 @@ typedef struct _mathmap_invocation_t
     mathmap_t *mathmap;
 
     userval_t *uservals;
-    tuple_t *variables;
-    //tuple_t *internals;
+    tuple_t **variables;
 
     int antialiasing;
     int supersampling;
@@ -211,7 +209,7 @@ typedef struct _mathmap_invocation_t
 
     int do_debug;
     int num_debug_tuples;
-    tuple_t debug_tuples[MAX_DEBUG_TUPLES];
+    tuple_t *debug_tuples[MAX_DEBUG_TUPLES];
 
     int interpreter_ip;
     color_t interpreter_output_color;
