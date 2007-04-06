@@ -1012,6 +1012,8 @@
 				      (set (nth 1 result) p)
 				      (set (nth 2 result) q))))))))))))))
 
+;;; coordinates
+
 (defbuiltin "toXY" toXY (xy 2) ((a (ra 2)))
   (set result (make (xy 2)
 		    (* (cos (nth 1 a)) (nth 0 a))
@@ -1026,6 +1028,8 @@
 	  (if (< (nth 1 arg) 0)
 	      (set (nth 1 result) (- (* 2 pi) a))
 	      (set (nth 1 result) a))))))
+
+;;; random
 
 (defbuiltin "rand" rand (?T 1) ((a (?T 1)) (b (?T 1)))
   (set result (make (?T 1) (rand (nth 0 a) (nth 0 b)))))
