@@ -195,8 +195,8 @@ static int debug_tuples = 0;
 static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkWidget *expression_entry = 0,
+    *animation_table,
     *frame_table,
-    *t_table,
     *edge_color_well,
     *uservalues_scrolled_window,
     *uservalues_table,
@@ -823,6 +823,9 @@ generate_code (int current_frame, float current_t)
 
 	    update_userval_table();
 	}
+
+	if (animation_table != 0)
+	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), mathmap != 0 && does_mathmap_use_t(mathmap));
     }
 
     if (invocation != 0)
@@ -1199,6 +1202,7 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *scale;
     GtkWidget *vscrollbar;
     GtkWidget *notebook;
+    GtkWidget *t_table;
     GtkObject *adjustment;
     GSList *edge_group = 0;
     guchar color_cube[4] = { 6, 6, 4, 24 };
@@ -1448,20 +1452,21 @@ mathmap_dialog (int mutable_expression)
 
 	    /* Animation */
 	    
-	    table = gtk_table_new(4, 1, FALSE);
-	    gtk_container_border_width(GTK_CONTAINER(table), 6);
-	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
-	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
+	    animation_table = gtk_table_new(4, 1, FALSE);
+	    gtk_container_border_width(GTK_CONTAINER(animation_table), 6);
+	    gtk_table_set_row_spacings(GTK_TABLE(animation_table), 4);
+	    gtk_table_set_col_spacings(GTK_TABLE(animation_table), 4);
+	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), FALSE);
     
 	    frame = gtk_frame_new(NULL);
 	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
-	    gtk_container_add(GTK_CONTAINER(frame), table);
+	    gtk_container_add(GTK_CONTAINER(frame), animation_table);
 
 	    alignment = gtk_alignment_new(0, 0, 0, 0);
 	    gtk_container_add(GTK_CONTAINER(alignment), frame);
 	    gtk_table_attach(GTK_TABLE(middle_table), alignment, 1, 2, 0, 3, GTK_FILL, 0, 0, 0);
 
-	    gtk_widget_show(table);
+	    gtk_widget_show(animation_table);
 	    gtk_widget_show(frame);
 	    gtk_widget_show(alignment);
 
@@ -1472,7 +1477,7 @@ mathmap_dialog (int mutable_expression)
 		gtk_container_add(GTK_CONTAINER(alignment), toggle);
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
 					    mmvals.flags & FLAG_ANIMATION);
-		gtk_table_attach(GTK_TABLE(table), alignment, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+		gtk_table_attach(GTK_TABLE(animation_table), alignment, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
 				   (GtkSignalFunc)dialog_animation_update, 0);
 		gtk_widget_show(toggle);
@@ -1482,7 +1487,7 @@ mathmap_dialog (int mutable_expression)
 
 		frame_table = gtk_table_new(1, 2, FALSE);
 		gtk_table_set_col_spacings(GTK_TABLE(frame_table), 4);
-		gtk_table_attach(GTK_TABLE(table), frame_table, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+		gtk_table_attach(GTK_TABLE(animation_table), frame_table, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
 
 		label = gtk_label_new(_("Frames"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
@@ -1509,7 +1514,7 @@ mathmap_dialog (int mutable_expression)
 		toggle = gtk_check_button_new_with_label(_("Periodic"));
 		gtk_container_add(GTK_CONTAINER(alignment), toggle);
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle), mmvals.flags & FLAG_PERIODIC);
-		gtk_table_attach(GTK_TABLE(table), alignment, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+		gtk_table_attach(GTK_TABLE(animation_table), alignment, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
 				   (GtkSignalFunc)dialog_periodic_update, 0);
 		gtk_widget_show(toggle);
@@ -1519,7 +1524,7 @@ mathmap_dialog (int mutable_expression)
 
 		t_table = gtk_table_new(1, 2, FALSE);
 		gtk_table_set_col_spacings(GTK_TABLE(t_table), 4);
-		gtk_table_attach(GTK_TABLE(table), t_table, 0, 1, 4, 5, GTK_FILL, 0, 0, 0);
+		gtk_table_attach(GTK_TABLE(animation_table), t_table, 0, 1, 4, 5, GTK_FILL, 0, 0, 0);
 
 		label = gtk_label_new(_("Parameter t"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
@@ -1538,7 +1543,6 @@ mathmap_dialog (int mutable_expression)
 		gtk_widget_show(scale);
 
 		gtk_widget_show(t_table);
-		gtk_widget_set_sensitive(t_table, !(mmvals.flags & FLAG_ANIMATION));
 
 	label = gtk_label_new(_("Settings"));
 	gtk_widget_show(label);
@@ -1843,7 +1847,6 @@ dialog_animation_update (GtkWidget *widget, gpointer data)
 	mmvals.flags |= FLAG_ANIMATION;
 
     gtk_widget_set_sensitive(frame_table, mmvals.flags & FLAG_ANIMATION);
-    gtk_widget_set_sensitive(t_table, !(mmvals.flags & FLAG_ANIMATION));
 }
 
 /*****/
