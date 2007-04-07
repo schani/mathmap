@@ -124,8 +124,6 @@ static gint32 mathmap_layer_copy (gint32 layerID);
 
 extern int yyparse (void);
 
-static void build_fast_image_source (input_drawable_t *drawable);
-
 static void update_userval_table (void);
 
 static void update_gradient (void);
@@ -968,9 +966,30 @@ do_mathmap (int frame_num, float current_t)
 
 /*****/
 
-color_t
-mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y)
+static void
+build_fast_image_source (input_drawable_t *drawable, userval_t *userval)
 {
+    color_t *p;
+    int x, y;
+
+    assert(drawable->fast_image_source == 0);
+
+    p = drawable->fast_image_source = g_malloc(preview_width * preview_height * sizeof(color_t));
+
+    for (y = 0; y < preview_height; ++y)
+	for (x = 0; x < preview_width; ++x)
+	    drawable->fast_image_source[x + y * preview_width] =
+		mathmap_get_pixel(invocation, userval, 0,
+				  sel_x1 + x * sel_width / preview_width,
+				  sel_y1 + y * sel_height / preview_height);
+}
+
+/*****/
+
+color_t
+mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y)
+{
+    int drawable_index = userval->v.image.index;
     gint newcol, newrow;
     gint newcoloff, newrowoff;
     guchar *p;
@@ -1036,8 +1055,9 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int fra
 }
 
 color_t
-mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, int x, int y)
+mathmap_get_fast_pixel (mathmap_invocation_t *invocation, userval_t *userval, int x, int y)
 {
+    int drawable_index = userval->v.image.index;
     input_drawable_t *drawable;
 
     if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
@@ -1053,30 +1073,9 @@ mathmap_get_fast_pixel (mathmap_invocation_t *invocation, int drawable_index, in
     assert(drawable->used);
 
     if (drawable->fast_image_source == 0)
-	build_fast_image_source(drawable);
+	build_fast_image_source(drawable, userval);
 
     return drawable->fast_image_source[x + y * preview_width];
-}
-
-/*****/
-
-static void
-build_fast_image_source (input_drawable_t *drawable)
-{
-    color_t *p;
-    int x, y;
-
-    assert(drawable->fast_image_source == 0);
-
-    p = drawable->fast_image_source = g_malloc(preview_width * preview_height * sizeof(color_t));
-
-    for (y = 0; y < preview_height; ++y)
-	for (x = 0; x < preview_width; ++x)
-	    drawable->fast_image_source[x + y * preview_width] =
-		mathmap_get_pixel(invocation,
-				  drawable - input_drawables, 0,
-				  sel_x1 + x * sel_width / preview_width,
-				  sel_y1 + y * sel_height / preview_height);
 }
 
 /*****/
@@ -2044,6 +2043,8 @@ dialog_ok_callback (GtkWidget *widget, gpointer data)
     if (generate_code(0, 0))
     {
 	wint.run = TRUE;
+	if (!does_mathmap_use_t(mathmap))
+	    mmvals.flags &= ~FLAG_ANIMATION;
 	gtk_widget_destroy(GTK_WIDGET(data));
     }
 }

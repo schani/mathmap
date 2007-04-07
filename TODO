@@ -18,6 +18,8 @@ Command Line Tool
 
 Header and template files don't have path
 
+Drawable indexes don't match
+
 Compiler
 --------
 
@@ -44,6 +46,8 @@ GIMP Plug-In
 GTK Source View (auto-completion?)
 
 Automatically generated on-line reference for builtins
+
+Undo should work
 
 Documentation
 -------------

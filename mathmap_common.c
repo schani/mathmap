@@ -118,7 +118,7 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 		assert(0);
 
 	    case ARG_TYPE_IMAGE :
-		result = register_image(&mathmap->userval_infos, arg_decls->name);
+		result = register_image(&mathmap->userval_infos, arg_decls->name, 0);
 		break;
 
 	    default :
@@ -421,21 +421,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->mathmap = mathmap;
 
-    invocation->uservals = instantiate_uservals(mathmap->userval_infos);
-
-    if (!cmd_line_mode)
-    {
-	userval_info_t *info;
-
-	// we give the original image as the first input image
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
-	    if (info->type == USERVAL_IMAGE)
-	    {
-		invocation->uservals[info->index].v.image.index = 0;
-		break;
-	    }
-    }
-
     invocation->variables = instantiate_variables(mathmap->variables);
 
     invocation->antialiasing = 0;
@@ -465,13 +450,28 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->current_r = invocation->current_a = 0.0;
 
-    if (template != 0)
-	carry_over_uservals_from_template(invocation, template);
-
     invocation->row_stride = img_width * 4;
     invocation->num_rows_finished = 0;
 
     invocation->do_debug = 0;
+
+    invocation->uservals = instantiate_uservals(mathmap->userval_infos, invocation);
+
+    if (!cmd_line_mode)
+    {
+	userval_info_t *info;
+
+	// we give the original image as the first input image
+	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	    if (info->type == USERVAL_IMAGE)
+	    {
+		invocation->uservals[info->index].v.image.index = 0;
+		break;
+	    }
+    }
+
+    if (template != 0)
+	carry_over_uservals_from_template(invocation, template);
 
     init_invocation(invocation);
 

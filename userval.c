@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -229,7 +229,7 @@ register_gradient (userval_info_t **infos, const char *name)
 }
 
 userval_info_t*
-register_image (userval_info_t **infos, const char *name)
+register_image (userval_info_t **infos, const char *name, unsigned int flags)
 {
     userval_info_t *info;
 
@@ -243,11 +243,13 @@ register_image (userval_info_t **infos, const char *name)
 
     info = alloc_and_register_userval(infos, name, USERVAL_IMAGE);
 
+    info->v.image.flags = flags;
+
     return info;
 }
 
-void
-set_userval_to_default (userval_t *val, userval_info_t *info)
+static void
+set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
     switch (info->type)
     {
@@ -294,7 +296,37 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
 
 	case USERVAL_IMAGE :
 #ifndef OPENSTEP
-	    val->v.image.index = -1;
+	    {
+		float virt_width, virt_height;
+
+		switch (info->v.image.flags)
+		{
+		    case 0 :
+			virt_width = invocation->img_width;
+			virt_height = invocation->img_height;
+			break;
+
+		    case USERVAL_IMAGE_FLAG_UNIT :
+			virt_width = virt_height = 2.0;
+			break;
+
+		    case USERVAL_IMAGE_FLAG_UNIT | USERVAL_IMAGE_FLAG_SQUARE :
+			if (invocation->img_width > invocation->img_height)
+			{
+			    virt_width = 2.0;
+			    virt_height = 2.0 * invocation->img_height / invocation->img_width;
+			}
+			break;
+
+		    default :
+			assert(0);
+		}
+
+		val->v.image.scale_x = invocation->img_width / virt_width;
+		val->v.image.scale_y = invocation->img_height / virt_height;
+
+		val->v.image.index = -1;
+	    }
 #else
 	    val->v.image.data = 0;
 #endif
@@ -302,8 +334,8 @@ set_userval_to_default (userval_t *val, userval_info_t *info)
     }
 }
 
-void
-instantiate_userval (userval_t *val, userval_info_t *info)
+static void
+instantiate_userval (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
     val->type = info->type;
 
@@ -318,11 +350,11 @@ instantiate_userval (userval_t *val, userval_info_t *info)
 	    break;
     }
 
-    set_userval_to_default(val, info);
+    set_userval_to_default(val, info, invocation);
 }
 
 userval_t*
-instantiate_uservals (userval_info_t *infos)
+instantiate_uservals (userval_info_t *infos, mathmap_invocation_t *invocation)
 {
     int n;
     userval_info_t *info;
@@ -336,7 +368,7 @@ instantiate_uservals (userval_info_t *infos)
     memset(uservals, 0, n * sizeof(userval_t));
 
     for (info = infos; info != 0; info = info->next)
-	instantiate_userval(&uservals[info->index], info);
+	instantiate_userval(&uservals[info->index], info, invocation);
 
     return uservals;
 }

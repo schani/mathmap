@@ -43,7 +43,7 @@ extern guchar *fast_image_source;
 extern gint sel_x1, sel_y1, sel_width, sel_height;
 
 static color_t
-get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, int frame)
+get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, int frame)
 { 
     int width, height;
 
@@ -51,12 +51,8 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, i
     width = invocation->image_W;
     height = invocation->image_H;
 #else
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
-	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
-	return COLOR_WHITE;
-
-    width = invocation->uservals[drawable_index].v.image.width;
-    height = invocation->uservals[drawable_index].v.image.height;
+    width = userval->v.image.width;
+    height = userval->v.image.height;
 #endif
 
     if (invocation->edge_behaviour == EDGE_BEHAVIOUR_WRAP)
@@ -83,42 +79,56 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, int drawable_index, i
     }
 
     if (cmd_line_mode)
-	return mathmap_get_pixel(invocation, drawable_index, frame, x, y);
+	return mathmap_get_pixel(invocation, userval, frame, x, y);
     else
     {
-	int index = invocation->uservals[drawable_index].v.image.index;
-
 	if (previewing)
 	{
 	    x = (x - sel_x1) * preview_width / sel_width;
 	    y = (y - sel_y1) * preview_height / sel_height;
 
-	    return mathmap_get_fast_pixel(invocation, index, x, y);
+	    return mathmap_get_fast_pixel(invocation, userval, x, y);
 	}
 	else
-	    return mathmap_get_pixel(invocation, index, frame, x, y);
+	    return mathmap_get_pixel(invocation, userval, frame, x, y);
     }
 }
 
-color_t
-get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+static userval_t*
+get_drawable_userval (mathmap_invocation_t *invocation, int drawable_index, float *x, float *y)
 {
+    userval_t *userval;
     float middle_x, middle_y;
+
+    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals)
+	return 0;
+
+    userval = &invocation->uservals[drawable_index];
+
+    if (userval->type != USERVAL_IMAGE)
+	return 0;
 
 #ifndef OPENSTEP
     middle_x = invocation->middle_x;
     middle_y = invocation->middle_y;
 #else
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
-	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
-	return COLOR_WHITE;
-
-    middle_x = invocation->uservals[drawable_index].v.image.middle_x;
-    middle_y = invocation->uservals[drawable_index].v.image.middle_y;
+    middle_x = userval->v.image.middle_x;
+    middle_y = userval->v.image.middle_y;
 #endif
 
-    x += middle_x;
-    y = -y + middle_y;
+    *x = (*x * userval->v.image.scale_x) + middle_x;
+    *y = -(*y * userval->v.image.scale_y) + middle_y;
+
+    return userval;
+}
+
+color_t
+get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+{
+    userval_t *userval = get_drawable_userval(invocation, drawable_index, &x, &y);
+
+    if (userval == 0)
+	return COLOR_WHITE;
 
     if (!invocation->supersampling)
     {
@@ -126,7 +136,7 @@ get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int draw
 	y += 0.5;
     }
 
-    return get_pixel(invocation, floor(x), floor(y), drawable_index, frame);
+    return get_pixel(invocation, floor(x), floor(y), userval, frame);
 }
 
 color_t
@@ -145,22 +155,10 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
 	p3fact,
 	p4fact;
     color_t pixel1, pixel2, pixel3, pixel4, result;
-    float middle_x, middle_y;
+    userval_t *userval = get_drawable_userval(invocation, drawable_index, &x, &y);
 
-#ifndef OPENSTEP
-    middle_x = invocation->middle_x;
-    middle_y = invocation->middle_y;
-#else
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
-	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
+    if (userval == 0)
 	return COLOR_WHITE;
-
-    middle_x = invocation->uservals[drawable_index].v.image.middle_x;
-    middle_y = invocation->uservals[drawable_index].v.image.middle_y;
-#endif
-
-    x += middle_x;
-    y = -y + middle_y;
 
     x1 = floor(x);
     x2 = x1 + 1;
@@ -175,10 +173,10 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
     p3fact = x2fact * y1fact;
     p4fact = x2fact * y2fact;
 
-    pixel1 = get_pixel(invocation, x1, y1, drawable_index, frame);
-    pixel2 = get_pixel(invocation, x1, y2, drawable_index, frame);
-    pixel3 = get_pixel(invocation, x2, y1, drawable_index, frame);
-    pixel4 = get_pixel(invocation, x2, y2, drawable_index, frame);
+    pixel1 = get_pixel(invocation, x1, y1, userval, frame);
+    pixel2 = get_pixel(invocation, x1, y2, userval, frame);
+    pixel3 = get_pixel(invocation, x2, y1, userval, frame);
+    pixel4 = get_pixel(invocation, x2, y2, userval, frame);
 
     pixel1 = COLOR_MUL_FLOAT(pixel1, p1fact);
     pixel2 = COLOR_MUL_FLOAT(pixel2, p2fact);
