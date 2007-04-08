@@ -52,6 +52,13 @@ typedef struct
     } v;
 } limits_t;
 
+typedef struct _option_t
+{
+    char *name;
+    struct _option_t *suboptions;
+    struct _option_t *next;
+} option_t;
+
 #define ARG_TYPE_INT           1
 #define ARG_TYPE_FLOAT         2
 #define ARG_TYPE_BOOL          3
@@ -66,6 +73,7 @@ typedef struct _arg_decl_t
     char *name;
     int type;
     char *docstring;
+    option_t *options;
     union
     {
 	struct
@@ -213,6 +221,7 @@ typedef struct _top_level_decl_t
 	struct
 	{
 	    arg_decl_t *args;
+	    option_t *options;
 	    exprtree *body;
 	} filter;
     } v;
@@ -222,14 +231,18 @@ typedef struct _top_level_decl_t
 
 extern top_level_decl_t *the_top_level_decls;
 
-top_level_decl_t* make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body);
+top_level_decl_t* make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options);
 
 top_level_decl_t* top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2);
 
 void free_top_level_decls (top_level_decl_t *list);
 
-arg_decl_t* make_simple_arg_decl (const char *type_name, const char *name, const char *docstring);
-arg_decl_t* make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring);
+option_t* make_option (const char *name, option_t *suboptions);
+option_t* options_append (option_t *o1, option_t *o2);
+option_t* find_option_with_name (option_t *options, const char *name);
+
+arg_decl_t* make_simple_arg_decl (int type, const char *name, const char *docstring, option_t *options);
+arg_decl_t* make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring, option_t *options);
 
 arg_decl_t* arg_decl_list_append (arg_decl_t *list1, arg_decl_t *list2);
 

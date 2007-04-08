@@ -43,9 +43,6 @@
 #define USERVAL_GRADIENT    6
 #define USERVAL_IMAGE       7	/* used in new_template.c */
 
-#define USERVAL_IMAGE_FLAG_UNIT		1
-#define USERVAL_IMAGE_FLAG_SQUARE	2
-
 typedef struct _userval_info_t
 {
     char *name;
@@ -109,17 +106,17 @@ typedef struct _userval_t
 
 	struct
 	{
+	    float scale_x;
+	    float scale_y;
+	    float middle_x;
+	    float middle_y;
 #ifdef OPENSTEP
 	    int width;
 	    int height;
 	    int row_stride;
-	    float middle_x;
-	    float middle_y;
 	    void *data;
 #else
 	    int index;
-	    float scale_x;
-	    float scale_y;
 #endif
 	} image;
     } v;

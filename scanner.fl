@@ -40,6 +40,13 @@
 filter                      return T_FILTER;
 function                    { sprintf(error_string, "`function' is a reserved keyword"); JUMP(1); }
 lambda                      { sprintf(error_string, "`lambda' is a reserved keyword"); JUMP(1); }
+float			    return T_FLOAT_TYPE;
+int			    return T_INT_TYPE;
+bool			    return T_BOOL_TYPE;
+color			    return T_COLOR_TYPE;
+gradient		    return T_GRADIENT_TYPE;
+curve			    return T_CURVE_TYPE;
+image			    return T_IMAGE_TYPE;
 if                          return T_IF;
 then                        return T_THEN;
 else                        return T_ELSE;

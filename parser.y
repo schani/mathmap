@@ -33,14 +33,17 @@
 
 %union {
     char *ident;
+    int arg_type;
     exprtree *exprtree;
     limits_t *limits;
     arg_decl_t *arg_decl;
     top_level_decl_t *top_level;
+    option_t *options;
 }
 
 %token T_IDENT T_STRING T_INT T_FLOAT T_RANGE
 %token T_FILTER
+%token T_FLOAT_TYPE T_INT_TYPE T_BOOL_TYPE T_COLOR_TYPE T_GRADIENT_TYPE T_CURVE_TYPE T_IMAGE_TYPE
 %token T_IF T_THEN T_ELSE T_END
 %token T_WHILE T_DO
 
@@ -64,11 +67,11 @@ filters :                    { $<top_level>$ = 0; }
         | filters filter     { $<top_level>$ = top_level_list_append($<top_level>1, $<top_level>2); }
         ;
 
-filter : T_FILTER T_IDENT docstring_opt '(' args_decl ')'
-			     { register_args_as_uservals(the_mathmap, $<arg_decl>5); }
+filter : options_opt T_FILTER T_IDENT docstring_opt '(' args_decl ')'
+			     { register_args_as_uservals(the_mathmap, $<arg_decl>6); }
          expr T_END
-			     { $<top_level>$ = make_filter($<ident>2, $<ident>3, $<arg_decl>5, $<exprtree>8);
-			       free($<ident>2); free($<ident>3); }
+			     { $<top_level>$ = make_filter($<ident>3, $<ident>4, $<arg_decl>6, $<exprtree>9, $<options>1);
+			       free($<ident>3); if ($<ident>4 != 0) free($<ident>4); }
        ;
 
 args_decl :                  { $<arg_decl>$ = 0; }
@@ -80,26 +83,27 @@ arg_decl_list : arg_decl     { $<arg_decl>$ = $<arg_decl>1; }
                              { $<arg_decl>$ = arg_decl_list_append($<arg_decl>1, $<arg_decl>3); }
               ;
 
-arg_decl : T_IDENT T_IDENT limits_opt default_opt docstring_opt
+arg_decl : options_opt type T_IDENT limits_opt default_opt docstring_opt
 			     {
-				 arg_decl_t *arg_decl = make_simple_arg_decl($<ident>1, $<ident>2, $<ident>5);
+				 arg_decl_t *arg_decl = make_simple_arg_decl($<arg_type>2, $<ident>3, $<ident>6, $<options>1);
 
-				 if ($<limits>3 != 0)
+				 if ($<limits>4 != 0)
 				 {
-				     apply_limits_to_arg_decl(arg_decl, $<limits>3);
-				     free_limits($<limits>3);
+				     apply_limits_to_arg_decl(arg_decl, $<limits>4);
+				     free_limits($<limits>4);
 				 }
-				 if ($<exprtree>4 != 0)
+				 if ($<exprtree>5 != 0)
 				 {
-				     apply_default_to_arg_decl(arg_decl, $<exprtree>4);
-				     free_exprtree($<exprtree>4);
+				     apply_default_to_arg_decl(arg_decl, $<exprtree>5);
+				     free_exprtree($<exprtree>5);
 				 }
-				 free($<ident>1); free($<ident>2); free($<ident>5);
-				 $<arg_decl>$ = arg_decl; }
-         | T_FILTER T_IDENT '(' args_decl ')' docstring_opt
+				 free($<ident>3); if ($<ident>6 != 0) free($<ident>6);
+				 $<arg_decl>$ = arg_decl;
+			     }
+         | options_opt T_FILTER T_IDENT '(' args_decl ')' docstring_opt
                              {
-				 arg_decl_t *arg_decl = make_filter_arg_decl($<ident>2, $<arg_decl>4, $<ident>6);
-				 free($<ident>2); free($<ident>6);
+				 arg_decl_t *arg_decl = make_filter_arg_decl($<ident>3, $<arg_decl>5, $<ident>7, $<options>1);
+				 free($<ident>3); if ($<ident>7 != 0) free($<ident>7);
 				 $<arg_decl>$ = arg_decl;
 			     }
          ;
@@ -107,6 +111,22 @@ arg_decl : T_IDENT T_IDENT limits_opt default_opt docstring_opt
 docstring_opt :              { $<ident>$ = 0; }
 	      | T_STRING     { $<ident>$ = $<ident>1; }
 	      ;
+
+options :   option
+			     { $<options>$ = $<options>1; }
+	  | options option
+			     { $<options>$ = options_append($<options>2, $<options>1); }
+	  ;
+
+options_opt :		     { $<options>$ = 0; }
+	      | options
+			     { $<options>$ = $<options>1; }
+	      ;
+
+option :   T_IDENT	     { $<options>$ = make_option($<ident>1, 0); free($<ident>1); }
+         | T_IDENT '(' options ')'
+			     { $<options>$ = make_option($<ident>1, $<options>3); free($<ident>1); }
+	 ;
 
 int_const :   T_INT          { $<exprtree>$ = $<exprtree>1; }
             | '-' T_INT      { $<exprtree>$ = $<exprtree>2;
@@ -139,6 +159,15 @@ default_opt :		     { $<exprtree>$ = 0; }
 	    | '(' float_const ')'
 			     { $<exprtree>$ = $<exprtree>2; }
 	    ;
+
+type :   T_FLOAT_TYPE	     { $<arg_type>$ = ARG_TYPE_FLOAT; }
+       | T_INT_TYPE	     { $<arg_type>$ = ARG_TYPE_INT; }
+       | T_BOOL_TYPE	     { $<arg_type>$ = ARG_TYPE_BOOL; }
+       | T_COLOR_TYPE	     { $<arg_type>$ = ARG_TYPE_COLOR; }
+       | T_GRADIENT_TYPE     { $<arg_type>$ = ARG_TYPE_GRADIENT; }
+       | T_CURVE_TYPE	     { $<arg_type>$ = ARG_TYPE_CURVE; }
+       | T_IMAGE_TYPE	     { $<arg_type>$ = ARG_TYPE_IMAGE; }
+       ;
 
 expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | T_FLOAT             { $<exprtree>$ = $<exprtree>1; }

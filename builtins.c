@@ -48,8 +48,8 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
     int width, height;
 
 #ifndef OPENSTEP
-    width = invocation->image_W;
-    height = invocation->image_H;
+    width = invocation->img_width;
+    height = invocation->img_height;
 #else
     width = userval->v.image.width;
     height = userval->v.image.height;
@@ -98,7 +98,6 @@ static userval_t*
 get_drawable_userval (mathmap_invocation_t *invocation, int drawable_index, float *x, float *y)
 {
     userval_t *userval;
-    float middle_x, middle_y;
 
     if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals)
 	return 0;
@@ -108,16 +107,8 @@ get_drawable_userval (mathmap_invocation_t *invocation, int drawable_index, floa
     if (userval->type != USERVAL_IMAGE)
 	return 0;
 
-#ifndef OPENSTEP
-    middle_x = invocation->middle_x;
-    middle_y = invocation->middle_y;
-#else
-    middle_x = userval->v.image.middle_x;
-    middle_y = userval->v.image.middle_y;
-#endif
-
-    *x = (*x * userval->v.image.scale_x) + middle_x;
-    *y = -(*y * userval->v.image.scale_y) + middle_y;
+    *x = (*x + userval->v.image.middle_x) * userval->v.image.scale_x;
+    *y = -((*y - userval->v.image.middle_y) * userval->v.image.scale_y);
 
     return userval;
 }

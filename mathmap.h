@@ -40,6 +40,11 @@
 
 #define MATHMAP_DATE          "April 2007"
 
+#define IMAGE_FLAG_UNIT		0x0001
+#define IMAGE_FLAG_SQUARE	0x0002
+
+#define MATHMAP_FLAG_NATIVE	0x0100
+
 typedef struct _interpreter_insn_t interpreter_insn_t;
 
 typedef struct _mathmap_t
@@ -53,7 +58,7 @@ typedef struct _mathmap_t
 
     int num_uservals;
 
-    int is_native;
+    unsigned int flags;
 
     initfunc_t initfunc;
     void *module_info;
@@ -101,11 +106,17 @@ typedef struct _mathmap_invocation_t
     color_t edge_color;
 
     int current_frame;
+
+    /* These are in pixel coordinates: */
     int origin_x, origin_y;
     int img_width, img_height;
-    float middle_x, middle_y;
     float sampling_offset_x, sampling_offset_y;
+
+    /* These are in virtual coordinates: */
+    float middle_x, middle_y;
     float image_R, image_X, image_Y, image_W, image_H;
+
+    /* The factors for converting between the two: */
     float scale_x, scale_y;
 
     float current_x, current_y, current_r, current_a, current_t;
@@ -145,6 +156,9 @@ typedef struct
 
 // fprintf with the C locale
 int fprintf_c (FILE *stream, const char *format, ...);
+
+void calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y);
+void calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y);
 
 #ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);

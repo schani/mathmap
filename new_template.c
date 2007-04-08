@@ -142,7 +142,7 @@ typedef struct _mathmap_t
 
     int num_uservals;
 
-    int is_native;
+    unsigned int flags;
 
     void *initfunc;
     void *module_info;
@@ -192,8 +192,8 @@ typedef struct _mathmap_invocation_t
     int current_frame;
     int origin_x, origin_y;
     int img_width, img_height;
-    float middle_x, middle_y;
     float sampling_offset_x, sampling_offset_y;
+    float middle_x, middle_y;
     float image_R, image_X, image_Y, image_W, image_H;
     float scale_x, scale_y;
 
@@ -476,7 +476,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
     for (row = first_row; row < last_row; ++row)
     {
-	float y = middle_y - sampling_offset_y - (float)(row + origin_y) * scale_y;
+	float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
 	unsigned char *p = q;
 
 	$x_decls
@@ -486,7 +486,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	for (col = 0; col < invocation->img_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
-	    float x = (float)(col + origin_x) * scale_x - middle_x + sampling_offset_x;
+	    float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
 
 #if $uses_ra
 	    float r, a;
@@ -564,7 +564,8 @@ init_frame (mathmap_invocation_t *invocation)
 	for (col = 0; col < invocation->img_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
-	    float x = (float)(col + invocation->origin_x) * invocation->scale_x - invocation->middle_x + invocation->sampling_offset_x;
+	    float x = CALC_VIRTUAL_X(col, invocation->origin_x, invocation->scale_x,
+				     invocation->middle_x, invocation->sampling_offset_x);
 
 	    {
 		$y_code

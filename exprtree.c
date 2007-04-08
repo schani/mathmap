@@ -40,7 +40,7 @@ char error_string[1024];
 top_level_decl_t *the_top_level_decls = 0;
 
 static arg_decl_t*
-make_arg_decl (int type, const char *name, const char *docstring)
+make_arg_decl (int type, const char *name, const char *docstring, option_t *options)
 {
     arg_decl_t *arg = (arg_decl_t*)malloc(sizeof(arg_decl_t));
 
@@ -59,65 +59,38 @@ make_arg_decl (int type, const char *name, const char *docstring)
     else
 	arg->docstring = 0;
 
+    arg->options = options;
+
     arg->next = 0;
 
     return arg;
 }
 
 arg_decl_t*
-make_simple_arg_decl (const char *type_name, const char *name, const char *docstring)
+make_simple_arg_decl (int type, const char *name, const char *docstring, option_t *options)
 {
-    static struct { const char *name; int type; } types[] =
-	{
-	    { "int", ARG_TYPE_INT },
-	    { "float", ARG_TYPE_FLOAT },
-	    { "bool", ARG_TYPE_BOOL },
-	    { "color", ARG_TYPE_COLOR },
-	    { "gradient", ARG_TYPE_GRADIENT },
-	    { "curve", ARG_TYPE_CURVE },
-	    { "image", ARG_TYPE_IMAGE },
-	    { 0 }
-	};
+    arg_decl_t *arg_decl = make_arg_decl(type, name, docstring, options);
 
-    int i;
-
-    for (i = 0; types[i].name != 0; ++i)
-	if (strcmp(types[i].name, type_name) == 0)
-	    break;
-
-    if (types[i].name == 0)
+    if (type == ARG_TYPE_INT)
     {
-	sprintf(error_string, "Unknown type %s.", type_name);
-	JUMP(1);
+	arg_decl->v.integer.have_limits = 0;
+	arg_decl->v.integer.default_value = 0;
     }
-    else
+    else if (type == ARG_TYPE_FLOAT)
     {
-	int type = types[i].type;
-	arg_decl_t *arg_decl = make_arg_decl(type, name, docstring);
-
-	if (type == ARG_TYPE_INT)
-	{
-	    arg_decl->v.integer.have_limits = 0;
-	    arg_decl->v.integer.default_value = 0;
-	}
-	else if (type == ARG_TYPE_FLOAT)
-	{
-	    arg_decl->v.floating.have_limits = 0;
-	    arg_decl->v.floating.default_value = 0.0;
-	}
-	else if (type == ARG_TYPE_BOOL)
-	    arg_decl->v.boolean.default_value = 0;
-
-	return arg_decl;
+	arg_decl->v.floating.have_limits = 0;
+	arg_decl->v.floating.default_value = 0.0;
     }
+    else if (type == ARG_TYPE_BOOL)
+	arg_decl->v.boolean.default_value = 0;
 
-    return 0;
+    return arg_decl;
 }
 
 arg_decl_t*
-make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring)
+make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring, option_t *options)
 {
-    arg_decl_t *arg = make_arg_decl(ARG_TYPE_FILTER, name, docstring);
+    arg_decl_t *arg = make_arg_decl(ARG_TYPE_FILTER, name, docstring, options);
 
     arg->v.filter.args = args;
 
@@ -185,11 +158,12 @@ make_top_level_decl (int type, const char *name, const char *docstring)
 }
 
 top_level_decl_t*
-make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body)
+make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options)
 {
     top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
 
     top_level->v.filter.args = args;
+    top_level->v.filter.options = options;
     top_level->v.filter.body = body;
 
     return top_level;
@@ -234,6 +208,55 @@ free_top_level_decls (top_level_decl_t *list)
 
 	list = next;
     }
+}
+
+option_t*
+make_option (const char *name, option_t *suboptions)
+{
+    option_t *option = (option_t*)malloc(sizeof(option_t));
+
+    assert(option != 0);
+
+    option->name = strdup(name);
+    assert(option->name != 0);
+
+    option->suboptions = suboptions;
+
+    option->next = 0;
+
+    return option;
+}
+
+option_t*
+options_append (option_t *o1, option_t *o2)
+{
+    if (o1 == 0)
+	return o2;
+    else
+    {
+	option_t *o = o1;
+
+	while (o1->next != 0)
+	    o1 = o1->next;
+
+	o1->next = o2;
+
+	return o;
+    }
+}
+
+option_t*
+find_option_with_name (option_t *options, const char *name)
+{
+    while (options != 0)
+    {
+	if (strcmp(options->name, name) == 0)
+	    return options;
+
+	options = options->next;
+    }
+
+    return 0;
 }
 
 static limits_t*

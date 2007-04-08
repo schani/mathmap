@@ -69,6 +69,22 @@ fprintf_c (FILE *stream, const char *format, ...)
     return result;
 }
 
+static unsigned int
+image_flags_from_options (option_t *options)
+{
+    unsigned int flags = 0;
+    option_t *unit_option = find_option_with_name(options, "unit");
+
+    if (unit_option != 0)
+    {
+	flags |= IMAGE_FLAG_UNIT;
+	if (find_option_with_name(unit_option->suboptions, "square") != 0)
+	    flags |= IMAGE_FLAG_SQUARE;
+    }
+
+    return flags;
+}
+
 void
 register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 {
@@ -118,7 +134,8 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 		assert(0);
 
 	    case ARG_TYPE_IMAGE :
-		result = register_image(&mathmap->userval_infos, arg_decls->name, 0);
+		result = register_image(&mathmap->userval_infos, arg_decls->name,
+					image_flags_from_options(arg_decls->options));
 		break;
 
 	    default :
@@ -138,7 +155,7 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 void
 unload_mathmap (mathmap_t *mathmap)
 {
-    if (mathmap->is_native && mathmap->module_info != 0)
+    if ((mathmap->flags & MATHMAP_FLAG_NATIVE) && mathmap->module_info != 0)
     {
 	unload_c_code(mathmap->module_info);
 	mathmap->module_info = 0;
@@ -297,6 +314,8 @@ parse_mathmap (char *expression)
 	    sprintf(error_string, "The expression must have the result type rgba:4.");
 	    JUMP(1);
 	}
+
+	mathmap->flags = image_flags_from_options(mathmap->top_level_decls->v.filter.options);
     } WITH_JUMP_HANDLER {
 	the_top_level_decls = 0;
 
@@ -372,7 +391,7 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 
 	    generate_interpreter_code(mathmap);
 
-	    mathmap->is_native = 0;
+	    mathmap->flags &= ~MATHMAP_FLAG_NATIVE;
 
 	    if (try_compiler)
 		fprintf(stderr, "falling back to interpreter\n");
@@ -380,7 +399,7 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 	    try_compiler = 0;
 	}
 	else
-	    mathmap->is_native = 1;
+	    mathmap->flags |= MATHMAP_FLAG_NATIVE;
     } WITH_JUMP_HANDLER {
 	if (mathmap != 0)
 	{
@@ -395,7 +414,7 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 static void
 init_invocation (mathmap_invocation_t *invocation)
 {
-    if (invocation->mathmap->is_native)
+    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
     else
     {
@@ -409,6 +428,52 @@ init_invocation (mathmap_invocation_t *invocation)
 		= g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, i);
 	*/
     }
+}
+
+/* The scale factors computed by this function are to get from virtual
+   coordinates to pixel coordinates. */
+void
+calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y)
+{
+    float virt_width, virt_height;
+
+    switch (flags & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE))
+    {
+	case 0 :
+	    virt_width = pixel_width;
+	    virt_height = pixel_height;
+	    break;
+
+	case IMAGE_FLAG_UNIT :
+	    virt_width = virt_height = 2.0;
+	    break;
+
+	case IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE :
+	    if (pixel_width > pixel_height)
+	    {
+		virt_width = 2.0;
+		virt_height = 2.0 * pixel_height / pixel_width;
+	    }
+	    else
+	    {
+		virt_height = 2.0;
+		virt_width = 2.0 * pixel_width / pixel_height;
+	    }
+	    break;
+
+	default :
+	    assert(0);
+    }
+
+    *scale_x = pixel_width / virt_width;
+    *scale_y = pixel_height / virt_height;
+}
+
+void
+calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y)
+{
+    *middle_x = (img_width - 1) / 2.0 * scale_x;
+    *middle_y = (img_height - 1) / 2.0 * scale_y;
 }
 
 mathmap_invocation_t*
@@ -433,11 +498,16 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->img_width = img_width;
     invocation->img_height = img_height;
 
-    invocation->image_W = img_width;
-    invocation->image_H = img_height;
+    calc_scale_factors(mathmap->flags, img_width, img_height, &invocation->scale_x, &invocation->scale_y);
+    invocation->scale_x = 1.0 / invocation->scale_x;
+    invocation->scale_y = 1.0 / invocation->scale_y;
 
-    invocation->middle_x = (img_width - 1) / 2.0;
-    invocation->middle_y = (img_height - 1) / 2.0;
+    invocation->image_W = img_width * invocation->scale_x;
+    invocation->image_H = img_height * invocation->scale_y;
+
+    calc_middle_values(img_width, img_height,
+		       invocation->scale_x, invocation->scale_y,
+		       &invocation->middle_x, &invocation->middle_y);
 
     invocation->sampling_offset_x = invocation->sampling_offset_y = 0.0;
 
@@ -445,8 +515,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->image_Y = invocation->middle_y;
     
     invocation->image_R = hypot(invocation->image_X, invocation->image_Y);
-
-    invocation->scale_x = invocation->scale_y = 1.0;
 
     invocation->current_r = invocation->current_a = 0.0;
 
@@ -501,7 +569,7 @@ update_image_internals (mathmap_invocation_t *invocation)
 {
     internal_t *internal;
 
-    if (invocation->mathmap->is_native)
+    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	return;
 
     internal = lookup_internal(invocation->mathmap->internals, "t", 1);
@@ -555,7 +623,7 @@ write_color_to_pixel (color_t color, guchar *dest, int output_bpp)
 void
 init_frame (mathmap_invocation_t *invocation)
 {
-    if (invocation->mathmap->is_native)
+    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	invocation->mathfuncs.init_frame(invocation);
 }
 
@@ -575,7 +643,7 @@ run_interpreter (mathmap_invocation_t *invocation)
 static void
 calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
-    if (invocation->mathmap->is_native)
+    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	invocation->mathfuncs.calc_lines(invocation, first_row, last_row, q);
     else
     {
@@ -589,12 +657,12 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
 	for (row = first_row; row < last_row; ++row)
 	{
-	    float y = middle_y - sampling_offset_y - (float)(row + origin_y) * scale_y;
+	    float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
 	    unsigned char *p = q;
 
 	    for (col = 0; col < invocation->img_width; ++col)
 	    {
-		float x = (float)(col + origin_x) * scale_x - middle_x + sampling_offset_x;
+		float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
 		float r, a;
 
 		if (uses_ra)
@@ -640,8 +708,8 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 
 	invocation->img_width = img_width + 1;
-	invocation->sampling_offset_x = -0.5 * invocation->scale_x;
-	invocation->sampling_offset_y = -0.5 * invocation->scale_y;
+	invocation->sampling_offset_x = -0.5;
+	invocation->sampling_offset_y = -0.5;
 	init_frame(invocation);
 	calc_lines(invocation, first_row, first_row + 1, line1);
 
@@ -656,8 +724,8 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	    calc_lines(invocation, row, row + 1, line2);
 
 	    invocation->img_width = img_width + 1;
-	    invocation->sampling_offset_x = -0.5 * invocation->scale_x;
-	    invocation->sampling_offset_y = -0.5 * invocation->scale_y;
+	    invocation->sampling_offset_x = -0.5;
+	    invocation->sampling_offset_y = -0.5;
 	    init_frame(invocation);
 	    calc_lines(invocation, row + 1, row + 2, line3);
 

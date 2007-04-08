@@ -90,6 +90,11 @@ lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info)
 		|| info->v.float_const.max != test_info->v.float_const.max)
 		info = 0;
 	    break;
+
+	case USERVAL_IMAGE :
+	    if (info->v.image.flags != test_info->v.image.flags)
+		info = 0;
+	    break;
     }
 
     return info;
@@ -238,6 +243,8 @@ register_image (userval_info_t **infos, const char *name, unsigned int flags)
     {
 	if (info->type != USERVAL_IMAGE)
 	    return 0;
+	if (info->v.image.flags != flags)
+	    return 0;
 	return info;
     }
 
@@ -296,37 +303,13 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 
 	case USERVAL_IMAGE :
 #ifndef OPENSTEP
-	    {
-		float virt_width, virt_height;
+	    calc_scale_factors(info->v.image.flags, invocation->img_width, invocation->img_height,
+			       &val->v.image.scale_x, &val->v.image.scale_y);
+	    calc_middle_values(invocation->img_width, invocation->img_height, 
+			       1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
+			       &val->v.image.middle_x, &val->v.image.middle_y);
 
-		switch (info->v.image.flags)
-		{
-		    case 0 :
-			virt_width = invocation->img_width;
-			virt_height = invocation->img_height;
-			break;
-
-		    case USERVAL_IMAGE_FLAG_UNIT :
-			virt_width = virt_height = 2.0;
-			break;
-
-		    case USERVAL_IMAGE_FLAG_UNIT | USERVAL_IMAGE_FLAG_SQUARE :
-			if (invocation->img_width > invocation->img_height)
-			{
-			    virt_width = 2.0;
-			    virt_height = 2.0 * invocation->img_height / invocation->img_width;
-			}
-			break;
-
-		    default :
-			assert(0);
-		}
-
-		val->v.image.scale_x = invocation->img_width / virt_width;
-		val->v.image.scale_y = invocation->img_height / virt_height;
-
-		val->v.image.index = -1;
-	    }
+	    val->v.image.index = -1;
 #else
 	    val->v.image.data = 0;
 #endif
@@ -428,8 +411,10 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	case USERVAL_IMAGE :
 	    if (!cmd_line_mode && src->v.image.index > 0)
 		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
-	    else
-		dst->v = src->v;
+	    dst->v.image.scale_x = src->v.image.scale_x;
+	    dst->v.image.scale_y = src->v.image.scale_y;
+	    dst->v.image.middle_x = src->v.image.middle_x;
+	    dst->v.image.middle_y = src->v.image.middle_y;
 	    break;
 
 	case USERVAL_CURVE :

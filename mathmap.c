@@ -946,7 +946,6 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->row_stride = dest_rgn.rowstride;
 	    invocation->origin_x = dest_rgn.x - sel_x1;
 	    invocation->origin_y = dest_rgn.y - sel_y1;
-	    invocation->scale_x = invocation->scale_y = 1.0;
 	    invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
 	    call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
@@ -1612,6 +1611,7 @@ dialog_update_preview (void)
 	guchar *p_ul, *p;
 	gint check, check_0, check_1; 
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
+	float old_scale_x, old_scale_y;
 
 	assert(buf != 0);
 
@@ -1623,8 +1623,6 @@ dialog_update_preview (void)
 	invocation->img_height = preview_height;
 	invocation->row_stride = preview_width * 4;
 	invocation->origin_x = invocation->origin_y = 0;
-	invocation->scale_x = (float)sel_width / (float)preview_width;
-	invocation->scale_y = (float)sel_height / (float)preview_height;
 	invocation->output_bpp = 4;
 
 	if (debug_tuples)
@@ -1638,7 +1636,16 @@ dialog_update_preview (void)
 	else
 	    disable_debugging(invocation);
 
+	old_scale_x = invocation->scale_x;
+	old_scale_y = invocation->scale_y;
+
+	invocation->scale_x *= (float)sel_width / (float)preview_width;
+	invocation->scale_y *= (float)sel_height / (float)preview_height;
+
 	call_invocation(invocation, 0, preview_height, buf);
+
+	invocation->scale_x = old_scale_x;
+	invocation->scale_y = old_scale_y;
 
 	p = buf;
 	p_ul = wint.wimage;
