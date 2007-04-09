@@ -195,7 +195,8 @@ static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 GtkWidget *expression_entry = 0,
     *animation_table,
     *frame_table,
-    *edge_color_well,
+    *edge_color_x_well,
+    *edge_color_y_well,
     *uservalues_scrolled_window,
     *uservalues_table,
     *tree_scrolled_window;
@@ -206,9 +207,11 @@ int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
 color_t gradient_samples[USER_GRADIENT_POINTS];
 int output_bpp;
-int edge_behaviour_mode = EDGE_BEHAVIOUR_COLOR;
+int edge_behaviour_x_mode = EDGE_BEHAVIOUR_COLOR;
+int edge_behaviour_y_mode = EDGE_BEHAVIOUR_COLOR;
 
-static GimpRGB edge_color = { 0.0, 0.0, 0.0, 0.0 };
+static GimpRGB edge_color_x = { 0.0, 0.0, 0.0, 0.0 };
+static GimpRGB edge_color_y = { 0.0, 0.0, 0.0, 0.0 };
 
 mathmap_t *mathmap = 0;
 mathmap_invocation_t *invocation = 0;
@@ -834,8 +837,10 @@ generate_code (int current_frame, float current_t)
 	invocation->current_frame = current_frame;
 	invocation->current_t = current_t;
 
-	invocation->edge_behaviour = edge_behaviour_mode;
-	invocation->edge_color = MAKE_RGBA_COLOR_FLOAT(edge_color.r, edge_color.g, edge_color.b, edge_color.a);
+	invocation->edge_behaviour_x = edge_behaviour_x_mode;
+	invocation->edge_behaviour_y = edge_behaviour_y_mode;
+	invocation->edge_color_x = MAKE_RGBA_COLOR_FLOAT(edge_color_x.r, edge_color_x.g, edge_color_x.b, edge_color_x.a);
+	invocation->edge_color_y = MAKE_RGBA_COLOR_FLOAT(edge_color_y.r, edge_color_y.g, edge_color_y.b, edge_color_y.a);
 
 	update_image_internals(invocation);
     }
@@ -1003,13 +1008,14 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int fra
 #endif
 
     if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
-	return invocation->edge_color;
+	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
     assert(input_drawables[drawable_index].used);
 
-    if (x < 0 || x >= img_width
-	|| y < 0 || y >= img_height)
-	return invocation->edge_color;
+    if (x < 0 || x >= img_width)
+	return invocation->edge_color_x;
+    if (y < 0 || y >= img_height)
+	return invocation->edge_color_y;
 
     drawable = &input_drawables[drawable_index];
     assert(drawable->used);
@@ -1060,13 +1066,14 @@ mathmap_get_fast_pixel (mathmap_invocation_t *invocation, userval_t *userval, in
     input_drawable_t *drawable;
 
     if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
-	return invocation->edge_color;
+	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
     assert(input_drawables[drawable_index].used);
 
-    if (x < 0 || x >= preview_width
-	|| y < 0 || y >= preview_height)
-	return invocation->edge_color;
+    if (x < 0 || x >= preview_width)
+	return invocation->edge_color_x;
+    if (y < 0 || y >= preview_height)
+	return invocation->edge_color_y;
 
     drawable = &input_drawables[drawable_index];
     assert(drawable->used);
@@ -1181,13 +1188,63 @@ update_expression_tree (void)
 
 #define RESPONSE_ABOUT 1
 
+static GtkWidget*
+make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_color_well, GimpRGB *edge_color)
+{
+    GtkWidget *table, *frame, *toggle;
+    GSList *edge_group = 0;
+
+    table = gtk_table_new(2, 3, FALSE);
+    gtk_container_border_width(GTK_CONTAINER(table), 6);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
+
+    frame = gtk_frame_new(name);
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
+    gtk_container_add(GTK_CONTAINER(frame), table);
+
+    gtk_widget_show(table);
+    gtk_widget_show(frame);
+
+    /* Color */
+
+    toggle = gtk_radio_button_new_with_label(edge_group, _("Color"));
+    edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+    gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
+    gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+		       (GtkSignalFunc)dialog_edge_behaviour_update, GINT_TO_POINTER(EDGE_BEHAVIOUR_COLOR | direction_flag));
+    gtk_widget_show(toggle);
+
+    *edge_color_well = gimp_color_button_new(_("Edge Color"), 32, 16,
+					     edge_color, GIMP_COLOR_AREA_SMALL_CHECKS);
+    gtk_signal_connect(GTK_OBJECT(*edge_color_well), "color_changed",
+		       (GtkSignalFunc)dialog_edge_color_changed, GINT_TO_POINTER(direction_flag));
+    gtk_widget_show(*edge_color_well);
+    gtk_table_attach(GTK_TABLE(table), *edge_color_well, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
+
+    /* Wrap */
+
+    toggle = gtk_radio_button_new_with_label(edge_group, _("Wrap"));
+    edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+    gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+    gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+		       (GtkSignalFunc)dialog_edge_behaviour_update, GINT_TO_POINTER(EDGE_BEHAVIOUR_WRAP | direction_flag));
+    gtk_widget_show(toggle);
+
+    /* Reflect */
+
+    toggle = gtk_radio_button_new_with_label(edge_group, _("Reflect"));
+    edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+    gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
+    gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+		       (GtkSignalFunc)dialog_edge_behaviour_update, GINT_TO_POINTER(EDGE_BEHAVIOUR_REFLECT | direction_flag));
+    gtk_widget_show(toggle);
+
+    return frame;
+}
+
 static gint
 mathmap_dialog (int mutable_expression)
 {
-    static int edge_behaviour_color = EDGE_BEHAVIOUR_COLOR;
-    static int edge_behaviour_wrap = EDGE_BEHAVIOUR_WRAP;
-    static int edge_behaviour_reflect = EDGE_BEHAVIOUR_REFLECT;
-
     GtkWidget *dialog;
     GtkWidget *top_table, *middle_table;
     GtkWidget *vbox;
@@ -1202,7 +1259,6 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *notebook;
     GtkWidget *t_table;
     GtkObject *adjustment;
-    GSList *edge_group = 0;
     guchar color_cube[4] = { 6, 6, 4, 24 };
 
     gimp_ui_init("mathmap", TRUE);
@@ -1402,54 +1458,14 @@ mathmap_dialog (int mutable_expression)
 
 	    /* Edge Behaviour */
 
-	    table = gtk_table_new(2, 3, FALSE);
-	    gtk_container_border_width(GTK_CONTAINER(table), 6);
-	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
-
-	    frame = gtk_frame_new(_("Edge Behaviour"));
-	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
-	    gtk_container_add(GTK_CONTAINER(frame), table);
+	    frame = make_edge_behaviour_frame(_("Edge Behaviour X"), EDGE_BEHAVIOUR_X_FLAG, &edge_color_x_well, &edge_color_x);
 	    gtk_table_attach(GTK_TABLE(middle_table), frame, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
 
-	    gtk_widget_show(table);
-	    gtk_widget_show(frame);
-
-	        /* Color */
-
-	        toggle = gtk_radio_button_new_with_label(edge_group, _("Color"));
-		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
-		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
-		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
-				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_color);
-		gtk_widget_show(toggle);
-
-		edge_color_well = gimp_color_button_new(_("Edge Color"), 32, 16,
-							&edge_color, GIMP_COLOR_AREA_SMALL_CHECKS);
-		gtk_signal_connect(GTK_OBJECT(edge_color_well), "color_changed",
-				   (GtkSignalFunc)dialog_edge_color_changed, 0);
-		gtk_widget_show(edge_color_well);
-		gtk_table_attach(GTK_TABLE(table), edge_color_well, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
-
-	        /* Wrap */
-
-	        toggle = gtk_radio_button_new_with_label(edge_group, _("Wrap"));
-		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
-		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
-				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_wrap);
-		gtk_widget_show(toggle);
-
-	        /* Reflect */
-
-	        toggle = gtk_radio_button_new_with_label(edge_group, _("Reflect"));
-		edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
-		gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
-		gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
-				   (GtkSignalFunc)dialog_edge_behaviour_update, &edge_behaviour_reflect);
-		gtk_widget_show(toggle);
+	    frame = make_edge_behaviour_frame(_("Edge Behaviour Y"), EDGE_BEHAVIOUR_Y_FLAG, &edge_color_y_well, &edge_color_y);
+	    gtk_table_attach(GTK_TABLE(middle_table), frame, 1, 2, 2, 3, GTK_FILL, 0, 0, 0);
 
 	    /* Animation */
-	    
+
 	    animation_table = gtk_table_new(4, 1, FALSE);
 	    gtk_container_border_width(GTK_CONTAINER(animation_table), 6);
 	    gtk_table_set_row_spacings(GTK_TABLE(animation_table), 4);
@@ -1462,7 +1478,7 @@ mathmap_dialog (int mutable_expression)
 
 	    alignment = gtk_alignment_new(0, 0, 0, 0);
 	    gtk_container_add(GTK_CONTAINER(alignment), frame);
-	    gtk_table_attach(GTK_TABLE(middle_table), alignment, 1, 2, 0, 3, GTK_FILL, 0, 0, 0);
+	    gtk_table_attach(GTK_TABLE(middle_table), alignment, 1, 2, 0, 2, GTK_FILL, 0, 0, 0);
 
 	    gtk_widget_show(animation_table);
 	    gtk_widget_show(frame);
@@ -1808,13 +1824,31 @@ dialog_fast_preview_update (GtkWidget *widget, gpointer data)
 /*****/
 
 static void
-dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
+dialog_edge_behaviour_update (GtkWidget *widget, gpointer _data)
 {
-    edge_behaviour_mode = *(int*)data;
-    if (edge_behaviour_mode == EDGE_BEHAVIOUR_COLOR)
-	gtk_widget_set_sensitive(edge_color_well, 1);
+    int data = GPOINTER_TO_INT(_data);
+    int edge_behaviour_mode = data & EDGE_BEHAVIOUR_MASK;
+
+    if (data & EDGE_BEHAVIOUR_X_FLAG)
+    {
+	edge_behaviour_x_mode = edge_behaviour_mode;
+
+	if (edge_behaviour_mode == EDGE_BEHAVIOUR_COLOR)
+	    gtk_widget_set_sensitive(edge_color_x_well, 1);
+	else
+	    gtk_widget_set_sensitive(edge_color_x_well, 0);
+    }
+    else if (data & EDGE_BEHAVIOUR_Y_FLAG)
+    {
+	edge_behaviour_y_mode = edge_behaviour_mode;
+
+	if (edge_behaviour_mode == EDGE_BEHAVIOUR_COLOR)
+	    gtk_widget_set_sensitive(edge_color_y_well, 1);
+	else
+	    gtk_widget_set_sensitive(edge_color_y_well, 0);
+    }
     else
-	gtk_widget_set_sensitive(edge_color_well, 0);
+	assert(0);
 
     if (auto_preview)
 	dialog_update_preview();
@@ -1823,7 +1857,15 @@ dialog_edge_behaviour_update (GtkWidget *widget, gpointer data)
 static void
 dialog_edge_color_changed (GtkWidget *color_well, gpointer data)
 {
-    gimp_color_button_get_color(GIMP_COLOR_BUTTON(color_well), &edge_color);
+    int flag = GPOINTER_TO_INT(data);
+
+    if (flag == EDGE_BEHAVIOUR_X_FLAG)
+	gimp_color_button_get_color(GIMP_COLOR_BUTTON(color_well), &edge_color_x);
+    else if (flag == EDGE_BEHAVIOUR_Y_FLAG)
+	gimp_color_button_get_color(GIMP_COLOR_BUTTON(color_well), &edge_color_y);
+    else
+	assert(0);
+
     if (auto_preview)
 	dialog_update_preview();
 }

@@ -186,8 +186,8 @@ typedef struct _mathmap_invocation_t
 
     int output_bpp;
 
-    int edge_behaviour;
-    color_t edge_color;
+    int edge_behaviour_x, edge_behaviour_y;
+    color_t edge_color_x, edge_color_y;
 
     int current_frame;
     int origin_x, origin_y;

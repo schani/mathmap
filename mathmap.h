@@ -87,6 +87,10 @@ extern color_t gradient_samples[USER_GRADIENT_POINTS];
 #define EDGE_BEHAVIOUR_COLOR          1	/* all three used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
+#define EDGE_BEHAVIOUR_MASK	      0xff
+
+#define EDGE_BEHAVIOUR_X_FLAG	      0x0100
+#define EDGE_BEHAVIOUR_Y_FLAG	      0x0200
 
 #define MAX_DEBUG_TUPLES              8
 
@@ -102,8 +106,8 @@ typedef struct _mathmap_invocation_t
 
     int output_bpp;
 
-    int edge_behaviour;
-    color_t edge_color;
+    int edge_behaviour_x, edge_behaviour_y;
+    color_t edge_color_x, edge_color_y;
 
     int current_frame;
 

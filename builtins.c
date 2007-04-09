@@ -55,23 +55,30 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
     height = userval->v.image.height;
 #endif
 
-    if (invocation->edge_behaviour == EDGE_BEHAVIOUR_WRAP)
+    if (invocation->edge_behaviour_x == EDGE_BEHAVIOUR_WRAP)
     {
 	if (x < 0)
 	    x = x % width + width;
 	else if (x >= width)
 	    x %= width;
-	if (y < 0)
-	    y = y % height + height;
-	else if (y >= height)
-	    y %= height;
     }
-    else if (invocation->edge_behaviour == EDGE_BEHAVIOUR_REFLECT)
+    else if (invocation->edge_behaviour_x == EDGE_BEHAVIOUR_REFLECT)
     {
 	if (x < 0)
 	    x = -x % width;
 	else if (x >= width)
 	    x = (width - 1) - (x % width);
+    }
+
+    if (invocation->edge_behaviour_y == EDGE_BEHAVIOUR_WRAP)
+    {
+	if (y < 0)
+	    y = y % height + height;
+	else if (y >= height)
+	    y %= height;
+    }
+    else if (invocation->edge_behaviour_y == EDGE_BEHAVIOUR_REFLECT)
+    {
 	if (y < 0)
 	    y = -y % height;
 	else if (y >= height)
