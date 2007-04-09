@@ -78,7 +78,7 @@ image_flags_from_options (option_t *options)
     if (unit_option != 0)
     {
 	flags |= IMAGE_FLAG_UNIT;
-	if (find_option_with_name(unit_option->suboptions, "square") != 0)
+	if (find_option_with_name(unit_option->suboptions, "stretched") == 0)
 	    flags |= IMAGE_FLAG_SQUARE;
     }
 
@@ -495,8 +495,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->origin_x = invocation->origin_y = 0;
 
-    invocation->img_width = img_width;
-    invocation->img_height = img_height;
+    invocation->img_width = invocation->calc_img_width = img_width;
+    invocation->img_height = invocation->calc_img_height = img_height;
 
     calc_scale_factors(mathmap->flags, img_width, img_height, &invocation->scale_x, &invocation->scale_y);
     invocation->scale_x = 1.0 / invocation->scale_x;
@@ -660,7 +660,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	    float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
 	    unsigned char *p = q;
 
-	    for (col = 0; col < invocation->img_width; ++col)
+	    for (col = 0; col < invocation->calc_img_width; ++col)
 	    {
 		float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
 		float r, a;
@@ -701,13 +701,13 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
     {
 	guchar *line1, *line2, *line3;
 	int row, col;
-	int img_width = invocation->img_width;
+	int img_width = invocation->calc_img_width;
 
 	line1 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 	line2 = (guchar*)malloc(img_width * invocation->output_bpp);
 	line3 = (guchar*)malloc((img_width + 1) * invocation->output_bpp);
 
-	invocation->img_width = img_width + 1;
+	invocation->calc_img_width = img_width + 1;
 	invocation->sampling_offset_x = -0.5;
 	invocation->sampling_offset_y = -0.5;
 	init_frame(invocation);
@@ -717,13 +717,13 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 	{
 	    unsigned char *p = q;
 
-	    invocation->img_width = img_width;
+	    invocation->calc_img_width = img_width;
 	    invocation->sampling_offset_x = 0;
 	    invocation->sampling_offset_y = 0;
 	    init_frame(invocation);
 	    calc_lines(invocation, row, row + 1, line2);
 
-	    invocation->img_width = img_width + 1;
+	    invocation->calc_img_width = img_width + 1;
 	    invocation->sampling_offset_x = -0.5;
 	    invocation->sampling_offset_y = -0.5;
 	    init_frame(invocation);

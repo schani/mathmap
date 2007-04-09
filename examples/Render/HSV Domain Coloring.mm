@@ -1,9 +1,8 @@
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-filter hsv_domain_coloring ()
+unit filter hsv_domain_coloring ()
     z = x + I*y;
-    z = z/Y;
     # This sets the corners of the window
     # to 1.2 + 1.2i, 1.2 - 1.2i, -1.2 + 1.2i, -1.2 - 1.2i
     # (provided your image is square):

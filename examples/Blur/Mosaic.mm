@@ -1,5 +1,4 @@
-unit(square)
-filter mosaic (unit(square) image in,
-               float size: 0-2 (0.05))
+unit filter mosaic (unit image in,
+                    float size: 0-2 (0.05))
   in(xy-(xy+XY)%size)
 end

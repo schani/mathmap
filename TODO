@@ -11,8 +11,6 @@ Package for Ubuntu
 Image Processing
 ----------------
 
-Rounding errors: http://www.flickr.com/groups/mathmap/discuss/72157594586582778/72157600036989745/
-
 Command Line Tool
 -----------------
 
@@ -20,13 +18,16 @@ Header and template files don't have path
 
 Drawable indexes don't match
 
+Examples
+--------
+
+Remove Sea1 and Sea2
+
 Compiler
 --------
 
 General
 -------
-
-Unit filters and images
 
 Uncoupled edge behaviour (x/y)
 
@@ -47,7 +48,7 @@ GTK Source View (auto-completion?)
 
 Automatically generated on-line reference for builtins
 
-Undo should work
+Text input fields for float and int user values
 
 Documentation
 -------------
@@ -58,6 +59,10 @@ print function
 
 Elliptic functions
 
+General
+-------
+
+Edge behaviour as image attributes
 
 
 

@@ -1,11 +1,10 @@
 # tomr@aceldama.com
-filter peel (image in, color outside)
-    if (r > X) then
+unit filter peel (unit image in, color outside)
+    if (r > 1) then
         outside
     else
-        rad = (X*t);
-        if (r > rad) then
-            in(ra:[rad*(1-(r-rad)/(X-rad)), a]);
+        if (r > t) then
+            in(ra:[t*(1-(r-t)/(1-t)), a]);
         else
             in(xy);
         end

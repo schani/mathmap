@@ -3,12 +3,13 @@
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-filter domain_coloring (image in, int coloring_scheme: 1-7, gradient coloring)
+unit(stretched) filter domain_coloring (image in, int coloring_scheme: 1-7,
+                                        gradient coloring)
 
     i=ri:[0,1];
 
     #Domain; [mid_x,mid_y]+-[delta_x,delta_y]
-    z=ri:( xy:[0,0] + xy:[2,2] * xy/XY );
+    z=ri:( xy:[0,0] + xy:[2,2] * xy );
 
     #Function
     f=z*z-1 ;
@@ -18,7 +19,7 @@ filter domain_coloring (image in, int coloring_scheme: 1-7, gradient coloring)
 
     if scheme == 1 then
     # 1. Use active layer superimposed on a rectangle in the w=u+iv plane; [mid_u,mid_v]+-[delta_u,delta_v].
-        in((xy:f - xy:[0,0]) / xy:[8,8] * XY)
+        in((xy:f - xy:[0,0]) / xy:[8,8])
 
     else if scheme == 2 then
     # 2. Gradient based on arg(w).

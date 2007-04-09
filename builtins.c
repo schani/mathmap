@@ -84,8 +84,8 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
     {
 	if (previewing)
 	{
-	    x = (x - sel_x1) * preview_width / sel_width;
-	    y = (y - sel_y1) * preview_height / sel_height;
+	    x = (x - sel_x1) * preview_width / width;
+	    y = (y - sel_y1) * preview_height / height;
 
 	    return mathmap_get_fast_pixel(invocation, userval, x, y);
 	}
@@ -146,6 +146,7 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
 	p3fact,
 	p4fact;
     color_t pixel1, pixel2, pixel3, pixel4, result;
+    float_color_t fpixel1, fpixel2, fpixel3, fpixel4, fresult;
     userval_t *userval = get_drawable_userval(invocation, drawable_index, &x, &y);
 
     if (userval == 0)
@@ -169,13 +170,16 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
     pixel3 = get_pixel(invocation, x2, y1, userval, frame);
     pixel4 = get_pixel(invocation, x2, y2, userval, frame);
 
-    pixel1 = COLOR_MUL_FLOAT(pixel1, p1fact);
-    pixel2 = COLOR_MUL_FLOAT(pixel2, p2fact);
-    pixel3 = COLOR_MUL_FLOAT(pixel3, p3fact);
-    pixel4 = COLOR_MUL_FLOAT(pixel4, p4fact);
-    result = COLOR_ADD(pixel1, pixel2);
-    result = COLOR_ADD(result, pixel3);
-    result = COLOR_ADD(result, pixel4);
+    fpixel1 = COLOR_MUL_FLOAT(pixel1, p1fact);
+    fpixel2 = COLOR_MUL_FLOAT(pixel2, p2fact);
+    fpixel3 = COLOR_MUL_FLOAT(pixel3, p3fact);
+    fpixel4 = COLOR_MUL_FLOAT(pixel4, p4fact);
+
+    fresult = FLOAT_COLOR_ADD(fpixel1, fpixel2);
+    fresult = FLOAT_COLOR_ADD(fresult, fpixel3);
+    fresult = FLOAT_COLOR_ADD(fresult, fpixel4);
+
+    result = FLOAT_COLOR_TO_COLOR(fresult);
 
     return result;
 }

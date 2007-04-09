@@ -1,3 +1,3 @@
-filter pond (image in, float height: 0-100 (10), float wavelength: 1-50 (10))
+unit filter pond (unit image in, float height: 0-1 (0.05), float wavelength: 0-1 (0.04))
     in(ra+ra:[sin(r/wavelength+t*2*pi)*height,0])
 end

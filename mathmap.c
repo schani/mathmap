@@ -941,8 +941,8 @@ do_mathmap (int frame_num, float current_t)
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
-	    invocation->img_width = dest_rgn.w;
-	    invocation->img_height = dest_rgn.h;
+	    invocation->calc_img_width = dest_rgn.w;
+	    invocation->calc_img_height = dest_rgn.h;
 	    invocation->row_stride = dest_rgn.rowstride;
 	    invocation->origin_x = dest_rgn.x - sel_x1;
 	    invocation->origin_y = dest_rgn.y - sel_y1;
@@ -1619,8 +1619,8 @@ dialog_update_preview (void)
 
 	previewing = fast_preview;
 
-	invocation->img_width = preview_width;
-	invocation->img_height = preview_height;
+	invocation->calc_img_width = preview_width;
+	invocation->calc_img_height = preview_height;
 	invocation->row_stride = preview_width * 4;
 	invocation->origin_x = invocation->origin_y = 0;
 	invocation->output_bpp = 4;

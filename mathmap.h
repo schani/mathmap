@@ -110,6 +110,7 @@ typedef struct _mathmap_invocation_t
     /* These are in pixel coordinates: */
     int origin_x, origin_y;
     int img_width, img_height;
+    int calc_img_width, calc_img_height;
     float sampling_offset_x, sampling_offset_y;
 
     /* These are in virtual coordinates: */

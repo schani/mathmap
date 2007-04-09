@@ -192,6 +192,7 @@ typedef struct _mathmap_invocation_t
     int current_frame;
     int origin_x, origin_y;
     int img_width, img_height;
+    int calc_img_width, calc_img_height;
     float sampling_offset_x, sampling_offset_y;
     float middle_x, middle_y;
     float image_R, image_X, image_Y, image_W, image_H;
@@ -460,7 +461,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
     xy_const_vars_t *xy_vars = invocation->xy_vars;
 
     first_row = MAX(0, first_row);
-    last_row = MIN(last_row, invocation->img_height);
+    last_row = MIN(last_row, invocation->calc_img_height);
 
 #if $g
     if (invocation->antialiasing)
@@ -483,7 +484,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
 	$x_code
 
-	for (col = 0; col < invocation->img_width; ++col)
+	for (col = 0; col < invocation->calc_img_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
 	    float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
@@ -547,7 +548,7 @@ init_frame (mathmap_invocation_t *invocation)
     invocation->xy_vars = (xy_const_vars_t*)malloc(sizeof(xy_const_vars_t));
     if (invocation->y_vars != 0)
 	free(invocation->y_vars);
-    invocation->y_vars = (y_const_vars_t*)malloc(sizeof(y_const_vars_t) * invocation->img_width);
+    invocation->y_vars = (y_const_vars_t*)malloc(sizeof(y_const_vars_t) * invocation->calc_img_width);
 
     {
 	xy_const_vars_t *xy_vars = invocation->xy_vars;
@@ -561,7 +562,7 @@ init_frame (mathmap_invocation_t *invocation)
 	xy_const_vars_t *xy_vars = invocation->xy_vars;
 	int col;
 
-	for (col = 0; col < invocation->img_width; ++col)
+	for (col = 0; col < invocation->calc_img_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &invocation->y_vars[col];
 	    float x = CALC_VIRTUAL_X(col, invocation->origin_x, invocation->scale_x,

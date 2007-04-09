@@ -96,8 +96,8 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
     input_drawable_t *drawable;
 
     if (drawable_index < 0 || drawable_index >= num_input_drawables
-	|| x < 0 || x >= invocation->img_width
-	|| y < 0 || y >= invocation->img_height
+	|| x < 0 || x >= invocation->calc_img_width
+	|| y < 0 || y >= invocation->calc_img_height
 	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
 	return invocation->edge_color;
 
@@ -128,7 +128,7 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
 		free(cache[lru_index].data);
 
 	    cache[lru_index].data = read_image(drawable->v.image_filename, &width, &height);
-	    assert(width == invocation->img_width && height == invocation->img_height);
+	    assert(width == invocation->calc_img_width && height == invocation->calc_img_height);
 	}
 #ifdef MOVIES
 	else
@@ -136,10 +136,10 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
 	    guchar **rows = (guchar**)malloc(sizeof(guchar*) * invocation->img_height);
 
 	    if (cache[lru_index].data == 0)
-		cache[lru_index].data = (guchar*)malloc(invocation->img_width * invocation->img_height * 3);
+		cache[lru_index].data = (guchar*)malloc(invocation->calc_img_width * invocation->calc_img_height * 3);
 
-	    for (i = 0; i < invocation->img_height; ++i)
-		rows[i] = cache[lru_index].data + i * invocation->img_width * 3;
+	    for (i = 0; i < invocation->calc_img_height; ++i)
+		rows[i] = cache[lru_index].data + i * invocation->calc_img_width * 3;
 
 	    quicktime_set_video_position(drawable->v.movie, frame, 0);
 	    quicktime_decode_video(drawable->v.movie, rows, 0);
@@ -157,7 +157,7 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
     else
 	drawable->cache_entries[frame]->timestamp = current_time;
 
-    p = drawable->cache_entries[frame]->data + 3 * (invocation->img_width * y + x);
+    p = drawable->cache_entries[frame]->data + 3 * (invocation->calc_img_width * y + x);
 
     return MAKE_RGBA_COLOR(p[0], p[1], p[2], 255);
 }

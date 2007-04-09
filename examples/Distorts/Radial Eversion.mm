@@ -1,8 +1,8 @@
 # by tomr@aceldama.com
-filter radial_eversion (image in, color outside)
-    if (r > X) then
+unit filter radial_eversion (unit image in, color outside)
+    if (r > 1) then
         outside
     else
-        in(ra:[X-r, a])
+        in(ra:[1-r, a])
     end
 end

@@ -1,7 +1,7 @@
 # by Herbert Poetzl
-unit(square)
-filter rmbe (unit(square) image in,
-             float pixel_area: 0-1 (0.005), float aspect_ratio: 0.01-10 (1.0))
+unit filter rmbe (unit image in,
+                  float pixel_area: 0-1 (0.005),
+                  float aspect_ratio: 0.01-10 (1.0))
     A=pixel_area;
     asp=aspect_ratio;
     B=(A*asp)^0.5;
