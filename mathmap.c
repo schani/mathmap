@@ -1194,7 +1194,7 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     GtkWidget *table, *frame, *toggle;
     GSList *edge_group = 0;
 
-    table = gtk_table_new(2, 3, FALSE);
+    table = gtk_table_new(2, 4, FALSE);
     gtk_container_border_width(GTK_CONTAINER(table), 6);
     gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 
@@ -1237,6 +1237,15 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 2, 3, GTK_FILL, 0, 0, 0);
     gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
 		       (GtkSignalFunc)dialog_edge_behaviour_update, GINT_TO_POINTER(EDGE_BEHAVIOUR_REFLECT | direction_flag));
+    gtk_widget_show(toggle);
+
+    /* Rotate */
+
+    toggle = gtk_radio_button_new_with_label(edge_group, _("Rotate"));
+    edge_group = gtk_radio_button_group(GTK_RADIO_BUTTON(toggle));
+    gtk_table_attach(GTK_TABLE(table), toggle, 0, 1, 3, 4, GTK_FILL, 0, 0, 0);
+    gtk_signal_connect(GTK_OBJECT(toggle), "toggled",
+		       (GtkSignalFunc)dialog_edge_behaviour_update, GINT_TO_POINTER(EDGE_BEHAVIOUR_ROTATE | direction_flag));
     gtk_widget_show(toggle);
 
     return frame;

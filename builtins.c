@@ -55,34 +55,76 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
     height = userval->v.image.height;
 #endif
 
-    if (invocation->edge_behaviour_x == EDGE_BEHAVIOUR_WRAP)
+    switch (invocation->edge_behaviour_x)
     {
-	if (x < 0)
-	    x = x % width + width;
-	else if (x >= width)
-	    x %= width;
-    }
-    else if (invocation->edge_behaviour_x == EDGE_BEHAVIOUR_REFLECT)
-    {
-	if (x < 0)
-	    x = -x % width;
-	else if (x >= width)
-	    x = (width - 1) - (x % width);
+	case EDGE_BEHAVIOUR_WRAP :
+	    if (x < 0)
+		x = x % width + width;
+	    else if (x >= width)
+		x %= width;
+	    break;
+
+	case EDGE_BEHAVIOUR_REFLECT :
+	    if (x < 0)
+		x = -x % width;
+	    else if (x >= width)
+		x = (width - 1) - (x % width);
+	    break;
+
+	case EDGE_BEHAVIOUR_ROTATE :
+	    if (x < 0)
+	    {
+		x = -x % width;
+		y = (height - 1) - y;
+	    }
+	    else if (x >= width)
+	    {
+		x = (width - 1) - (x % width);
+		y = (height - 1) - y;
+	    }
+	    break;
+
+	case EDGE_BEHAVIOUR_COLOR :
+	    break;
+
+	default :
+	    assert(0);
     }
 
-    if (invocation->edge_behaviour_y == EDGE_BEHAVIOUR_WRAP)
+    switch (invocation->edge_behaviour_y)
     {
-	if (y < 0)
-	    y = y % height + height;
-	else if (y >= height)
-	    y %= height;
-    }
-    else if (invocation->edge_behaviour_y == EDGE_BEHAVIOUR_REFLECT)
-    {
-	if (y < 0)
-	    y = -y % height;
-	else if (y >= height)
-	    y = (height - 1) - (y % height);
+	case EDGE_BEHAVIOUR_WRAP :
+	    if (y < 0)
+		y = y % height + height;
+	    else if (y >= height)
+		y %= height;
+	    break;
+
+	case EDGE_BEHAVIOUR_REFLECT :
+	    if (y < 0)
+		y = -y % height;
+	    else if (y >= height)
+		y = (height - 1) - (y % height);
+	    break;
+
+	case EDGE_BEHAVIOUR_ROTATE :
+	    if (y < 0)
+	    {
+		x = (width - 1) - x;
+		y = -y % height;
+	    }
+	    else if (y >= height)
+	    {
+		x = (width - 1) - x;
+		y = (height - 1) - (y % height);
+	    }
+	    break;
+
+	case EDGE_BEHAVIOUR_COLOR :
+	    break;
+
+	default :
+	    assert(0);
     }
 
     if (cmd_line_mode)

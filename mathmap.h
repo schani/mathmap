@@ -84,9 +84,10 @@ extern int scanner_line_num;
 
 extern color_t gradient_samples[USER_GRADIENT_POINTS];
 
-#define EDGE_BEHAVIOUR_COLOR          1	/* all three used in new_template.c */
+#define EDGE_BEHAVIOUR_COLOR          1	/* all four used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
+#define EDGE_BEHAVIOUR_ROTATE         4
 #define EDGE_BEHAVIOUR_MASK	      0xff
 
 #define EDGE_BEHAVIOUR_X_FLAG	      0x0100

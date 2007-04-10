@@ -60,6 +60,7 @@
 #define EDGE_BEHAVIOUR_COLOR          1
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
+#define EDGE_BEHAVIOUR_ROTATE	      4
 
 #define USERVAL_IMAGE       7
 
