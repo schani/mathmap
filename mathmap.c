@@ -770,19 +770,19 @@ generate_code (int current_frame, float current_t)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	template = open_rc_file("new_template.c");
+	template = open_rc_file(MAIN_TEMPLATE_FILENAME);
 	if (template == 0)
 	{
-	    sprintf(error_string, "Cannot read template file new_template.c.  MathMap is not installed correctly.");
+	    sprintf(error_string, "Cannot read template file `%s'.  MathMap is not installed correctly.", MAIN_TEMPLATE_FILENAME);
 	    new_mathmap = 0;
 	}
 	else
 	{
-	    char *opmacros_name = lookup_rc_file("opmacros.h");
+	    char *opmacros_name = lookup_rc_file(OPMACROS_FILENAME);
 
 	    if (opmacros_name == 0)
 	    {
-		sprintf(error_string, "Support file opmacros.h does not exist.  MathMap is not installed correctly.");
+		sprintf(error_string, "Support file `%s' does not exist.  MathMap is not installed correctly.", OPMACROS_FILENAME);
 		new_mathmap = 0;
 	    }
 	    else
@@ -1004,7 +1004,7 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int fra
 
 #ifdef MATHMAP_CMDLINE
     if (cmd_line_mode)
-	return cmdline_mathmap_get_pixel(invocation, drawable_index, frame, x, y);
+	return cmdline_mathmap_get_pixel(invocation, userval, frame, x, y);
 #endif
 
     if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)

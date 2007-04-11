@@ -495,6 +495,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->origin_x = invocation->origin_y = 0;
 
+    invocation->edge_behaviour_x = invocation->edge_behaviour_y = EDGE_BEHAVIOUR_COLOR;
+
     invocation->img_width = invocation->calc_img_width = img_width;
     invocation->img_height = invocation->calc_img_height = img_height;
 

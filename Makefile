@@ -1,7 +1,7 @@
 # If you want MathMap to provide a command line interface as well,
 # uncomment the following line.  Note that compiling it requires
 # libjpeg, libpng and giflib.
-#CMDLINE = YES
+CMDLINE = YES
 
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
@@ -56,11 +56,11 @@ endif
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
 
-GIMPTOOL = $(GIMP_BIN)gimptool-2.0
+GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
-GIMPDATADIR = `$(GIMPTOOL) --gimpdatadir`
-GIMP_CFLAGS = `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
-GIMP_LDFLAGS = `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0`
+GIMPDATADIR := `$(GIMPTOOL) --gimpdatadir`
+GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0`
+GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0`
 
 CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas
@@ -75,7 +75,7 @@ CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blende
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
-CFLAGS += -DMATHMAP_CMDLINE
+CFLAGS += -DMATHMAP_CMDLINE -DGIMPDATADIR=\"$(GIMPDATADIR)\"
 LDFLAGS += -ljpeg -lpng -lgif
 endif
 

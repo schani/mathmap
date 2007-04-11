@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <glib.h>
 
 #ifdef MOVIES
 #include <quicktime.h>
@@ -89,8 +90,9 @@ mathmap_t *mathmap;
 mathmap_invocation_t *invocation;
 
 color_t
-cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index, int frame, int x, int y)
+cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y)
 {
+    int drawable_index = userval->v.image.index;
     guchar *p;
     int i;
     input_drawable_t *drawable;
@@ -99,7 +101,7 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
 	|| x < 0 || x >= invocation->calc_img_width
 	|| y < 0 || y >= invocation->calc_img_height
 	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
-	return invocation->edge_color;
+	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
     drawable = &input_drawables[drawable_index];
 
@@ -128,7 +130,11 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
 		free(cache[lru_index].data);
 
 	    cache[lru_index].data = read_image(drawable->v.image_filename, &width, &height);
-	    assert(width == invocation->calc_img_width && height == invocation->calc_img_height);
+	    if (width != invocation->calc_img_width || height != invocation->calc_img_height)
+	    {
+		fprintf(stderr, "Error: All input images must have the same size.\n");
+		exit(1);
+	    }
 	}
 #ifdef MOVIES
 	else
@@ -162,7 +168,37 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, int drawable_index,
     return MAKE_RGBA_COLOR(p[0], p[1], p[2], 255);
 }
 
-void
+static int
+parse_image_size (char *str, int *width, int *height)
+{
+    char *x, *endptr;
+
+    str = strdup(str);
+    assert(str != 0);
+
+    x = strchr(str, 'x');
+    if (x == 0)
+	return 0;
+
+    *(x++) = '\0';
+
+    if (strlen(str) <= 0 || strlen(x) <= 0)
+	return 0;
+
+    *width = strtol(str, &endptr, 10);
+    if (*endptr != '\0')
+	return 0;
+
+    *height = strtol(x, &endptr, 10);
+    if (*endptr != '\0')
+	return 0;
+
+    free(str);
+
+    return 1;
+}
+
+static void
 usage (void)
 {
     printf("Usage:\n"
@@ -203,6 +239,10 @@ cmdline_main (int argc, char *argv[])
     int img_width, img_height;
     FILE *template;
     char *generator = 0;
+    char *template_filename, *opmacros_filename;
+    userval_info_t *userval_info;
+    int drawable_index;
+    int size_is_set = 0;
 
     for (;;)
     {
@@ -215,6 +255,7 @@ cmdline_main (int argc, char *argv[])
 		{ "cache", required_argument, 0, 'c' },
 		{ "image", required_argument, 0, 'I' },
 		{ "generator", required_argument, 0, 'g' },
+		{ "size", required_argument, 0, 's' },
 #ifdef MOVIES
 		{ "frames", required_argument, 0, 'f' },
 		{ "movie", required_argument, 0, 'M' },
@@ -226,9 +267,9 @@ cmdline_main (int argc, char *argv[])
 
 	option = getopt_long(argc, argv, 
 #ifdef MOVIES
-			     "iof:I:M:c:g:", 
+			     "iof:I:M:c:g:s:", 
 #else
-			     "ioI:c:g:",
+			     "ioI:c:g:s:",
 #endif
 			     long_options, &option_index);
 
@@ -287,6 +328,15 @@ cmdline_main (int argc, char *argv[])
 		generator = optarg;
 		break;
 
+	    case 's' :
+		if (!parse_image_size(optarg, &img_width, &img_height))
+		{
+		    fprintf(stderr, "Error: Invalid image size.  Syntax is <width>x<height>.  Example: 1024x768.\n");
+		    exit(1);
+		}
+		size_is_set = 1;
+		break;
+
 #ifdef MOVIES
 	    case 'f' :
 		generate_movie = 1;
@@ -325,8 +375,6 @@ cmdline_main (int argc, char *argv[])
 
     if (generator == 0)
     {
-	assert(num_input_drawables > 0);
-
 	cache = (cache_entry_t*)malloc(sizeof(cache_entry_t) * cache_size);
 	for (i = 0; i < cache_size; ++i)
 	{
@@ -334,29 +382,38 @@ cmdline_main (int argc, char *argv[])
 	    cache[i].data = 0;
 	}
 
-	if (input_drawables[0].type == DRAWABLE_IMAGE)
+	if (!size_is_set)
 	{
-	    cache[0].drawable_index = 0;
-	    cache[0].frame = 0;
-	    cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
-	    if (cache[0].data == 0)
+	    if (num_input_drawables == 0)
 	    {
-		fprintf(stderr, "Error: could not load image `%s'.", input_drawables[0].v.image_filename);
+		fprintf(stderr, "Error: Image size not set and no input images given.\n");
 		exit(1);
 	    }
-	    cache[0].timestamp = current_time;
-	    input_drawables[0].cache_entries[0] = &cache[0];
-	}
+
+	    if (input_drawables[0].type == DRAWABLE_IMAGE)
+	    {
+		cache[0].drawable_index = 0;
+		cache[0].frame = 0;
+		cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
+		if (cache[0].data == 0)
+		{
+		    fprintf(stderr, "Error: Could not load image `%s'.", input_drawables[0].v.image_filename);
+		    exit(1);
+		}
+		cache[0].timestamp = current_time;
+		input_drawables[0].cache_entries[0] = &cache[0];
+	    }
 #ifdef MOVIES
-	else
-	{
-	    img_width = quicktime_video_width(input_drawables[0].v.movie, 0);
-	    img_height = quicktime_video_height(input_drawables[0].v.movie, 0);
-	}
+	    else
+	    {
+		img_width = quicktime_video_width(input_drawables[0].v.movie, 0);
+		img_height = quicktime_video_height(input_drawables[0].v.movie, 0);
+	    }
 #endif
+	}
 
 #ifdef MOVIES
-	for (i = 1; i < num_input_drawables; ++i)
+	for (i = 0; i < num_input_drawables; ++i)
 	    if (input_drawables[i].type == DRAWABLE_MOVIE)
 	    {
 		assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
@@ -364,13 +421,16 @@ cmdline_main (int argc, char *argv[])
 	    }
 #endif
 
-	template = fopen("new_template.c", "r");
+	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
+	opmacros_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, OPMACROS_FILENAME);
+
+	template = fopen(template_filename, "r");
 	if (template == 0)
 	{
-	    fprintf(stderr, "Error: could not open template file new_template.c.\n");
+	    fprintf(stderr, "Error: could not open template file `%s'.\n", template_filename);
 	    exit(1);
 	}
-	mathmap = compile_mathmap(argv[optind], template, "opmacros.h");
+	mathmap = compile_mathmap(argv[optind], template, opmacros_filename);
 	if (mathmap == 0)
 	{
 	    fprintf(stderr, "Error: %s\n", error_string);
@@ -378,6 +438,27 @@ cmdline_main (int argc, char *argv[])
 	}
 
 	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
+
+	drawable_index = 0;
+	for (userval_info = mathmap->userval_infos; userval_info != 0; userval_info = userval_info->next)
+	    if (userval_info->type == USERVAL_IMAGE)
+	    {
+		userval_t *userval = &invocation->uservals[userval_info->index];
+
+		if (drawable_index >= num_input_drawables)
+		{
+		    fprintf(stderr, "Error: Not enough input images specified.\n");
+		    exit(1);
+		}
+
+		userval->v.image.index = drawable_index++;
+	    }
+
+	if (drawable_index != num_input_drawables)
+	{
+	    fprintf(stderr, "Error: Too many input images specified.\n");
+	    exit(1);
+	}
 
 	invocation->antialiasing = antialiasing;
 	invocation->supersampling = supersampling;

@@ -40,6 +40,9 @@
 
 #define MATHMAP_DATE          "April 2007"
 
+#define MAIN_TEMPLATE_FILENAME	"new_template.c"
+#define OPMACROS_FILENAME	"opmacros.h"
+
 #define IMAGE_FLAG_UNIT		0x0001
 #define IMAGE_FLAG_SQUARE	0x0002
 

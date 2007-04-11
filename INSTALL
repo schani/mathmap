@@ -42,10 +42,18 @@ called something like "gimp-devel" and "gsl-devel" or just "gsl".
 Installation
 ------------
 
-If you want to install mathmap on your account, type (without becoming
-root or using a tool like "checkinstall"):
+If you want to install mathmap for all users on your machine
+(recommended), become root and type:
 
 	make install
+
+If instead you want to install mathmap only on your account, type
+(without becoming root or using a tool like "checkinstall"):
+
+	make install-local
+
+Note: The command-line interface will not work if you install MathMap
+only for your account!
 
 If you have compiled the plug-in version and want to install the
 national language translations (this is not tested for this
