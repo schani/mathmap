@@ -28,6 +28,34 @@ GIMP Plug-In
 
 
 
+1.1.4:
+======
+
+Packaging
+---------
+
+Contribute to Ubuntu
+
+Announce on Freshmeat, GIMP mailing list
+
+Documentation
+-------------
+
+New syntax
+
+print function
+
+Elliptic functions
+
+Website update for new version (screenshots, examples, ...)
+
+General
+-------
+
+No more debug output by default
+
+
+
 
 
 later:
@@ -42,14 +70,15 @@ Automatically generated on-line reference for builtins
 
 Text input fields for float and int user values
 
-Documentation
--------------
+Edge behaviour selectable per input image
 
-New syntax
+MathMap should work with no source image, letting the user choose
+image size
 
-print function
+Command Line Tool
+-----------------
 
-Elliptic functions
+All uservals on command line (not just input images)
 
 General
 -------
@@ -58,7 +87,6 @@ Edge behaviour as image attributes
 
 Different image sizes
 
-No more debug output by default
 
 
 
