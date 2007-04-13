@@ -42,8 +42,7 @@ install -d $RPM_BUILD_ROOT/%{_plugindir}
 install -d $RPM_BUILD_ROOT/%{_mathmapdir}
 install mathmap $RPM_BUILD_ROOT/%{_bindir}/mathmap
 ln -s %{_bindir}/mathmap $RPM_BUILD_ROOT/%{_plugindir}/mathmap
-install new_template.c $RPM_BUILD_ROOT/%{_mathmapdir}/new_template.c
-install opmacros.h $RPM_BUILD_ROOT/%{_mathmapdir}/opmacros.h
+install new_template.c opmacros.h $RPM_BUILD_ROOT/%{_mathmapdir}/
 cp -r examples $RPM_BUILD_ROOT/%{_mathmapdir}/expressions
 
 %clean
