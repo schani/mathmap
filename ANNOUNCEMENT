@@ -17,8 +17,12 @@ It features a user's manual as well as screenshots and examples.
 
 Changes in 1.1.3:
 
+  * "unit" scaling for filters and images.
+  * Edge behaviour for x and y uncoupled.
+  * "Reflect" edge behaviour.
+  * Tuple length limit removed.
   * New and improved examples.
-  * Bugfixes.
+  * Bugfixes and cosmetics.
 
 Changes in 1.1.2:
 

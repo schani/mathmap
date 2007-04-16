@@ -217,6 +217,7 @@ usage (void)
 #endif
 	   "  -i, --intersampling         use intersampling\n"
 	   "  -o, --oversampling          use oversampling\n"
+	   "  -s, --size=WIDTHxHEIGHT     sets the output image size\n"
 	   "  -c, --cache=NUM             cache NUM input images (default %d)\n"
 	   "  -g, --generator=GEN         generate plug-in code with GEN\n"
 	   "\n"

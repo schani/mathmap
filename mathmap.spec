@@ -10,16 +10,20 @@ License: GNU General Public License
 Group: Applications/Multimedia
 URL: http://www.complang.tuwien.ac.at/schani/%{name}/
 Source: http://www.complang.tuwien.ac.at/schani/%{name}/%{name}-%{version}.tar.gz
+Patch1: mathmap-cmdline.patch
 Buildroot: %{_tmppath}/%{name}-%{version}-root
 Requires: gcc
 Requires: libpng
 Requires: libjpeg
 Requires: giflib
 Requires: gsl
+Requires: gimp
 BuildRequires: libpng-devel
 BuildRequires: libjpeg-devel
 BuildRequires: giflib-devel
 BuildRequires: gsl-devel
+BuildRequires: gimp-devel
+BuildRequires: gimp
 BuildRequires: make
 
 %description
@@ -31,6 +35,7 @@ generate pixels completely independent of the source.
 
 %prep
 %setup
+%patch1 -p1
 rm -rf $RPM_BUILD_ROOT
 
 %build

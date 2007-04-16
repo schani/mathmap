@@ -10,8 +10,10 @@ unit filter IFS (unit image in,
   final_ra = vra = ra;
 
   iteration = 0;
-  while abs((toXY(vra))[0])<X && abs((toXY(vra))[1])<Y && iteration < num_iterations do
-    final_ra = vra;
+  while iteration < num_iterations do
+    if abs((toXY(vra))[0])<X && abs((toXY(vra))[1])<Y then
+        final_ra = vra;
+    end;
     vra = vra * ra:[scaling,1] + ra:[0,rotation];
     vra = toRA(toXY(vra) + trans);
     iteration = iteration + 1

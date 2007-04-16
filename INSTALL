@@ -1,9 +1,9 @@
 Installing MathMap
 ==================
 
-This development version has only been tested on Linux (Fedora Core
-6), and will probably not work on other operating systems without some
-adjustments.
+This development version has only been tested on Linux (FC6 and
+Ubuntu), and will probably not work on other operating systems without
+some adjustments.
 
 Requirements
 ------------
