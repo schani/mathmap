@@ -1671,8 +1671,8 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		    {
 			if (subscript < 0)
 			    subscript = 0;
-			if (subscript >= tree->result.length)
-			    subscript = tree->result.length - 1;
+			if (subscript >= tree->val.sub_assignment.var->type.length)
+			    subscript = tree->val.sub_assignment.var->type.length - 1;
 
 			emit_assign(make_lhs(tree->val.sub_assignment.var->compvar[subscript]), make_compvar_rhs(temps[i]));
 		    }
