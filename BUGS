@@ -4,6 +4,9 @@ Known Bugs
 GIMP Plug-In
 ------------
 
+switching to the examples tab for the first time automatically selects
+the first item.  if it's an expression, it automatically is activated.
+
 when there are no user values the user values tab doesn't scale when window is resized
 
 should ask to save before quitting or selecting another expression

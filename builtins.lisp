@@ -59,16 +59,31 @@
 			  (< 2 "OP_LESS" "LESS")
 			  (<= 2 "OP_LEQ" "LEQ")))
 
+(defstruct builtin
+  overloaded-name name type args body docstring)
+
 (defparameter *builtins* nil)
 
 (defmacro defbuiltin (overloaded-name name type args &rest body)
-  `(setq *builtins* (cons (list ',overloaded-name ',name ',type ',args ',body) *builtins*)))
+  (let ((docstring (if (stringp (first body))
+		       (first body)
+		       nil))
+	(body (if (stringp (first body))
+		  (rest body)
+		  body)))
+    `(push (make-builtin :overloaded-name ,overloaded-name
+			 :name ',name
+			 :type ',type
+			 :args ',args
+			 :body ',body
+			 :docstring ,docstring)
+	   *builtins*)))
 
-(defmacro def-simple-builtin (overloaded-name name op-name num-args)
-  (let* ((arg-names (map-times num-args #'(lambda (i) (gensym))))
-	 (args-decl (mapcar #'(lambda (arg-name) `(,arg-name (?T 1))) arg-names))
+(defmacro def-simple-builtin (overloaded-name name op-name arg-names &optional docstring)
+  (let* ((args-decl (mapcar #'(lambda (arg-name) `(,arg-name (?T 1))) arg-names))
 	 (actual-args (mapcar #'(lambda (arg-name) `(nth 0 ,arg-name)) arg-names)))
   `(defbuiltin ,overloaded-name ,name (?T 1) ,args-decl
+    ,docstring
     (set result (make (?T 1) (,op-name ,@actual-args))))))
 
 (defun c-type (type)
@@ -386,19 +401,25 @@
 	  (princ (gen stmt nil)))
 	(format t "}~%~%")))))
 
+#|
 (defbuiltin "merd" merd (?T ?L) ((val (?T ?L)))
   (let ((dummy1 (start-debug-tuple (argtag val))))
     (forarglength val i
       (let ((dummy2 (set-debug-tuple-data i (nth i val))))
 	(set (nth i result) (nth i val))))))
+|#
 
 (defbuiltin "print" print (nil 1) ((val (_ _)))
+  "Print a tuple to standard output.  Useful for debugging a script."
   (forarglength val i
     (forget (print (nth i val))))
   (forget (newline))
   (set result (make (nil 1) 0)))
 
 (defbuiltin "__add" add_ri (ri 2) ((a (ri 2)) (b (ri 2)))
+  "Addition.  Works on real numbers, complex numbers and tuples.
+Tuples can be added element-wise or the same real number can be added
+to each element of a tuples."
   (set result (+v a b)))
 
 (defbuiltin "__add" add_ri_1 (ri 2) ((a (ri 2)) (b (_ 1)))
@@ -420,6 +441,9 @@
   (set result (-v a b)))
 
 (defbuiltin "__sub" sub_ri_1 (ri 2) ((a (ri 2)) (b (? 1)))
+  "Subtraction.  Works on real numbers, complex numbers and tuples.
+One tuple can be subtracted from another element-wise or the same real
+number can be subtracted from each element of a tuple."
   (set result (-v a (make (ri 2) (nth 0 b) 0))))
 
 (defbuiltin "__sub" sub_1_ri (ri 2) ((a (? 1)) (b (ri 2)))
@@ -435,9 +459,15 @@
   (set result (-v a b)))
 
 (defbuiltin "__neg" neg (?T ?L) ((x (?T ?L)))
+  "Negation."
   (set result (-v x)))
 
 (defbuiltin "__mul" mul_ri (ri 2) ((a (ri 2)) (b (ri 2)))
+  "Multiplication.  Works on real numbers, complex numbers, tuples,
+vectors and matrices.  Two tuples can be multiplied element-wise or a
+tuple can be multipled by a single number for each element.  Vectors
+and matrices can be multipled in both directions and two matrices can
+be multipled as well."
   (set result (make (ri 2)
 		    (- (* (nth 0 a) (nth 0 b)) (* (nth 1 a) (nth 1 b)))
 		    (+ (* (nth 0 a) (nth 1 b)) (* (nth 0 b) (nth 1 a))))))
@@ -490,6 +520,10 @@
   (set result (*v a b)))
 
 (defbuiltin "__div" div_ri (ri 2) ((a (ri 2)) (b (ri 2)))
+  "Division.  Works on real numbers, complex numbers, tuples, vectors
+and matrices.  A tuple can be divided by another element-wise or by
+the same number for each element.  Vectors can be divided by
+matrices."
   (if (and (= (nth 0 b) 0) (= (nth 1 b) 0))
       (set result (make (ri 2) 0 0))
       (let ((c (sum (*v b b))))
@@ -539,6 +573,10 @@
 	(set (nth i result) (/ (nth i a) (nth i b))))))
 
 (defbuiltin "__mod" mod_1 (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Remainder.  Calculates the remainder of a division.  Works on real
+numbers and tuples.  The remainder can be calculated for two tuples
+element-wise or for one tuple and the same number for each element of
+the tuple."
   (if (= (nth 0 b) 0)
       (set result (make (?T 1) 0))
       (set result (%v a b))))
@@ -555,12 +593,16 @@
 	(set (nth i result) (% (nth i a) (nth i b))))))
 
 (defbuiltin "pmod" pmod (?T 1) ((a (?T 1)) (b (?T 1)))
+  "The remainder of a division, made positive if the dividend is
+negative by adding the divisor."
   (let ((mod (% (nth 0 a) (nth 0 b))))
     (if (< (nth 0 a) 0)
 	(set result (make (?T 1) (+ mod (nth 0 b))))
 	(set result (make (?T 1) mod)))))
 
 (defbuiltin "sqrt" sqrt_ri (ri 2) ((a (ri 2)))
+  "The square root of a complex or real number.  A real argument must
+be positive, otherwise the result will not be definied."
   (let ((c (c-sqrt (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -568,14 +610,17 @@
   (set result (make (?T 1) (sqrt (nth 0 a)))))
 
 (defbuiltin "sum" sum (?T 1) ((a (?T ?L)))
+  "The sum of all elements of a tuple."
   (set result (make (?T 1) (sum a))))
 
 ;;; vector functions
 
 (defbuiltin "dotp" dotp (nil 1) ((a (?T ?L)) (b (?T ?L)))
+  "Dot product of two tuples/vectors."
   (set result (make (nil 1) (sum (*v a b)))))
 
 (defbuiltin "crossp" crossp (?T 3) ((a (?T 3)) (b (?T 3)))
+  "Cross product of two tuples/vectors with three elements."
   (set result (make (?T 3)
 		    (- (* (nth 1 a) (nth 2 b))
 		       (* (nth 2 a) (nth 1 b)))
@@ -585,6 +630,7 @@
 		       (* (nth 1 a) (nth 0 b))))))
 
 (defbuiltin "det" det_m2x2 (nil 1) ((a (m2x2 4)))
+  "Determinant of a matrix."
   (set result (make (nil 1) (- (* (nth 0 a) (nth 3 a)) (* (nth 1 a) (nth 2 a))))))
 
 (defbuiltin "det" det_m3x3 (nil 1) ((a (m3x3 9)))
@@ -596,12 +642,15 @@
 				  (* (nth 1 a) (nth 3 a) (nth 8 a)))))))
 
 (defbuiltin "normalize" normalize (?T ?L) ((a (?T ?L)))
+  "Normalize a vector to Euclidian length 1."
   (let ((l (sum (*v a a))))
     (if (= l 0)
 	(set result (splat (?T ?L) 0))
 	(set result (/v a (splat (?T ?L) (sqrt l)))))))
 
 (defbuiltin "abs" abs_ri (nil 1) ((a (ri 2)))
+  "Absolute value of real numbers, complex numbers (magnitude) and
+vectors (Euclidian norm)."
   (set result (make (nil 1) (hypot (nth 0 a) (nth 1 a)))))
 
 (defbuiltin "abs" abs_1 (?T 1) ((a (?T 1)))
@@ -613,12 +662,15 @@
 ;;; trigonometry
 
 (defbuiltin "deg2rad" deg2rad (nil 1) ((a (? 1)))
+  "Convert degrees to radians."
   (set result (make (nil 1) (* (nth 0 a) 0.017453292519943295722))))
                            
 (defbuiltin "rad2deg" rad2deg (deg 1) ((a (? 1)))
+  "Convert radians to degrees."
   (set result (make (deg 1) (* (nth 0 a) 57.2957795130823208768))))
 
 (defbuiltin "sin" sin_ri (ri 2) ((a (ri 2)))
+  "Sine of real and complex numbers."
   (let ((c (c-sin (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -626,6 +678,7 @@
   (set result (make (?T 1) (sin (nth 0 a)))))
 
 (defbuiltin "cos" cos_ri (ri 2) ((a (ri 2)))
+  "Cosine of real and complex numbers."
   (let ((c (c-cos (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -633,6 +686,7 @@
   (set result (make (?T 1) (cos (nth 0 a)))))
 
 (defbuiltin "tan" tan_ri (ri 2) ((a (ri 2)))
+  "Tangent of real and complex numbers."
   (let ((c (c-tan (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -640,6 +694,7 @@
   (set result (make (?T 1) (tan (nth 0 a)))))
 
 (defbuiltin "asin" asin_ri (ri 2) ((a (ri 2)))
+  "Arcsine of real and complex numbers."
   (let ((c (c-asin (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -649,6 +704,7 @@
       (set result (make (?T 1) (asin (nth 0 a))))))
 
 (defbuiltin "acos" acos_ri (ri 2) ((a (ri 2)))
+  "Arccosine of real and complex numbers."
   (let ((c (c-acos (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -658,18 +714,23 @@
       (set result (make (?T 1) (acos (nth 0 a))))))
 
 (defbuiltin "atan" atan_ri (ri 2) ((a (ri 2)))
+  "Arctangent of real and complex numbers."
   (let ((c (c-atan (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
 (defbuiltin "atan" atan (?T 1) ((a (?T 1)))
   (set result (make (?T 1) (atan (nth 0 a)))))
 
-(defbuiltin "atan" atan2 (?T 1) ((a (?T 1)) (b (?T 1)))
-  (set result (make (?T 1) (atan2 (nth 0 a) (nth 0 b)))))
+(defbuiltin "atan" atan2 (?T 1) ((y (?T 1)) (x (?T 1)))
+  "Arctangent of <tt>y/x</tt>, with the signs of the arguments taken
+into account to determine the correct quadrant of the result."
+  (set result (make (?T 1) (atan2 (nth 0 y) (nth 0 x)))))
 
 ;;; exp and friends
 
 (defbuiltin "__pow" pow_ri_1 (ri 2) ((a (ri 2)) (b (?T 1)))
+  "Exponentiation of real and complex numbers and tuples.  A tuple can
+be exponentiated for each element by a single number."
   (let ((c (c-pow (complex (nth 0 a) (nth 1 a)) (complex (nth 0 b) 0.0))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -693,6 +754,8 @@
 	(set (nth i result) (pow (nth i a) (nth 0 b))))))
 
 (defbuiltin "exp" exp_ri (ri 2) ((a (ri 2)))
+  "The natural exponential function <b>e^x</b> for real and complex
+numbers."
   (let ((c (c-exp (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -700,6 +763,7 @@
   (set result (make (?T 1) (exp (nth 0 a)))))
 
 (defbuiltin "log" log_ri (ri 2) ((a (ri 2)))
+  "The natural logarithm for real and complex numbers."
   (let ((c (c-log (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -711,14 +775,17 @@
 ;;; complex
 
 (defbuiltin "arg" arg_ri (nil 1) ((a (ri 2)))
+  "The argument of a complex number."
   (set result (make (nil 1) (c-arg (complex (nth 0 a) (nth 1 a))))))
 
 (defbuiltin "conj" conj_ri (ri 2) ((a (ri 2)))
+  "The complex conjugate."
   (set result (make (ri 2) (nth 0 a) (- (nth 1 a)))))
 
 ;;; hyperbolic
 
 (defbuiltin "sinh" sinh_ri (ri 2) ((a (ri 2)))
+  "Hyperbolic sine of real and complex numbers."
   (let ((c (c-sinh (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -726,6 +793,7 @@
   (set result (make (?T 1) (sinh (nth 0 a)))))
 
 (defbuiltin "cosh" cosh_ri (ri 2) ((a (ri 2)))
+  "Hyperbolic cosine of real and complex numbers."
   (let ((c (c-cosh (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -733,6 +801,7 @@
   (set result (make (?T 1) (cosh (nth 0 a)))))
 
 (defbuiltin "tanh" tanh_ri (ri 2) ((a (ri 2)))
+  "Hyperbolic tangent of real and complex numbers."
   (let ((c (c-tanh (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -740,6 +809,7 @@
   (set result (make (?T 1) (tanh (nth 0 a)))))
 
 (defbuiltin "asinh" asinh_ri (ri 2) ((a (ri 2)))
+  "Hyperbolic arcsine of real and complex numbers."
   (let ((c (c-asinh (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -747,6 +817,7 @@
   (set result (make (?T 1) (asinh (nth 0 a)))))
 
 (defbuiltin "acosh" acosh_ri (ri 2) ((a (ri 2)))
+  "Hyperbolic arccosine of real and complex numbers."
   (let ((c (c-acosh (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -754,6 +825,7 @@
   (set result (make (?T 1) (acosh (nth 0 a)))))
 
 (defbuiltin "atanh" atanh_ri (ri 2) ((a (ri 2)))
+  "Hyperbolic arctangent of real and complex numbers."
   (let ((c (c-atanh (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -761,6 +833,7 @@
   (set result (make (?T 1) (atanh (nth 0 a)))))
 
 (defbuiltin "gamma" gamma_ri (ri 2) ((a (ri 2)))
+  "The gamma function for real and complex numbers."
   (let ((c (c-gamma (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -771,28 +844,41 @@
 
 ;;; elliptic
 
-(def-simple-builtin "ell_int_Kcomp" ell_int_Kcomp ell-int-k-comp 1)
-(def-simple-builtin "ell_int_Ecomp" ell_int_Ecomp ell-int-e-comp 1)
+(def-simple-builtin "ell_int_Kcomp" ell_int_Kcomp ell-int-k-comp (k)
+		    "Complete elliptic integral K in Legendre form.")
+(def-simple-builtin "ell_int_Ecomp" ell_int_Ecomp ell-int-e-comp (k)
+		    "Complete elliptic integral E in Legendre form.")
 
-(def-simple-builtin "ell_int_F" ell_int_F ell-int-f 2)
-(def-simple-builtin "ell_int_E" ell_int_E ell-int-e 2)
-(def-simple-builtin "ell_int_P" ell_int_P ell-int-p 3)
-(def-simple-builtin "ell_int_D" ell_int_D ell-int-d 3)
+(def-simple-builtin "ell_int_F" ell_int_F ell-int-f (phi k)
+		    "Incomplete elliptic integral F in Legendre form.")
+(def-simple-builtin "ell_int_E" ell_int_E ell-int-e (phi k)
+		    "Incomplete elliptic integral E in Legendre form.")
+(def-simple-builtin "ell_int_P" ell_int_P ell-int-p (phi k n)
+		    "Incomplete elliptic integral P in Legendre form.")
+(def-simple-builtin "ell_int_D" ell_int_D ell-int-d (phi k n)
+		    "Incomplete elliptic integral D in Legendre form.")
 
-(def-simple-builtin "ell_int_RC" ell_int_RC ell-int-rc 2)
-(def-simple-builtin "ell_int_RD" ell_int_RD ell-int-rd 3)
-(def-simple-builtin "ell_int_RF" ell_int_RF ell-int-rf 3)
-(def-simple-builtin "ell_int_RJ" ell_int_RJ ell-int-rj 4)
+(def-simple-builtin "ell_int_RC" ell_int_RC ell-int-rc (x y)
+		    "Incomplete elliptic integral RC in Carlson form.")
+(def-simple-builtin "ell_int_RD" ell_int_RD ell-int-rd (x y z)
+		    "Incomplete elliptic integral RD in Carlson form.")
+(def-simple-builtin "ell_int_RF" ell_int_RF ell-int-rf (x y z)
+		    "Incomplete elliptic integral RF in Carlson form.")
+(def-simple-builtin "ell_int_RJ" ell_int_RJ ell-int-rj (x y z p)
+		    "Incomplete elliptic integral RJ in Carlson form.")
 
 (defbuiltin "ell_jac_sn" ell_jac_sn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
+  "Jacobian elliptic function sn for real and complex arguments."
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
     (set result (make (?T 1) (v3-nth 0 v)))))
 
 (defbuiltin "ell_jac_cn" ell_jac_cn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
+  "Jacobian elliptic function cn for real and complex arguments."
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
     (set result (make (?T 1) (v3-nth 1 v)))))
 
 (defbuiltin "ell_jac_dn" ell_jac_dn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
+  "Jacobian elliptic function dn for real and complex arguments."
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
     (set result (make (?T 1) (v3-nth 2 v)))))
 
@@ -818,12 +904,19 @@
 ;;; floor and friends
 
 (defbuiltin "floor" floor (?T 1) ((a (?T 1)))
+  "The floor of a number, defined as the largest integer not greater
+than that number."
   (set result (make (?T 1) (floor (nth 0 a)))))
 
 (defbuiltin "ceil" ceil (?T 1) ((a (?T 1)))
+  "The ceiling of a number, defined as the smallest integer not
+greater than that number."
   (set result (make (?T 1) (ceil (nth 0 a)))))
 
 (defbuiltin "sign" sign_n (?T ?L) ((a (?T ?L)))
+  "The sign of a number or tuple.  The sign of a number is -1 if the
+number is negative, 1 if the number is positive and 0 if the number is
+0.  For a tuple, calculates the sign element-wise."
   (forarglength a i
     (if (< (nth i a) 0)
 	(set (nth i result) -1)
@@ -832,18 +925,25 @@
 	    (set (nth i result) 0)))))
 
 (defbuiltin "min" min_n (?T ?L) ((a (?T ?L)) (b (?T ?L)))
+  "The smaller of two numbers.  For tuples, the smaller number for
+each pair of elements is determined."
   (forarglength a i
     (if (< (nth i a) (nth i b))
 	(set (nth i result) (nth i a))
 	(set (nth i result) (nth i b)))))
 
 (defbuiltin "max" max_n (?T ?L) ((a (?T ?L)) (b (?T ?L)))
+  "The larger of two numbers.  For tuples, the larger number for
+each pair of elements is determined."
   (forarglength a i
     (if (< (nth i a) (nth i b))
 	(set (nth i result) (nth i b))
 	(set (nth i result) (nth i a)))))
 
 (defbuiltin "clamp" clamp (?T ?L) ((a (?T ?L)) (l (?T ?L)) (u (?T ?L)))
+  "Clamp each element of tuple <tt>a</tt> to be not less than the
+corresponding element in <tt>l</tt> and not greater than the
+corresponding element in <tt>u</tt>."
   (forarglength a i
     (if (< (nth i a) (nth i l))
 	(set (nth i result) (nth i l))
@@ -852,6 +952,10 @@
 	    (set (nth i result) (nth i a))))))
 
 (defbuiltin "lerp" lerp_1 (?T ?L) ((p (? 1)) (a (?T ?L)) (b (?T ?L)))
+  "Linear interpolation between <tt>a</tt> and <tt>b</tt>, done
+element-wise.  The result is <tt>a</tt> if <tt>p</tt> is 0, <tt>b</tt>
+if <tt>p</tt> is 1, and linearly interpolated in between.  More
+formally, the result is <tt>a*(1-t)+b*t</tt>."
   (let ((l (- 1 (nth 0 p))))
     (forarglength a i
       (set (nth i result) (+ (* l (nth i a))
@@ -863,6 +967,10 @@
 			   (* (nth i p) (nth i b))))))
 
 (defbuiltin "scale" scale (?T ?L) ((a (?T ?L)) (fl (?T ?L)) (fu (?T ?L)) (tl (?T ?L)) (tu (?T ?L)))
+  "Scale each element of <tt>a</tt> which is supposed to lie between
+the corresponding elements of <tt>fl</tt> and <tt>fu</tt> to lie at
+the same point between <tt>tl</tt> and <tt>tu</tt>, proportionately.
+More formally, computes <tt>((a-fl)/(fu-fl))*(tu-tl)+tl</tt>."
   (forarglength a i
     (let ((div (- (nth i fu) (nth i fl))))
       (if (= div 0)
@@ -873,6 +981,7 @@
 
 ;;; polynomials
 
+#|
 (defbuiltin "solve" solve-poly-2 (nil 2) ((p (poly 3)))
   (let ((v (solve-poly-2 (nth 0 p) (nth 1 p) (nth 2 p))))
     (set result (make (nil 2) (v2-nth 0 v) (v2-nth 1 v)))))
@@ -880,25 +989,30 @@
 (defbuiltin "solve" solve-poly-3 (nil 3) ((p (poly 4)))
   (let ((v (solve-poly-3 (nth 0 p) (nth 1 p) (nth 2 p) (nth 3 p))))
     (set result (make (nil 3) (v3-nth 0 v) (v3-nth 1 v) (v3-nth 2 v)))))
+|#
 
 ;;; logic
 
 (defbuiltin "__not" not (?T 1) ((a (?T 1)))
+  "The logical negation of the argument."
   (if (= (nth 0 a) 0)
       (set result (make (?T 1) 1))
       (set result (make (?T 1) 0))))
 
 (defbuiltin "__or" or (?T 1) ((a (?T 1)) (b (?T 1)))
+  "The logical disjunction of the two arguments."
   (if (and (= (nth 0 a) 0) (= (nth 0 b) 0))
       (set result (make (?T 1) 0))
       (set result (make (?T 1) 1))))
 
 (defbuiltin "__and" and (?T 1) ((a (?T 1)) (b (?T 1)))
+  "The logical conjunction of the two arguments."
   (if (or (= (nth 0 a) 0) (= (nth 0 b) 0))
       (set result (make (?T 1) 0))
       (set result (make (?T 1) 1))))
 
 (defbuiltin "__xor" xor (?T 1) ((a (?T 1)) (b (?T 1)))
+  "The logical exclusive disjunction of the two arguments."
   (if (or (and (not (= (nth 0 a) 0)) (= (nth 0 b) 0))
 	  (and (not (= (nth 0 b) 0)) (= (nth 0 a) 0)))
       (set result (make (?T 1) 1))
@@ -907,24 +1021,34 @@
 ;;; comparison
 
 (defbuiltin "__equal" equal (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Returns 1 if the arguments are equal, otherwise 0."
   (set result (make (?T 1) (= (nth 0 a) (nth 0 b)))))
 
 (defbuiltin "__less" less (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Returns 1 if <tt>a</tt> is less than <tt>b</tt>, otherwise 0."
   (set result (make (?T 1) (< (nth 0 a) (nth 0 b)))))
 
 (defbuiltin "__greater" greater (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Returns 1 if <tt>a</tt> is greater than <tt>b</tt>, otherwise 0."
   (set result (make (?T 1) (< (nth 0 b) (nth 0 a)))))
 
 (defbuiltin "__lessequal" lessequal (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Returns 1 if <tt>a</tt> is less or equal than <tt>b</tt>, otherwise
+0."
   (set result (make (?T 1) (<= (nth 0 a) (nth 0 b)))))
 
 (defbuiltin "__greaterequal" greaterequal (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Returns 1 if <tt>a</tt> is greater or equal than <tt>b</tt>,
+otherwise 0."
   (set result (make (?T 1) (<= (nth 0 b) (nth 0 a)))))
 
 (defbuiltin "__notequal" notequal (?T 1) ((a (?T 1)) (b (?T 1)))
+  "Returns 1 if the arguments are not equal, otherwise 0."
   (set result (make (?T 1) (not (= (nth 0 a) (nth 0 b))))))
 
 (defbuiltin "inintv" inintv (?T 1) ((a (?T 1)) (l (?T 1)) (u (?T 1)))
+  "Returns 1 if <tt>a</tt> lies in the interval defined by the lower
+bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
   (if (and (<= (nth 0 l) (nth 0 a))
 	   (<= (nth 0 a) (nth 0 u)))
       (set result (make (?T 1) 1))
@@ -937,9 +1061,11 @@
 ;;; colors
 
 (defbuiltin "gray" gray (nil 1) ((c (rgba 4)))
+  "The luminance value of the color <tt>c</tt>."
   (set result (make (nil 1) (+ (* 0.299 (nth 0 c)) (* 0.587 (nth 1 c)) (* 0.114 (nth 2 c))))))
 
 (defbuiltin "toHSVA" toHSVA (hsva 4) ((a (rgba 4)))
+  "Conversion of an RGBA color value to HSVA."
   (let ((r (max 0 (min 1 (nth 0 a))))
 	(g (max 0 (min 1 (nth 1 a))))
 	(b (max 0 (min 1 (nth 2 a)))))
@@ -965,6 +1091,7 @@
 		(set (nth 0 result) h)))))))
 
 (defbuiltin "toRGBA" toRGBA (rgba 4) ((a (hsva 4)))
+  "Conversion of an HSVA color value to RGBA."
   (let ((s (max 0 (min 1 (nth 1 a))))
 	(v (max 0 (min 1 (nth 2 a)))))
     (set (nth 3 result) (max 0 (min 1 (nth 3 a))))
@@ -1015,11 +1142,13 @@
 ;;; coordinates
 
 (defbuiltin "toXY" toXY (xy 2) ((a (ra 2)))
+  "Conversion of polar coordinates to rectangular coordinates."
   (set result (make (xy 2)
 		    (* (cos (nth 1 a)) (nth 0 a))
 		    (* (sin (nth 1 a)) (nth 0 a)))))
 
 (defbuiltin "toRA" toRA (ra 2) ((arg (xy 2)))
+  "Conversion of rectangular coordinates to polar coordinates."
   (let ((r (hypot (nth 0 arg) (nth 1 arg))))
     (if (= r 0)
 	(set result (make (ra 2) 0 0))
@@ -1032,9 +1161,12 @@
 ;;; random
 
 (defbuiltin "rand" rand (?T 1) ((a (?T 1)) (b (?T 1)))
+  "A random number between <tt>a</tt> and <tt>b</tt>."
   (set result (make (?T 1) (rand (nth 0 a) (nth 0 b)))))
 
 (defbuiltin "noise" noise (nil 1) ((a (? 3)))
+  "A solid noise function defined in three-dimensional space.  Its
+values lie between -1 and 1."
   (set result (make (nil 1) (noise (nth 0 a) (nth 1 a) (nth 2 a)))))
 
 (defun type-string (type args)
@@ -1054,12 +1186,75 @@
 (with-open-file (out "new_builtins.c" :direction :output :if-exists :supersede)
   (let ((*standard-output* out))
     (dolist (b (reverse *builtins*))
-      (gen-builtin (first b) (second b) (third b) (fourth b) (fifth b)))
+      (gen-builtin (builtin-overloaded-name b) (builtin-name b) (builtin-type b) (builtin-args b) (builtin-body b)))
     (format t "~%void~%init_builtins (void)~%{~%")
     (dolist (b (reverse *builtins*))
       (format t "register_overloaded_builtin(\"~A\", \"~A\", gen_~A);~%"
-	      (first b) (type-string (third b) (fourth b)) (dcs (second b))))
+	      (builtin-overloaded-name b) (type-string (builtin-type b) (builtin-args b)) (dcs (builtin-name b))))
     (format t "}~%")))
+
+(defun type-to-string (type)
+  (let* ((length (second type))
+	 (length (if (symbolp length)
+		     (dcs length)
+		     length)))
+    (format nil "~A:~A" (dcs (first type)) length)))
+
+(defun builtin-signature (builtin)
+  (list (builtin-overloaded-name builtin)
+	(length (builtin-args builtin))))
+
+(defparameter *formatters*
+  '(("__add" "~A + ~A")
+    ("__sub" "~A - ~A")
+    ("__neg" "-~A")
+    ("__mul" "~A * ~A")
+    ("__div" "~A / ~A")
+    ("__mod" "~A % ~A")
+    ("__pow" "~A ^ ~A")
+    ("__not" "!~A")
+    ("__or" "~A || ~A")
+    ("__and" "~A && ~A")
+    ("__xor" "~A xor ~A")
+    ("__equal" "~A == ~A")
+    ("__less" "~A < ~A")
+    ("__greater" "~A > ~A")
+    ("__lessequal" "~A <= ~A")
+    ("__greaterequal" "~A >= ~A")
+    ("__notequal" "~A != ~A")
+    ("origVal" nil)))
+
+(with-open-file (out "builtins_doc.html" :direction :output :if-exists :supersede)
+  (let ((*standard-output* out))
+    (let ((signatures (remove-duplicates (mapcar #'builtin-signature *builtins*)
+					 :test #'equal)))
+      (dolist (signature signatures)
+	(let* ((overloaded-name (first signature))
+	       (builtins (reverse (remove-if-not #'(lambda (b) (equal (builtin-signature b) signature))
+						 *builtins*)))
+	       (arg-names (mapcar #'dcs (mapcar #'first (builtin-args (first builtins)))))
+	       (builtin-with-docstring (find-if #'(lambda (b) (not (null (builtin-docstring b)))) builtins))
+	       (docstring (if (null builtin-with-docstring)
+			      nil
+			      (builtin-docstring builtin-with-docstring)))
+	       (formatter-entry (assoc overloaded-name *formatters* :test #'equal)))
+	  (unless (and (not (null formatter-entry))
+		       (null (second formatter-entry)))
+	    (format t "<h2><tt>")
+	    (if (null formatter-entry)
+		(format t "~A(~{~A~^, ~})" overloaded-name arg-names)
+		(apply #'format t (second formatter-entry) arg-names))
+	    (format t "</tt></h2>~%<blockquote><blockquote>")
+	    (dolist (b builtins)
+	      (let ((type (builtin-type b))
+		    (args (builtin-args b)))
+		(format t "<tt>(~{~A~^, ~}) -> ~A</tt><br>~%"
+			(mapcar #'(lambda (a) (type-to-string (second a))) args)
+			(type-to-string type))))
+	    (format t "</blockquote>")
+	    (unless (null docstring)
+	      (format t "~A" docstring))
+	    (format t "</blockquote>~%")))))))
 
 (make-types-file)
 (make-ops-file)
