@@ -1,7 +1,7 @@
 # If you want MathMap to provide a command line interface as well,
 # uncomment the following line.  Note that compiling it requires
 # libjpeg, libpng and giflib.
-#CMDLINE = YES
+CMDLINE = YES
 
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
@@ -38,10 +38,10 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.1.3
+VERSION = 1.2.0
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""

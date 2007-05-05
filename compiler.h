@@ -37,7 +37,7 @@
 struct _mathmap_t;
 struct _mathmap_invocation_t;
 
-typedef struct
+typedef union
 {
     RUNTIME_VALUE_DECL
 } runtime_value_t;

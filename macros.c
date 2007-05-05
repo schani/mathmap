@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -140,80 +140,6 @@ macro_func_origValRA (exprtree *args)
     return make_function("origVal", make_cast("ra", make_tuple_exprtree(args)));
 }
 
-exprtree*
-macro_func_red (exprtree *arg)
-{
-    return make_select(arg, make_int_number(0));
-}
-
-exprtree*
-macro_func_green (exprtree *arg)
-{
-    return make_select(arg, make_int_number(1));
-}
-
-exprtree*
-macro_func_blue (exprtree *arg)
-{
-    return make_select(arg, make_int_number(2));
-}
-
-exprtree*
-macro_func_alpha (exprtree *arg)
-{
-    return make_select(arg, make_int_number(3));
-}
-
-exprtree*
-macro_func_rgbColor (exprtree *args)
-{
-    return make_cast("rgba", make_tuple_exprtree(exprlist_append(args, make_int_number(1))));
-}
-
-exprtree*
-macro_func_rgbaColor (exprtree *args)
-{
-    return make_cast("rgba", make_tuple_exprtree(args));
-}
-
-exprtree*
-macro_func_grayColor (exprtree *arg)
-{
-    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, arg->result);
-
-    return make_sequence(make_assignment(tmpvar->name, arg),
-			 make_cast("rgba",
-				   make_tuple_exprtree(exprlist_append(make_var(tmpvar->name),
-								       exprlist_append(make_var(tmpvar->name),
-										       exprlist_append(make_var(tmpvar->name),
-												       make_int_number(1)))))));
-}
-
-exprtree*
-macro_func_grayaColor (exprtree *arg)
-{
-    variable_t *tmpvar = new_temporary_variable(&the_mathmap->variables, arg->result);
-
-    return make_sequence(make_assignment(tmpvar->name, arg),
-			 make_cast("rgba",
-				   make_tuple_exprtree(exprlist_append(make_var(tmpvar->name),
-								       exprlist_append(make_var(tmpvar->name),
-										       exprlist_append(make_var(tmpvar->name),
-												       arg->next))))));
-}
-
-exprtree*
-macro_func_toXY (exprtree *arg)
-{
-    return arg;
-}
-
-exprtree*
-macro_func_toRA (exprtree *arg)
-{
-    return arg;
-}
-
 void
 init_macros (void)
 {
@@ -229,22 +155,4 @@ init_macros (void)
     register_overloaded_macro("origVal", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
     register_overloaded_macro("origVal", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
     register_overloaded_macro("origVal", "((rgba 4) (ra 2) (nil 1) (image 1))", macro_func_origValImageFrame);
-
-    register_overloaded_macro("red", "((nil 1) (rgba 4))", macro_func_red);
-    register_overloaded_macro("green", "((nil 1) (rgba 4))", macro_func_green);
-    register_overloaded_macro("blue", "((nil 1) (rgba 4))", macro_func_blue);
-    register_overloaded_macro("alpha", "((nil 1) (rgba 4))", macro_func_alpha);
-
-    register_overloaded_macro("red", "((nil 1) (rgba 4))", macro_func_red);
-    register_overloaded_macro("green", "((nil 1) (rgba 4))", macro_func_green);
-    register_overloaded_macro("blue", "((nil 1) (rgba 4))", macro_func_blue);
-    register_overloaded_macro("alpha", "((nil 1) (rgba 4))", macro_func_alpha);
-
-    register_overloaded_macro("rgbColor", "((rgba 4) (T 1) (T 1) (T 1))", macro_func_rgbColor);
-    register_overloaded_macro("rgbaColor", "((rgba 4) (T 1) (T 1) (T 1) (T 1))", macro_func_rgbaColor);
-    register_overloaded_macro("grayColor", "((rgba 4) (T 1))", macro_func_grayColor);
-    register_overloaded_macro("grayaColor", "((rgba 4) (T 1) (T 1))", macro_func_grayaColor);
-
-    register_overloaded_macro("toXY", "((xy 2) (xy 2))", macro_func_toXY);
-    register_overloaded_macro("toRA", "((ra 2) (ra 2))", macro_func_toRA);
 }

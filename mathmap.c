@@ -395,7 +395,9 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 	    static int nargs = sizeof(args) / sizeof(args[0]);
 	    static int nreturn_vals = 0;
 
+#ifdef DEBUG_OUTPUT
 	    fprintf(stderr, "registering %s (%s)\n", symbol, menu);
+#endif
 
 	    gimp_install_procedure(symbol,
 				   "Generate an image using a mathematical expression.",

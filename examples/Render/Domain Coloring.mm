@@ -3,7 +3,7 @@
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-unit(stretched) filter domain_coloring (image in, int coloring_scheme: 1-7,
+unit(stretched) filter domain_coloring (unit(stretched) image in, int coloring_scheme: 1-7,
                                         gradient coloring)
 
     i=ri:[0,1];

@@ -80,7 +80,7 @@ free_internals (internal_t *internals)
 int
 number_of_internals (internal_t *internals)
 {
-    int i;
+    int i = 0;
 
     while (internals != 0)
     {

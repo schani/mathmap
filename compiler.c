@@ -2008,9 +2008,11 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 	{
 	    int type, type2;
 
+	    /*
 	    printf("propagating types on ");
 	    print_assign_statement(stmt);
 	    printf("   ***   ");
+	    */
 
 	    type = rhs_type(stmt->v.assign.rhs);
 	    if (stmt->kind == STMT_PHI_ASSIGN)
@@ -2024,7 +2026,7 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 		}
 	    }
 
-	    printf("lhs %d   rhs %d\n", stmt->v.assign.lhs->compvar->type, type);
+	    //printf("lhs %d   rhs %d\n", stmt->v.assign.lhs->compvar->type, type);
 
 	    if (type > stmt->v.assign.lhs->compvar->type)
 	    {
@@ -3279,10 +3281,10 @@ emit_pre_native_assign_with_op_rhs (value_t *lhs, rhs_t *rhs)
     if (op_type != lhs_type)
     {
 	value_t *temp = make_lhs(make_temporary(op_type));
-	rhs_t *rhs = make_op_rhs_from_array(rhs->v.op.op->index, args);
+	rhs_t *new_rhs = make_op_rhs_from_array(rhs->v.op.op->index, args);
 	statement_t *stmts;
 
-	stmts = make_assign(temp, rhs);
+	stmts = make_assign(temp, new_rhs);
 	stmts->next = make_assign(lhs, make_convert_rhs(temp, lhs_type));
 
 	generate_pre_native_assigns(stmts);
@@ -4423,8 +4425,10 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 
     do
     {
+#ifdef DEBUG_OUTPUT
 	printf("--------------------------------\n");
 	dump_code(first_stmt, 0);
+#endif
 
 	changed = 0;
 
@@ -4441,13 +4445,17 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 	analyze_constants();
 #endif
 
+#ifdef DEBUG_OUTPUT
     dump_code(first_stmt, 0);
+#endif
     check_ssa(first_stmt);
 
     /* no statement reordering after this point */
 
     generate_pre_native_code(convert_types);
+#ifdef DEBUG_OUTPUT
     dump_pre_native_code();
+#endif
     if (convert_types)
 	typecheck_pre_native_code();
 }

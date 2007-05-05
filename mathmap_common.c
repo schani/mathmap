@@ -92,7 +92,7 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
     {
 	userval_info_t *result = 0;
 
-	printf("registering %s  type %d\n", arg_decls->name, arg_decls->type);
+	//printf("registering %s  type %d\n", arg_decls->name, arg_decls->type);
 
 	switch (arg_decls->type)
 	{
@@ -678,6 +678,8 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 		    if (y < 0)
 			a = 2 * M_PI - a;
 		}
+		else
+		    r = a = 0.0; /* to make the compiler happy */
 
 		update_pixel_internals(invocation, x, y, r, a);
 

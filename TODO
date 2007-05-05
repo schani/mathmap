@@ -1,12 +1,12 @@
-1.1.3:
+1.2.0:
 ======
 
 Packaging
 ---------
 
-Package for FC6
+Contribute to Ubuntu
 
-Package for Ubuntu
+Announce on Freshmeat, GIMP mailing list
 
 Image Processing
 ----------------
@@ -20,6 +20,11 @@ Examples
 Compiler
 --------
 
+Documentation
+-------------
+
+Website update for new version (screenshots, examples, ...)
+
 General
 -------
 
@@ -28,31 +33,6 @@ GIMP Plug-In
 
 
 
-1.1.4:
-======
-
-Packaging
----------
-
-Contribute to Ubuntu
-
-Announce on Freshmeat, GIMP mailing list
-
-Documentation
--------------
-
-New syntax
-
-print function
-
-Elliptic functions
-
-Website update for new version (screenshots, examples, ...)
-
-General
--------
-
-No more debug output by default
 
 
 
@@ -65,8 +45,6 @@ GIMP Plug-In
 ------------
 
 GTK Source View (auto-completion?)
-
-Automatically generated on-line reference for builtins
 
 Text input fields for float and int user values
 

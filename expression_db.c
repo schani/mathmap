@@ -150,7 +150,7 @@ read_expression_db (char *path)
     struct dirent *dirent;
     expression_db_t *edb = 0;
 
-    fprintf(stderr, "checking out %s\n", path);
+    //fprintf(stderr, "checking out %s\n", path);
 
     dir = opendir(path);
 
@@ -169,7 +169,7 @@ read_expression_db (char *path)
 	    char *name = strdup(dirent->d_name);
 	    expression_db_t *subs;
 
-	    fprintf(stderr, "sub %s\n", name);
+	    //fprintf(stderr, "sub %s\n", name);
 
 	    assert(name != 0);
 

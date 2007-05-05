@@ -409,7 +409,7 @@
 	(set (nth i result) (nth i val))))))
 |#
 
-(defbuiltin "print" print (nil 1) ((val (_ _)))
+(defbuiltin "print" print (nil 1) ((val (? ?)))
   "Print a tuple to standard output.  Useful for debugging a script."
   (forarglength val i
     (forget (print (nth i val))))
@@ -422,10 +422,10 @@ Tuples can be added element-wise or the same real number can be added
 to each element of a tuples."
   (set result (+v a b)))
 
-(defbuiltin "__add" add_ri_1 (ri 2) ((a (ri 2)) (b (_ 1)))
+(defbuiltin "__add" add_ri_1 (ri 2) ((a (ri 2)) (b (? 1)))
   (set result (+v a (make (ri 2) (nth 0 b) 0))))
 
-(defbuiltin "__add" add_1_ri (ri 2) ((a (_ 1)) (b (ri 2)))
+(defbuiltin "__add" add_1_ri (ri 2) ((a (? 1)) (b (ri 2)))
   (set result (+v b (make (ri 2) (nth 0 a) 0))))
 
 (defbuiltin "__add" add_1 (?T 1) ((a (?T 1)) (b (?T 1)))
@@ -1060,9 +1060,47 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
 
 ;;; colors
 
+(defbuiltin "red" red (nil 1) ((c (rgba 4)))
+  "The red component of the color <tt>c</tt>."
+  (set result (make (nil 1) (nth 0 c))))
+
+(defbuiltin "green" green (nil 1) ((c (rgba 4)))
+  "The green component of the color <tt>c</tt>."
+  (set result (make (nil 1) (nth 1 c))))
+
+(defbuiltin "blue" blue (nil 1) ((c (rgba 4)))
+  "The blue component of the color <tt>c</tt>."
+  (set result (make (nil 1) (nth 2 c))))
+
+(defbuiltin "alpha" alpha (nil 1) ((c (rgba 4)))
+  "The alpha (opacity) component of the color <tt>c</tt>."
+  (set result (make (nil 1) (nth 3 c))))
+
 (defbuiltin "gray" gray (nil 1) ((c (rgba 4)))
   "The luminance value of the color <tt>c</tt>."
   (set result (make (nil 1) (+ (* 0.299 (nth 0 c)) (* 0.587 (nth 1 c)) (* 0.114 (nth 2 c))))))
+
+(defbuiltin "rgbColor" rgbColor (rgba 4) ((r (?T 1)) (g (?T 1)) (b (?T 1)))
+  "Returns a fully opaque RGBA color with red component <tt>r</tt>,
+green component <tt>g</tt> and blue component <tt>b</tt>,
+i.e. <tt>rgba:[r,g,b,1]</tt>."
+  (set result (make (rgba 4) (nth 0 r) (nth 0 g) (nth 0 b) 1)))
+
+(defbuiltin "rgbaColor" rgbaColor (rgba 4) ((r (?T 1)) (g (?T 1)) (b (?T 1)) (a (?T 1)))
+  "Returns an RGBA color with red component <tt>r</tt>, green
+component <tt>g</tt>, blue component <tt>b</tt> and alpha component
+<tt>a</tt>, i.e. <tt>rgba:[r,g,b,a]</tt>."
+  (set result (make (rgba 4) (nth 0 r) (nth 0 g) (nth 0 b) (nth 0 a))))
+
+(defbuiltin "grayColor" grayColor (rgba 4) ((g (?T 1)))
+  "Returns a fully opaque gray RGBA color with luminance <tt>g</tt>,
+i.e. <tt>rgba:[g,g,g,1]</tt>."
+  (set result (make (rgba 4) (nth 0 g) (nth 0 g) (nth 0 g) 1)))
+
+(defbuiltin "grayaColor" grayaColor (rgba 4) ((g (?T 1)) (a (?T 1)))
+  "Returns a gray RGBA color with luminance <tt>g</tt> and alpha
+component <tt>a</tt>, i.e. <tt>rgba:[g,g,g,a]</tt>."
+  (set result (make (rgba 4) (nth 0 g) (nth 0 g) (nth 0 g) (nth 0 a))))
 
 (defbuiltin "toHSVA" toHSVA (hsva 4) ((a (rgba 4)))
   "Conversion of an RGBA color value to HSVA."
@@ -1147,6 +1185,9 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
 		    (* (cos (nth 1 a)) (nth 0 a))
 		    (* (sin (nth 1 a)) (nth 0 a)))))
 
+(defbuiltin "toXY" toXY_trivial (xy 2) ((a (xy 2)))
+  (set result a))
+
 (defbuiltin "toRA" toRA (ra 2) ((arg (xy 2)))
   "Conversion of rectangular coordinates to polar coordinates."
   (let ((r (hypot (nth 0 arg) (nth 1 arg))))
@@ -1157,6 +1198,9 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
 	  (if (< (nth 1 arg) 0)
 	      (set (nth 1 result) (- (* 2 pi) a))
 	      (set (nth 1 result) a))))))
+
+(defbuiltin "toRA" toRA_trivial (ra 2) ((a (ra 2)))
+  (set result a))
 
 ;;; random
 
@@ -1226,8 +1270,9 @@ values lie between -1 and 1."
 
 (with-open-file (out "builtins_doc.html" :direction :output :if-exists :supersede)
   (let ((*standard-output* out))
-    (let ((signatures (remove-duplicates (mapcar #'builtin-signature *builtins*)
-					 :test #'equal)))
+    (let ((signatures (sort (copy-list (remove-duplicates (mapcar #'builtin-signature *builtins*)
+							  :test #'equal))
+			    #'string< :key #'first)))
       (dolist (signature signatures)
 	(let* ((overloaded-name (first signature))
 	       (builtins (reverse (remove-if-not #'(lambda (b) (equal (builtin-signature b) signature))
@@ -1240,7 +1285,7 @@ values lie between -1 and 1."
 	       (formatter-entry (assoc overloaded-name *formatters* :test #'equal)))
 	  (unless (and (not (null formatter-entry))
 		       (null (second formatter-entry)))
-	    (format t "<h2><tt>")
+	    (format t "<a name=\"func_~A\"></a><h2><tt>" overloaded-name)
 	    (if (null formatter-entry)
 		(format t "~A(~{~A~^, ~})" overloaded-name arg-names)
 		(apply #'format t (second formatter-entry) arg-names))

@@ -4,7 +4,7 @@
 
 Summary: MathMap GIMP Plug-In and Command-Line Tool
 Name: mathmap
-Version: 1.1.3
+Version: 1.2.0
 Release: 1
 License: GNU General Public License
 Group: Applications/Multimedia
@@ -61,5 +61,8 @@ rm -rf %{buildroot}
 %{_mathmapdir}
 
 %changelog
+* Thu May 04 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.0
+- Update for version 1.2.0
+
 * Thu Apr 12 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.1.3
 - First creation of spec file
