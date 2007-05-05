@@ -1,7 +1,7 @@
 # If you want MathMap to provide a command line interface as well,
 # uncomment the following line.  Note that compiling it requires
 # libjpeg, libpng and giflib.
-CMDLINE = YES
+#CMDLINE = YES
 
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
@@ -181,7 +181,7 @@ dist : new_builtins.c parser.c scanner.c clean
 	mkdir mathmap-$(VERSION)/generators/blender
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender
 	mkdir mathmap-$(VERSION)/doc
-	cp html/language.html html/reference.html html/cartesian.png html/graygradient.png html/clown.jpg html/sinegraph.png html/sineclown.jpg html/polar.png html/clownpond.jpg html/target.png html/rmod.jpg html/clownhole.jpg html/redgreengradient.png html/noise.jpg mathmap-$(VERSION)/doc
+	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	cp -r examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
