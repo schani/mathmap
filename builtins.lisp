@@ -837,7 +837,7 @@ numbers."
   (set result (make (?T 1) (atanh (nth 0 a)))))
 
 (defbuiltin "gamma" gamma_ri (ri 2) ((a (ri 2)))
-  "The gamma function for real and complex numbers."
+  "The (logarithm of the) gamma function for real and complex numbers."
   (let ((c (c-gamma (complex (nth 0 a) (nth 1 a)))))
     (set result (make (ri 2) (c-real c) (c-imag c)))))
 
@@ -845,6 +845,13 @@ numbers."
   (if (< (nth 0 a) 0)
       (set result (make (?T 1) 0))
       (set result (make (?T 1) (gamma (nth 0 a))))))
+
+(defbuiltin "beta" beta_1 (?T 1) ((a (?T 1)) (b (?T 1)))
+  "The complete beta function for positive real arguments."
+  (if (or (< (nth 0 a) 0)
+	  (< (nth 0 b) 0))
+      (set result (make (?T 1) 0))
+      (set result (make (?T 1) (beta (nth 0 a) (nth 0 b))))))
 
 ;;; elliptic
 

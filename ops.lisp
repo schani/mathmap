@@ -128,6 +128,7 @@
 (defop 'acosh 1 "acosh")
 (defop 'atanh 1 "atanh")
 (defop 'gamma 1 "GAMMA")
+(defop 'beta 2 "gsl_sf_beta")
 
 (defop 'floor 1 "floor" :type 'int)
 (defop 'ceil 1 "ceil" :type 'int)

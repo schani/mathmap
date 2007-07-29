@@ -439,6 +439,8 @@ int gsl_sf_elljac_e (double u, double m, double *sn, double *cn, double *dn);
 
 complex float cgamma (complex float z);
 
+double gsl_sf_beta (double a, double b);
+
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
 static void
