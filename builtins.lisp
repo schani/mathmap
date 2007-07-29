@@ -349,16 +349,16 @@
 					    c-type)))))))
 		   (case-match stmt
 		     ((set result ?rhs)
-		      (gen-expr rhs #'(lambda (n) (format nil "result[~A]" n)) t result-length))
+		      (gen-expr rhs #'(lambda (n) (format nil "result_tmps[~A]" n)) t result-length))
 		     ((set (nth ?n result) ?rhs)
 		      (if (symbolp n)
 			  (multiple-value-bind (name type length c-type)
 			      (lookup-var n)
 			    (assert (eq type 'counter))
-			    (gen-primary rhs (format nil "result[~A]" name) t))
+			    (gen-primary rhs (format nil "result_tmps[~A]" name) t))
 			  (progn
 			    (assert (integerp n))
-			    (gen-primary rhs (format nil "result[~A]" n) t))))
+			    (gen-primary rhs (format nil "result_tmps[~A]" n) t))))
 		     ((set ?var ?rhs)
 		      (multiple-value-bind (name type length c-type)
 			  (lookup-var var)
@@ -396,9 +396,13 @@
 				  (mapcar #'(lambda (s) (gen s bindings)) body)))))
 		     (?
 		      (error "unknown statement ~A" stmt))))))
-	(format t "static void~%gen_~A (compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%" (dcs name))
+	(format t "static void~%gen_~A (compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%"
+		(dcs name))
+	(format t "compvar_t *result_tmps[~A];~%int i;~%for (i = 0; i < ~A; ++i) result_tmps[i] = make_temporary(result[i]->type);~%"
+		 result-length result-length)
 	(dolist (stmt body)
 	  (princ (gen stmt nil)))
+	(format t "for (i = 0; i < ~A; ++i) emit_assign(make_lhs(result[i]), make_compvar_rhs(result_tmps[i]));~%" result-length)
 	(format t "}~%~%")))))
 
 #|

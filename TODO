@@ -4,10 +4,6 @@
 Packaging
 ---------
 
-Contribute to Ubuntu
-
-Announce on Freshmeat, GIMP mailing list
-
 Image Processing
 ----------------
 
@@ -22,8 +18,6 @@ Compiler
 
 Documentation
 -------------
-
-Website update for new version (screenshots, examples, ...)
 
 General
 -------
@@ -53,6 +47,8 @@ Edge behaviour selectable per input image
 MathMap should work with no source image, letting the user choose
 image size
 
+UI names for user values
+
 Command Line Tool
 -----------------
 
@@ -60,6 +56,8 @@ All uservals on command line (not just input images)
 
 General
 -------
+
+Defaults for boolean user values
 
 Edge behaviour as image attributes
 
