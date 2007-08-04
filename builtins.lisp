@@ -921,7 +921,7 @@ than that number."
 
 (defbuiltin "ceil" ceil (?T 1) ((a (?T 1)))
   "The ceiling of a number, defined as the smallest integer not
-greater than that number."
+smaller than that number."
   (set result (make (?T 1) (ceil (nth 0 a)))))
 
 (defbuiltin "sign" sign_n (?T ?L) ((a (?T ?L)))
