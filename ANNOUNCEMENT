@@ -1,4 +1,4 @@
-MathMap 1.2.0
+MathMap 1.2.1
 =============
 
 MathMap is a GIMP plug-in and a standalone command-line tool which
@@ -14,6 +14,12 @@ The MathMap homepage can be found at
     http://www.complang.tuwien.ac.at/schani/mathmap/
 
 It features a user's manual as well as screenshots and examples.
+
+Changes in 1.2.1:
+
+  * New "beta" function.
+  * New examples.
+  * Bugfixes.
 
 Changes in 1.2.0:
 
