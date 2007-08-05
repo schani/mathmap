@@ -36,7 +36,7 @@
 						     ("crealf(~A)" "cimagf(~A)")))
 			(color      "color_t"       ("(%d,%d,%d,%d)" "MAKE_RGBA_COLOR(%d,%d,%d,%d)"
 						     ("RED(~A)" "GREEN(~A)" "BLUE(~A)" "ALPHA(~A)")))
-			(gsl-matrix "gsl_matrix *"  ("***MAXTRIX***" "***MATRIX***" ()))
+			(gsl-matrix "gsl_matrix *"  ("***MATRIX***" "***MATRIX***" ()))
 			(v2         "mm_v2_t"       ("[%f,%f]" "MAKE_V2(%f,%f)"
 						     ("~A.v[0]" "~A.v[1]"))
 				    ("v[0]" "v[1]"))
@@ -303,6 +303,22 @@
 			    (format nil "return builtin_~A_~A;" (string-downcase (op-c-define op)) (dcs (rt-type-name max-type)))))
 		      nil))
 
+(defun interpret-c-format-string (format args)
+  (labels ((interpret-format (char arg)
+	     (ecase char
+	       (#\d (format nil "fprintf(out, \"%d\", ~A);" arg))
+	       (#\f (format nil "{ gchar buf[G_ASCII_DTOSTR_BUF_SIZE]; g_ascii_dtostr(buf, sizeof(buf), ~A); fputs(buf, out); }"
+			    arg)))))
+    (if (> (length format) 0)
+	(let ((pos (position #\% format)))
+	  (if (null pos)
+	      (format nil "fputs(\"~A\", out);" format)
+	      (format nil "fputs(\"~A\", out); ~A ~A"
+		      (subseq format 0 pos)
+		      (interpret-format (aref format (1+ pos)) (car args))
+		      (interpret-c-format-string (subseq format (+ pos 2)) (cdr args)))))
+	"")))
+
 (defun make-types-file ()
   (with-open-file (out "compiler_types.h" :direction :output :if-exists :supersede)
     (format out "~{#define ~A ~A~%~}"
@@ -351,16 +367,17 @@
 					      (rt-type-elements type)))))))
 		     *types*))
     (labels ((printer (name spec-accessor)
-	       (format out "#define ~A \\~%~{case ~A : fprintf_c(out, \"~A\"~{, ~A~}); break;~^ \\~%~}~%~%"
+	       (format out "#define ~A \\~%~{case ~A : ~A break;~^ \\~%~}~%~%"
 		       name
 		       (mappend #'(lambda (type)
-				    (let ((print-info (rt-type-print-info type)))
+				    (let* ((print-info (rt-type-print-info type))
+					   (args (mapcar #'(lambda (arg-spec)
+							     (format nil arg-spec
+								     (format nil "primary->v.constant.~A_value"
+									     (dcs (rt-type-name type)))))
+							 (car (last print-info)))))
 				      (list (rt-type-c-define type)
-					    (funcall spec-accessor print-info)
-					    (mapcar #'(lambda (arg-spec)
-							(format nil arg-spec
-								(format nil "primary->v.constant.~A_value" (dcs (rt-type-name type)))))
-						    (car (last print-info))))))
+					    (interpret-c-format-string (funcall spec-accessor print-info) args))))
 				*types*))))
       (printer "TYPE_DEBUG_PRINTER" #'first)
       (printer "TYPE_C_PRINTER" #'second))))

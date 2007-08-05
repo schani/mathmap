@@ -1963,7 +1963,10 @@ print_tuple (tuple_t *tuple)
     printf("%s:[", name);
     for (i = 0; i < tuple->length; ++i)
     {
-	fprintf_c(stdout, "%f", tuple->data[i]);
+	gchar buf[G_ASCII_DTOSTR_BUF_SIZE];
+
+	g_ascii_dtostr(buf, sizeof(buf), tuple->data[i]);
+	fputs(buf, stdout);
 	if (i + 1 < tuple->length)
 	    printf(",");
     }

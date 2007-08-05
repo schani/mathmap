@@ -163,9 +163,6 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
-// fprintf with the C locale
-int fprintf_c (FILE *stream, const char *format, ...);
-
 void calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y);
 void calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y);
 

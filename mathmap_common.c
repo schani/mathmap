@@ -28,7 +28,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include <locale.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -44,30 +43,6 @@ int scanner_line_num;
 
 /* from parser.y */
 int yyparse (void);
-
-int
-fprintf_c (FILE *stream, const char *format, ...)
-{
-    va_list ap;
-    char *saved_locale;
-    int result;
-
-    va_start(ap, format);
-
-    saved_locale = strdup(setlocale(LC_ALL, NULL));
-    assert(saved_locale != 0);
-
-    setlocale(LC_ALL, "C");
-
-    result = vfprintf(stream, format, ap);
-
-    setlocale(LC_ALL, saved_locale);
-    free(saved_locale);
-
-    va_end(ap);
-
-    return result;
-}
 
 static unsigned int
 image_flags_from_options (option_t *options)
