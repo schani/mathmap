@@ -38,7 +38,7 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.2.1
+VERSION = 1.2.2
 
 OPT_CFLAGS := -O2
 #OPT_CFLAGS := -g -DDEBUG_OUTPUT
@@ -47,7 +47,7 @@ ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
 CGEN_LD=-DCGEN_LD="\"cc -bundle -flat_namespace -undefined suppress -o\""
 MACOSX_LIBS=-lmx
-MACOSX_CFLAGS=-I/sw/include
+MACOSX_CFLAGS=-I/sw/include -fnested-functions
 else
 CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""

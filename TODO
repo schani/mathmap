@@ -4,6 +4,8 @@ later:
 GIMP Plug-In
 ------------
 
+Color brightness bug (see mail by Alexandre Prokoudine)
+
 GTK Source View (auto-completion?)
 
 Text input fields for float and int user values

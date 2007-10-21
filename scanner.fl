@@ -22,7 +22,6 @@
 
 %{
 #include <string.h>
-#include <locale.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <glib.h>
