@@ -738,6 +738,62 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
     }
 }
 
+typedef struct
+{
+    mathmap_invocation_t *invocation;
+    int first_row;
+    int last_row;
+    unsigned char *q;
+} thread_data_t;
+
+static gpointer
+call_invocation_thread_func (gpointer _data)
+{
+    thread_data_t *data = (thread_data_t*)_data;
+
+    calc_lines(data->invocation, data->first_row, data->last_row, data->q);
+
+    return NULL;
+}
+
+void
+call_invocation_parallel (mathmap_invocation_t *invocation, int first_row, int last_row,
+			  unsigned char *q, int num_threads)
+{
+    GThread *threads[num_threads];
+    thread_data_t datas[num_threads];
+    int i;
+
+    if (invocation->supersampling || num_threads < 2)
+    {
+	call_invocation (invocation, first_row, last_row, q);
+	return;
+    }
+
+    if (!g_thread_supported())
+	g_thread_init(NULL);
+
+    init_frame(invocation);
+
+    for (i = 0; i < num_threads; ++i)
+    {
+	datas[i].invocation = invocation;
+	datas[i].first_row = first_row + (last_row - first_row) * i / num_threads;
+	datas[i].last_row = first_row + (last_row - first_row) * (i + 1) / num_threads;
+	datas[i].q = q + (datas[i].first_row - first_row) * invocation->row_stride;
+
+	/*if (i > 0)*/ {
+	    threads[i] = g_thread_create(call_invocation_thread_func, &datas[i], TRUE, NULL);
+
+	    g_assert (threads[i] != NULL);
+	}
+    }
+
+    //call_invocation_thread_func (&datas[0]);
+
+    for (i = 0; i < num_threads; ++i)
+	g_thread_join(threads[i]);
+}
 
 void
 carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template)

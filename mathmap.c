@@ -1669,7 +1669,18 @@ dialog_update_preview (void)
 	invocation->scale_x *= (float)sel_width / (float)preview_width;
 	invocation->scale_y *= (float)sel_height / (float)preview_height;
 
-	call_invocation(invocation, 0, preview_height, buf);
+	if (previewing) {
+	    int i;
+
+	    /* force fast image sources to be built */
+	    for (i = 0; i < invocation->mathmap->num_uservals; ++i)
+		if (invocation->mathmap->userval_infos[i].type == USERVAL_IMAGE)
+		    mathmap_get_fast_pixel(invocation, &invocation->uservals[i], 0, 0);
+
+	    call_invocation_parallel(invocation, 0, preview_height, buf, 2);
+	}
+	else
+	    call_invocation(invocation, 0, preview_height, buf);
 
 	invocation->scale_x = old_scale_x;
 	invocation->scale_y = old_scale_y;

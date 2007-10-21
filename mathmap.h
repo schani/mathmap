@@ -189,6 +189,7 @@ mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_fil
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_frame (mathmap_invocation_t *invocation);
 void call_invocation (mathmap_invocation_t *invocation, int first, int last, unsigned char *p);
+void call_invocation_parallel (mathmap_invocation_t *invocation, int first, int last, unsigned char *p, int num_threads);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
 
