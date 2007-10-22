@@ -955,7 +955,7 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->origin_y = dest_rgn.y - sel_y1;
 	    invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
-	    call_invocation(invocation, 0, dest_rgn.h, dest_rgn.data);
+	    call_invocation_parallel(invocation, 0, dest_rgn.h, dest_rgn.data, 1);
 
 	    /* Update progress */
 	    progress += dest_rgn.w * dest_rgn.h;
@@ -1680,7 +1680,7 @@ dialog_update_preview (void)
 	    call_invocation_parallel(invocation, 0, preview_height, buf, 2);
 	}
 	else
-	    call_invocation(invocation, 0, preview_height, buf);
+	    call_invocation_parallel(invocation, 0, preview_height, buf, 1);
 
 	invocation->scale_x = old_scale_x;
 	invocation->scale_y = old_scale_y;

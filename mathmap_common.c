@@ -197,6 +197,7 @@ free_invocation (mathmap_invocation_t *invocation)
     if (invocation->interpreter_values != 0)
 	g_array_free(invocation->interpreter_values, TRUE);
     */
+    free(invocation->rows_finished);
     free(invocation);
 }
 
@@ -496,7 +497,9 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
     invocation->current_r = invocation->current_a = 0.0;
 
     invocation->row_stride = img_width * 4;
-    invocation->num_rows_finished = 0;
+
+    invocation->rows_finished = (unsigned char*)malloc(img_height);
+    memset(invocation->rows_finished, 0, img_height);
 
     invocation->do_debug = 0;
 
@@ -620,6 +623,8 @@ run_interpreter (mathmap_invocation_t *invocation)
 static void
 calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
+    assert(first_row >= 0 && last_row <= invocation->img_height && first_row <= last_row);
+
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	invocation->mathfuncs.calc_lines(invocation, first_row, last_row, q);
     else
@@ -668,12 +673,12 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	    q += invocation->row_stride;
 
 	    if (!invocation->supersampling)
-		invocation->num_rows_finished = row + 1;
+		invocation->rows_finished[row] = 1;
 	}
     }
 }
 
-void
+static void
 call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
 {
     if (invocation->supersampling)
@@ -724,7 +729,7 @@ call_invocation (mathmap_invocation_t *invocation, int first_row, int last_row, 
 
 	    q += invocation->row_stride;
 
-	    invocation->num_rows_finished = row + 1;
+	    invocation->rows_finished[row] = 1;
 	}
 
 	free(line1);
@@ -764,6 +769,10 @@ call_invocation_parallel (mathmap_invocation_t *invocation, int first_row, int l
     thread_data_t datas[num_threads];
     int i;
 
+    assert(first_row >= 0 && last_row <= invocation->img_height && first_row <= last_row);
+
+    memset(invocation->rows_finished + first_row, 0, last_row - first_row);
+
     if (invocation->supersampling || num_threads < 2)
     {
 	call_invocation (invocation, first_row, last_row, q);
@@ -782,16 +791,16 @@ call_invocation_parallel (mathmap_invocation_t *invocation, int first_row, int l
 	datas[i].last_row = first_row + (last_row - first_row) * (i + 1) / num_threads;
 	datas[i].q = q + (datas[i].first_row - first_row) * invocation->row_stride;
 
-	/*if (i > 0)*/ {
+	if (i > 0) {
 	    threads[i] = g_thread_create(call_invocation_thread_func, &datas[i], TRUE, NULL);
 
 	    g_assert (threads[i] != NULL);
 	}
     }
 
-    //call_invocation_thread_func (&datas[0]);
+    call_invocation_thread_func (&datas[0]);
 
-    for (i = 0; i < num_threads; ++i)
+    for (i = 1; i < num_threads; ++i)
 	g_thread_join(threads[i]);
 }
 

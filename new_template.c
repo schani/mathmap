@@ -203,7 +203,8 @@ typedef struct _mathmap_invocation_t
     float current_x, current_y, current_r, current_a, current_t;
 
     int row_stride;
-    volatile int num_rows_finished;
+
+    unsigned char * volatile rows_finished;
 
     mathfuncs_t mathfuncs;
 
@@ -400,7 +401,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	q += invocation->row_stride;
 
 	if (!invocation->supersampling)
-	    invocation->num_rows_finished = row + 1;
+	    invocation->rows_finished[row] = 1;
     }
 }
 
