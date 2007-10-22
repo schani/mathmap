@@ -25,7 +25,6 @@
  * $$m -> mathmap code
  * $$p -> USER_CURVE_POINTS
  * $$q -> USER_GRADIENT_POINTS
- * $$a -> has altivec
  * $$xy_decls         -> declarations for xy-constant variables
  * $$xy_code          -> code for xy-constant variables
  * $$x_decls          -> declarations for x-constant variables
@@ -114,20 +113,22 @@ typedef struct _userval_t
 
 	struct
 	{
-#if $g
-	    int index;
-#else
+	    float scale_x;
+	    float scale_y;
+	    float middle_x;
+	    float middle_y;
+#ifdef OPENSTEP
 	    int width;
 	    int height;
 	    int row_stride;
-	    float middle_x;
-	    float middle_y;
 	    void *data;
+#else
+	    int index;
 #endif
 	} image;
     } v;
 
-#if $g
+#ifndef OPENSTEP
     void *widget;
 #endif
 } userval_t;
@@ -217,7 +218,7 @@ typedef struct _mathmap_invocation_t
     color_t interpreter_output_color;
 } mathmap_invocation_t;
 
-#if !$g
+#ifdef OPENSTEP
 static color_t
 get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, int drawable_index, int frame)
 {
@@ -270,133 +271,11 @@ get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, i
 
 extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
 
-#if $a
-typedef union
-{
-  unsigned int a[4];
-  vector unsigned int v;
-} uint_vector;
-
-typedef union
-{
-  float a[4];
-  vector float v;
-} float_vector;
-
-static color_t
-get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
-{
-    int width, height;
-    userval_t *userval;
-    float cx, cy;
-    color_t *img_data;
-    int row_stride;
-
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
-	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
-	return MAKE_RGBA_COLOR(255,255,255,255); /* illegal image */
-
-    userval = &invocation->uservals[drawable_index];
-
-    cx = x + userval->v.image.middle_x;
-    cy = -y + userval->v.image.middle_y;
-
-    width = userval->v.image.width;
-    height = userval->v.image.height;
-
-    if (cx < 0 || cx >= width - 1
-	|| cy < 0 || cy >= height - 1)
-	return get_orig_val_intersample_pixel(invocation, x, y, drawable_index, frame);
-
-    img_data = userval->v.image.data;
-    row_stride = userval->v.image.row_stride >> 2; /* assuming row_stride is multiple of 4 */
-
-    {
-	vector float one_one = (vector float)(1.0, 1.0, 0.0, 0.0);
-	vector unsigned char pv_x0x0x1x1 =
-	    (vector unsigned char)(0,1,2,3,0,1,2,3,16,17,18,19,16,17,18,19);
-	vector unsigned char pv_y0y1y0y1 =
-	    (vector unsigned char)(4,5,6,7,20,21,22,23,4,5,6,7,20,21,22,24);
-	vector unsigned int zero = (vector unsigned int)(0,0,0,0);
-	vector unsigned char c_mask =
-	    (vector unsigned char)(0,0,0,255,0,0,0,255,0,0,0,255,0,0,0,255);
-
-	color_t __attribute__((aligned(16))) color;
-	float_vector cxy_u;
-	vector float cxy, cxy0, cxyd0, cxyd1;
-	vector unsigned int pxy0;
-	uint_vector pxy0_u;
-	vector float cxd0xd0xd1xd1, cyd0yd1yd0yd1;
-	vector float fs;
-	unsigned int i00;
-	uint_vector cs_u;
-	vector signed char cs;
-	vector signed short cs_h;
-	vector float c00, c01, c10, c11;
-	vector float c;
-	vector unsigned int ci;
-
-	cxy_u.a[0] = cx;
-	cxy_u.a[1] = cy;
-
-	cxy = cxy_u.v;
-
-	cxy0 = vec_floor(cxy);
-	cxyd1 = vec_sub(cxy, cxy0);
-	cxyd0 = vec_sub(one_one, cxyd1);
-
-	pxy0 = vec_ctu(cxy0, 0);
-	pxy0_u.v = pxy0;
-
-	cxd0xd0xd1xd1 = vec_perm(cxyd0, cxyd1, pv_x0x0x1x1);
-	cyd0yd1yd0yd1 = vec_perm(cxyd0, cxyd1, pv_y0y1y0y1);
-
-	fs = vec_madd(cxd0xd0xd1xd1, cyd0yd1yd0yd1, (vector float)zero);
-
-	i00 = pxy0_u.a[0] + pxy0_u.a[1] * row_stride;
-
-	cs_u.a[0] = img_data[i00];
-	cs_u.a[1] = img_data[i00 + 1];
-	cs_u.a[2] = img_data[i00 + row_stride];
-	cs_u.a[3] = img_data[i00 + row_stride + 1];
-
-	cs = (vector signed char)cs_u.v;
-
-	cs_h = vec_unpackh(cs);
-	c00 = vec_ctf(vec_and(vec_unpackh(cs_h),
-			      (vector signed int)c_mask), 0);
-	c10 = vec_ctf(vec_and(vec_unpackl(cs_h),
-			      (vector signed int)c_mask), 0);
-
-	cs_h = vec_unpackl(cs);
-	c01 = vec_ctf(vec_and(vec_unpackh(cs_h),
-			      (vector signed int)c_mask), 0);
-	c11 = vec_ctf(vec_and(vec_unpackl(cs_h),
-			      (vector signed int)c_mask), 0);
-
-	c = vec_madd(c00, vec_splat(fs, 0), (vector float)zero);
-	c = vec_madd(c01, vec_splat(fs, 1), c);
-	c = vec_madd(c10, vec_splat(fs, 2), c);
-	c = vec_madd(c11, vec_splat(fs, 3), c);
-
-	ci = (vector unsigned int)vec_cts(c, 0);
-
-	ci = (vector unsigned int)vec_packs(vec_packs(ci, zero),
-					    (vector unsigned short)zero);
-	      
-	vec_ste(ci, 0, &color);
-
-	return color;
-    }
-	
-}
-#else
 static color_t
 get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
 {
     return get_orig_val_intersample_pixel(invocation, x, y, drawable_index, frame);
 }
-#endif
 #else
 extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
 extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
@@ -411,7 +290,7 @@ typedef struct _gsl_matrix gsl_matrix;
 
 gsl_matrix * gsl_matrix_alloc (const size_t n1, const size_t n2);
 void gsl_matrix_free (gsl_matrix * m);
-void    gsl_matrix_set(gsl_matrix * m, const size_t i, const size_t j, const double x);
+void gsl_matrix_set(gsl_matrix * m, const size_t i, const size_t j, const double x);
 
 gsl_vector *gsl_vector_alloc (const size_t n);
 void gsl_vector_free (gsl_vector * v);

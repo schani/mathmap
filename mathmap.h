@@ -85,7 +85,9 @@ extern mathmap_t *the_mathmap;
 /* This is incremented by the scanner for each line scanned. */
 extern int scanner_line_num;
 
+#ifndef OPENSTEP
 extern color_t gradient_samples[USER_GRADIENT_POINTS];
+#endif
 
 #define EDGE_BEHAVIOUR_COLOR          1	/* all four used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2

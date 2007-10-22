@@ -121,7 +121,9 @@ typedef struct _userval_t
 	} image;
     } v;
 
+#ifndef OPENSTEP
     GtkWidget *widget;
+#endif
 } userval_t;
 
 userval_info_t* lookup_userval (userval_info_t *infos, const char *name);

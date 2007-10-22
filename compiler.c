@@ -4365,30 +4365,6 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
-#ifdef OPENSTEP
-#include <sys/param.h>
-#include <sys/sysctl.h>
-
-int
-has_altivec (void)
-{
-    int mib[2], gHasAltivec;
-    size_t len;
-
-    mib[0] = CTL_HW;
-    mib[1] = HW_VECTORUNIT;
-    len = sizeof(gHasAltivec);
-    sysctl(mib, 2, &gHasAltivec, &len, NULL, 0);
-
-    if (gHasAltivec)
-	printf("has altivec\n");
-    else
-	printf("no altivec\n");
-
-    return (gHasAltivec != 0);
-}
-#endif
-
 static void
 generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 {
@@ -4499,14 +4475,6 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
 	fprintf(out, "%d", USER_CURVE_POINTS);
     else if (strcmp(directive, "q") == 0)
 	fprintf(out, "%d", USER_GRADIENT_POINTS);
-    else if (strcmp(directive, "a") == 0)
-    {
-#ifdef OPENSTEP
-	putc(has_altivec() ? '1' : '0', out);
-#else
-	putc('0', out);
-#endif
-    }
     else if (strcmp(directive, "xy_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS

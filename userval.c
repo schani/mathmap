@@ -286,7 +286,15 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 		int i;
 
 		for (i = 0; i < USER_GRADIENT_POINTS; ++i)
+		{
+#ifndef OPENSTEP
 		    val->v.gradient.values[i] = gradient_samples[i];
+#else
+		    unsigned char v = i * 255 / USER_GRADIENT_POINTS;
+
+		    val->v.gradient.values[i] = MAKE_RGBA_COLOR(v,v,v,255);
+#endif
+		}
 	    }
 	    break;
 
@@ -302,13 +310,13 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_IMAGE :
-#ifndef OPENSTEP
 	    calc_scale_factors(info->v.image.flags, invocation->calc_img_width, invocation->calc_img_height,
 			       &val->v.image.scale_x, &val->v.image.scale_y);
 	    calc_middle_values(invocation->calc_img_width, invocation->calc_img_height, 
 			       1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
 			       &val->v.image.middle_x, &val->v.image.middle_y);
 
+#ifndef OPENSTEP
 	    val->v.image.index = -1;
 #else
 	    val->v.image.data = 0;
