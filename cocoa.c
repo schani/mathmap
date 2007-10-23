@@ -22,5 +22,5 @@ mathmap_t* compile_mathmap_cocoa (const char *expression, char *template_filenam
 
 void call_invocation(mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *output)
 {
-	call_invocation_parallel (invocation, first_row, last_row, output, 1);
+	call_invocation_parallel (invocation, 0, first_row, invocation->img_width, last_row, output, 1);
 }

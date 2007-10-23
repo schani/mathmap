@@ -22,6 +22,7 @@
 
 #include <ctype.h>
 #include <assert.h>
+#include <string.h>
 
 #include "overload.h"
 #include "highlight.h"
