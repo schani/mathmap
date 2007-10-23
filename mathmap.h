@@ -38,7 +38,7 @@
 
 #include <libgimp/gimp.h>
 
-#define MATHMAP_DATE          "April 2007"
+#define MATHMAP_DATE          "October 2007"
 
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"
@@ -118,10 +118,7 @@ typedef struct _mathmap_invocation_t
     int current_frame;
 
     /* These are in pixel coordinates: */
-    int origin_x, origin_y;
     int img_width, img_height;
-    int calc_img_width, calc_img_height;
-    float sampling_offset_x, sampling_offset_y;
 
     /* These are in virtual coordinates: */
     float middle_x, middle_y;
@@ -138,9 +135,6 @@ typedef struct _mathmap_invocation_t
 
     mathfuncs_t mathfuncs;
 
-    void *xy_vars;
-    void *y_vars;
-
     int do_debug;
     int num_debug_tuples;
     tuple_t *debug_tuples[MAX_DEBUG_TUPLES];
@@ -148,6 +142,17 @@ typedef struct _mathmap_invocation_t
     int interpreter_ip;
     color_t interpreter_output_color;
 } mathmap_invocation_t;
+
+typedef struct _mathmap_slice_t
+{
+    mathmap_invocation_t *invocation;
+
+    float sampling_offset_x, sampling_offset_y;
+    int region_x, region_y, region_width, region_height;
+
+    void *xy_vars;
+    void *y_vars;
+} mathmap_slice_t;
 
 typedef struct
 {
@@ -190,8 +195,10 @@ int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_filename);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
-void init_frame (mathmap_invocation_t *invocation);
-void call_invocation_parallel (mathmap_invocation_t *invocation, int first, int last, unsigned char *p, int num_threads);
+void init_frame (mathmap_slice_t *slice);
+void call_invocation_parallel (mathmap_invocation_t *invocation,
+			       int region_x, int region_y, int region_width, int region_height,
+			       unsigned char *q, int num_threads);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
 

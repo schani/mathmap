@@ -166,9 +166,10 @@ typedef struct
 } y_const_vars_t;
 
 struct _mathmap_invocation_t;
+struct _mathmap_slice_t;
 
-typedef void (*init_frame_func_t) (struct _mathmap_invocation_t*);
-typedef void (*calc_lines_func_t) (struct _mathmap_invocation_t*, int, int, unsigned char*);
+typedef void (*init_frame_func_t) (struct _mathmap_slice_t*);
+typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, unsigned char*);
 
 typedef struct
 {
@@ -192,10 +193,7 @@ typedef struct _mathmap_invocation_t
     color_t edge_color_x, edge_color_y;
 
     int current_frame;
-    int origin_x, origin_y;
     int img_width, img_height;
-    int calc_img_width, calc_img_height;
-    float sampling_offset_x, sampling_offset_y;
     float middle_x, middle_y;
     float image_R, image_X, image_Y, image_W, image_H;
     float scale_x, scale_y;
@@ -208,9 +206,6 @@ typedef struct _mathmap_invocation_t
 
     mathfuncs_t mathfuncs;
 
-    xy_const_vars_t *xy_vars;
-    y_const_vars_t *y_vars;
-
     int do_debug;
     int num_debug_tuples;
     tuple_t *debug_tuples[MAX_DEBUG_TUPLES];
@@ -218,6 +213,17 @@ typedef struct _mathmap_invocation_t
     int interpreter_ip;
     color_t interpreter_output_color;
 } mathmap_invocation_t;
+
+typedef struct _mathmap_slice_t
+{
+    mathmap_invocation_t *invocation;
+
+    float sampling_offset_x, sampling_offset_y;
+    int region_x, region_y, region_width, region_height;
+
+    xy_const_vars_t *xy_vars;
+    y_const_vars_t *y_vars;
+} mathmap_slice_t;
 
 #ifdef OPENSTEP
 static color_t
@@ -324,8 +330,9 @@ double gsl_sf_beta (double a, double b);
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
 static void
-calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsigned char *q)
+calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {
+    mathmap_invocation_t *invocation = slice->invocation;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     int row, col;
     float t = invocation->current_t;
@@ -333,18 +340,18 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
     float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
-    float sampling_offset_x = invocation->sampling_offset_x, sampling_offset_y = invocation->sampling_offset_y;
+    float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
     float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
-    int origin_x = invocation->origin_x, origin_y = invocation->origin_y;
+    int origin_x = slice->region_x, origin_y = slice->region_y;
     int frame = invocation->current_frame;
     int output_bpp = invocation->output_bpp;
     int is_bw = output_bpp == 1 || output_bpp == 2;
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
-    xy_const_vars_t *xy_vars = invocation->xy_vars;
+    xy_const_vars_t *xy_vars = slice->xy_vars;
 
     first_row = MAX(0, first_row);
-    last_row = MIN(last_row, invocation->calc_img_height);
+    last_row = MIN(last_row, slice->region_y + slice->region_height);
 
 #if $g
     if (invocation->antialiasing)
@@ -358,7 +365,7 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 	get_orig_val_pixel_func = get_orig_val_pixel_fast;
 #endif
 
-    for (row = first_row; row < last_row; ++row)
+    for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
 	float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
 	unsigned char *p = q;
@@ -367,9 +374,9 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 
 	$x_code
 
-	for (col = 0; col < invocation->calc_img_width; ++col)
+	for (col = 0; col < slice->region_width; ++col)
 	{
-	    y_const_vars_t *y_vars = &invocation->y_vars[col];
+	    y_const_vars_t *y_vars = &slice->y_vars[col];
 	    float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
 
 #if $uses_ra
@@ -406,8 +413,9 @@ calc_lines (mathmap_invocation_t *invocation, int first_row, int last_row, unsig
 }
 
 static void
-init_frame (mathmap_invocation_t *invocation)
+init_frame (mathmap_slice_t *slice)
 {
+    mathmap_invocation_t *invocation = slice->invocation;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
@@ -426,15 +434,15 @@ init_frame (mathmap_invocation_t *invocation)
 	get_orig_val_pixel_func = get_orig_val_pixel_fast;
 #endif
 
-    if (invocation->xy_vars != 0)
-	free(invocation->xy_vars);
-    invocation->xy_vars = (xy_const_vars_t*)malloc(sizeof(xy_const_vars_t));
-    if (invocation->y_vars != 0)
-	free(invocation->y_vars);
-    invocation->y_vars = (y_const_vars_t*)malloc(sizeof(y_const_vars_t) * invocation->calc_img_width);
+    if (slice->xy_vars != 0)
+	free(slice->xy_vars);
+    slice->xy_vars = (xy_const_vars_t*)malloc(sizeof(xy_const_vars_t));
+    if (slice->y_vars != 0)
+	free(slice->y_vars);
+    slice->y_vars = (y_const_vars_t*)malloc(sizeof(y_const_vars_t) * slice->region_width);
 
     {
-	xy_const_vars_t *xy_vars = invocation->xy_vars;
+	xy_const_vars_t *xy_vars = slice->xy_vars;
 
 	{
 	    $xy_code
@@ -442,14 +450,14 @@ init_frame (mathmap_invocation_t *invocation)
     }
 
     {
-	xy_const_vars_t *xy_vars = invocation->xy_vars;
+	xy_const_vars_t *xy_vars = slice->xy_vars;
 	int col;
 
-	for (col = 0; col < invocation->calc_img_width; ++col)
+	for (col = 0; col < slice->region_width; ++col)
 	{
-	    y_const_vars_t *y_vars = &invocation->y_vars[col];
-	    float x = CALC_VIRTUAL_X(col, invocation->origin_x, invocation->scale_x,
-				     invocation->middle_x, invocation->sampling_offset_x);
+	    y_const_vars_t *y_vars = &slice->y_vars[col];
+	    float x = CALC_VIRTUAL_X(col, slice->region_x, invocation->scale_x,
+				     invocation->middle_x, slice->sampling_offset_x);
 
 	    {
 		$y_code

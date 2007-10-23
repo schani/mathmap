@@ -810,8 +810,10 @@ generate_code (int current_frame, float current_t)
 	    assert(new_invocation != 0);
 
 	    new_invocation->output_bpp = output_bpp;
+	    /*
 	    new_invocation->origin_x = sel_x1;
 	    new_invocation->origin_y = sel_y1;
+	    */
 
 	    if (invocation != 0)
 	    {
@@ -948,17 +950,18 @@ do_mathmap (int frame_num, float current_t)
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
-	    invocation->calc_img_width = dest_rgn.w;
-	    invocation->calc_img_height = dest_rgn.h;
+	    int region_x = dest_rgn.x - sel_x1;
+	    int region_y = dest_rgn.y - sel_y1;
+	    int region_width = dest_rgn.w;
+	    int region_height = dest_rgn.h;
+
 	    invocation->row_stride = dest_rgn.rowstride;
-	    invocation->origin_x = dest_rgn.x - sel_x1;
-	    invocation->origin_y = dest_rgn.y - sel_y1;
 	    invocation->output_bpp = gimp_drawable_bpp(DRAWABLE_ID(output_drawable));
 
-	    call_invocation_parallel(invocation, 0, dest_rgn.h, dest_rgn.data, 1);
+	    call_invocation_parallel(invocation, region_x, region_y, region_width, region_height, dest_rgn.data, 1);
 
 	    /* Update progress */
-	    progress += dest_rgn.w * dest_rgn.h;
+	    progress += region_width * region_height;
 	    gimp_progress_update((double) progress / max_progress);
 	}
 
@@ -1646,10 +1649,7 @@ dialog_update_preview (void)
 
 	previewing = fast_preview;
 
-	invocation->calc_img_width = preview_width;
-	invocation->calc_img_height = preview_height;
 	invocation->row_stride = preview_width * 4;
-	invocation->origin_x = invocation->origin_y = 0;
 	invocation->output_bpp = 4;
 
 	if (debug_tuples)
@@ -1677,10 +1677,10 @@ dialog_update_preview (void)
 		if (invocation->mathmap->userval_infos[i].type == USERVAL_IMAGE)
 		    mathmap_get_fast_pixel(invocation, &invocation->uservals[i], 0, 0);
 
-	    call_invocation_parallel(invocation, 0, preview_height, buf, 2);
+	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, 2);
 	}
 	else
-	    call_invocation_parallel(invocation, 0, preview_height, buf, 1);
+	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, 1);
 
 	invocation->scale_x = old_scale_x;
 	invocation->scale_y = old_scale_y;
