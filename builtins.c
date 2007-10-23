@@ -30,8 +30,6 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 
-#include <libgimp/gimp.h>
-
 #include "builtins.h"
 #include "tags.h"
 #include "overload.h"

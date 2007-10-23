@@ -468,10 +468,10 @@ number can be subtracted from each element of a tuple."
 
 (defbuiltin "__mul" mul_ri (ri 2) ((a (ri 2)) (b (ri 2)))
   "Multiplication.  Works on real numbers, complex numbers,
-quaternions, tuples, vectors and matrices.  Two tuples can be
-multiplied element-wise or a tuple can be multipled by a single number
-for each element.  Vectors and matrices can be multipled in both
-directions and two matrices can be multipled as well."
+quaternions, hypercomplex numbers, tuples, vectors and matrices.  Two
+tuples can be multiplied element-wise or a tuple can be multipled by a
+single number for each element.  Vectors and matrices can be multipled
+in both directions and two matrices can be multipled as well."
   (set result (make (ri 2)
 		    (- (* (nth 0 a) (nth 0 b)) (* (nth 1 a) (nth 1 b)))
 		    (+ (* (nth 0 a) (nth 1 b)) (* (nth 0 b) (nth 1 a))))))
@@ -532,6 +532,25 @@ directions and two matrices can be multipled as well."
 		       (* (nth 3 a) (nth 0 b))
 		       (* (nth 1 a) (nth 2 b))
 		       (- (* (nth 2 a) (nth 1 b)))))))
+
+(defbuiltin "__mul" mul_hyper (hyper 4) ((a (hyper 4)) (b (hyper 4)))
+  (set result (make (hyper 4)
+		    (+ (* (nth 0 a) (nth 0 b))
+		       (- (* (nth 1 a) (nth 1 b)))
+		       (- (* (nth 2 a) (nth 2 b)))
+		       (* (nth 3 a) (nth 3 b)))
+		    (+ (* (nth 0 a) (nth 1 b))
+		       (* (nth 1 a) (nth 0 b))
+		       (- (* (nth 2 a) (nth 3 b)))
+		       (- (* (nth 3 a) (nth 2 b))))
+		    (+ (* (nth 0 a) (nth 2 b))
+		       (* (nth 2 a) (nth 0 b))
+		       (- (* (nth 1 a) (nth 3 b)))
+		       (- (* (nth 3 a) (nth 1 b))))
+		    (+ (* (nth 0 a) (nth 3 b))
+		       (* (nth 3 a) (nth 0 b))
+		       (* (nth 1 a) (nth 2 b))
+		       (* (nth 2 a) (nth 1 b))))))
 
 (defbuiltin "__mul" mul_1 (?T 1) ((a (?T 1)) (b (?T 1)))
   (set result (make (?T 1) (* (nth 0 a) (nth 0 b)))))
@@ -673,10 +692,16 @@ be positive, otherwise the result will not be definied."
 
 (defbuiltin "abs" abs_ri (nil 1) ((a (ri 2)))
   "Absolute value of real numbers, complex numbers (magnitude),
-quaternions and vectors (Euclidian norm)."
+quaternions, hypercomplex numbers and vectors (Euclidian norm)."
   (set result (make (nil 1) (hypot (nth 0 a) (nth 1 a)))))
 
 (defbuiltin "abs" abs_quat (nil 1) ((a (quat 4)))
+  (set result (make (nil 1) (sqrt (+ (* (nth 0 a) (nth 0 a))
+				     (* (nth 1 a) (nth 1 a))
+				     (* (nth 2 a) (nth 2 a))
+				     (* (nth 3 a) (nth 3 a)))))))
+
+(defbuiltin "abs" abs_hyper (nil 1) ((a (hyper 4)))
   (set result (make (nil 1) (sqrt (+ (* (nth 0 a) (nth 0 a))
 				     (* (nth 1 a) (nth 1 a))
 				     (* (nth 2 a) (nth 2 a))
