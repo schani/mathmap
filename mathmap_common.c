@@ -180,11 +180,13 @@ free_invocation (mathmap_invocation_t *invocation)
 		    free(invocation->uservals[info->index].v.gradient.values);
 		    break;
 
+#ifndef OPENSTEP
 		case USERVAL_IMAGE :
 		    if (!cmd_line_mode)
 			if (invocation->uservals[info->index].v.image.index > 0)
 			    free_input_drawable(invocation->uservals[info->index].v.image.index);
 		    break;
+#endif
 	    }
 	}
 	free(invocation->uservals);
@@ -497,6 +499,7 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->uservals = instantiate_uservals(mathmap->userval_infos, invocation);
 
+#ifndef OPENSTEP
     if (!cmd_line_mode)
     {
 	userval_info_t *info;
@@ -509,6 +512,7 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 		break;
 	    }
     }
+#endif
 
     if (template != 0)
 	carry_over_uservals_from_template(invocation, template);

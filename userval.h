@@ -23,10 +23,12 @@
 #ifndef __USERVAL_H__
 #define __USERVAL_H__
 
-#include "gtypes.h"
+#include "glib.h"
 
+#ifndef OPENSTEP
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
+#endif
 
 #include "tuples.h"
 #include "exprtree.h"
@@ -143,7 +145,9 @@ void free_userval_infos (userval_info_t *infos);
 
 void copy_userval (userval_t *dst, userval_t *src, int type);
 
+#ifndef OPENSTEP
 GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
+#endif
 void update_uservals (userval_info_t *infos, userval_t *uservals);
 
 #endif

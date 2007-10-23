@@ -26,7 +26,7 @@
 #include <complex.h>
 #include <gsl/gsl_matrix.h>
 
-#include "gtypes.h"
+#include "glib.h"
 
 #include "tuples.h"
 #include "exprtree.h"

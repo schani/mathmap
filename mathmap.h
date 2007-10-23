@@ -28,7 +28,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#include "gtypes.h"
+#include "glib.h"
 #include "exprtree.h"
 #include "userval.h"
 #include "internals.h"
@@ -36,7 +36,9 @@
 #include "compiler.h"
 #include "color.h"
 
+#ifndef OPENSTEP
 #include <libgimp/gimp.h>
+#endif
 
 #define MATHMAP_DATE          "October 2007"
 
@@ -218,9 +220,11 @@ void user_value_changed (void);
 
 void set_expression_cursor (int line, int column);
 
+#ifndef OPENSTEP
 int alloc_input_drawable (GimpDrawable *drawable);
 void free_input_drawable (int index);
 GimpDrawable* get_input_drawable (int index);
+#endif
 
 #define DRAWABLE_ID(d)     ((d)->drawable_id)
 

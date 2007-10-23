@@ -29,14 +29,14 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
-#include <glib.h>
+#include <GLib/glib.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
 #else
 #include <mach-o/dyld.h>
 #endif
 
-#include "gtypes.h"
+#include "glib.h"
 #include "mathmap.h"
 #include "vars.h"
 #include "internals.h"
@@ -257,7 +257,8 @@ static type_t primary_type (primary_t *primary);
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
-#include <gsl/gsl_specfunc.h>
+#include <gsl/gsl_sf_gamma.h>
+#include <gsl/gsl_sf_ellint.h>
 #include <gsl/gsl_sf_elljac.h>
 
 #include "spec_func.h"
@@ -4645,7 +4646,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
         const char *moduleName = "Johnny";
         NSSymbol symbol;
         
-        NSCreateObjectFileImageFromFile(buf, &objectFileImage);
+        NSCreateObjectFileImageFromFile(so_filename, &objectFileImage);
 	if (objectFileImage == 0)
 	{
 	    fprintf(stderr, "NSCreateObjectFileImageFromFile() failed\n");
@@ -4717,7 +4718,7 @@ generate_interpreter_code (mathmap_t *mathmap)
 }
 
 /*** plug-in generator ***/
-
+#ifndef OPENSTEP
 int
 generate_plug_in (char *filter, char *output_filename,
 		  char *template_filename, char *opmacros_filename, int analyze_constants,
@@ -4765,6 +4766,7 @@ generate_plug_in (char *filter, char *output_filename,
 
     return 1;
 }
+#endif
 
 /*** inits ***/
 

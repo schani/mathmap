@@ -25,9 +25,11 @@
 #include <assert.h>
 #include <math.h>
 
+#ifndef OPENSTEP
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
+#endif
 
 #include "mathmap.h"
 #include "userval.h"
@@ -381,11 +383,13 @@ free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline)
 		free(uservals[info->index].v.gradient.values);
 		break;
 
+#ifndef OPENSTEP
 	    case USERVAL_IMAGE :
 		if (!cmdline)
 		    if (uservals[info->index].v.image.index != -1)
 			free_input_drawable(uservals[info->index].v.image.index);
 		break;
+#endif
 	}
     }
 }
@@ -417,8 +421,10 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    break;
 
 	case USERVAL_IMAGE :
+#ifndef OPENSTEP
 	    if (!cmd_line_mode && src->v.image.index > 0)
 		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
+#endif
 	    dst->v.image.scale_x = src->v.image.scale_x;
 	    dst->v.image.scale_y = src->v.image.scale_y;
 	    dst->v.image.middle_x = src->v.image.middle_x;
@@ -438,6 +444,7 @@ copy_userval (userval_t *dst, userval_t *src, int type)
     }
 }
 
+#ifndef OPENSTEP
 static void
 userval_int_update (GtkAdjustment *adjustment, userval_t *userval)
 {
@@ -699,3 +706,4 @@ update_uservals (userval_info_t *infos, userval_t *uservals)
 				 USER_CURVE_POINTS,
 				 uservals[info->index].v.curve.values);
 }
+#endif
