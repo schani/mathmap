@@ -467,11 +467,11 @@ number can be subtracted from each element of a tuple."
   (set result (-v x)))
 
 (defbuiltin "__mul" mul_ri (ri 2) ((a (ri 2)) (b (ri 2)))
-  "Multiplication.  Works on real numbers, complex numbers, tuples,
-vectors and matrices.  Two tuples can be multiplied element-wise or a
-tuple can be multipled by a single number for each element.  Vectors
-and matrices can be multipled in both directions and two matrices can
-be multipled as well."
+  "Multiplication.  Works on real numbers, complex numbers,
+quaternions, tuples, vectors and matrices.  Two tuples can be
+multiplied element-wise or a tuple can be multipled by a single number
+for each element.  Vectors and matrices can be multipled in both
+directions and two matrices can be multipled as well."
   (set result (make (ri 2)
 		    (- (* (nth 0 a) (nth 0 b)) (* (nth 1 a) (nth 1 b)))
 		    (+ (* (nth 0 a) (nth 1 b)) (* (nth 0 b) (nth 1 a))))))
@@ -513,6 +513,25 @@ be multipled as well."
 
 (defbuiltin "__mul" mul_m3x3v3 (v3 3) ((a (m3x3 9)) (b (v3 3)))
   (set result (eval `(make (v3 3) ,@(matvecmul 3)))))
+
+(defbuiltin "__mul" mul_quat (quat 4) ((a (quat 4)) (b (quat 4)))
+  (set result (make (quat 4)
+		    (+ (* (nth 0 a) (nth 0 b))
+		       (- (* (nth 1 a) (nth 1 b)))
+		       (- (* (nth 2 a) (nth 2 b)))
+		       (- (* (nth 3 a) (nth 3 b))))
+		    (+ (* (nth 0 a) (nth 1 b))
+		       (* (nth 1 a) (nth 0 b))
+		       (* (nth 2 a) (nth 3 b))
+		       (- (* (nth 3 a) (nth 2 b))))
+		    (+ (* (nth 0 a) (nth 2 b))
+		       (* (nth 2 a) (nth 0 b))
+		       (- (* (nth 1 a) (nth 3 b)))
+		       (* (nth 3 a) (nth 1 b)))
+		    (+ (* (nth 0 a) (nth 3 b))
+		       (* (nth 3 a) (nth 0 b))
+		       (* (nth 1 a) (nth 2 b))
+		       (- (* (nth 2 a) (nth 1 b)))))))
 
 (defbuiltin "__mul" mul_1 (?T 1) ((a (?T 1)) (b (?T 1)))
   (set result (make (?T 1) (* (nth 0 a) (nth 0 b)))))
@@ -653,9 +672,15 @@ be positive, otherwise the result will not be definied."
 	(set result (/v a (splat (?T ?L) (sqrt l)))))))
 
 (defbuiltin "abs" abs_ri (nil 1) ((a (ri 2)))
-  "Absolute value of real numbers, complex numbers (magnitude) and
-vectors (Euclidian norm)."
+  "Absolute value of real numbers, complex numbers (magnitude),
+quaternions and vectors (Euclidian norm)."
   (set result (make (nil 1) (hypot (nth 0 a) (nth 1 a)))))
+
+(defbuiltin "abs" abs_quat (nil 1) ((a (quat 4)))
+  (set result (make (nil 1) (sqrt (+ (* (nth 0 a) (nth 0 a))
+				     (* (nth 1 a) (nth 1 a))
+				     (* (nth 2 a) (nth 2 a))
+				     (* (nth 3 a) (nth 3 a)))))))
 
 (defbuiltin "abs" abs_1 (?T 1) ((a (?T 1)))
   (set result (abs-v a)))
