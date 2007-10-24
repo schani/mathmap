@@ -323,9 +323,9 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 		height = invocation->img_height;
 #endif
 
-		calc_scale_factors(info->v.image.flags, invocation->img_width, invocation->img_height,
+		calc_scale_factors(info->v.image.flags, width, height,
 				   &val->v.image.scale_x, &val->v.image.scale_y);
-		calc_middle_values(invocation->img_width, invocation->img_height, 
+		calc_middle_values(width, height, 
 				   1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
 				   &val->v.image.middle_x, &val->v.image.middle_y);
 
