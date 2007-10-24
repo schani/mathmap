@@ -312,17 +312,29 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_IMAGE :
-	    calc_scale_factors(info->v.image.flags, invocation->img_width, invocation->img_height,
-			       &val->v.image.scale_x, &val->v.image.scale_y);
-	    calc_middle_values(invocation->img_width, invocation->img_height, 
-			       1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
-			       &val->v.image.middle_x, &val->v.image.middle_y);
+	    {
+		int width, height;
+
+#ifdef OPENSTEP
+		width = val->v.image.width;
+		height = val->v.image.height;
+#else
+		width = invocation->img_width;
+		height = invocation->img_height;
+#endif
+
+		calc_scale_factors(info->v.image.flags, invocation->img_width, invocation->img_height,
+				   &val->v.image.scale_x, &val->v.image.scale_y);
+		calc_middle_values(invocation->img_width, invocation->img_height, 
+				   1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
+				   &val->v.image.middle_x, &val->v.image.middle_y);
 
 #ifndef OPENSTEP
-	    val->v.image.index = -1;
+		val->v.image.index = -1;
 #else
-	    val->v.image.data = 0;
+		val->v.image.data = 0;
 #endif
+	    }
 	    break;
     }
 }
