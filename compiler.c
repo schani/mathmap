@@ -317,17 +317,21 @@ static int stmt_stackp = 0;
 
 /*** hash tables ***/
 
+static void
+_copy_entry (gpointer key, gpointer value, gpointer user_data)
+{
+    GHashTable *copy = (GHashTable*)user_data;
+    g_hash_table_insert(copy, key, value);
+}
+
 static GHashTable*
 direct_hash_table_copy (GHashTable *table)
 {
     GHashTable *copy = g_hash_table_new(g_direct_hash, g_direct_equal);
 
-    void copy_entry (gpointer key, gpointer value, gpointer user_data)
-	{ g_hash_table_insert(copy, key, value); }
-
     assert(copy != 0);
 
-    g_hash_table_foreach(table, &copy_entry, 0);
+    g_hash_table_foreach(table, &_copy_entry, copy);
 
     return copy;
 }
