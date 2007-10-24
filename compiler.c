@@ -29,14 +29,13 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
-#include <GLib/glib.h>
+#include <glib.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
 #else
 #include <mach-o/dyld.h>
 #endif
 
-#include "glib.h"
 #include "mathmap.h"
 #include "vars.h"
 #include "internals.h"
@@ -50,6 +49,9 @@
 #include "lispreader/pools.h"
 #include "compiler.h"
 #include "opmacros.h"
+
+#define CLOSURE_GET(n,t)		(t)(((void**)info)[(n)])
+#define CLOSURE_VAR(t,name,n)		t name = CLOSURE_GET((n),t)
 
 //#define NO_CONSTANTS_ANALYSIS
 
@@ -675,10 +677,10 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 }
 
 static void
-for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
+for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), void *info)
 {
     if (rhs->kind == RHS_PRIMARY && rhs->v.primary.kind == PRIMARY_VALUE)
-	func(rhs->v.primary.v.value);
+	func(rhs->v.primary.v.value, info);
     else if (rhs->kind == RHS_OP)
     {
 	int i;
@@ -688,10 +690,12 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value))
 	    primary_t *arg = &rhs->v.op.args[i];
 
 	    if (arg->kind == PRIMARY_VALUE)
-		func(arg->v.value);
+		func(arg->v.value, info);
 	}
     }
 }
+
+#define FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; for_each_value_in_rhs((rhs),(func),__clos); } while (0)
 
 /*
 static int
@@ -709,7 +713,7 @@ rhs_contains (rhs_t *rhs, value_t *value)
 */
 
 static void
-for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
+for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt, void *info), void *info)
 {
     while (stmts != 0)
     {
@@ -720,18 +724,18 @@ for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
 
 	    case STMT_ASSIGN :
 	    case STMT_PHI_ASSIGN :
-		func(stmts);
+		func(stmts, info);
 		break;
 
 	    case STMT_IF_COND :
-		for_each_assign_statement(stmts->v.if_cond.consequent, func);
-		for_each_assign_statement(stmts->v.if_cond.alternative, func);
-		for_each_assign_statement(stmts->v.if_cond.exit, func);
+		for_each_assign_statement(stmts->v.if_cond.consequent, func, info);
+		for_each_assign_statement(stmts->v.if_cond.alternative, func, info);
+		for_each_assign_statement(stmts->v.if_cond.exit, func, info);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		for_each_assign_statement(stmts->v.while_loop.entry, func);
-		for_each_assign_statement(stmts->v.while_loop.body, func);
+		for_each_assign_statement(stmts->v.while_loop.entry, func, info);
+		for_each_assign_statement(stmts->v.while_loop.body, func, info);
 		break;
 
 	    default :
@@ -742,12 +746,21 @@ for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt))
     }
 }
 
-static void
-for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, statement_t *stmt))
-{
-    void call_func (value_t *value)
-	{ func(value, stmt); }
+#define FOR_EACH_ASSIGN_STATEMENT(stmts,func,...) do { void *__clos[] = { __VA_ARGS__ }; for_each_assign_statement((stmts),(func),__clos); } while (0)
 
+static void
+_call_func (value_t *value, void *info)
+{
+    void (*func) (value_t *value, statement_t *stmt, void *info) = CLOSURE_GET(0, void(*)(value_t*, statement_t*, void*));
+    CLOSURE_VAR(statement_t*, stmt, 1);
+    CLOSURE_VAR(void*, infoinfo, 2);
+
+    func(value, stmt, infoinfo);
+}
+
+static void
+for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, statement_t *stmt, void *info), void *info)
+{
     while (stmt != 0)
     {
 	switch (stmt->kind)
@@ -756,23 +769,23 @@ for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, s
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs2, &call_func);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_call_func, func, stmt, info);
 	    case STMT_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs, &call_func);
-		func(stmt->v.assign.lhs, stmt);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_call_func, func, stmt, info);
+		func(stmt->v.assign.lhs, stmt, info);
 		break;
 
 	    case STMT_IF_COND :
-		for_each_value_in_rhs(stmt->v.if_cond.condition, &call_func);
-		for_each_value_in_statements(stmt->v.if_cond.consequent, func);
-		for_each_value_in_statements(stmt->v.if_cond.alternative, func);
-		for_each_value_in_statements(stmt->v.if_cond.exit, func);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_call_func, func, stmt, info);
+		for_each_value_in_statements(stmt->v.if_cond.consequent, func, info);
+		for_each_value_in_statements(stmt->v.if_cond.alternative, func, info);
+		for_each_value_in_statements(stmt->v.if_cond.exit, func, info);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		for_each_value_in_rhs(stmt->v.while_loop.invariant, &call_func);
-		for_each_value_in_statements(stmt->v.while_loop.entry, func);
-		for_each_value_in_statements(stmt->v.while_loop.body, func);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_call_func, func, stmt, info);
+		for_each_value_in_statements(stmt->v.while_loop.entry, func, info);
+		for_each_value_in_statements(stmt->v.while_loop.body, func, info);
 		break;
 
 	    default :
@@ -782,6 +795,8 @@ for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, s
 	stmt = stmt->next;
     }
 }
+
+#define FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { void *__clos[] = { __VA_ARGS__ }; for_each_value_in_statements((stmt),(func),__clos); } while (0)
 
 /* checks whether stmt is a direct or indirect child of limit.  if stmt ==
  * limit, it does not count as a child */
@@ -1021,12 +1036,16 @@ commit_assign (statement_t *stmt)
     assign_value_index_and_make_current(stmt->v.assign.lhs);
 }
 
+
+static void
+_add_use_in_stmt (value_t *value, void *info)
+{
+    add_use(value, CLOSURE_GET(0, statement_t*));
+}
+
 void
 emit_stmt (statement_t *stmt)
 {
-    void add_use_in_stmt (value_t *value)
-	{ add_use(value, stmt); }
-
     assert(stmt->next == 0);
 
     stmt->parent = CURRENT_STACK_TOP;
@@ -1040,22 +1059,22 @@ emit_stmt (statement_t *stmt)
 	    break;
 
 	case STMT_ASSIGN :
-	    for_each_value_in_rhs(stmt->v.assign.rhs, add_use_in_stmt);
+	    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_add_use_in_stmt, stmt);
 	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_PHI_ASSIGN :
-	    for_each_value_in_rhs(stmt->v.assign.rhs, add_use_in_stmt);
-	    for_each_value_in_rhs(stmt->v.assign.rhs2, add_use_in_stmt);
+	    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_add_use_in_stmt, stmt);
+	    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_add_use_in_stmt, stmt);
 	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_IF_COND :
-	    for_each_value_in_rhs(stmt->v.if_cond.condition, add_use_in_stmt);
+	    FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_add_use_in_stmt, stmt);
 	    break;
 
 	case STMT_WHILE_LOOP :
-	    for_each_value_in_rhs(stmt->v.while_loop.invariant, add_use_in_stmt);
+	    FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_add_use_in_stmt, stmt);
 	    break;
 
 	default :
@@ -1906,16 +1925,24 @@ prepend_compvar_statements (compvar_t *compvar, statement_list_t *rest)
 }
 
 static void
+_builder (statement_t *stmt, void *info)
+{
+    CLOSURE_VAR(statement_list_t**, worklist, 0);
+    statement_list_t* (*build_worklist) (statement_t*, statement_list_t*, void*) = CLOSURE_GET(1, statement_list_t* (*) (statement_t*, statement_list_t*, void*));
+    CLOSURE_VAR(void*, infoinfo, 2);
+
+    *worklist = build_worklist(stmt, *worklist, infoinfo);
+}
+
+static void
 perform_worklist_dfa (statement_t *stmts,
-		      statement_list_t* (*build_worklist) (statement_t *stmt, statement_list_t *worklist),
-		      statement_list_t* (*work_statement) (statement_t *stmt, statement_list_t *worklist))
+		      statement_list_t* (*build_worklist) (statement_t *stmt, statement_list_t *worklist, void *info),
+		      statement_list_t* (*work_statement) (statement_t *stmt, statement_list_t *worklist, void *info),
+		      void *info)
 {
     statement_list_t *worklist = 0;
 
-    void builder (statement_t *stmt)
-	{ worklist = build_worklist(stmt, worklist); }
-
-    for_each_assign_statement(stmts, &builder);
+    FOR_EACH_ASSIGN_STATEMENT(stmts, &_builder, &worklist, build_worklist, info);
 
     do
     {
@@ -1923,13 +1950,15 @@ perform_worklist_dfa (statement_t *stmts,
 
 	while (worklist != 0)
 	{
-	    new_worklist = work_statement(worklist->stmt, new_worklist);
+	    new_worklist = work_statement(worklist->stmt, new_worklist, info);
 	    worklist = worklist->next;
 	}
 
 	worklist = new_worklist;
     } while (worklist != 0);
 }
+
+#define PERFORM_WORKLIST_DFA(stmts,build,work,...) do { void *__clos[] = { __VA_ARGS__ }; perform_worklist_dfa((stmts),(build),(work),__clos); } while (0)
 
 
 /*** type propagation ***/
@@ -1992,7 +2021,7 @@ rhs_type (rhs_t *rhs)
 }
 
 static statement_list_t*
-propagate_types_builder (statement_t *stmt, statement_list_t *worklist)
+propagate_types_builder (statement_t *stmt, statement_list_t *worklist, void *info)
 {
     assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
 
@@ -2000,7 +2029,7 @@ propagate_types_builder (statement_t *stmt, statement_list_t *worklist)
 }
 
 static statement_list_t*
-propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
+propagate_types_worker (statement_t *stmt, statement_list_t *worklist, void *info)
 {
     switch (stmt->kind)
     {
@@ -2051,7 +2080,7 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist)
 static void
 propagate_types (void)
 {
-    perform_worklist_dfa(first_stmt, &propagate_types_builder, &propagate_types_worker);
+    PERFORM_WORKLIST_DFA(first_stmt, &propagate_types_builder, &propagate_types_worker);
 }
 
 /*** constants analysis ***/
@@ -2187,12 +2216,23 @@ analyze_stmts_constants (statement_t *stmt, int *changed, unsigned int inherited
     }
 }
 
+static void
+_clear_const_bits_from_assignment (value_t *val, void *info)
+{
+    CLOSURE_VAR(statement_t*, stmt, 0);
+    val->least_const_type_directly_used_in &= LEAST_CONST_TYPE(stmt->v.assign.lhs);
+}
+
+static void
+_clear_const_bits (value_t *val, void *info)
+{
+    CLOSURE_VAR(unsigned int, sub_least_const_type, 0);
+    val->least_const_type_directly_used_in &= sub_least_const_type;
+}
+
 static unsigned int
 analyze_least_const_type_directly_used_in (statement_t *stmt)
 {
-    void clear_const_bits_from_assignment (value_t *val)
-	{ val->least_const_type_directly_used_in &= LEAST_CONST_TYPE(stmt->v.assign.lhs); }
-
     unsigned int least_const_type = CONST_MAX;
 
     while (stmt != 0)
@@ -2203,9 +2243,9 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs2, &clear_const_bits_from_assignment);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_clear_const_bits_from_assignment, stmt);
 	    case STMT_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs, &clear_const_bits_from_assignment);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_clear_const_bits_from_assignment, stmt);
 		least_const_type &= LEAST_CONST_TYPE(stmt->v.assign.lhs);
 		break;
 
@@ -2213,14 +2253,11 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 	    {
 		unsigned int sub_least_const_type = CONST_MAX;
 
-		void clear_const_bits (value_t *val)
-		    { val->least_const_type_directly_used_in &= sub_least_const_type; }
-
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.consequent);
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.alternative);
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.exit);
 
-		for_each_value_in_rhs(stmt->v.if_cond.condition, &clear_const_bits);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_clear_const_bits, (void*)sub_least_const_type);
 
 		least_const_type &= sub_least_const_type;
 
@@ -2231,13 +2268,10 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 	    {
 		unsigned int sub_least_const_type = CONST_MAX;
 
-		void clear_const_bits (value_t *val)
-		    { val->least_const_type_directly_used_in &= sub_least_const_type; }
-
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.while_loop.entry);
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.while_loop.body);
 
-		for_each_value_in_rhs(stmt->v.while_loop.invariant, &clear_const_bits);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_clear_const_bits, (void*)sub_least_const_type);
 
 		least_const_type &= sub_least_const_type;
 
@@ -2256,22 +2290,27 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 
 #undef LEAST_CONST_TYPE
 
+static void
+_update_const (value_t *val, void *info)
+{
+    CLOSURE_VAR(value_set_t*, update_const_set, 0);
+    CLOSURE_VAR(int, update_const_mask, 1);
+    CLOSURE_VAR(int*, changed, 2);
+
+    if (value_set_contains(update_const_set, val)
+	&& ((val->least_const_type_multiply_used_in & update_const_mask)
+	    != val->least_const_type_multiply_used_in))
+    {
+	val->least_const_type_multiply_used_in &= update_const_mask;
+	*changed = 1;
+    }
+}
+
 static int
 analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value_set_t *multiply_assigned_set, int *changed)
 {
     int update_const_mask;
     value_set_t *update_const_set = multiply_assigned_set;
-    void update_const (value_t *val)
-	{
-	    if (value_set_contains(update_const_set, val)
-		&& ((val->least_const_type_multiply_used_in & update_const_mask)
-		    != val->least_const_type_multiply_used_in))
-	    {
-		val->least_const_type_multiply_used_in &= update_const_mask;
-		*changed = 1;
-	    }
-	}
-
     int least_const = CONST_MAX;
 
     while (stmt != 0)
@@ -2283,10 +2322,12 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 
 	    case STMT_PHI_ASSIGN :
 		update_const_mask = stmt->v.assign.lhs->least_const_type_multiply_used_in;
-		for_each_value_in_rhs(stmt->v.assign.rhs2, &update_const);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_update_const,
+				      update_const_set, (void*)update_const_mask, changed);
 	    case STMT_ASSIGN :
 		update_const_mask = stmt->v.assign.lhs->least_const_type_multiply_used_in;
-		for_each_value_in_rhs(stmt->v.assign.rhs, &update_const);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_update_const,
+				      update_const_set, (void*)update_const_mask, changed);
 		if (in_loop)
 		    value_set_add(multiply_assigned_set, stmt->v.assign.lhs);
 		least_const &= stmt->v.assign.lhs->least_const_type_multiply_used_in;
@@ -2304,7 +2345,8 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 									     in_loop, multiply_assigned_set, changed);
 
 		update_const_mask = sub_least_const;
-		for_each_value_in_rhs(stmt->v.if_cond.condition, &update_const);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_update_const,
+				      update_const_set, (void*)update_const_mask, changed);
 
 		least_const &= sub_least_const;
 
@@ -2336,7 +2378,8 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 
 		update_const_set = copy;
 		update_const_mask = sub_least_const;
-		for_each_value_in_rhs(stmt->v.while_loop.invariant, &update_const);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_update_const,
+				      update_const_set, (void*)update_const_mask, changed);
 		update_const_set = multiply_assigned_set;
 
 		free_value_set(copy);
@@ -2357,20 +2400,24 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 }
 
 static void
+_init_const_type (value_t *value, statement_t *stmt, void *info)
+{
+    value->const_type = CONST_MAX;
+}
+
+static void
+_init_least_const_types (value_t *value, statement_t *stmt, void *info)
+{
+    value->least_const_type_multiply_used_in = value->const_type;
+    value->least_const_type_directly_used_in = value->const_type;
+}
+
+static void
 analyze_constants (void)
 {
-    void init_const_type (value_t *value, statement_t *stmt)
-	{ value->const_type = CONST_MAX; }
-
-    void init_least_const_types (value_t *value, statement_t *stmt)
-	{
-	    value->least_const_type_multiply_used_in = value->const_type;
-	    value->least_const_type_directly_used_in = value->const_type;
-	}
-
     int changed;
 
-    for_each_value_in_statements(first_stmt, &init_const_type);
+    FOR_EACH_VALUE_IN_STATEMENTS(first_stmt, &_init_const_type);
 
     do
     {
@@ -2378,7 +2425,7 @@ analyze_constants (void)
 	analyze_stmts_constants(first_stmt, &changed, CONST_MAX);
     } while (changed);
 
-    for_each_value_in_statements(first_stmt, &init_least_const_types);
+    FOR_EACH_VALUE_IN_STATEMENTS(first_stmt, &_init_least_const_types);
 
     do
     {
@@ -2470,33 +2517,38 @@ optimize_make_color (statement_t *stmt)
 /*** copy propagation ***/
 
 static void
+_rewrite_if_possible (value_t *value, void *info)
+{
+    CLOSURE_VAR(statement_t*, stmt, 0);
+    CLOSURE_VAR(GHashTable*, copy_hash, 1);
+    CLOSURE_VAR(int*, changed, 2);
+
+    primary_t *new = (primary_t*)g_hash_table_lookup(copy_hash, value);
+
+    if (new != 0)
+    {
+	rewrite_use(stmt, value, *new);
+	*changed = 1;
+    }
+}
+
+static void
 copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *changed)
 {
     while (stmt != 0)
     {
-	void rewrite_if_possible (value_t *value)
-	{
-	    primary_t *new = (primary_t*)g_hash_table_lookup(copy_hash, value);
-
-	    if (new != 0)
-	    {
-		rewrite_use(stmt, value, *new);
-		*changed = 1;
-	    }
-	}
-
 	switch (stmt->kind)
 	{
 	    case STMT_NIL :
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs, rewrite_if_possible);
-		for_each_value_in_rhs(stmt->v.assign.rhs2, rewrite_if_possible);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_rewrite_if_possible, stmt, copy_hash, changed);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_rewrite_if_possible, stmt, copy_hash, changed);
 		break;
 
 	    case STMT_ASSIGN :
-		for_each_value_in_rhs(stmt->v.assign.rhs, rewrite_if_possible);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_rewrite_if_possible, stmt, copy_hash, changed);
 
 		if (stmt->v.assign.rhs->kind == RHS_PRIMARY)
 		{
@@ -2516,7 +2568,7 @@ copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *chang
 		break;
 
 	    case STMT_WHILE_LOOP :
-		for_each_value_in_rhs(stmt->v.while_loop.invariant, rewrite_if_possible);
+		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_rewrite_if_possible, stmt, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.while_loop.entry, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.while_loop.body, copy_hash, changed);
 		break;
@@ -2638,18 +2690,23 @@ add_value_if_new (value_list_t *list, value_t *value)
 }
 
 static void
+_remove_value (value_t *value, void *info)
+{
+    CLOSURE_VAR(statement_t*, stmt, 0);
+    CLOSURE_VAR(value_list_t**, worklist, 1);
+    CLOSURE_VAR(int*, changed, 2);
+
+    assert(value->index < 0 || value->def->kind != STMT_NIL);
+    remove_use(value, stmt);
+    if (value->uses == 0)
+	*worklist = add_value_if_new(*worklist, value);
+
+    *changed = 1;
+}
+
+static void
 remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *changed)
 {
-    void remove_value (value_t *value)
-	{
-	    assert(value->index < 0 || value->def->kind != STMT_NIL);
-	    remove_use(value, stmt);
-	    if (value->uses == 0)
-		*worklist = add_value_if_new(*worklist, value);
-
-	    *changed = 1;
-	}
-
     assert(stmt->v.assign.lhs->uses == 0);
 
     if ((stmt->v.assign.rhs->kind == RHS_OP
@@ -2659,9 +2716,9 @@ remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *cha
 	    && !stmt->v.assign.rhs2->v.op.op->is_pure))
 	return;
 
-    for_each_value_in_rhs(stmt->v.assign.rhs, &remove_value);
+    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_remove_value, stmt, worklist, changed);
     if (stmt->kind == STMT_PHI_ASSIGN)
-	for_each_value_in_rhs(stmt->v.assign.rhs2, &remove_value);
+	FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_remove_value, stmt, worklist, changed);
 
     stmt->kind = STMT_NIL;
 }
@@ -2785,12 +2842,15 @@ has_indirect_parent (statement_t *stmt, statement_t *parent)
 }
 
 static void
+_remove_value_use (value_t *value, void *info)
+{
+    remove_use(value, CLOSURE_GET(0,statement_t*));
+}
+
+static void
 remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt)
 {
-    void remove (value_t *val)
-	{ remove_use(val, stmt); }
-
-    for_each_value_in_rhs(rhs, &remove);
+    FOR_EACH_VALUE_IN_RHS(rhs, &_remove_value_use, stmt);
 }
 
 static void
@@ -2970,10 +3030,9 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 static void
 replace_rhs_with_value (rhs_t **rhs, value_t *val, statement_t *stmt)
 {
-    void remove_value_use (value_t *value)
-	{ remove_use(value, stmt); }
+    void *closure[1] = { stmt };
 
-    for_each_value_in_rhs(*rhs, &remove_value_use);
+    for_each_value_in_rhs(*rhs, &_remove_value_use, closure);
 
     *rhs = make_value_rhs(val);
 
@@ -3542,12 +3601,17 @@ typecheck_pre_native_code (void)
 /*** ssa well-formedness check ***/
 
 static void
+_check_value (value_t *value, void *info)
+{
+    assert(value_set_contains(CLOSURE_GET(0,value_set_t*), value));
+}
+
+static void
 check_rhs_defined (rhs_t *rhs, value_set_t *defined_set)
 {
-    void check_value (value_t *value)
-	{ assert(value_set_contains(defined_set, value)); }
+    void *closure[1] = { defined_set };
 
-    for_each_value_in_rhs(rhs, check_value);
+    for_each_value_in_rhs(rhs, &_check_value, closure);
 }
 
 static value_t*
@@ -3742,7 +3806,7 @@ check_ssa (statement_t *stmts)
 
 /* returns whether the slice is non-empty */
 static int
-slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statement_t *stmt))
+slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statement_t *stmt, void *info), void *info)
 {
     int non_empty = 0;
 
@@ -3755,7 +3819,7 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 
 	    case STMT_ASSIGN :
 	    case STMT_PHI_ASSIGN :
-		if (predicate(stmt))
+		if (predicate(stmt, info))
 		{
 		    stmt->slice_flags |= slice_flag;
 		    non_empty = 1;
@@ -3766,13 +3830,13 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 	    {
 		int result;
 
-		result = slice_code(stmt->v.if_cond.consequent, slice_flag, predicate);
-		result = slice_code(stmt->v.if_cond.alternative, slice_flag, predicate) || result;
-		result = slice_code(stmt->v.if_cond.exit, slice_flag, predicate) || result;
+		result = slice_code(stmt->v.if_cond.consequent, slice_flag, predicate, info);
+		result = slice_code(stmt->v.if_cond.alternative, slice_flag, predicate, info) || result;
+		result = slice_code(stmt->v.if_cond.exit, slice_flag, predicate, info) || result;
 
 		if (result)
 		{
-		    slice_code(stmt->v.if_cond.exit, slice_flag, predicate);
+		    slice_code(stmt->v.if_cond.exit, slice_flag, predicate, info);
 
 		    stmt->slice_flags |= slice_flag;
 		    non_empty = 1;
@@ -3782,15 +3846,15 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 
 	    case STMT_WHILE_LOOP :
 	    {
-		if (slice_code(stmt->v.while_loop.body, slice_flag, predicate))
+		if (slice_code(stmt->v.while_loop.body, slice_flag, predicate, info))
 		{
-		    slice_code(stmt->v.while_loop.entry, slice_flag, predicate);
+		    slice_code(stmt->v.while_loop.entry, slice_flag, predicate, info);
 
 		    stmt->slice_flags |= slice_flag;
 		    non_empty = 1;
 		}
 		else
-		    assert(!slice_code(stmt->v.while_loop.entry, slice_flag, predicate));
+		    assert(!slice_code(stmt->v.while_loop.entry, slice_flag, predicate, info));
 		break;
 	    }
 
@@ -3803,6 +3867,8 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 
     return non_empty;
 }
+
+#define SLICE_CODE(stmt,flag,func,...) do { void *__clos[] = { __VA_ARGS__ }; slice_code((stmt),(flag),(func),__clos); } while (0)
 
 /*** c code output ***/
 
@@ -3871,12 +3937,15 @@ output_value_decl (FILE *out, value_t *value)
 }
 
 static void
+_reset_value_have_defined (value_t *value, statement_t *stmt, void *info)
+{
+    value->have_defined = 0;
+}
+
+static void
 reset_have_defined (statement_t *stmt)
 {
-    void reset_value_have_defined (value_t *value, statement_t *stmt)
-	{ value->have_defined = 0; }
-
-    for_each_value_in_statements(stmt, &reset_value_have_defined);
+    FOR_EACH_VALUE_IN_STATEMENTS(stmt, &_reset_value_have_defined);
 }
 
 void
@@ -4030,50 +4099,62 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 }
 
 static void
+_output_value_if_needed_decl (value_t *value, statement_t *stmt, void *info)
+{
+    CLOSURE_VAR(FILE*, out, 0);
+    CLOSURE_VAR(int, const_type, 1);
+
+    if ((value->const_type | CONST_T) == (const_type | CONST_T)
+	&& is_permanent_const_value(value))
+	output_value_decl(out, value);
+}
+
+static void
 output_permanent_const_declarations (FILE *out, int const_type)
 {
-    void output_value_if_needed (value_t *value, statement_t *stmt)
-	{
-	    if ((value->const_type | CONST_T) == (const_type | CONST_T)
-		&& is_permanent_const_value(value))
-		output_value_decl(out, value);
-	}
-
     reset_have_defined(first_stmt);
 
-    for_each_value_in_statements(first_stmt, &output_value_if_needed);
+    FOR_EACH_VALUE_IN_STATEMENTS(first_stmt, &_output_value_if_needed_decl, out, (void*)const_type);
+}
+
+static int
+_is_value_needed (value_t *value, int const_type)
+{
+    return (value->const_type | CONST_T) == (const_type | CONST_T)
+	|| (is_const_type_within(const_type | CONST_T,
+				 value->least_const_type_multiply_used_in,
+				 value->const_type | CONST_T));
+}
+
+static void
+_output_value_if_needed_code (value_t *value, statement_t *stmt, void *info)
+{
+    CLOSURE_VAR(FILE*, out, 0);
+    CLOSURE_VAR(int, const_type, 1);
+
+    if ((is_temporary_const_value(value) || const_type == 0)
+	&& _is_value_needed(value, const_type))
+	output_value_decl(out, value);
+}
+
+static int
+_const_predicate (statement_t *stmt, void *info)
+{
+    CLOSURE_VAR(int, const_type, 0);
+
+    assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
+
+    return _is_value_needed(stmt->v.assign.lhs, const_type);
 }
 
 static void
 output_permanent_const_code (FILE *out, int const_type)
 {
-    int is_value_needed (value_t *value)
-	{
-	    return (value->const_type | CONST_T) == (const_type | CONST_T)
-		|| (is_const_type_within(const_type | CONST_T,
-					 value->least_const_type_multiply_used_in,
-					 value->const_type | CONST_T));
-	}
-
-    void output_value_if_needed (value_t *value, statement_t *stmt)
-	{
-	    if ((is_temporary_const_value(value) || const_type == 0)
-		&& is_value_needed(value))
-		output_value_decl(out, value);
-	}
-
-    int const_predicate (statement_t *stmt)
-	{
-	    assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
-
-	    return is_value_needed(stmt->v.assign.lhs);
-	}
-
     unsigned int slice_flag;
 
     /* declarations */
     reset_have_defined(first_stmt);
-    for_each_value_in_statements(first_stmt, &output_value_if_needed);
+    FOR_EACH_VALUE_IN_STATEMENTS(first_stmt, &_output_value_if_needed_code, out, (void*)const_type);
 
     /* code */
     if (const_type == (CONST_X | CONST_Y))
@@ -4085,7 +4166,7 @@ output_permanent_const_code (FILE *out, int const_type)
     else
 	slice_flag = SLICE_NO_CONST;
 
-    slice_code(first_stmt, slice_flag, &const_predicate);
+    SLICE_CODE(first_stmt, slice_flag, &_const_predicate, (void*)const_type);
 
     output_stmts(out, first_stmt, slice_flag);
 }

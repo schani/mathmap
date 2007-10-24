@@ -47,7 +47,7 @@ ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
 CGEN_LD=-DCGEN_LD="\"cc -bundle -flat_namespace -undefined suppress -o\""
 MACOSX_LIBS=-lmx
-MACOSX_CFLAGS=-I/sw/include -fnested-functions
+MACOSX_CFLAGS=-I/sw/include
 else
 CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
