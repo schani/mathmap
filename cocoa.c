@@ -38,3 +38,8 @@ gimp_message (const char *msg)
 {
     printf("message: %s\n", msg);
 }
+
+void
+save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
+{
+}

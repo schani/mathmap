@@ -40,18 +40,10 @@ extern gint preview_width, preview_height;
 extern guchar *fast_image_source;
 extern gint sel_x1, sel_y1, sel_width, sel_height;
 
-static color_t
-get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, int frame)
-{ 
-    int width, height;
-
-#ifndef OPENSTEP
-    width = invocation->img_width;
-    height = invocation->img_height;
-#else
-    width = userval->v.image.width;
-    height = userval->v.image.height;
-#endif
+void
+apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int width, int height)
+{
+    int x = *_x, y = *_y;
 
     switch (invocation->edge_behaviour_x)
     {
@@ -124,6 +116,25 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
 	default :
 	    assert(0);
     }
+
+    *_x = x;
+    *_y = y;
+}
+
+static color_t
+get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, int frame)
+{ 
+    int width, height;
+
+#ifndef OPENSTEP
+    width = invocation->img_width;
+    height = invocation->img_height;
+#else
+    width = userval->v.image.width;
+    height = userval->v.image.height;
+#endif
+
+    apply_edge_behaviour(invocation, &x, &y, width, height);
 
     if (cmd_line_mode)
 	return mathmap_get_pixel(invocation, userval, frame, x, y);

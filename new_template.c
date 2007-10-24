@@ -226,6 +226,8 @@ typedef struct _mathmap_slice_t
 } mathmap_slice_t;
 
 #ifdef OPENSTEP
+extern void apply_edge_behaviour (mathmap_invocation_t *invocation, int *x, int *y, int width, int height);
+
 static color_t
 get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, int drawable_index, int frame)
 {
@@ -244,34 +246,13 @@ get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, i
 
     width = userval->v.image.width;
     height = userval->v.image.height;
-    
-    if (invocation->edge_behaviour == EDGE_BEHAVIOUR_WRAP)
-    {
-	if (x < 0)
-	    x = x % width + width;
-	else if (x >= width)
-	    x %= width;
-	if (y < 0)
-	    y = y % height + height;
-	else if (y >= height)
-	    y %= height;
-    }
-    else if (invocation->edge_behaviour == EDGE_BEHAVIOUR_REFLECT)
-    {
-	if (x < 0)
-	    x = -x % width;
-	else if (x >= width)
-	    x = (width - 1) - (x % width);
-	if (y < 0)
-	    y = -y % height;
-	else if (y >= height)
-	    y = (height - 1) - (y % height);
-    }
-    else
-    {
-	if (x < 0 || x >= width || y < 0 || y >= height)
-	    return *(color_t*)invocation->edge_color;
-    }
+
+    apply_edge_behaviour(invocation, &x, &y, width, height);
+
+    if (x < 0 || x >= width)
+	return invocation->edge_color_x;
+    if (y < 0 || y >= height)
+	return invocation->edge_color_y;
 
     return *(color_t*)(userval->v.image.data + 4 * x + y * userval->v.image.row_stride);
 }
