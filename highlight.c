@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002 Mark Probst
+ * Copyright (C) 2002-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -42,18 +42,15 @@ find_name (char **list, char *name)
 static int
 resolv_ident (char *name)
 {
-    static char *keywords[] = { "if", "then", "else", "end", "while", "do", "xor", 0 };
+    static char *keywords[] = { "if", "then", "else", "end", "while", "do", "xor", "filter", 0 };
     static char *internals[] = {
         "x", "y", "r", "a", "t", "X", "Y", "W", "H", "R", "frame",
         "xy", "ra", "XY", "WH",
         0
     };
-    static char *uservals[] = {
-	"user_int", "user_float", "user_bool", "user_color",
-	"user_curve", "user_gradient", "user_image",
-	0
-    };
+    static char *uservals[] = { "int", "float", "bool", "color", "curve", "gradient", "image", 0 };
     static char *constants[] = { "pi", "e", "I", 0 };
+    static char *errors[] = { "function", "lambda", 0 };
 
     if (find_name(keywords, name))
 	return HIGHLIGHT_KEYWORD;
@@ -63,6 +60,8 @@ resolv_ident (char *name)
 	return HIGHLIGHT_USERVAL;
     if (find_name(constants, name))
         return HIGHLIGHT_CONSTANT;
+    if (find_name(errors, name))
+	return HIGHLIGHT_ERROR;
     if (exists_overload_entry_with_name(name))
 	return HIGHLIGHT_BUILTIN;
     return HIGHLIGHT_VARIABLE;
