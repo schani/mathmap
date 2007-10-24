@@ -129,6 +129,7 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
 	return mathmap_get_pixel(invocation, userval, frame, x, y);
     else
     {
+#ifndef OPENSTEP
 	if (previewing)
 	{
 	    x = (x - sel_x1) * preview_width / width;
@@ -137,6 +138,7 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
 	    return mathmap_get_fast_pixel(invocation, userval, x, y);
 	}
 	else
+#endif
 	    return mathmap_get_pixel(invocation, userval, frame, x, y);
     }
 }

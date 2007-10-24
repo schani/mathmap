@@ -257,7 +257,7 @@ register_image (userval_info_t **infos, const char *name, unsigned int flags)
     return info;
 }
 
-static void
+void
 set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
     switch (info->type)
@@ -327,7 +327,7 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
     }
 }
 
-static void
+void
 instantiate_userval (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
     val->type = info->type;

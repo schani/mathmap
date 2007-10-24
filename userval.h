@@ -139,9 +139,12 @@ userval_info_t* register_curve (userval_info_t **infos, const char *name);
 userval_info_t* register_gradient (userval_info_t **infos, const char *name);
 userval_info_t* register_image (userval_info_t **infos, const char *name, unsigned int flags);
 
+void instantiate_userval (userval_t *val, userval_info_t *info, struct _mathmap_invocation_t *invocation);
 userval_t* instantiate_uservals (userval_info_t *infos, struct _mathmap_invocation_t *invocation);
 void free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline);
 void free_userval_infos (userval_info_t *infos);
+
+void set_userval_to_default (userval_t *val, userval_info_t *info, struct _mathmap_invocation_t *invocation);
 
 void copy_userval (userval_t *dst, userval_t *src, int type);
 
