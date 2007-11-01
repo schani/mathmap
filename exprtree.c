@@ -152,13 +152,11 @@ make_top_level_decl (int type, const char *name, const char *docstring)
     else
 	top_level->docstring = 0;
 
-    top_level->next = 0;
-
     return top_level;
 }
 
 top_level_decl_t*
-make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options)
+make_filter_decl (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options)
 {
     top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
 
@@ -169,45 +167,22 @@ make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree
     return top_level;
 }
 
-top_level_decl_t*
-top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2)
-{
-    top_level_decl_t *list = list1;
-
-    if (list1 == 0)
-	return list2;
-
-    while (list->next != 0)
-	list = list->next;
-
-    list->next = list2;
-
-    return list1;
-}
-
 void
-free_top_level_decls (top_level_decl_t *list)
+free_top_level_decl (top_level_decl_t *list)
 {
-    while (list != 0)
+    free(list->name);
+    if (list->docstring != 0)
+	free(list->docstring);
+
+    if (list->type == TOP_LEVEL_FILTER)
     {
-	top_level_decl_t *next = list->next;
-
-	free(list->name);
-	if (list->docstring != 0)
-	    free(list->docstring);
-
-	if (list->type == TOP_LEVEL_FILTER)
-	{
-	    free_arg_decls(list->v.filter.args);
-	    free_exprtree(list->v.filter.body);
-	}
-	else
-	    assert(0);
-
-	free(list);
-
-	list = next;
+	free_arg_decls(list->v.filter.args);
+	free_exprtree(list->v.filter.body);
     }
+    else
+	assert(0);
+
+    free(list);
 }
 
 option_t*
@@ -585,18 +560,18 @@ make_var (const char *name)
 
 	tree = function(0);
     }
-    else if (lookup_userval(the_mathmap->userval_infos, name) != 0)
+    else if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != 0)
     {
-	userval_info_t *info = lookup_userval(the_mathmap->userval_infos, name);
+	userval_info_t *info = lookup_userval(the_mathmap->current_filter->userval_infos, name);
 
 	tree = make_userval(info, 0);
     }
-    else if (lookup_variable(the_mathmap->variables, name, &info) != 0)
+    else if (lookup_variable(the_mathmap->current_filter->variables, name, &info) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_VARIABLE;
-	tree->val.var = lookup_variable(the_mathmap->variables, name, &tree->result);
+	tree->val.var = lookup_variable(the_mathmap->current_filter->variables, name, &tree->result);
 	tree->result = info;
     }
     else
@@ -712,6 +687,81 @@ make_convert (const char *tagname, exprtree *tuple)
     return tree;
 }
 
+static filter_t*
+lookup_filter (filter_t *filters, const char *name)
+{
+    filter_t *filter;
+
+    for (filter = filters; filter != 0; filter = filter->next)
+	if (strcmp(filter->decl->name, name) == 0)
+	    return filter;
+
+    return 0;
+}
+
+static exprtree*
+make_filter_call (filter_t *filter, exprtree *args)
+{
+    userval_info_t *info;
+    exprtree **argp;
+    exprtree *tree;
+
+    if (exprlist_length(args) != filter->num_uservals + 1)
+    {
+	sprintf(error_string, "Filter %s takes %d arguments but is called with %d.",
+		filter->decl->name, filter->num_uservals + 1, exprlist_length(args));
+	JUMP(1);
+    }
+
+    for (info = filter->userval_infos, argp = &args;
+	 info != 0;
+	 info = info->next, argp = &(*argp)->next)
+    {
+	switch (info->type)
+	{
+	    case USERVAL_INT_CONST :
+	    case USERVAL_FLOAT_CONST :
+	    case USERVAL_BOOL_CONST :
+		if ((*argp)->result.length != 1)
+		{
+		    sprintf(error_string, "Can only pass tuples of length 1 as numbers or booleans.");
+		    JUMP(1);
+		}
+		break;
+
+	    default :
+		sprintf(error_string, "Cannot pass non-number values to filters yet.");
+		JUMP(1);
+	}
+    }
+
+    g_assert(*argp != 0 && (*argp)->next == 0);
+
+    if ((*argp)->result.length != 2
+	|| ((*argp)->result.number != xy_tag_number
+	    && (*argp)->result.number != ra_tag_number))
+    {
+	sprintf(error_string, "The last argument to a filter must be a tuple of type xy:2 or ra:2.");
+	JUMP(1);
+    }
+
+    if ((*argp)->result.number == ra_tag_number)
+	*argp = make_function("toXY", *argp);
+
+    g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
+
+    tree = alloc_exprtree();
+
+    tree->type = EXPR_FILTER_CALL;
+    tree->val.filter_call.filter = filter;
+    tree->val.filter_call.args = args;
+
+    tree->result.number = rgba_tag_number;
+    tree->result.length = 4;
+
+    return tree;
+}
+
 exprtree*
 make_function (const char *name, exprtree *args)
 {
@@ -727,11 +777,18 @@ make_function (const char *name, exprtree *args)
 	JUMP(1);
     }
 
-    if (lookup_userval(the_mathmap->userval_infos, name) != 0)
+    if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != 0)
     {
-	userval_info_t *info = lookup_userval(the_mathmap->userval_infos, name);
+	userval_info_t *info = lookup_userval(the_mathmap->current_filter->userval_infos, name);
 
 	return make_userval(info, args);
+    }
+
+    if (lookup_filter(the_mathmap->filters, name) != 0)
+    {
+	filter_t *filter = lookup_filter(the_mathmap->filters, name);
+
+	return make_filter_call(filter, args);
     }
 
     first = last = (function_arg_info_t*)malloc(sizeof(function_arg_info_t));
@@ -797,13 +854,13 @@ exprtree*
 make_assignment (char *name, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
-    variable_t *var = lookup_variable(the_mathmap->variables, name, &tree->result);
+    variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &tree->result);
 
     // FIXME: check whether the variable name is an internal, var macro or user val
 
     if (var == 0)
     {
-	var = register_variable(&the_mathmap->variables, name, value->result);
+	var = register_variable(&the_mathmap->current_filter->variables, name, value->result);
 	tree->result = value->result;
     }
 
@@ -825,7 +882,7 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
     tuple_info_t info;
-    variable_t *var = lookup_variable(the_mathmap->variables, name, &info);
+    variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &info);
 
     if (var == 0)
     {

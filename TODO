@@ -4,6 +4,8 @@ later:
 GIMP Plug-In
 ------------
 
+GIMP 2.4!
+
 Color brightness bug (see mail by Alexandre Prokoudine)
 
 GTK Source View (auto-completion?)
@@ -17,6 +19,8 @@ image size
 
 UI names for user values
 
+Histogram
+
 Command Line Tool
 -----------------
 
@@ -25,14 +29,12 @@ All uservals on command line (not just input images)
 General
 -------
 
-Defaults for boolean user values
-
 Edge behaviour as image attributes
-
-Different image sizes
 
 Packaging
 ---------
+
+Real dependencies
 
 Image Processing
 ----------------
@@ -42,6 +44,12 @@ Examples
 
 Compiler
 --------
+
+Copy elimination for phis in pre-native code
+
+XY constants for interpreter code
+
+Remove dead whiles
 
 Documentation
 -------------

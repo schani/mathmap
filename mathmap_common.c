@@ -61,7 +61,7 @@ image_flags_from_options (option_t *options)
 }
 
 void
-register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
+register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 {
     while (arg_decls != 0)
     {
@@ -73,43 +73,43 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 	{
 	    case ARG_TYPE_INT :
 		if (arg_decls->v.integer.have_limits)
-		    result = register_int_const(&mathmap->userval_infos, arg_decls->name,
+		    result = register_int_const(&filter->userval_infos, arg_decls->name,
 						arg_decls->v.integer.min, arg_decls->v.integer.max,
 						arg_decls->v.integer.default_value);
 		else
-		    result = register_int_const(&mathmap->userval_infos, arg_decls->name, -100000, 100000, 0);
+		    result = register_int_const(&filter->userval_infos, arg_decls->name, -100000, 100000, 0);
 		break;
 
 	    case ARG_TYPE_FLOAT :
 		if (arg_decls->v.floating.have_limits)
-		    result = register_float_const(&mathmap->userval_infos, arg_decls->name,
+		    result = register_float_const(&filter->userval_infos, arg_decls->name,
 						  arg_decls->v.floating.min, arg_decls->v.floating.max,
 						  arg_decls->v.floating.default_value);
 		else
-		    result = register_float_const(&mathmap->userval_infos, arg_decls->name, -1.0, 1.0, 0.0);
+		    result = register_float_const(&filter->userval_infos, arg_decls->name, -1.0, 1.0, 0.0);
 		break;
 
 	    case ARG_TYPE_BOOL :
-		result = register_bool(&mathmap->userval_infos, arg_decls->name, arg_decls->v.boolean.default_value);
+		result = register_bool(&filter->userval_infos, arg_decls->name, arg_decls->v.boolean.default_value);
 		break;
 
 	    case ARG_TYPE_COLOR :
-		result = register_color(&mathmap->userval_infos, arg_decls->name);
+		result = register_color(&filter->userval_infos, arg_decls->name);
 		break;
 
 	    case ARG_TYPE_GRADIENT :
-		result = register_gradient(&mathmap->userval_infos, arg_decls->name);
+		result = register_gradient(&filter->userval_infos, arg_decls->name);
 		break;
 
 	    case ARG_TYPE_CURVE :
-		result = register_curve(&mathmap->userval_infos, arg_decls->name);
+		result = register_curve(&filter->userval_infos, arg_decls->name);
 		break;
 
 	    case ARG_TYPE_FILTER :
 		assert(0);
 
 	    case ARG_TYPE_IMAGE :
-		result = register_image(&mathmap->userval_infos, arg_decls->name,
+		result = register_image(&filter->userval_infos, arg_decls->name,
 					image_flags_from_options(arg_decls->options));
 		break;
 
@@ -128,6 +128,50 @@ register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls)
 }
 
 void
+start_parsing_filter (mathmap_t *mathmap)
+{
+    g_assert(mathmap->current_filter == 0);
+
+    mathmap->current_filter = g_new0(filter_t, 1);
+}
+
+void
+finish_parsing_filter (mathmap_t *mathmap)
+{
+    filter_t *filter = mathmap->current_filter;
+    userval_info_t *info;
+
+    g_assert(filter != 0);
+
+    filter->num_uservals = 0;
+    for (info = filter->userval_infos; info != 0; info = info->next)
+	++filter->num_uservals;
+
+    filter->next = mathmap->filters;
+    mathmap->filters = filter;
+
+    mathmap->current_filter = 0;
+}
+
+static void
+free_filters (filter_t *filter)
+{
+    while (filter != 0)
+    {
+	filter_t *next = filter->next;
+
+	if (filter->variables != 0)
+	    free_variables(filter->variables);
+	if (filter->userval_infos != 0)
+	    free_userval_infos(filter->userval_infos);
+
+	g_free(filter);
+
+	filter = next;
+    }
+}
+
+void
 unload_mathmap (mathmap_t *mathmap)
 {
     if ((mathmap->flags & MATHMAP_FLAG_NATIVE) && mathmap->module_info != 0)
@@ -140,12 +184,8 @@ unload_mathmap (mathmap_t *mathmap)
 void
 free_mathmap (mathmap_t *mathmap)
 {
-    if (mathmap->variables != 0)
-	free_variables(mathmap->variables);
-    if (mathmap->top_level_decls != 0)
-	free_top_level_decls(mathmap->top_level_decls);
-    if (mathmap->userval_infos != 0)
-	free_userval_infos(mathmap->userval_infos);
+    if (mathmap->filters != 0)
+	free_filters(mathmap->filters);
     if (mathmap->interpreter_insns != 0)
 	free(mathmap->interpreter_insns);
     if (mathmap->interpreter_values != 0)
@@ -163,12 +203,12 @@ free_invocation (mathmap_invocation_t *invocation)
     /*
     if (invocation->internals != 0)
 	free(invocation->internals);
-    */
     if (invocation->variables != 0)
 	free(invocation->variables);
+    */
     if (invocation->uservals != 0)
     {
-	for (info = invocation->mathmap->userval_infos; info != 0; info = info->next)
+	for (info = invocation->mathmap->main_filter->userval_infos; info != 0; info = info->next)
 	{
 	    switch (info->type)
 	    {
@@ -245,13 +285,10 @@ mathmap_t*
 parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-    userval_info_t *info;
     exprtree *expr;
+    filter_t *filter;
 
-    mathmap = (mathmap_t*)malloc(sizeof(mathmap_t));
-    assert(mathmap != 0);
-
-    memset(mathmap, 0, sizeof(mathmap_t));
+    mathmap = g_new0(mathmap_t, 1);
 
     init_internals(mathmap);
 
@@ -263,48 +300,41 @@ parse_mathmap (char *expression)
 	yyparse();
 	endScanningFromString();
 
-	mathmap->top_level_decls = the_top_level_decls;
-	the_top_level_decls = 0;
+	for (filter = mathmap->filters; filter != 0; filter = filter->next)
+	    g_print("filter %s\n", filter->decl->name);
 
-	if (mathmap->top_level_decls == 0
-	    || mathmap->top_level_decls->next != 0
-	    || mathmap->top_level_decls->type != TOP_LEVEL_FILTER)
+	if (mathmap->filters == 0
+	    || mathmap->filters->next != 0
+	    || mathmap->filters->decl->type != TOP_LEVEL_FILTER)
 	{
-	    free_top_level_decls(mathmap->top_level_decls);
-	    mathmap->top_level_decls = 0;
+	    free_filters(mathmap->filters);
+	    mathmap->filters = 0;
 
 	    sprintf(error_string, "Exactly one filter must be defined.");
 	    JUMP(1);
 	}
 
-	expr = mathmap->top_level_decls->v.filter.body;
+	mathmap->main_filter = mathmap->filters;
+
+	expr = mathmap->main_filter->decl->v.filter.body;
 
 	if (expr->result.number != rgba_tag_number
 	    || expr->result.length != 4)
 	{
-	    free_top_level_decls(mathmap->top_level_decls);
-	    mathmap->top_level_decls = 0;
+	    free_filters(mathmap->filters);
+	    mathmap->filters = 0;
 
 	    sprintf(error_string, "The expression must have the result type rgba:4.");
 	    JUMP(1);
 	}
 
-	mathmap->flags = image_flags_from_options(mathmap->top_level_decls->v.filter.options);
+	mathmap->flags = image_flags_from_options(mathmap->main_filter->decl->v.filter.options);
     } WITH_JUMP_HANDLER {
-	the_top_level_decls = 0;
-
 	free_mathmap(mathmap);
 	mathmap = 0;
     } END_JUMP_HANDLER;
 
     the_mathmap = 0;
-
-    if (mathmap != 0)
-    {
-	mathmap->num_uservals = 0;
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
-	    ++mathmap->num_uservals;
-    }
 
     return mathmap;
 }
@@ -460,7 +490,7 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->mathmap = mathmap;
 
-    invocation->variables = instantiate_variables(mathmap->variables);
+    //invocation->variables = instantiate_variables(mathmap->variables);
 
     invocation->antialiasing = 0;
     invocation->supersampling = 0;
@@ -497,7 +527,7 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->do_debug = 0;
 
-    invocation->uservals = instantiate_uservals(mathmap->userval_infos, invocation);
+    invocation->uservals = instantiate_uservals(mathmap->main_filter->userval_infos, invocation);
 
 #ifndef OPENSTEP
     if (!cmd_line_mode)
@@ -505,10 +535,10 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 	userval_info_t *info;
 
 	// we give the original image as the first input image
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	for (info = mathmap->main_filter->userval_infos; info != 0; info = info->next)
 	    if (info->type == USERVAL_IMAGE)
 	    {
-		invocation->uservals[info->index].v.image.index = 0;
+		assign_image_userval_drawable(info, &invocation->uservals[info->index], 0);
 		break;
 	    }
     }
@@ -835,9 +865,9 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 {
     userval_info_t *info;
 
-    for (info = invocation->mathmap->userval_infos; info != 0; info = info->next)
+    for (info = invocation->mathmap->main_filter->userval_infos; info != 0; info = info->next)
     {
-	userval_info_t *template_info = lookup_matching_userval(template->mathmap->userval_infos, info);
+	userval_info_t *template_info = lookup_matching_userval(template->mathmap->main_filter->userval_infos, info);
 
 	if (template_info != 0)
 	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);

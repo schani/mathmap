@@ -33,7 +33,7 @@ extern char error_string[];
 #define LIMITS_INT             1
 #define LIMITS_FLOAT           2
 
-// This is only used during parsing.
+/* This is only used during parsing. */
 typedef struct
 {
     int type;
@@ -104,6 +104,7 @@ typedef struct _arg_decl_t
 
 struct _overload_entry_t;
 struct _userval_t;
+struct _filter_t;
 
 #define EXPR_INT_CONST       1
 #define EXPR_FLOAT_CONST     2
@@ -123,6 +124,7 @@ struct _userval_t;
 #define EXPR_CONVERT        16
 #define EXPR_SUB_ASSIGNMENT 17
 #define EXPR_USERVAL        18
+#define EXPR_FILTER_CALL    19
 
 typedef struct _exprtree
 {
@@ -203,6 +205,11 @@ typedef struct _exprtree
 	    macro_function_t macro;
 	    struct _exprtree *args;
 	} macro;
+	struct
+	{
+	    struct _filter_t *filter;
+	    struct _exprtree *args;
+	} filter_call;
     } val;
 
     struct _exprtree *next;
@@ -225,17 +232,13 @@ typedef struct _top_level_decl_t
 	    exprtree *body;
 	} filter;
     } v;
-
-    struct _top_level_decl_t *next;
 } top_level_decl_t;
 
 extern top_level_decl_t *the_top_level_decls;
 
-top_level_decl_t* make_filter (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options);
+top_level_decl_t* make_filter_decl (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options);
 
-top_level_decl_t* top_level_list_append (top_level_decl_t *list1, top_level_decl_t *list2);
-
-void free_top_level_decls (top_level_decl_t *list);
+void free_top_level_decl (top_level_decl_t *list);
 
 option_t* make_option (const char *name, option_t *suboptions);
 option_t* options_append (option_t *o1, option_t *o2);

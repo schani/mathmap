@@ -113,13 +113,13 @@ typedef struct _userval_t
 
 	struct
 	{
+	    int width;
+	    int height;
 	    float scale_x;
 	    float scale_y;
 	    float middle_x;
 	    float middle_y;
 #ifdef OPENSTEP
-	    int width;
-	    int height;
 	    int row_stride;
 	    void *data;
 #else
@@ -135,14 +135,11 @@ typedef struct _userval_t
 
 typedef struct _mathmap_t
 {
-    void *userval_infos;
-    void *variables;
     void *internals;
 
-    void *exprtree;
-    /* void *top_level_decls; */
-
-    int num_uservals;
+    void *filters;
+    void *current_filter;
+    void *main_filter;
 
     unsigned int flags;
 
@@ -182,7 +179,6 @@ typedef struct _mathmap_invocation_t
     mathmap_t *mathmap;
 
     userval_t *uservals;
-    tuple_t **variables;
 
     int antialiasing;
     int supersampling;

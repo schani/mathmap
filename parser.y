@@ -60,18 +60,28 @@
 
 %%
 
-start : filters              { the_top_level_decls = $<top_level>1; }
+start : filters
       ;
 
-filters :                    { $<top_level>$ = 0; }
-        | filters filter     { $<top_level>$ = top_level_list_append($<top_level>1, $<top_level>2); }
+filters :
+        | filters filter
         ;
 
 filter : options_opt T_FILTER T_IDENT docstring_opt '(' args_decl ')'
-			     { register_args_as_uservals(the_mathmap, $<arg_decl>6); }
+                             {
+				 start_parsing_filter(the_mathmap);
+				 register_args_as_uservals(the_mathmap->current_filter, $<arg_decl>6);
+			     }
          expr T_END
-			     { $<top_level>$ = make_filter($<ident>3, $<ident>4, $<arg_decl>6, $<exprtree>9, $<options>1);
-			       free($<ident>3); if ($<ident>4 != 0) free($<ident>4); }
+			     {
+				 top_level_decl_t *decl = make_filter_decl($<ident>3, $<ident>4, $<arg_decl>6,
+									   $<exprtree>9, $<options>1);
+				 free($<ident>3);
+				 if ($<ident>4 != 0)
+				     free($<ident>4);
+				 the_mathmap->current_filter->decl = decl;
+				 finish_parsing_filter(the_mathmap);
+			     }
        ;
 
 args_decl :                  { $<arg_decl>$ = 0; }

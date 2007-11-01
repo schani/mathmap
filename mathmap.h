@@ -40,7 +40,7 @@
 #include <libgimp/gimp.h>
 #endif
 
-#define MATHMAP_DATE          "October 2007"
+#define MATHMAP_DATE          "November 2007"
 
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"
@@ -52,16 +52,25 @@
 
 typedef struct _interpreter_insn_t interpreter_insn_t;
 
+typedef struct _filter_t
+{
+    int num_uservals;
+    userval_info_t *userval_infos;
+
+    variable_t *variables;
+
+    top_level_decl_t *decl;
+
+    struct _filter_t *next;
+} filter_t;
+
 typedef struct _mathmap_t
 {
-    userval_info_t *userval_infos;
-    variable_t *variables;
     internal_t *internals;
 
-    //exprtree *exprtree;
-    top_level_decl_t *top_level_decls;
-
-    int num_uservals;
+    filter_t *filters;
+    filter_t *current_filter;	/* only valid during parsing */
+    filter_t *main_filter;
 
     unsigned int flags;
 
@@ -107,7 +116,6 @@ typedef struct _mathmap_invocation_t
     mathmap_t *mathmap;
 
     userval_t *uservals;
-    tuple_t **variables;
 
     int antialiasing;
     int supersampling;
@@ -181,7 +189,7 @@ int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y);
 #endif
 
-void register_args_as_uservals (mathmap_t *mathmap, arg_decl_t *arg_decls);
+void register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls);
 
 void unload_mathmap (mathmap_t *mathmap);
 void free_mathmap (mathmap_t *mathmap);
@@ -192,6 +200,9 @@ void disable_debugging (mathmap_invocation_t *invocation);
 
 int does_mathmap_use_ra (mathmap_t *mathmap);
 int does_mathmap_use_t (mathmap_t *mathmap);
+
+void start_parsing_filter (mathmap_t *mathmap);
+void finish_parsing_filter (mathmap_t *mathmap);
 
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
@@ -207,7 +218,6 @@ void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathma
 void update_image_internals (mathmap_invocation_t *invocation);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y);
-color_t mathmap_get_fast_pixel (mathmap_invocation_t *invocation, userval_t *userval, int x, int y);
 
 typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
 

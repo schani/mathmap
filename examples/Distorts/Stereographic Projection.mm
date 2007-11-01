@@ -1,7 +1,7 @@
 # by Alexander Heide <heide@ra.physik.uni-halle.de>
 # see http://www.physik.uni-halle.de/~heide/crystal/crystal.html
-filter stereographic (image in, float x_center: 0-2048, float y_center: 0-2048, float distance: 0-1024,
-                      float zoom: -1-1, bool trans_or_back, color background)
+filter stereographic (image in, float x_center: 0-2048 (200), float y_center: 0-2048 (200), float distance: 0-1024 (200),
+                      float zoom: -1-1 (0), bool trans_or_back (1), color background)
     xy0=xy:[x_center-X, -(y_center-Y)];
     D=distance;
     s=zoom;

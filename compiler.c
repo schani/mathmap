@@ -115,7 +115,7 @@ typedef struct _value_list_t
 typedef struct
 {
     int kind;
-    int const_type;		/* only valid if type == PRIMARY_VALUE */
+    int const_type;		/* different meanings for PRIMARY_VALUE vs PRIMARY_CONST! */
     union
     {
 	value_t *value;
@@ -270,16 +270,16 @@ static type_t primary_type (primary_t *primary);
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
 #define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? RHS_ARG((i)).v.constant.int_value : \
-				      ({ assert(0); 0.0; })); })
+				      ({ g_assert_not_reached(); 0.0; })); })
 #define OP_CONST_FLOAT_VAL(i)     ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? (float)(RHS_ARG((i)).v.constant.int_value) : \
 				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.constant.float_value : \
-				      ({ assert(0); 0.0; })); })
+				      ({ g_assert_not_reached(); 0.0; })); })
 #define OP_CONST_COMPLEX_VAL(i)   ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \
 				     (RHS_ARG((i)).const_type == TYPE_INT ? (complex float)(RHS_ARG((i)).v.constant.int_value) : \
 				      RHS_ARG((i)).const_type == TYPE_FLOAT ? RHS_ARG((i)).v.constant.float_value : \
 				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.constant.complex_value : \
-				      ({ assert(0); 0.0; })); })
+				      ({ g_assert_not_reached(); 0.0; })); })
 
 #define OUTPUT_COLOR_INTERPRETER(c)  ({ invocation->interpreter_output_color = (c); invocation->interpreter_ip = -1; 0; })
 
@@ -489,7 +489,7 @@ remove_use (value_t *val, statement_t *stmt)
 	lst = &(*lst)->next;
     }
 
-    assert(0);
+    g_assert_not_reached();
 }
 
 value_t*
@@ -743,7 +743,7 @@ for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt, 
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmts = stmts->next;
@@ -793,7 +793,7 @@ for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, s
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -878,7 +878,7 @@ rewrite_use (statement_t *stmt, value_t *old, primary_t new)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     assert(primary != 0 && primary->v.value == old);
@@ -1033,7 +1033,7 @@ commit_assign (statement_t *stmt)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
     }
 
@@ -1082,7 +1082,7 @@ emit_stmt (statement_t *stmt)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -1319,12 +1319,12 @@ print_primary (primary_t *primary)
 		TYPE_DEBUG_PRINTER
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -1355,7 +1355,7 @@ print_rhs (rhs_t *rhs)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -1416,7 +1416,7 @@ print_assign_statement (statement_t *stmt)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -1464,7 +1464,7 @@ dump_code (statement_t *stmt, int indent)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -1494,7 +1494,7 @@ pre_native_condition (pre_native_insn_t *insn)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
 	    return 0;
     }
 }
@@ -1547,7 +1547,7 @@ dump_pre_native_code (void)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	insn = insn->next;
@@ -1895,12 +1895,12 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		    break;
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
    }
 }
 
@@ -1979,7 +1979,7 @@ primary_type (primary_t *primary)
 	    return primary->const_type;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -2018,7 +2018,7 @@ rhs_type (rhs_t *rhs)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     return 0;
@@ -2075,7 +2075,7 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist, void *inf
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     return worklist;
@@ -2103,7 +2103,7 @@ primary_constant (primary_t *primary)
 	    return CONST_MAX;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -2138,7 +2138,7 @@ rhs_constant (rhs_t *rhs)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -2194,7 +2194,7 @@ analyze_stmts_constants (statement_t *stmt, int *changed, unsigned int inherited
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		assert(0);
+		g_assert_not_reached();
 		break;
 
 	    case STMT_IF_COND :
@@ -2213,7 +2213,7 @@ analyze_stmts_constants (statement_t *stmt, int *changed, unsigned int inherited
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2283,7 +2283,7 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 	    }
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2394,7 +2394,7 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 	    }
 
 	    default:
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2513,7 +2513,7 @@ optimize_make_color (statement_t *stmt)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
     }
 }
@@ -2566,6 +2566,7 @@ copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *chang
 		break;
 
 	    case STMT_IF_COND :
+		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_rewrite_if_possible, stmt, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.if_cond.consequent, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.if_cond.alternative, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.if_cond.exit, copy_hash, changed);
@@ -2578,7 +2579,7 @@ copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *chang
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2658,7 +2659,7 @@ fold_constants_recursively (statement_t *stmt, int *changed)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2671,6 +2672,130 @@ constant_folding (void)
     int changed = 0;
 
     fold_constants_recursively(first_stmt, &changed);
+
+    return changed;
+}
+
+/*** simplification ***/
+
+static void
+simplify_unit (rhs_t **rhsp, float unit, gboolean left, gboolean right, int *changed)
+{
+    rhs_t *rhs = *rhsp;
+
+    if (left && RHS_ARG(0).kind == PRIMARY_CONST && OP_CONST_FLOAT_VAL(0) == unit)
+    {
+	*rhsp = make_primary_rhs(RHS_ARG(1));
+	*changed = 1;
+	return;
+    }
+
+    if (right && RHS_ARG(1).kind == PRIMARY_CONST && OP_CONST_FLOAT_VAL(1) == unit)
+    {
+	*rhsp = make_primary_rhs(RHS_ARG(0));
+	*changed = 1;
+	return;
+    }
+}
+
+static void
+simplify_zero (rhs_t **rhsp, float zero, int result, gboolean left, gboolean right, int *changed)
+{
+    rhs_t *rhs = *rhsp;
+
+    if ((left && RHS_ARG(0).kind == PRIMARY_CONST && OP_CONST_FLOAT_VAL(0) == zero)
+	|| (right && RHS_ARG(1).kind == PRIMARY_CONST && OP_CONST_FLOAT_VAL(1) == zero))
+    {
+	if (RHS_ARG(0).const_type == TYPE_INT)
+	    *rhsp = make_int_const_rhs(result);
+	else
+	    *rhsp = make_float_const_rhs(result);
+	*changed = 1;
+    }
+}
+
+static void
+simplify_rhs (rhs_t **rhsp, int *changed)
+{
+    rhs_t *rhs = *rhsp;
+
+    if (rhs->kind != RHS_OP)
+	return;
+
+    switch (op_index(rhs->v.op.op))
+    {
+	case OP_ADD :
+	    simplify_unit(rhsp, 0.0, TRUE, TRUE, changed);
+	    break;
+
+	case OP_SUB :
+	    simplify_unit(rhsp, 0.0, FALSE, TRUE, changed);
+	    break;
+
+	case OP_MUL :
+	    simplify_unit(rhsp, 1.0, TRUE, TRUE, changed);
+	    if (rhs->kind == RHS_OP)
+		simplify_zero(rhsp, 0.0, 0, TRUE, TRUE, changed);
+	    break;
+
+	case OP_DIV :
+	    simplify_unit(rhsp, 1.0, FALSE, TRUE, changed);
+	    break;
+
+	case OP_POW :
+	    simplify_unit(rhsp, 1.0, FALSE, TRUE, changed);
+	    if (rhs->kind == RHS_OP)
+		simplify_zero(rhsp, 0.0, 1, FALSE, TRUE, changed);
+	    break;
+
+	default :
+	    break;
+    }
+}
+
+static void
+simplify_ops_recursively (statement_t *stmt, int *changed)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
+		simplify_rhs(&stmt->v.assign.rhs2, changed);
+	    case STMT_ASSIGN :
+		simplify_rhs(&stmt->v.assign.rhs, changed);
+		break;
+
+	    case STMT_IF_COND :
+		simplify_rhs(&stmt->v.if_cond.condition, changed);
+		simplify_ops_recursively(stmt->v.if_cond.consequent, changed);
+		simplify_ops_recursively(stmt->v.if_cond.alternative, changed);
+		simplify_ops_recursively(stmt->v.if_cond.exit, changed);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		simplify_rhs(&stmt->v.while_loop.invariant, changed);
+		simplify_ops_recursively(stmt->v.while_loop.entry, changed);
+		simplify_ops_recursively(stmt->v.while_loop.body, changed);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static int
+simplify_ops (void)
+{
+    int changed = 0;
+
+    simplify_ops_recursively(first_stmt, &changed);
 
     return changed;
 }
@@ -2755,7 +2880,7 @@ remove_dead_code_initially (statement_t *stmt, value_list_t **worklist)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2824,7 +2949,7 @@ is_const_primary_rhs_true (rhs_t *rhs)
 	    return rhs->v.primary.v.constant.float_value != 0.0;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     return 0;
@@ -2947,7 +3072,7 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -2960,6 +3085,76 @@ remove_dead_branches (void)
     int changed = 0;
 
     remove_dead_branches_recursively(first_stmt, &changed);
+
+    return changed;
+}
+
+/*** dead control structure removal ***/
+
+static gboolean
+rhs_is_pure (rhs_t *rhs)
+{
+    if (rhs->kind != RHS_OP)
+	return TRUE;
+    return rhs->v.op.op->is_pure;
+}
+
+static gboolean
+stmts_are_empty (statement_t *stmts)
+{
+    while (stmts != 0 && stmts->kind == STMT_NIL)
+	stmts = stmts->next;
+
+    return stmts == 0;
+}
+
+static void
+remove_dead_controls_recursively (statement_t *stmt, int *changed)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+	    case STMT_ASSIGN :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_IF_COND :
+		if (stmts_are_empty(stmt->v.if_cond.consequent)
+		    && stmts_are_empty(stmt->v.if_cond.alternative)
+		    && stmts_are_empty(stmt->v.if_cond.exit)
+		    && rhs_is_pure(stmt->v.if_cond.condition))
+		{
+		    remove_uses_in_rhs(stmt->v.if_cond.condition, stmt);
+		    stmt->kind = STMT_NIL;
+		    *changed = 1;
+		}
+		else
+		{
+		    remove_dead_controls_recursively(stmt->v.if_cond.consequent, changed);
+		    remove_dead_controls_recursively(stmt->v.if_cond.alternative, changed);
+		}
+		break;
+
+	    case STMT_WHILE_LOOP :
+		remove_dead_controls_recursively(stmt->v.while_loop.body, changed);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static int
+remove_dead_controls (void)
+{
+    int changed = 0;
+
+    remove_dead_controls_recursively(first_stmt, &changed);
 
     return changed;
 }
@@ -2986,12 +3181,12 @@ primaries_equal (primary_t *prim1, primary_t *prim2)
 		MAKE_CONST_COMPARATOR
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     return 0;
@@ -3025,7 +3220,7 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 	}
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     return 0;
@@ -3089,7 +3284,7 @@ replace_rhs_recursively (statement_t *stmt, rhs_t *rhs, value_t *val, int *chang
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -3126,7 +3321,7 @@ cse_recursively (statement_t *stmt, int *changed)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -3224,7 +3419,7 @@ get_conversion_op (type_t src, type_t dst)
 		case TYPE_COMPLEX :
 		    return OP_INT_TO_COMPLEX;
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 	    break;
 
@@ -3236,12 +3431,12 @@ get_conversion_op (type_t src, type_t dst)
 		case TYPE_COMPLEX :
 		    return OP_FLOAT_TO_COMPLEX;
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -3288,7 +3483,7 @@ generate_pre_native_assigns (statement_t *stmt)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -3386,7 +3581,7 @@ emit_pre_native_assign_with_conversion (value_t *lhs, rhs_t *rhs, statement_t *s
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -3526,7 +3721,7 @@ generate_pre_native_code_recursively (statement_t *stmt, int convert_types)
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -3657,7 +3852,7 @@ last_assignment_to_compvar (statement_t *stmts, compvar_t *compvar)
 	    }
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmts = stmts->next;
@@ -3761,7 +3956,7 @@ check_ssa_recursively (statement_t *stmts, statement_t *parent, GHashTable *curr
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		assert(0);
+		g_assert_not_reached();
 		break;
 
 	    case STMT_IF_COND :
@@ -3784,7 +3979,7 @@ check_ssa_recursively (statement_t *stmts, statement_t *parent, GHashTable *curr
 		break;
 
 	    default :
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmts = stmts->next;
@@ -3863,7 +4058,7 @@ slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate) (statem
 	    }
 
 	    default:
-		assert(0);
+		g_assert_not_reached();
 	}
 
 	stmt = stmt->next;
@@ -3967,12 +4162,12 @@ output_primary (FILE *out, primary_t *primary)
 		TYPE_C_PRINTER
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -4006,7 +4201,7 @@ output_rhs (FILE *out, rhs_t *rhs)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 }
 
@@ -4057,7 +4252,7 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 	    {
 		case STMT_NIL :
 #ifndef NO_CONSTANTS_ANALYSIS
-		    assert(0);
+		    g_assert_not_reached();
 #endif
 		    break;
 
@@ -4069,7 +4264,7 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 		    break;
 
 		case STMT_PHI_ASSIGN :
-		    assert(0);
+		    g_assert_not_reached();
 		    break;
 
 		case STMT_IF_COND :
@@ -4095,7 +4290,7 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 		    break;
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 	    }
 
 	stmt = stmt->next;
@@ -4228,8 +4423,7 @@ lookup_primary_arg (primary_t *primary, mathmap_t *mathmap, GHashTable *value_ha
 	    return add_interpreter_value(mathmap->interpreter_values, primary->v.constant);
 
 	default :
-	    assert(0);
-	    return -1;
+	    g_assert_not_reached();
     }
 }
 
@@ -4245,8 +4439,7 @@ lookup_rhs_arg (rhs_t *rhs, mathmap_t *mathmap, GHashTable *value_hash)
 	    return rhs->v.internal->index;
 
 	default :
-	    assert(0);
-	    return -1;
+	    g_assert_not_reached();
     }
 }
 
@@ -4464,10 +4657,10 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 
     init_pools(&compiler_pools);
 
-    result = (compvar_t**)malloc(sizeof(compvar_t*) * mathmap->top_level_decls->v.filter.body->result.length);
+    result = (compvar_t**)malloc(sizeof(compvar_t*) * mathmap->main_filter->decl->v.filter.body->result.length);
     assert(result != 0);
 
-    gen_code(mathmap->top_level_decls->v.filter.body, result, 0);
+    gen_code(mathmap->main_filter->decl->v.filter.body, result, 0);
     {
 	compvar_t *color_tmp = make_temporary(TYPE_COLOR), *dummy = make_temporary(TYPE_INT);
 
@@ -4483,8 +4676,6 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 
     check_ssa(first_stmt);
 
-    optimize_make_color(first_stmt);
-
     do
     {
 #ifdef DEBUG_OUTPUT
@@ -4492,14 +4683,18 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 	dump_code(first_stmt, 0);
 #endif
 
+	optimize_make_color(first_stmt);
+
 	changed = 0;
 
 	changed = copy_propagation() || changed;
 	changed = common_subexpression_elimination() || changed;
 	changed = copy_propagation() || changed;
 	changed = constant_folding() || changed;
+	changed = simplify_ops() || changed;
 	changed = remove_dead_assignments() || changed;
 	changed = remove_dead_branches() || changed;
+	changed = remove_dead_controls() || changed;
     } while (changed);
 
 #ifndef NO_CONSTANTS_ANALYSIS
@@ -4544,8 +4739,8 @@ set_opmacros_filename (const char *filename)
 int
 compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
 {
-    assert(mathmap->top_level_decls != 0
-	   && mathmap->top_level_decls->type == TOP_LEVEL_FILTER);
+    assert(mathmap->main_filter->decl != 0
+	   && mathmap->main_filter->decl->type == TOP_LEVEL_FILTER);
 
     if (strcmp(directive, "g") == 0)
     {
@@ -4615,16 +4810,16 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     }
     else if (strcmp(directive, "filter_name") == 0)
     {
-	fprintf(out, "%s", mathmap->top_level_decls->name);
+	fprintf(out, "%s", mathmap->main_filter->decl->name);
     }
     else if (strcmp(directive, "filter_docstring") == 0)
     {
-	if (mathmap->top_level_decls->docstring != 0)
-	    fprintf(out, "%s", mathmap->top_level_decls->docstring);
+	if (mathmap->main_filter->decl->docstring != 0)
+	    fprintf(out, "%s", mathmap->main_filter->decl->docstring);
     }
     else if (strcmp(directive, "num_uservals") == 0)
     {
-	fprintf(out, "%d", mathmap->num_uservals);
+	fprintf(out, "%d", mathmap->main_filter->num_uservals);
     }
     else
 	return 0;

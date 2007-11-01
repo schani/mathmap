@@ -98,10 +98,15 @@ typedef struct {
 
 typedef struct {
     GimpDrawable *drawable;
+    int width;
+    int height;
     gint bpp;
     gint row;
     gint col;
     GimpTile *tile;
+    gboolean has_selection;
+    int fast_image_source_width;
+    int fast_image_source_height;
     color_t *fast_image_source;
     int used;
 } input_drawable_t;
@@ -202,7 +207,6 @@ GtkWidget *expression_entry = 0,
     *tree_scrolled_window;
 GtkColorSelectionDialog *color_selection_dialog;
 
-int img_width, img_height;
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
 color_t gradient_samples[USER_GRADIENT_POINTS];
@@ -217,6 +221,8 @@ mathmap_t *mathmap = 0;
 mathmap_invocation_t *invocation = 0;
 
 static char *current_filename = 0;
+
+static int fast_image_source_scale;
 
 /***** Functions *****/
 
@@ -525,9 +531,9 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     static GimpParam values[1];
 
     GimpPDBStatusType status;
-    int pwidth, pheight;
-
     int mutable_expression = 1;
+    int drawable_idx;
+    int pwidth, pheight;
 
     INIT_LOCALE("mathmap");
 
@@ -557,40 +563,41 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     *return_vals = values;
 
     /* Get the active drawable info */
-
-    input_drawables[0].drawable = gimp_drawable_get(param[2].data.d_drawable);
-    input_drawables[0].bpp = gimp_drawable_bpp(DRAWABLE_ID(input_drawables[0].drawable));
-    input_drawables[0].row = input_drawables[0].col = -1;
-    input_drawables[0].tile = 0;
-    input_drawables[0].fast_image_source = 0;
-    input_drawables[0].used = 1;
-
-    output_bpp = input_drawables[0].bpp;
-
-    tile_width = gimp_tile_width();
-    tile_height = gimp_tile_height();
-
-    img_width = gimp_drawable_width(DRAWABLE_ID(input_drawables[0].drawable));
-    img_height = gimp_drawable_height(DRAWABLE_ID(input_drawables[0].drawable));
-
-    gimp_drawable_mask_bounds(DRAWABLE_ID(input_drawables[0].drawable), &sel_x1, &sel_y1, &sel_x2, &sel_y2);
+    gimp_drawable_mask_bounds(param[2].data.d_drawable, &sel_x1, &sel_y1, &sel_x2, &sel_y2);
 
     sel_width = sel_x2 - sel_x1;
     sel_height = sel_y2 - sel_y1;
 
-    /* Calculate preview size */
+    tile_width = gimp_tile_width();
+    tile_height = gimp_tile_height();
 
-    if (sel_width > sel_height) {
+    /* Calculate preview size */
+    if (sel_width > sel_height)
+    {
 	pwidth  = MIN(sel_width, PREVIEW_SIZE);
 	pheight = sel_height * pwidth / sel_width;
-    } else {
+    }
+    else
+    {
 	pheight = MIN(sel_height, PREVIEW_SIZE);
 	pwidth  = sel_width * pheight / sel_height;
-    } /* else */
+    }
 
     preview_width  = MAX(pwidth, 2);  /* Min size is 2 */
     preview_height = MAX(pheight, 2);
 
+    /* Calculate fast image source scaling factor */
+    fast_image_source_scale = MAX(sel_width / preview_width, 1);
+    assert (fast_image_source_scale >= 1);
+
+    /* Allocate drawable structure */
+    drawable_idx = alloc_input_drawable(gimp_drawable_get(param[2].data.d_drawable));
+    assert(drawable_idx == 0);
+
+    input_drawables[0].has_selection = TRUE;
+    output_bpp = input_drawables[0].bpp;
+
+    /* Init MathMap engine */
     init_builtins();
     init_tags();
     init_macros();
@@ -873,6 +880,7 @@ int
 alloc_input_drawable (GimpDrawable *drawable)
 {
     int i;
+    int width, height;
 
     for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
 	if (!input_drawables[i].used)
@@ -880,13 +888,20 @@ alloc_input_drawable (GimpDrawable *drawable)
     if (i == MAX_INPUT_DRAWABLES)
 	return -1;
 
+    width = input_drawables[i].width = gimp_drawable_width(DRAWABLE_ID(drawable));
+    height = input_drawables[i].height = gimp_drawable_height(DRAWABLE_ID(drawable));
+
     input_drawables[i].drawable = drawable;
     input_drawables[i].bpp = gimp_drawable_bpp(DRAWABLE_ID(drawable));
     input_drawables[i].row = -1;
     input_drawables[i].col = -1;
     input_drawables[i].tile = 0;
     input_drawables[i].fast_image_source = 0;
+    input_drawables[i].has_selection = FALSE;
     input_drawables[i].used = 1;
+
+    input_drawables[i].fast_image_source_width = width / fast_image_source_scale;
+    input_drawables[i].fast_image_source_height = height / fast_image_source_scale;
 
     return i;
 }
@@ -975,34 +990,12 @@ do_mathmap (int frame_num, float current_t)
 
 /*****/
 
-static void
-build_fast_image_source (input_drawable_t *drawable, userval_t *userval)
+static color_t
+get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y)
 {
-    color_t *p;
-    int x, y;
-
-    assert(drawable->fast_image_source == 0);
-
-    p = drawable->fast_image_source = g_malloc(preview_width * preview_height * sizeof(color_t));
-
-    for (y = 0; y < preview_height; ++y)
-	for (x = 0; x < preview_width; ++x)
-	    drawable->fast_image_source[x + y * preview_width] =
-		mathmap_get_pixel(invocation, userval, 0,
-				  sel_x1 + x * sel_width / preview_width,
-				  sel_y1 + y * sel_height / preview_height);
-}
-
-/*****/
-
-color_t
-mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y)
-{
-    int drawable_index = userval->v.image.index;
     gint newcol, newrow;
     gint newcoloff, newrowoff;
     guchar *p;
-    input_drawable_t *drawable;
     guchar r, g, b, a;
 
     ++num_pixels_requested;
@@ -1012,18 +1005,10 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int fra
 	return cmdline_mathmap_get_pixel(invocation, userval, frame, x, y);
 #endif
 
-    if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
-	return MAKE_RGBA_COLOR(255, 255, 255, 255);
-
-    assert(input_drawables[drawable_index].used);
-
-    if (x < 0 || x >= img_width)
+    if (x < 0 || x >= drawable->width)
 	return invocation->edge_color_x;
-    if (y < 0 || y >= img_height)
+    if (y < 0 || y >= drawable->height)
 	return invocation->edge_color_y;
-
-    drawable = &input_drawables[drawable_index];
-    assert(drawable->used);
 
     newcol = x / tile_width;
     newcoloff = x % tile_width;
@@ -1064,29 +1049,93 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int fra
     return MAKE_RGBA_COLOR(r, g, b, a);
 }
 
+static void
+build_fast_image_source (input_drawable_t *drawable)
+{
+    color_t *p;
+    int width, height;
+    int x, y;
+    int img_x1, img_y1, img_width, img_height;
+
+    if (drawable->fast_image_source != 0)
+	return;
+
+    width = drawable->fast_image_source_width;
+    height = drawable->fast_image_source_height;
+
+    p = drawable->fast_image_source = g_malloc(width * height * sizeof(color_t));
+
+    if (drawable->has_selection)
+    {
+	img_x1 = sel_x1;
+	img_y1 = sel_y1;
+	img_width = sel_width;
+	img_height = sel_height;
+    }
+    else
+    {
+	img_x1 = img_y1 = 0;
+	img_width = drawable->width;
+	img_height = drawable->height;
+    }
+
+    for (y = 0; y < height; ++y)
+	for (x = 0; x < width; ++x)
+	    drawable->fast_image_source[x + y * width] =
+		get_pixel(invocation, drawable, 0,
+			  img_x1 + x * img_width / width,
+			  img_y1 + y * img_height / height);
+}
+
+static color_t
+get_pixel_fast (mathmap_invocation_t *invocation, input_drawable_t *drawable, int x, int y)
+{
+    int x1, y1;
+
+    if (drawable->has_selection)
+    {
+	x1 = sel_x1;
+	y1 = sel_y1;
+    }
+    else
+    {
+	x1 = 0;
+	y1 = 0;
+    }
+
+    x = (x - x1) / fast_image_source_scale;
+    y = (y - y1) / fast_image_source_scale;
+
+    if (x < 0 || x >= drawable->fast_image_source_width)
+	return invocation->edge_color_x;
+    if (y < 0 || y >= drawable->fast_image_source_height)
+	return invocation->edge_color_y;
+
+    g_assert(drawable->fast_image_source != 0);
+
+    return drawable->fast_image_source[x + y * drawable->fast_image_source_width];
+}
+
 color_t
-mathmap_get_fast_pixel (mathmap_invocation_t *invocation, userval_t *userval, int x, int y)
+mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y)
 {
     int drawable_index = userval->v.image.index;
     input_drawable_t *drawable;
+
+    g_assert(userval->type == USERVAL_IMAGE);
 
     if (drawable_index < 0 || drawable_index >= MAX_INPUT_DRAWABLES)
 	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
     assert(input_drawables[drawable_index].used);
 
-    if (x < 0 || x >= preview_width)
-	return invocation->edge_color_x;
-    if (y < 0 || y >= preview_height)
-	return invocation->edge_color_y;
-
     drawable = &input_drawables[drawable_index];
     assert(drawable->used);
 
-    if (drawable->fast_image_source == 0)
-	build_fast_image_source(drawable, userval);
-
-    return drawable->fast_image_source[x + y * preview_width];
+    if (previewing)
+	return get_pixel_fast(invocation, drawable, x, y);
+    else
+	return get_pixel(invocation, drawable, frame, x, y);
 }
 
 /*****/
@@ -1162,7 +1211,7 @@ update_userval_table (void)
     if (uservalues_table != 0)
 	gtk_container_remove(GTK_CONTAINER(GTK_BIN(uservalues_scrolled_window)->child), uservalues_table);
 
-    uservalues_table = make_userval_table(mathmap->userval_infos, invocation->uservals);
+    uservalues_table = make_userval_table(mathmap->main_filter->userval_infos, invocation->uservals);
 
     if (uservalues_table != 0)
     {
@@ -1645,7 +1694,7 @@ dialog_update_preview (void)
 
 	assert(buf != 0);
 
-	update_uservals(mathmap->userval_infos, invocation->uservals);
+	update_uservals(mathmap->main_filter->userval_infos, invocation->uservals);
 
 	previewing = fast_preview;
 
@@ -1673,9 +1722,9 @@ dialog_update_preview (void)
 	    int i;
 
 	    /* force fast image sources to be built */
-	    for (i = 0; i < invocation->mathmap->num_uservals; ++i)
-		if (invocation->mathmap->userval_infos[i].type == USERVAL_IMAGE)
-		    mathmap_get_fast_pixel(invocation, &invocation->uservals[i], 0, 0);
+	    for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
+		if (input_drawables[i].used)
+		    build_fast_image_source(&input_drawables[i]);
 
 	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, 2);
 	}

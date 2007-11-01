@@ -111,25 +111,6 @@ new_temporary_variable (variable_t **vars, tuple_info_t type)
     return var;
 }
 
-tuple_t**
-instantiate_variables (variable_t *vars)
-{
-    int n, i;
-    variable_t *var;
-    tuple_t **tuples;
-
-    n = 0;
-    for (var = vars; var != 0; var = var->next)
-	++n;
-
-    tuples = (tuple_t**)malloc(n * sizeof(tuple_t*));
-
-    for (i = 0, var = vars; i < n; ++i, var = var->next)
-	tuples[i] = make_tuple(var->type.number, var->type.length);
-
-    return tuples;
-}
-
 void
 free_variables (variable_t *vars)
 {

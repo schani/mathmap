@@ -108,13 +108,13 @@ typedef struct _userval_t
 
 	struct
 	{
+	    int width;
+	    int height;
 	    float scale_x;
 	    float scale_y;
 	    float middle_x;
 	    float middle_y;
 #ifdef OPENSTEP
-	    int width;
-	    int height;
 	    int row_stride;
 	    void *data;
 #else
@@ -149,6 +149,8 @@ void set_userval_to_default (userval_t *val, userval_info_t *info, struct _mathm
 void copy_userval (userval_t *dst, userval_t *src, int type);
 
 #ifndef OPENSTEP
+void assign_image_userval_drawable (userval_info_t *info, userval_t *val, int index);
+
 GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
 #endif
 void update_uservals (userval_info_t *infos, userval_t *uservals);

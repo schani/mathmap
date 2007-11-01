@@ -45,7 +45,7 @@ filter droste (image in,
                int starting_level: 0-100 (6),
                int number_of_levels: 0-100 (10),
                int level_frequency: 1-10 (1),
-               bool no_transparency, bool external_transparency,
+               bool no_transparency (1), bool external_transparency,
                bool mirror_effect, bool untwist)
 
     p1 = periodicity / 4;

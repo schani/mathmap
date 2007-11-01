@@ -40,8 +40,8 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 
 VERSION = 1.2.2
 
-OPT_CFLAGS := -O2
-#OPT_CFLAGS := -g -DDEBUG_OUTPUT
+#OPT_CFLAGS := -O2
+OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""

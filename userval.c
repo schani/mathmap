@@ -257,6 +257,25 @@ register_image (userval_info_t **infos, const char *name, unsigned int flags)
     return info;
 }
 
+static void
+calc_image_values (userval_info_t *info, userval_t *val)
+{
+    int width, height;
+
+    assert(info->type == USERVAL_IMAGE);
+
+    width = val->v.image.width;
+    height = val->v.image.height;
+
+    printf("calculating image values for %s: %dx%d\n", info->name, width, height);
+
+    calc_scale_factors(info->v.image.flags, width, height,
+		       &val->v.image.scale_x, &val->v.image.scale_y);
+    calc_middle_values(width, height, 
+		       1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
+		       &val->v.image.middle_x, &val->v.image.middle_y);
+}
+
 void
 set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
@@ -271,7 +290,7 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_BOOL_CONST :
-	    val->v.bool_const = 0.0;
+	    val->v.bool_const = info->v.bool_const.default_value;
 	    break;
 
 	case USERVAL_CURVE :
@@ -312,29 +331,13 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_IMAGE :
-	    {
-		int width, height;
-
-#ifdef OPENSTEP
-		width = val->v.image.width;
-		height = val->v.image.height;
-#else
-		width = invocation->img_width;
-		height = invocation->img_height;
-#endif
-
-		calc_scale_factors(info->v.image.flags, width, height,
-				   &val->v.image.scale_x, &val->v.image.scale_y);
-		calc_middle_values(width, height, 
-				   1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
-				   &val->v.image.middle_x, &val->v.image.middle_y);
+	    calc_image_values(info, val);
 
 #ifndef OPENSTEP
-		val->v.image.index = -1;
+	    val->v.image.index = -1;
 #else
-		val->v.image.data = 0;
+	    val->v.image.data = 0;
 #endif
-	    }
 	    break;
     }
 }
@@ -437,6 +440,8 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    if (!cmd_line_mode && src->v.image.index > 0)
 		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
 #endif
+	    dst->v.image.width = src->v.image.width;
+	    dst->v.image.height = src->v.image.height;
 	    dst->v.image.scale_x = src->v.image.scale_x;
 	    dst->v.image.scale_y = src->v.image.scale_y;
 	    dst->v.image.middle_x = src->v.image.middle_x;
@@ -496,24 +501,27 @@ userval_color_update (GtkWidget *color_well, userval_t *userval)
     user_value_changed();
 }
 
-extern int img_width, img_height; /* from mathmap.c */
-
-static gint
-user_image_constrain (gint32 image_id, gint32 drawable_id, gpointer data)
+void
+assign_image_userval_drawable (userval_info_t *info, userval_t *val, int index)
 {
-    if (drawable_id == -1)
-	return TRUE;
+    assert(info->type == USERVAL_IMAGE);
+    assert(val->type == USERVAL_IMAGE);
 
-    if (gimp_drawable_width(drawable_id) == img_width
-	&& gimp_drawable_height(drawable_id) == img_height)
-	return TRUE;
-    else
-	return FALSE;
+    val->v.image.index = index;
+    printf("updated image %s %d (%p)\n", info->name, val->v.image.index, info);
+    val->v.image.width = gimp_drawable_width(DRAWABLE_ID(get_input_drawable(index)));
+    val->v.image.height = gimp_drawable_height(DRAWABLE_ID(get_input_drawable(index)));
+
+    calc_image_values(info, val);
 }
 
 static void
-user_image_update (gint32 id, userval_t *userval)
+user_image_update (gint32 id, void **user_data)
 {
+    userval_info_t *info = (userval_info_t*)user_data[0];
+    userval_t *userval = (userval_t*)user_data[1];
+    GimpDrawable *drawable;
+
     if (userval->v.image.index != -1)
     {
 	if (get_input_drawable(userval->v.image.index) == gimp_drawable_get(id))
@@ -522,7 +530,10 @@ user_image_update (gint32 id, userval_t *userval)
 	free_input_drawable(userval->v.image.index);
     }
 
-    userval->v.image.index = alloc_input_drawable(gimp_drawable_get(id));
+    drawable = gimp_drawable_get(id);
+    assert(drawable != 0);
+
+    assign_image_userval_drawable(info, userval, alloc_input_drawable(drawable));
 
     user_value_changed();
 }
@@ -668,6 +679,13 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		{
 		    GtkWidget *menu;
 		    gint32 drawable_id = -1;
+		    void **user_data;
+
+		    /* FIXME: extremely ugly hack - memory will never be reclaimed! */
+		    user_data = (void**)malloc(sizeof(void*) * 2);
+		    assert(user_data != 0);
+		    user_data[0] = info;
+		    user_data[1] = &uservals[info->index];
 
 		    if (uservals[info->index].v.image.index != -1)
 		    {
@@ -678,8 +696,8 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    }
 
 		    widget = gtk_option_menu_new();
-		    menu = gimp_drawable_menu_new(user_image_constrain, (GimpMenuCallback)user_image_update,
-						  &uservals[info->index], drawable_id);
+		    menu = gimp_drawable_menu_new(NULL, (GimpMenuCallback)user_image_update,
+						  user_data, drawable_id);
 		    gtk_option_menu_set_menu(GTK_OPTION_MENU(widget), menu);
 		}
 		break;

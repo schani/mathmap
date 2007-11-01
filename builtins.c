@@ -35,11 +35,6 @@
 #include "overload.h"
 #include "mathmap.h"
 
-extern int previewing;
-extern gint preview_width, preview_height;
-extern guchar *fast_image_source;
-extern gint sel_x1, sel_y1, sel_width, sel_height;
-
 void
 apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int width, int height)
 {
@@ -126,32 +121,12 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, i
 { 
     int width, height;
 
-#ifndef OPENSTEP
-    width = invocation->img_width;
-    height = invocation->img_height;
-#else
     width = userval->v.image.width;
     height = userval->v.image.height;
-#endif
 
     apply_edge_behaviour(invocation, &x, &y, width, height);
 
-    if (cmd_line_mode)
-	return mathmap_get_pixel(invocation, userval, frame, x, y);
-    else
-    {
-#ifndef OPENSTEP
-	if (previewing)
-	{
-	    x = (x - sel_x1) * preview_width / width;
-	    y = (y - sel_y1) * preview_height / height;
-
-	    return mathmap_get_fast_pixel(invocation, userval, x, y);
-	}
-	else
-#endif
-	    return mathmap_get_pixel(invocation, userval, frame, x, y);
-    }
+    return mathmap_get_pixel(invocation, userval, frame, x, y);
 }
 
 static userval_t*
@@ -159,7 +134,7 @@ get_drawable_userval (mathmap_invocation_t *invocation, int drawable_index, floa
 {
     userval_t *userval;
 
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals)
+    if (drawable_index < 0 || drawable_index >= invocation->mathmap->main_filter->num_uservals)
 	return 0;
 
     userval = &invocation->uservals[drawable_index];
