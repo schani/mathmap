@@ -827,7 +827,7 @@ call_invocation_parallel (mathmap_invocation_t *invocation,
 
     memset(invocation->rows_finished + first_row, 0, last_row - first_row);
 
-    if (num_threads < 2)
+    if (num_threads < 2 || !(invocation->mathmap->flags & MATHMAP_FLAG_NATIVE))
     {
 	call_invocation (invocation, region_x, region_y, region_width, region_height, q);
 	return;

@@ -35,9 +35,19 @@
 #include "mathmap.h"
 #include "jump.h"
 
+#define MAX_GENSYM_LEN	64
+
 char error_string[1024];
 
-top_level_decl_t *the_top_level_decls = 0;
+static char*
+gensym (char *buf)
+{
+    static int index = 0;
+
+    sprintf(buf, "___tmp___%d___", index++);
+
+    return buf;
+}
 
 static arg_decl_t*
 make_arg_decl (int type, const char *name, const char *docstring, option_t *options)
@@ -851,7 +861,7 @@ make_sequence (exprtree *left, exprtree *right)
 }
 
 exprtree*
-make_assignment (char *name, exprtree *value)
+make_assignment (const char *name, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
     variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &tree->result);
@@ -976,6 +986,38 @@ make_do_while (exprtree *body, exprtree *invariant)
     return tree;
 }
 
+void
+check_for_start (exprtree *start)
+{
+    if (start->result.length != 1)
+    {
+	sprintf(error_string, "The start and end of a for loop interval must be tuples of length 1.");
+	JUMP(1);
+    }
+}
+
+exprtree*
+make_for (const char *counter_name, exprtree *counter_init, exprtree *start, exprtree *end, exprtree *body)
+{
+    if (start->result.length != 1 || end->result.length != 1 || start->result.number != end->result.number)
+    {
+	sprintf(error_string, "The start and end of a for loop interval must be tuples of the same tag and length 1.");
+	JUMP(1);
+    }
+    else
+    {
+	char end_name_buf[MAX_GENSYM_LEN];
+	char *end_name = gensym(end_name_buf);
+	exprtree *end_init = make_assignment(end_name, end);
+	exprtree *init = make_sequence(counter_init, end_init);
+	exprtree *inc = make_assignment(counter_name, make_function("__add",
+								    exprlist_append(make_var(counter_name),
+										    make_int_number(1))));
+	exprtree *invariant = make_function("__lessequal", exprlist_append(make_var(counter_name), make_var(end_name)));
+
+	return make_sequence(init, make_while(invariant, make_sequence(body, inc)));
+    }
+}
 
 void
 free_exprtree (exprtree *tree)

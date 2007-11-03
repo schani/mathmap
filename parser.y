@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2005 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,6 +46,7 @@
 %token T_FLOAT_TYPE T_INT_TYPE T_BOOL_TYPE T_COLOR_TYPE T_GRADIENT_TYPE T_CURVE_TYPE T_IMAGE_TYPE
 %token T_IF T_THEN T_ELSE T_END
 %token T_WHILE T_DO
+%token T_FOR
 
 %left ';'
 %right '='
@@ -249,6 +250,13 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
                              { $<exprtree>$ = make_while($<exprtree>2, $<exprtree>4); }
        | T_DO expr T_WHILE expr T_END
                              { $<exprtree>$ = make_do_while($<exprtree>2, $<exprtree>4); }
+       | T_FOR T_IDENT '=' expr
+			     {
+				 check_for_start($<exprtree>4);
+				 $<exprtree>$ = make_assignment($<ident>2, $<exprtree>4);
+			     }
+	 T_RANGE expr T_DO expr T_END
+			     { $<exprtree>$ = make_for($<ident>2, $<exprtree>5, $<exprtree>4, $<exprtree>7, $<exprtree>9); }
        ;
 
 arglist :                    { $<exprtree>$ = 0; }

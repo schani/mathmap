@@ -7,14 +7,12 @@ filter zoom_twist (unit image in, int samples: 4-64 (10),
                    curve sampling_shape)
     tfact = twist * (twist_at_t(t) - 0.5);
     zfact = (zoom_at_t(t)-0.5) * (zoom_at_r(r)-0.5) * zoom;
-    sample = 0;
     total = rgba:[0,0,0,0];
-    while (sample < samples) do
+    for sample = 0 .. samples-1 do
         radj = zfact * (sampling_shape(sample/samples)-0.5);
         sr = r + radj;
         sa = a + (twist_at_r(radj)-0.5) * tfact;
-        total = total + in(ra:[sr, sa]);
-        sample = sample+1
+        total = total + in(ra:[sr, sa])
     end;
     total/samples
 end

@@ -268,12 +268,14 @@ exprtree* make_cast (const char *tagname, exprtree *tuple); /* should use tag nu
 exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */
 exprtree* make_function (const char *name, exprtree *args);
 exprtree* make_sequence (exprtree *left, exprtree *right);
-exprtree* make_assignment (char *name, exprtree *value); /* should use variable_t instead */
+exprtree* make_assignment (const char *name, exprtree *value); /* should use variable_t instead */
 exprtree* make_sub_assignment (char *name, exprtree *subscripts, exprtree *value);
 exprtree* make_if_then (exprtree *condition, exprtree *consequent);
 exprtree* make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternative);
 exprtree* make_while (exprtree *invariant, exprtree *body);
 exprtree* make_do_while (exprtree *body, exprtree *invariant);
+void check_for_start (exprtree *start);
+exprtree* make_for (const char *name, exprtree *counter_init, exprtree *start, exprtree *end, exprtree *body);
 
 void free_exprtree (exprtree *tree);
 
