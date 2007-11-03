@@ -866,6 +866,35 @@ unref_tiles (void)
     for_each_input_drawable(unref_drawable_tiles);
 }
 
+input_drawable_t*
+alloc_gimp_input_drawable (GimpDrawable *gimp_drawable)
+{
+    int width = gimp_drawable_width(GIMP_DRAWABLE_ID(gimp_drawable));
+    int height = gimp_drawable_height(GIMP_DRAWABLE_ID(gimp_drawable));
+    input_drawable_t *drawable = alloc_input_drawable(INPUT_DRAWABLE_GIMP, width, height);
+
+    drawable->v.gimp.drawable = gimp_drawable;
+    drawable->v.gimp.bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(gimp_drawable));
+    drawable->v.gimp.row = -1;
+    drawable->v.gimp.col = -1;
+    drawable->v.gimp.tile = 0;
+    drawable->v.gimp.fast_image_source = 0;
+    drawable->v.gimp.has_selection = FALSE;
+
+    drawable->v.gimp.fast_image_source_width = drawable->width / fast_image_source_scale;
+    drawable->v.gimp.fast_image_source_height = drawable->height / fast_image_source_scale;
+
+    return drawable;
+}
+
+GimpDrawable*
+get_gimp_input_drawable (input_drawable_t *drawable)
+{
+    g_assert(drawable->kind == INPUT_DRAWABLE_GIMP);
+
+    return drawable->v.gimp.drawable;
+}
+
 /*****/
 
 static void

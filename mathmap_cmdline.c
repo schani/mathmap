@@ -49,67 +49,104 @@
 #include "generators/blender/blender.h"
 //#include "generators/pixeltree/pixeltree.h"
 
-typedef struct
+typedef struct _cache_entry_t
 {
-    int drawable_index;
+    input_drawable_t *drawable;
     int frame;
     guchar *data;
     int timestamp;
 } cache_entry_t;
 
-static int cache_size = 8;
+static int cache_size = 16;
 static cache_entry_t *cache = 0;
 static int current_time = 0;
 
-#define MAX_INPUT_DRAWABLES 64
+static cache_entry_t*
+get_free_cache_entry (void)
+{
+    int lru_index = -1;
+    int i;
 
-static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
-static int num_input_drawables = 0;
+    if (cache == 0)
+	cache = g_new0(cache_entry_t, cache_size);
+    g_assert(cache != 0);
 
-mathmap_t *mathmap;
-mathmap_invocation_t *invocation;
+    for (i = 0; i < cache_size; ++i)
+	if (cache[i].drawable == 0)
+	{
+	    lru_index = i;
+	    break;
+	}
+	else
+	    if (lru_index < 0 || cache[i].timestamp < cache[lru_index].timestamp)
+		lru_index = i;
+
+    if (cache[lru_index].drawable != 0)
+	cache[lru_index].drawable->v.cmdline.cache_entries[cache[lru_index].frame] = 0;
+
+    if (cache[lru_index].data != 0)
+    {
+	free(cache[lru_index].data);
+	cache[lru_index].data = 0;
+    }
+
+    return &cache[lru_index];
+}
+
+static cache_entry_t*
+get_cache_entry_for_image (const char *filename, int *width, int *height)
+{
+    cache_entry_t *cache_entry = get_free_cache_entry();
+
+    cache_entry->data = read_image(filename, width, height);
+    if (cache_entry->data == 0)
+    {
+	fprintf(stderr, "Error: Cannot read input image `%s'.\n", filename);
+	exit(1);
+    }
+
+    return cache_entry;
+}
+
+static void
+bind_cache_entry_to_drawable (cache_entry_t *cache_entry, input_drawable_t *drawable, int frame)
+{
+    g_assert(drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE
+	     || drawable->kind == INPUT_DRAWABLE_CMDLINE_MOVIE);
+
+    cache_entry->drawable = drawable;
+    cache_entry->frame = frame;
+    cache_entry->timestamp = current_time;
+
+    drawable->v.cmdline.cache_entries[frame] = cache_entry;
+}
 
 color_t
 cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y)
 {
     guchar *p;
-    int i;
+    int num_frames;
+    cache_entry_t **cache_entries;
 
-    if (frame < 0 || frame >= input_drawables[drawable_index].num_frames)
+    g_assert(drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE || drawable->kind == INPUT_DRAWABLE_CMDLINE_MOVIE);
+
+    num_frames = drawable->v.cmdline.num_frames;
+    cache_entries = drawable->v.cmdline.cache_entries;
+
+    if (frame < 0 || frame >= num_frames)
 	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
-    drawable = &input_drawables[drawable_index];
-
-    if (drawable->cache_entries[frame] == 0)
+    if (cache_entries[frame] == 0)
     {
-	int lru_index = -1;
+	cache_entry_t *cache_entry;
 
-	for (i = 0; i < cache_size; ++i)
-	    if (cache[i].drawable_index < 0)
-	    {
-		lru_index = i;
-		break;
-	    }
-	    else
-		if (lru_index < 0 || cache[i].timestamp < cache[lru_index].timestamp)
-		    lru_index = i;
-
-	if (cache[lru_index].drawable_index >= 0)
-	    input_drawables[cache[lru_index].drawable_index].cache_entries[cache[lru_index].frame] = 0;
-
-	if (drawable->type == DRAWABLE_IMAGE)
+	if (drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE)
 	{
 	    int width, height;
 
-	    if (cache[lru_index].data != 0)
-		free(cache[lru_index].data);
+	    cache_entry = get_cache_entry_for_image(drawable->v.cmdline.image_filename, &width, &height);
 
-	    cache[lru_index].data = read_image(drawable->v.image_filename, &width, &height);
-	    if (width != invocation->calc_img_width || height != invocation->calc_img_height)
-	    {
-		fprintf(stderr, "Error: All input images must have the same size.\n");
-		exit(1);
-	    }
+	    g_assert(width == drawable->width && height == drawable->height);
 	}
 #ifdef MOVIES
 	else
@@ -129,19 +166,52 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *d
 	}
 #endif
 
-	cache[lru_index].drawable_index = drawable_index;
-	cache[lru_index].frame = frame;
-	cache[lru_index].timestamp = current_time;
-
-	drawable->cache_entries[frame] = &cache[lru_index];
+	bind_cache_entry_to_drawable(cache_entry, drawable, frame);
     }
     else
-	drawable->cache_entries[frame]->timestamp = current_time;
+	cache_entries[frame]->timestamp = current_time;
 
-    p = drawable->cache_entries[frame]->data + 3 * (invocation->calc_img_width * y + x);
+    p = cache_entries[frame]->data + 3 * (drawable->width * y + x);
 
     return MAKE_RGBA_COLOR(p[0], p[1], p[2], 255);
 }
+
+input_drawable_t*
+alloc_cmdline_image_input_drawable (const char *filename)
+{
+    int width, height;
+    cache_entry_t *cache_entry = get_cache_entry_for_image(filename, &width, &height);
+    input_drawable_t *drawable = alloc_input_drawable(INPUT_DRAWABLE_CMDLINE_IMAGE, width, height);
+
+    drawable->v.cmdline.cache_entries = g_new0(cache_entry_t*, 1);
+    drawable->v.cmdline.num_frames = 1;
+    drawable->v.cmdline.image_filename = optarg;
+
+    bind_cache_entry_to_drawable(cache_entry, drawable, 0);
+
+    return drawable;
+}
+
+#ifdef MOVIES
+input_drawable_t*
+alloc_cmdline_movie_input_drawable (const char *filename)
+{
+    g_assert_not_reached();
+
+    /*
+		input_drawables[num_input_drawables].type = DRAWABLE_MOVIE;
+		input_drawables[num_input_drawables].v.movie = quicktime_open(optarg, 1, 0);
+		assert(input_drawables[num_input_drawables].v.movie != 0);
+		assert(quicktime_video_tracks(input_drawables[num_input_drawables].v.movie));
+		assert(quicktime_video_depth(input_drawables[num_input_drawables].v.movie, 0) == 24);
+		input_drawables[num_input_drawables].num_frames = quicktime_video_length(input_drawables[num_input_drawables].v.movie, 0);
+		input_drawables[num_input_drawables].cache_entries
+		    = (cache_entry_t**)malloc(sizeof(cache_entry_t*) * input_drawables[num_input_drawables].num_frames);
+		for (i = 0; i < input_drawables[num_input_drawables].num_frames; ++i)
+		    input_drawables[num_input_drawables].cache_entries[i] = 0;
+    */
+}
+#endif
 
 static int
 parse_image_size (char *str, int *width, int *height)
@@ -204,7 +274,6 @@ int
 cmdline_main (int argc, char *argv[])
 {
     guchar *output;
-    int i;
     int num_frames = 1;
 #ifdef MOVIES
     int generate_movie = 0;
@@ -292,12 +361,7 @@ cmdline_main (int argc, char *argv[])
 		break;
 
 	    case 'I' :
-		input_drawables[num_input_drawables].type = DRAWABLE_IMAGE;
-		input_drawables[num_input_drawables].cache_entries = (cache_entry_t**)malloc(sizeof(cache_entry_t*));
-		input_drawables[num_input_drawables].cache_entries[0] = 0;
-		input_drawables[num_input_drawables].num_frames = 1;
-		input_drawables[num_input_drawables].v.image_filename = optarg;
-		++num_input_drawables;
+		alloc_cmdline_image_input_drawable(optarg);
 		break;
 
 	    case 'g' :
@@ -321,17 +385,7 @@ cmdline_main (int argc, char *argv[])
 		break;
 
 	    case 'M' :
-		input_drawables[num_input_drawables].type = DRAWABLE_MOVIE;
-		input_drawables[num_input_drawables].v.movie = quicktime_open(optarg, 1, 0);
-		assert(input_drawables[num_input_drawables].v.movie != 0);
-		assert(quicktime_video_tracks(input_drawables[num_input_drawables].v.movie));
-		assert(quicktime_video_depth(input_drawables[num_input_drawables].v.movie, 0) == 24);
-		input_drawables[num_input_drawables].num_frames = quicktime_video_length(input_drawables[num_input_drawables].v.movie, 0);
-		input_drawables[num_input_drawables].cache_entries
-		    = (cache_entry_t**)malloc(sizeof(cache_entry_t*) * input_drawables[num_input_drawables].num_frames);
-		for (i = 0; i < input_drawables[num_input_drawables].num_frames; ++i)
-		    input_drawables[num_input_drawables].cache_entries[i] = 0;
-		++num_input_drawables;
+		alloc_cmdline_movie_input_drawable(optarg);
 		break;
 #endif
 	}
@@ -351,33 +405,28 @@ cmdline_main (int argc, char *argv[])
 
     if (generator == 0)
     {
-	cache = (cache_entry_t*)malloc(sizeof(cache_entry_t) * cache_size);
-	for (i = 0; i < cache_size; ++i)
-	{
-	    cache[i].drawable_index = -1;
-	    cache[i].data = 0;
-	}
+	int num_input_drawables = get_num_input_drawables();
+	mathmap_t *mathmap;
+	mathmap_invocation_t *invocation;
 
 	if (!size_is_set)
 	{
+	    input_drawable_t *drawable;
+
 	    if (num_input_drawables == 0)
 	    {
 		fprintf(stderr, "Error: Image size not set and no input images given.\n");
 		exit(1);
 	    }
 
-	    if (input_drawables[0].type == DRAWABLE_IMAGE)
+	    drawable = get_nth_input_drawable(0);
+
+	    if (drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE)
 	    {
-		cache[0].drawable_index = 0;
-		cache[0].frame = 0;
-		cache[0].data = read_image(input_drawables[0].v.image_filename, &img_width, &img_height);
-		if (cache[0].data == 0)
-		{
-		    fprintf(stderr, "Error: Could not load image `%s'.", input_drawables[0].v.image_filename);
-		    exit(1);
-		}
-		cache[0].timestamp = current_time;
-		input_drawables[0].cache_entries[0] = &cache[0];
+		cache_entry_t *cache_entry = get_cache_entry_for_image(drawable->v.cmdline.image_filename,
+								       &img_width, &img_height);
+
+		bind_cache_entry_to_drawable(cache_entry, drawable, 0);
 	    }
 #ifdef MOVIES
 	    else
@@ -416,7 +465,7 @@ cmdline_main (int argc, char *argv[])
 	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
 
 	drawable_index = 0;
-	for (userval_info = mathmap->userval_infos; userval_info != 0; userval_info = userval_info->next)
+	for (userval_info = mathmap->main_filter->userval_infos; userval_info != 0; userval_info = userval_info->next)
 	    if (userval_info->type == USERVAL_IMAGE)
 	    {
 		userval_t *userval = &invocation->uservals[userval_info->index];
@@ -427,7 +476,9 @@ cmdline_main (int argc, char *argv[])
 		    exit(1);
 		}
 
-		userval->v.image.index = drawable_index++;
+		assign_image_userval_drawable(userval_info, userval, get_nth_input_drawable(drawable_index));
+
+		++drawable_index;
 	    }
 
 	if (drawable_index != num_input_drawables)
@@ -466,7 +517,7 @@ cmdline_main (int argc, char *argv[])
 
 	    update_image_internals(invocation);
 
-	    call_invocation(invocation, 0, img_height, output);
+	    call_invocation_parallel(invocation, 0, 0, img_width, img_height, output, 1);
 
 #ifdef MOVIES
 	    if (generate_movie)

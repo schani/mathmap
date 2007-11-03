@@ -49,7 +49,7 @@ template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
     {
 	userval_info_t *info;
 
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	for (info = mathmap->main_filter->userval_infos; info != 0; info = info->next)
 	{
 	    switch (info->type)
 	    {
@@ -94,7 +94,7 @@ template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
 
 	userval_info_t *info;
 
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	for (info = mathmap->main_filter->userval_infos; info != 0; info = info->next)
 	{
 	    if (info->type != USERVAL_IMAGE)
 	    {
@@ -119,7 +119,7 @@ template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
 	userval_info_t *info;
 	int num = 0;
 
-	for (info = mathmap->userval_infos; info != 0; info = info->next)
+	for (info = mathmap->main_filter->userval_infos; info != 0; info = info->next)
 	    if (info->type == USERVAL_IMAGE)
 		++num;
 
@@ -127,19 +127,19 @@ template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
     }
     else if (strcmp(directive, "drawable0") == 0)
     {
-	userval_info_t *info = find_nth_image_userval(mathmap->userval_infos, 0);
+	userval_info_t *info = find_nth_image_userval(mathmap->main_filter->userval_infos, 0);
 
 	fprintf(out, "%d", (info == 0) ? -1 : info->index);
     }
     else if (strcmp(directive, "drawable1") == 0)
     {
-	userval_info_t *info = find_nth_image_userval(mathmap->userval_infos, 1);
+	userval_info_t *info = find_nth_image_userval(mathmap->main_filter->userval_infos, 1);
 
 	fprintf(out, "%d", (info == 0) ? -1 : info->index);
     }
     else if (strcmp(directive, "drawable2") == 0)
     {
-	userval_info_t *info = find_nth_image_userval(mathmap->userval_infos, 2);
+	userval_info_t *info = find_nth_image_userval(mathmap->main_filter->userval_infos, 2);
 
 	fprintf(out, "%d", (info == 0) ? -1 : info->index);
     }

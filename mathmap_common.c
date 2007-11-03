@@ -269,9 +269,6 @@ parse_mathmap (char *expression)
 	yyparse();
 	endScanningFromString();
 
-	for (filter = mathmap->filters; filter != 0; filter = filter->next)
-	    g_print("filter %s\n", filter->decl->name);
-
 	if (mathmap->filters == 0
 	    || mathmap->filters->next != 0
 	    || mathmap->filters->decl->type != TOP_LEVEL_FILTER)

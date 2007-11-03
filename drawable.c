@@ -29,9 +29,8 @@
 
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
 
-#ifndef OPENSTEP
 input_drawable_t*
-alloc_gimp_input_drawable (GimpDrawable *gimp_drawable)
+alloc_input_drawable (int kind, int width, int height)
 {
     int i;
     input_drawable_t *drawable;
@@ -44,26 +43,16 @@ alloc_gimp_input_drawable (GimpDrawable *gimp_drawable)
 
     drawable = &input_drawables[i];
 
+    g_assert(!drawable->used);
+
     drawable->used = TRUE;
-    drawable->kind = INPUT_DRAWABLE_GIMP;
+    drawable->kind = kind;
 
-    drawable->width = gimp_drawable_width(GIMP_DRAWABLE_ID(gimp_drawable));
-    drawable->height = gimp_drawable_height(GIMP_DRAWABLE_ID(gimp_drawable));
-
-    drawable->v.gimp.drawable = gimp_drawable;
-    drawable->v.gimp.bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(gimp_drawable));
-    drawable->v.gimp.row = -1;
-    drawable->v.gimp.col = -1;
-    drawable->v.gimp.tile = 0;
-    drawable->v.gimp.fast_image_source = 0;
-    drawable->v.gimp.has_selection = FALSE;
-
-    drawable->v.gimp.fast_image_source_width = drawable->width / fast_image_source_scale;
-    drawable->v.gimp.fast_image_source_height = drawable->height / fast_image_source_scale;
+    drawable->width = width;
+    drawable->height = height;
 
     return drawable;
 }
-#endif
 
 void
 free_input_drawable (input_drawable_t *drawable)
@@ -126,16 +115,6 @@ copy_input_drawable (input_drawable_t *drawable)
     return copy;
 }
 
-#ifndef OPENSTEP
-GimpDrawable*
-get_gimp_input_drawable (input_drawable_t *drawable)
-{
-    g_assert(drawable->kind == INPUT_DRAWABLE_GIMP);
-
-    return drawable->v.gimp.drawable;
-}
-#endif
-
 input_drawable_t*
 get_default_input_drawable (void)
 {
@@ -147,4 +126,33 @@ get_default_input_drawable (void)
 	    && input_drawables[i].v.gimp.has_selection)
 	    return &input_drawables[i];
     return 0;
+}
+
+int
+get_num_input_drawables (void)
+{
+    int i;
+    int n = 0;
+
+    for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
+	if (input_drawables[i].used)
+	    ++n;
+
+    return n;
+}
+
+input_drawable_t*
+get_nth_input_drawable (int n)
+{
+    int i;
+
+    for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
+	if (input_drawables[i].used)
+	{
+	    if (n == 0)
+		return &input_drawables[i];
+	    --n;
+	}
+
+    g_assert_not_reached();
 }

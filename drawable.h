@@ -40,6 +40,10 @@
 #define INPUT_DRAWABLE_CMDLINE_MOVIE		3
 #define INPUT_DRAWABLE_OPENSTEP			4
 
+#ifdef MATHMAP_CMDLINE
+struct _cache_entry_t;
+#endif
+
 typedef struct {
     gboolean used;
 
@@ -70,23 +74,21 @@ typedef struct {
 	    color_t *fast_image_source;
 	} gimp;
 #endif
-#ifdef CMDLINE
-	struct
-	{
-	    cache_entry_t *cache_entry;
-	    char *image_filename;
-	} cmdline_image;
-#ifdef MOVIES
+#ifdef MATHMAP_CMDLINE
 	struct
 	{
 	    int num_frames;
-	    cache_entry_t **cache_entries;
+	    struct _cache_entry_t **cache_entries;
+	    char *image_filename;
+#ifdef MOVIES
 	    quicktime_t *movie;
-	} cmdline_movie;
 #endif
+	} cmdline;
 #endif
     } v;
 } input_drawable_t;
+
+input_drawable_t* alloc_input_drawable (int kind, int width, int height);
 
 void free_input_drawable (input_drawable_t *drawable);
 
@@ -96,9 +98,19 @@ void for_each_input_drawable (void (*) (input_drawable_t *drawable));
 
 input_drawable_t* get_default_input_drawable (void);
 
+int get_num_input_drawables (void);
+input_drawable_t* get_nth_input_drawable (int n);
+
 #ifndef OPENSTEP
 input_drawable_t* alloc_gimp_input_drawable (GimpDrawable *drawable);
 GimpDrawable* get_gimp_input_drawable (input_drawable_t *drawable);
+#endif
+
+#ifdef MATHMAP_CMDLINE
+input_drawable_t* alloc_cmdline_image_input_drawable (const char *filename);
+#ifdef MOVIES
+input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
+#endif
 #endif
 
 #endif

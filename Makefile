@@ -1,7 +1,7 @@
 # If you want MathMap to provide a command line interface as well,
 # uncomment the following line.  Note that compiling it requires
 # libjpeg, libpng and giflib.
-#CMDLINE = YES
+CMDLINE = YES
 
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
