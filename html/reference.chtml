@@ -57,7 +57,7 @@
         <dt><em>options</em> <tt>image</tt> <em>name</em>
         <dd>A function taking a single argument of type <tt>xy:2</tt> or <tt>ra:2</tt> and returning
           the color of the point with those coordinates in the image as a tuple of type <tt>rgba:4</tt>.
-          <em>options</em> can be left out or it can be the <tt>square</tt> option, discussed <a href="#options">below</a>.
+          <em>options</em> can be left out or it can be the <tt>unit</tt> option, discussed <a href="#options">below</a>.
       </dl>
     </blockquote>
 
@@ -97,6 +97,9 @@
 	<tr><td><tt>v3</tt>   <td>3d vector</tr>
 	<tr><td><tt>m2x2</tt> <td>2x2 matrix</tr>
 	<tr><td><tt>m3x3</tt> <td>3x3 matrix</tr>
+        <tr><td><tt>quat</tt> <td>non-commutative quaternion</tr>
+        <tr><td><tt>cquat</tt><td>commutative quaternion</tr>
+        <tr><td><tt>hyper</tt><td>hypercomplex number</tr>
       </table>
 
       <p>In order for the tag system to make sense, operators and
@@ -253,6 +256,21 @@
             <tt>while</tt> <em>invariant</em> <tt>end</tt>
 	  <dd>Executes <em>body</em> until <em>invariant</em> is not equal
 	    <tt>0</tt>, then returns <tt>0</tt>.
+	</dl>
+
+	<dl>
+	  <dt><tt>for</tt> <em>counter</em> <tt>=</tt> <em>start</em> <tt>..</tt> <em>end</em> <tt>do</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>body</em><br>
+            <tt>end</tt>
+	  <dd>Executes <em>body</em> with the variable <em>counter</em> going from
+            <em>start</em> to <em>end</em>, then returns 0.  Semantically equivalent to<br>
+            <br>
+            <em>counter</em> <tt>=</tt> <em>start</em><tt>;</tt><br>
+            <tt>__tmp</tt> <tt>=</tt> <em>end</em><tt>;</tt><br>
+            <tt>while</tt> <em>counter</em> <tt>&lt;=</tt> <tt>__tmp</tt> <tt>do</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>body</em><tt>;</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>counter</em> <tt>=</tt> <em>counter</em> <tt>+</tt> <tt>1</tt><tt>;</tt><br>
+            <tt>end</tt>
 	</dl>
       </blockquote>
     </blockquote>
