@@ -33,6 +33,7 @@
 #include "tuples.h"
 #include "exprtree.h"
 #include "color.h"
+#include "drawable.h"
 
 #define USER_CURVE_POINTS       1024
 #define USER_GRADIENT_POINTS    1024
@@ -108,18 +109,11 @@ typedef struct _userval_t
 
 	struct
 	{
-	    int width;
-	    int height;
+	    input_drawable_t *drawable;
 	    float scale_x;
 	    float scale_y;
 	    float middle_x;
 	    float middle_y;
-#ifdef OPENSTEP
-	    int row_stride;
-	    void *data;
-#else
-	    int index;
-#endif
 	} image;
     } v;
 
@@ -141,16 +135,16 @@ userval_info_t* register_image (userval_info_t **infos, const char *name, unsign
 
 void instantiate_userval (userval_t *val, userval_info_t *info, struct _mathmap_invocation_t *invocation);
 userval_t* instantiate_uservals (userval_info_t *infos, struct _mathmap_invocation_t *invocation);
-void free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline);
+void free_uservals (userval_t *uservals, userval_info_t *infos);
 void free_userval_infos (userval_info_t *infos);
 
 void set_userval_to_default (userval_t *val, userval_info_t *info, struct _mathmap_invocation_t *invocation);
 
 void copy_userval (userval_t *dst, userval_t *src, int type);
 
-#ifndef OPENSTEP
-void assign_image_userval_drawable (userval_info_t *info, userval_t *val, int index);
+void assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawable_t *drawable);
 
+#ifndef OPENSTEP
 GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
 #endif
 void update_uservals (userval_info_t *infos, userval_t *uservals);

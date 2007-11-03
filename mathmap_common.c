@@ -198,43 +198,12 @@ free_mathmap (mathmap_t *mathmap)
 void
 free_invocation (mathmap_invocation_t *invocation)
 {
-    userval_info_t *info;
-
-    /*
-    if (invocation->internals != 0)
-	free(invocation->internals);
-    if (invocation->variables != 0)
-	free(invocation->variables);
-    */
     if (invocation->uservals != 0)
     {
-	for (info = invocation->mathmap->main_filter->userval_infos; info != 0; info = info->next)
-	{
-	    switch (info->type)
-	    {
-		case USERVAL_CURVE :
-		    free(invocation->uservals[info->index].v.curve.values);
-		    break;
-
-		case USERVAL_GRADIENT :
-		    free(invocation->uservals[info->index].v.gradient.values);
-		    break;
-
-#ifndef OPENSTEP
-		case USERVAL_IMAGE :
-		    if (!cmd_line_mode)
-			if (invocation->uservals[info->index].v.image.index > 0)
-			    free_input_drawable(invocation->uservals[info->index].v.image.index);
-		    break;
-#endif
-	    }
-	}
+	free_uservals(invocation->uservals, invocation->mathmap->main_filter->userval_infos);
 	free(invocation->uservals);
     }
-    /*
-    if (invocation->interpreter_values != 0)
-	g_array_free(invocation->interpreter_values, TRUE);
-    */
+
     free(invocation->rows_finished);
     free(invocation);
 }
@@ -538,7 +507,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 	for (info = mathmap->main_filter->userval_infos; info != 0; info = info->next)
 	    if (info->type == USERVAL_IMAGE)
 	    {
-		assign_image_userval_drawable(info, &invocation->uservals[info->index], 0);
+		assign_image_userval_drawable(info, &invocation->uservals[info->index],
+					      copy_input_drawable(get_default_input_drawable()));
 		break;
 	    }
     }

@@ -100,6 +100,10 @@ extern int scanner_line_num;
 extern color_t gradient_samples[USER_GRADIENT_POINTS];
 #endif
 
+#ifndef OPENSTEP
+extern int fast_image_source_scale;
+#endif
+
 #define EDGE_BEHAVIOUR_COLOR          1	/* all four used in new_template.c */
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
@@ -186,7 +190,7 @@ void calc_middle_values (int img_width, int img_height, float scale_x, float sca
 
 #ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);
-color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y);
+color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 #endif
 
 void register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls);
@@ -217,7 +221,7 @@ void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathma
 
 void update_image_internals (mathmap_invocation_t *invocation);
 
-color_t mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y);
+color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 
 typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
 
@@ -231,11 +235,7 @@ void user_value_changed (void);
 void set_expression_cursor (int line, int column);
 
 #ifndef OPENSTEP
-int alloc_input_drawable (GimpDrawable *drawable);
-void free_input_drawable (int index);
-GimpDrawable* get_input_drawable (int index);
+#define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)
 #endif
-
-#define DRAWABLE_ID(d)     ((d)->drawable_id)
 
 #endif

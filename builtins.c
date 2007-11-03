@@ -119,14 +119,12 @@ apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int wi
 static color_t
 get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, int frame)
 { 
-    int width, height;
+    if (userval->v.image.drawable == NULL)
+	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
-    width = userval->v.image.width;
-    height = userval->v.image.height;
+    apply_edge_behaviour(invocation, &x, &y, userval->v.image.drawable->width, userval->v.image.drawable->height);
 
-    apply_edge_behaviour(invocation, &x, &y, width, height);
-
-    return mathmap_get_pixel(invocation, userval, frame, x, y);
+    return mathmap_get_pixel(invocation, userval->v.image.drawable, frame, x, y);
 }
 
 static userval_t*

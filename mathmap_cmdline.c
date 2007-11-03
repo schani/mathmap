@@ -29,10 +29,6 @@
 #include <assert.h>
 #include <glib.h>
 
-#ifdef MOVIES
-#include <quicktime.h>
-#endif
-
 #include "getopt.h"
 
 #include "exprtree.h"
@@ -46,6 +42,7 @@
 #include "jump.h"
 #include "mathmap.h"
 #include "noise.h"
+#include "drawable.h"
 #include "rwimg/readimage.h"
 #include "rwimg/writeimage.h"
 
@@ -64,23 +61,6 @@ static int cache_size = 8;
 static cache_entry_t *cache = 0;
 static int current_time = 0;
 
-#define DRAWABLE_IMAGE     1
-#define DRAWABLE_MOVIE     2
-
-typedef struct
-{
-    int type;
-    cache_entry_t **cache_entries;
-    int num_frames;
-    union
-    {
-	char *image_filename;
-#ifdef MOVIES
-	quicktime_t *movie;
-#endif
-    } v;
-} input_drawable_t;
-
 #define MAX_INPUT_DRAWABLES 64
 
 static input_drawable_t input_drawables[MAX_INPUT_DRAWABLES];
@@ -90,17 +70,12 @@ mathmap_t *mathmap;
 mathmap_invocation_t *invocation;
 
 color_t
-cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, userval_t *userval, int frame, int x, int y)
+cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y)
 {
-    int drawable_index = userval->v.image.index;
     guchar *p;
     int i;
-    input_drawable_t *drawable;
 
-    if (drawable_index < 0 || drawable_index >= num_input_drawables
-	|| x < 0 || x >= invocation->calc_img_width
-	|| y < 0 || y >= invocation->calc_img_height
-	|| frame < 0 || frame >= input_drawables[drawable_index].num_frames)
+    if (frame < 0 || frame >= input_drawables[drawable_index].num_frames)
 	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
     drawable = &input_drawables[drawable_index];

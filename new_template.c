@@ -113,18 +113,11 @@ typedef struct _userval_t
 
 	struct
 	{
-	    int width;
-	    int height;
+	    void *drawable;
 	    float scale_x;
 	    float scale_y;
 	    float middle_x;
 	    float middle_y;
-#ifdef OPENSTEP
-	    int row_stride;
-	    void *data;
-#else
-	    int index;
-#endif
 	} image;
     } v;
 

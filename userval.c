@@ -34,6 +34,7 @@
 #include "mathmap.h"
 #include "userval.h"
 #include "tags.h"
+#include "drawable.h"
 
 static userval_info_t*
 alloc_and_register_userval (userval_info_t **p, const char *name, int type)
@@ -262,12 +263,11 @@ calc_image_values (userval_info_t *info, userval_t *val)
 {
     int width, height;
 
-    assert(info->type == USERVAL_IMAGE);
+    g_assert(info->type == USERVAL_IMAGE);
+    g_assert(val->v.image.drawable);
 
-    width = val->v.image.width;
-    height = val->v.image.height;
-
-    printf("calculating image values for %s: %dx%d\n", info->name, width, height);
+    width = val->v.image.drawable->width;
+    height = val->v.image.drawable->height;
 
     calc_scale_factors(info->v.image.flags, width, height,
 		       &val->v.image.scale_x, &val->v.image.scale_y);
@@ -331,13 +331,12 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_IMAGE :
-	    calc_image_values(info, val);
-
-#ifndef OPENSTEP
-	    val->v.image.index = -1;
-#else
-	    val->v.image.data = 0;
-#endif
+	    val->v.image.drawable = 0;
+	    /*
+	    get_default_input_drawable();
+	    if (val->v.image.drawable != 0)
+		calc_image_values(info, val);
+	    */
 	    break;
     }
 }
@@ -382,7 +381,7 @@ instantiate_uservals (userval_info_t *infos, mathmap_invocation_t *invocation)
 }
 
 void
-free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline)
+free_uservals (userval_t *uservals, userval_info_t *infos)
 {
     userval_info_t *info;
 
@@ -398,13 +397,10 @@ free_uservals (userval_t *uservals, userval_info_t *infos, int cmdline)
 		free(uservals[info->index].v.gradient.values);
 		break;
 
-#ifndef OPENSTEP
 	    case USERVAL_IMAGE :
-		if (!cmdline)
-		    if (uservals[info->index].v.image.index != -1)
-			free_input_drawable(uservals[info->index].v.image.index);
+		if (uservals[info->index].v.image.drawable != 0)
+		    free_input_drawable(uservals[info->index].v.image.drawable);
 		break;
-#endif
 	}
     }
 }
@@ -436,16 +432,22 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    break;
 
 	case USERVAL_IMAGE :
-#ifndef OPENSTEP
-	    if (!cmd_line_mode && src->v.image.index > 0)
-		dst->v.image.index = alloc_input_drawable(get_input_drawable(src->v.image.index));
-#endif
-	    dst->v.image.width = src->v.image.width;
-	    dst->v.image.height = src->v.image.height;
-	    dst->v.image.scale_x = src->v.image.scale_x;
-	    dst->v.image.scale_y = src->v.image.scale_y;
-	    dst->v.image.middle_x = src->v.image.middle_x;
-	    dst->v.image.middle_y = src->v.image.middle_y;
+	    {
+		input_drawable_t *dst_drawable = dst->v.image.drawable;
+
+		if (src->v.image.drawable != 0)
+		    dst->v.image.drawable = copy_input_drawable(src->v.image.drawable);
+		else
+		    dst->v.image.drawable = 0;
+
+		if (dst_drawable != 0)
+		    free_input_drawable(dst_drawable);
+
+		dst->v.image.scale_x = src->v.image.scale_x;
+		dst->v.image.scale_y = src->v.image.scale_y;
+		dst->v.image.middle_x = src->v.image.middle_x;
+		dst->v.image.middle_y = src->v.image.middle_y;
+	    }
 	    break;
 
 	case USERVAL_CURVE :
@@ -459,6 +461,20 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	default :
 	    assert(0);
     }
+}
+
+void
+assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawable_t *drawable)
+{
+    assert(info->type == USERVAL_IMAGE);
+    assert(val->type == USERVAL_IMAGE);
+
+    if (val->v.image.drawable != 0)
+	free_input_drawable(val->v.image.drawable);
+
+    val->v.image.drawable = drawable;
+
+    calc_image_values(info, val);
 }
 
 #ifndef OPENSTEP
@@ -501,20 +517,6 @@ userval_color_update (GtkWidget *color_well, userval_t *userval)
     user_value_changed();
 }
 
-void
-assign_image_userval_drawable (userval_info_t *info, userval_t *val, int index)
-{
-    assert(info->type == USERVAL_IMAGE);
-    assert(val->type == USERVAL_IMAGE);
-
-    val->v.image.index = index;
-    printf("updated image %s %d (%p)\n", info->name, val->v.image.index, info);
-    val->v.image.width = gimp_drawable_width(DRAWABLE_ID(get_input_drawable(index)));
-    val->v.image.height = gimp_drawable_height(DRAWABLE_ID(get_input_drawable(index)));
-
-    calc_image_values(info, val);
-}
-
 static void
 user_image_update (gint32 id, void **user_data)
 {
@@ -522,18 +524,14 @@ user_image_update (gint32 id, void **user_data)
     userval_t *userval = (userval_t*)user_data[1];
     GimpDrawable *drawable;
 
-    if (userval->v.image.index != -1)
-    {
-	if (get_input_drawable(userval->v.image.index) == gimp_drawable_get(id))
-	    return;
-
-	free_input_drawable(userval->v.image.index);
-    }
+    if (userval->v.image.drawable != 0
+	&& get_gimp_input_drawable(userval->v.image.drawable) == gimp_drawable_get(id))
+	return;
 
     drawable = gimp_drawable_get(id);
     assert(drawable != 0);
 
-    assign_image_userval_drawable(info, userval, alloc_input_drawable(drawable));
+    assign_image_userval_drawable(info, userval, alloc_gimp_input_drawable(drawable));
 
     user_value_changed();
 }
@@ -687,12 +685,12 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    user_data[0] = info;
 		    user_data[1] = &uservals[info->index];
 
-		    if (uservals[info->index].v.image.index != -1)
+		    if (uservals[info->index].v.image.drawable != 0)
 		    {
-			GimpDrawable *drawable = get_input_drawable(uservals[info->index].v.image.index);
+			GimpDrawable *drawable = get_gimp_input_drawable(uservals[info->index].v.image.drawable);
 
 			if (drawable != 0)
-			    drawable_id = DRAWABLE_ID(drawable);
+			    drawable_id = GIMP_DRAWABLE_ID(drawable);
 		    }
 
 		    widget = gtk_option_menu_new();
