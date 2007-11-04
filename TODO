@@ -14,15 +14,16 @@ Text input fields for float and int user values
 
 Edge behaviour selectable per input image
 
-MathMap should work with no source image, letting the user choose
-image size
-
 UI names for user values
 
 Histogram
 
+Resizable preview
+
 Language
 --------
+
+Hypercomplex-Complex multiplication
 
 Command Line Tool
 -----------------
