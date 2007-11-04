@@ -1,2 +1,12 @@
 syntax: glob
 .svn
+*~
+builtins_doc.html
+compiler_types.h
+new_builtins.c
+opdefs.h
+parser.[ch]
+scanner.c
+lispreader
+lisp-utils
+rwimg
