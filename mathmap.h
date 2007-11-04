@@ -234,6 +234,8 @@ void user_value_changed (void);
 
 void set_expression_cursor (int line, int column);
 
+int get_num_cpus (void);
+
 #ifndef OPENSTEP
 #define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)
 #endif

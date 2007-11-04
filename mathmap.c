@@ -1675,7 +1675,7 @@ dialog_update_preview (void)
 
 	if (previewing) {
 	    for_each_input_drawable(build_fast_image_source);
-	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, 2);
+	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, get_num_cpus());
 	}
 	else
 	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, 1);

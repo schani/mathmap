@@ -255,7 +255,6 @@ parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     exprtree *expr;
-    filter_t *filter;
 
     mathmap = g_new0(mathmap_t, 1);
 
@@ -890,4 +889,37 @@ process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_p
 	else
 	    putc(c, out);
     }
+}
+
+int
+get_num_cpus (void)
+{
+    static int num_cpus = 0;
+
+    FILE *info;
+
+    if (num_cpus != 0)
+	return num_cpus;
+
+    info = fopen("/proc/cpuinfo", "r");
+
+    if (info != 0)
+    {
+	char buf[512];
+
+	while (fgets(buf, 512, info) != 0)
+	    if (strncmp(buf, "processor", strlen("processor")) == 0)
+		++num_cpus;
+
+	fclose(info);
+    }
+
+    if (num_cpus == 0)
+	num_cpus = 4;
+
+#ifdef DEBUG_OUTPUT
+    g_print("have %d cpus\n", num_cpus);
+#endif
+
+    return num_cpus;
 }
