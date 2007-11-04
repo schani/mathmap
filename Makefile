@@ -40,8 +40,8 @@ TEMPLATE_DIR = $(PREFIX)/share/mathmap
 
 VERSION = 1.2.2
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g -DDEBUG_OUTPUT
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -184,5 +184,6 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	cp -r examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
+	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)

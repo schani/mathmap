@@ -33,6 +33,8 @@ All uservals on command line (not just input images)
 General
 -------
 
+Debug outputs only when define is set
+
 Edge behaviour as image attributes
 
 Packaging

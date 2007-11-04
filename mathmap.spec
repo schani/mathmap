@@ -4,13 +4,12 @@
 
 Summary: MathMap GIMP Plug-In and Command-Line Tool
 Name: mathmap
-Version: 1.2.0
+Version: 1.2.2
 Release: 1
 License: GNU General Public License
 Group: Applications/Multimedia
 URL: http://www.complang.tuwien.ac.at/schani/%{name}/
 Source: http://www.complang.tuwien.ac.at/schani/%{name}/%{name}-%{version}.tar.gz
-Patch1: mathmap-cmdline.patch
 Buildroot: %{_tmppath}/%{name}-%{version}-root
 Requires: gcc
 Requires: libpng
@@ -35,7 +34,6 @@ generate pixels completely independent of the source.
 
 %prep
 %setup
-%patch1 -p1
 rm -rf $RPM_BUILD_ROOT
 
 %build
@@ -61,6 +59,9 @@ rm -rf %{buildroot}
 %{_mathmapdir}
 
 %changelog
+* Sun Nov 04 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.2
+- Update for version 1.2.2
+
 * Thu May 04 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.0
 - Update for version 1.2.0
 
