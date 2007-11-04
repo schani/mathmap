@@ -96,7 +96,7 @@ GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-mathmap : $(OBJECTS) $(CMDLINE_TARGETS) liblispreader
+mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader
 	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) lispreader/liblispreader.a $(LDFLAGS)
 
 librwimg :
