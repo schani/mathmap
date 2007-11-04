@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE language SYSTEM "language.dtd">
-<language _name="MathMap" version="1.0" _section="Sources" mimetypes="text/x-mathmap">
+<language _name="MathMap" version="1.0" _section="Sources" mimetypes="application/x-mathmap">
 
 	<pattern-item _name = "Decimal" style = "Decimal">
 		<regex>\b[0-9]+\b</regex>
@@ -30,6 +30,8 @@
 	<keyword-list _name = "Loop, Flow, and Exceptions Keywords" style = "Keyword" case-sensitive="TRUE">
 		<keyword>while</keyword>
 		<keyword>do</keyword>
+
+		<keyword>for</keyword>
 
 		<keyword>if</keyword>
 		<keyword>then</keyword>

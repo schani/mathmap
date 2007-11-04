@@ -42,6 +42,9 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 #include <gsl/gsl_errno.h>
+#include <gtksourceview/gtksourceview.h>
+#include <gtksourceview/gtksourcelanguage.h>
+#include <gtksourceview/gtksourcelanguagesmanager.h>
 
 #include "exprtree.h"
 #include "builtins.h"
@@ -179,6 +182,7 @@ static long num_pixels_requested = 0;
 static int debug_tuples = 0;
 static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
+GtkSourceBuffer *source_buffer;
 GtkWidget *expression_entry = 0,
     *animation_table,
     *frame_table,
@@ -1273,7 +1277,6 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *toggle;
     GtkWidget *alignment;
     GtkWidget *scale;
-    GtkWidget *vscrollbar;
     GtkWidget *notebook;
     GtkWidget *t_table;
     GtkObject *adjustment;
@@ -1346,44 +1349,54 @@ mathmap_dialog (int mutable_expression)
 
 	if (mutable_expression)
 	{
-	    GtkTextBuffer *buffer;
 	    PangoFontDescription *font_desc;
 	    GtkWidget *scrolled_window;
+	    GtkSourceLanguagesManager *manager;
+	    GtkSourceLanguage *language;
 
 	    table = gtk_table_new(2, 2, FALSE);
 	    gtk_container_border_width(GTK_CONTAINER(table), 0);
 	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
 	    gtk_widget_show(table);
 
-	    /* Editor */
-	    scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(scrolled_window),
-					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	    gtk_widget_show (scrolled_window);
+	    /* Language */
+	    manager = gtk_source_languages_manager_new();
+	    language = gtk_source_languages_manager_get_language_from_mime_type(manager, "application/x-mathmap");
 
-	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1, GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
+	    /* Source Buffer */
+	    source_buffer = gtk_source_buffer_new(NULL);
+	    if (language != NULL)
+		gtk_source_buffer_set_language(source_buffer, language);
+	    gtk_source_buffer_set_highlight(source_buffer, TRUE);
 
-	    expression_entry = gtk_text_view_new();
-	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
-	    gtk_text_view_set_editable(GTK_TEXT_VIEW(expression_entry), TRUE);
-	    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(expression_entry),
-			    		GTK_WRAP_CHAR);
+	    /* Scrolled Window */
+	    scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+	    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
+					   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+	    gtk_widget_show(scrolled_window);
 
+	    /* Source View */
+	    expression_entry = gtk_source_view_new_with_buffer(source_buffer);
 	    gtk_widget_show(expression_entry);
 
-	    font_desc = pango_font_description_from_string("Courier 10");
-	    gtk_widget_modify_font(expression_entry, font_desc);
-	    pango_font_description_free(font_desc);
+	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
-	    buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
-	    g_signal_connect(G_OBJECT(buffer), "changed",
+	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1,
+			     GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
+
+	    g_signal_connect(G_OBJECT(source_buffer), "changed",
 			     G_CALLBACK(dialog_text_changed),
 			     (gpointer)NULL);
-	    gtk_text_buffer_set_text(buffer, mmvals.expression,
+	    
+	    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), mmvals.expression,
 			    	     strlen(mmvals.expression));
 
-	    vscrollbar = gtk_vscrollbar_new(GTK_TEXT_VIEW(expression_entry)->vadjustment);
-	    gtk_widget_realize(expression_entry);
+	    font_desc = pango_font_description_from_string("Courier 10");
+	    if (font_desc != NULL)
+	    {
+		gtk_widget_modify_font(expression_entry, font_desc);
+		pango_font_description_free(font_desc);
+	    }
 
 	    button = gtk_button_new_with_label(_("Save"));
 	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_callback, 0);
@@ -1800,12 +1813,11 @@ set_expression_cursor (int line, int column)
 {
     if (expression_entry != 0)
     {
-	GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
 	GtkTextIter start, end;
 
-	gtk_text_buffer_get_iter_at_line_index(buffer, &start, line, 0);
-	gtk_text_buffer_get_iter_at_line_index(buffer, &end, line + 1, 0);
-	gtk_text_buffer_select_range(buffer, &start, &end);
+	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &start, line, 0);
+	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &end, line + 1, 0);
+	gtk_text_buffer_select_range(GTK_TEXT_BUFFER(source_buffer), &start, &end);
     }
 }
 
@@ -2209,7 +2221,6 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
     {
-	GtkTextBuffer *buffer;
 	GValue value = { 0, };
 	const gchar *path;
 	char *expression;
@@ -2232,8 +2243,7 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 
 	set_current_filename(path);
 
-	buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(expression_entry));
-	gtk_text_buffer_set_text(buffer, expression, strlen(expression));
+	gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), expression, strlen(expression));
 
 	expression_copy(mmvals.expression, expression);
 

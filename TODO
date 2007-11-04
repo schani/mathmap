@@ -8,7 +8,7 @@ GIMP 2.4!
 
 Color brightness bug (see mail by Alexandre Prokoudine)
 
-GTK Source View (auto-completion?)
+auto-completion?
 
 Text input fields for float and int user values
 
@@ -39,6 +39,8 @@ Edge behaviour as image attributes
 
 Packaging
 ---------
+
+Install mathmap.lang
 
 Real dependencies
 

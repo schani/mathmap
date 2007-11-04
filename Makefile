@@ -59,8 +59,8 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 GIMPDATADIR := `$(GIMPTOOL) --gimpdatadir`
-GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0`
-GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0`
+GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0`
+GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0`
 
 CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas
@@ -152,6 +152,10 @@ install-local : mathmap
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
 
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap/expressions ] ; then cp -r examples $(HOME)/$(GIMPDIR)/mathmap/expressions ; fi
+
+	if [ ! -d $(HOME)/.gnome2/gtksourceview-1.0 ] ; then mkdir $(HOME)/.gnome2/gtksourceview-1.0 ; fi
+	if [ ! -d $(HOME)/.gnome2/gtksourceview-1.0/language-specs ] ; then mkdir $(HOME)/.gnome2/gtksourceview-1.0/language-specs ; fi
+	cp mathmap.lang $(HOME)/.gnome2/gtksourceview-1.0/language-specs
 
 install-mos : $(MOS)
 	if [ ! -d $(LOCALEDIR)/fr ] ; then mkdir $(LOCALEDIR)/fr ; fi
