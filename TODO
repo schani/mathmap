@@ -6,8 +6,6 @@ GIMP Plug-In
 
 GIMP 2.4!
 
-use GtkAboutDialog for about dialog
-
 Color brightness bug (see mail by Alexandre Prokoudine)
 
 auto-completion?
@@ -59,10 +57,14 @@ XY constants for interpreter code
 
 Remove dead whiles
 
-Documentation
--------------
+Documentation/Homepage
+----------------------
 
-Document unit option.
+Document unit option
+
+Update screenshots
+
+
 
 
 

@@ -2168,13 +2168,30 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 static void
 dialog_about_callback (GtkWidget *widget, gpointer data)
 {
-    gchar *message = g_strdup_printf("Mathmap %s\n%s",
-				     MATHMAP_VERSION,
-				     _("written by\n"
-				       "Mark Probst <schani@complang.tuwien.ac.at>"));
+    char *gpl = "MathMap is free software; you can redistribute it and/or modify it\n"\
+	"under the terms of the GNU General Public License as published by the\n"\
+	"Free Software Foundation; either version 2 of the License, or (at your\n"\
+	"option) any later version.\n"\
+	"\n"\
+	"MathMap is distributed in the hope that it will be useful, but WITHOUT\n"\
+	"ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or\n"\
+	"FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License\n"\
+	"for more details.\n"\
+	"\n"\
+	"You should have received a copy of the GNU General Public License\n"\
+	"along with MathMap; if not, write to the Free Software Foundation,\n"\
+	"Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.";
+    char *authors[] = { "Mark Probst <schani@complang.tuwien.ac.at>", 0 };
 
-    gimp_message(message);
-    g_free(message);
+    gtk_show_about_dialog (NULL, 
+			   "name", "MathMap",
+			   "version", MATHMAP_VERSION,
+			   "authors", authors,
+			   "comments", "An image generation and manipulation language",
+			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
+			   "copyright", "Copyright © 1997-2007 Mark Probst",
+			   "license", gpl,
+			   NULL);
 } /* dialog_about_callback */
 
 /*****/
