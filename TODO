@@ -6,11 +6,11 @@ GIMP Plug-In
 
 GIMP 2.4!
 
+use GtkAboutDialog for about dialog
+
 Color brightness bug (see mail by Alexandre Prokoudine)
 
 auto-completion?
-
-Text input fields for float and int user values
 
 Edge behaviour selectable per input image
 

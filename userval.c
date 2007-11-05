@@ -551,6 +551,54 @@ make_table_entry_for_userval (userval_info_t *info, int *have_input_image)
     return 1;
 }
 
+static float
+increment_for_range (float range, int *_exponent)
+{
+    int exponent, j;
+    float increment;
+
+    j = exponent = (int)(floor(log10(range)) - 3);
+    increment = 1.0;
+    while (j > 0)
+    {
+	increment *= 10.0;
+	--j;
+    }
+    while (j < 0)
+    {
+	increment /= 10.0;
+	++j;
+    }
+
+    if (_exponent != 0)
+	*_exponent = exponent;
+
+    return increment;
+}
+
+GtkWidget*
+make_slider_spin_button_box (GtkObject *adjustment, GtkSignalFunc update_func, userval_t *userval,
+			     float increment, int digits)
+{
+    GtkWidget *hscale, *spin_button, *box;
+
+    gtk_signal_connect(adjustment, "value_changed", update_func, userval);
+
+    hscale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+    gtk_scale_set_digits(GTK_SCALE(hscale), digits);
+    gtk_scale_set_draw_value(GTK_SCALE(hscale), FALSE);
+    gtk_widget_show(hscale);
+
+    spin_button = gtk_spin_button_new(GTK_ADJUSTMENT(adjustment), increment, digits);
+    gtk_widget_show(spin_button);
+
+    box = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), hscale, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(box), spin_button, FALSE, FALSE, 0);
+
+    return box;
+}
+
 GtkWidget*
 make_userval_table (userval_info_t *infos, userval_t *uservals)
 {
@@ -588,52 +636,31 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 	{
 	    case USERVAL_INT_CONST :
 		{
-		    GtkObject *adjustment;
+		    int range = info->v.int_const.max - info->v.int_const.min;
+		    int increment = (int)MAX(increment_for_range(range, NULL), 1.0);
+		    GtkObject *adjustment = gtk_adjustment_new(uservals[info->index].v.int_const,
+							       info->v.int_const.min,
+							       info->v.int_const.max,
+							       increment, increment * 10, 0.0);
 
-		    adjustment = gtk_adjustment_new(uservals[info->index].v.int_const,
-						    info->v.int_const.min,
-						    info->v.int_const.max,
-						    1, 10, 0.0);
-		    gtk_signal_connect(adjustment, "value_changed",
-				       (GtkSignalFunc)userval_int_update,
-				       &uservals[info->index]);
-		    widget = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
-		    gtk_scale_set_digits(GTK_SCALE(widget), 0);
+		    widget = make_slider_spin_button_box(adjustment, (GtkSignalFunc)userval_int_update,
+							 &uservals[info->index], increment, 0);
 		}
 		break;
 
 	    case USERVAL_FLOAT_CONST :
 		{
-		    GtkObject *adjustment;
+		    int exponent;
 		    float range = info->v.float_const.max - info->v.float_const.min;
-		    int exponent, j;
-		    float increment;
+		    float increment = increment_for_range(range, &exponent);
+		    int digits = (exponent < 0) ? -exponent : 0;
+		    GtkObject *adjustment = gtk_adjustment_new(uservals[info->index].v.float_const,
+							       info->v.float_const.min,
+							       info->v.float_const.max,
+							       increment, increment * 10, 0.0);
 
-		    j = exponent = (int)(floor(log10(range)) - 3);
-		    increment = 1.0;
-		    while (j > 0)
-		    {
-			increment *= 10.0;
-			--j;
-		    }
-		    while (j < 0)
-		    {
-			increment /= 10.0;
-			++j;
-		    }
-
-		    adjustment = gtk_adjustment_new(uservals[info->index].v.float_const,
-						    info->v.float_const.min,
-						    info->v.float_const.max,
-						    increment, increment * 10, 0.0);
-		    gtk_signal_connect(adjustment, "value_changed",
-				       (GtkSignalFunc)userval_float_update,
-				       &uservals[info->index]);
-		    widget = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
-		    if (exponent < 0)
-			gtk_scale_set_digits(GTK_SCALE(widget), -exponent);
-		    else
-			gtk_scale_set_digits(GTK_SCALE(widget), 0);
+		    widget = make_slider_spin_button_box(adjustment, (GtkSignalFunc)userval_float_update,
+							 &uservals[info->index], increment, digits);
 		}
 		break;
 
@@ -729,7 +756,7 @@ update_uservals (userval_info_t *infos, userval_t *uservals)
     userval_info_t *info;
 
     for (info = infos; info != 0; info = info->next)
-	if (info->type == USERVAL_CURVE)
+	if (uservals[info->index].widget != NULL && info->type == USERVAL_CURVE)
 	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(uservals[info->index].widget)->curve),
 				 USER_CURVE_POINTS,
 				 uservals[info->index].v.curve.values);
