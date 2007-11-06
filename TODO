@@ -1,69 +1,55 @@
-later:
-======
+-*- outline -*-
 
-GIMP Plug-In
-------------
+* 1.2.3
 
+** GIMP Plug-In
 GIMP 2.4!
-
+Icon for about dialog
 Color brightness bug (see mail by Alexandre Prokoudine)
 
-auto-completion?
-
-Edge behaviour selectable per input image
-
-UI names for user values
-
-Histogram
-
-Resizable preview
-
-Language
---------
-
+** Language
 Hypercomplex-Complex multiplication
 
-Command Line Tool
------------------
-
-All uservals on command line (not just input images)
-
-General
--------
-
+** General
 Debug outputs only when define is set
 
-Edge behaviour as image attributes
-
-Packaging
----------
-
+** Packaging
 Install mathmap.lang
 
-Real dependencies
-
-Image Processing
-----------------
-
-Examples
---------
-
-Compiler
---------
-
-Copy elimination for phis in pre-native code
-
-XY constants for interpreter code
-
-Remove dead whiles
-
-Documentation/Homepage
-----------------------
-
+** Documentation/Homepage
 Document unit option
-
 Update screenshots
 
+* later
+
+** GIMP Plug-In
+auto-completion?
+Edge behaviour selectable per input image
+UI names for user values
+Histogram
+
+** Language
+
+** Command Line Tool
+All uservals on command line (not just input images)
+
+** General
+Edge behaviour as image attributes
+Debug tuples
+
+** Packaging
+Real dependencies
+
+** Image Processing
+
+** Examples
+
+** Compiler
+Copy elimination for phis in pre-native code
+XY constants for interpreter code
+Remove dead whiles
+
+** Documentation/Homepage
 
 
 
@@ -74,8 +60,7 @@ Update screenshots
 
 
 
-add gsl-config to Makefile
-MERD!!!!!!!
+
 in blender:
   noise, cgamma, vector/matrix div
   edge behaviour
@@ -86,9 +71,7 @@ in blender:
 
 short circuit execution for && in compiler
 sqrt for complex
-update screenshots
 rewrite HACKING and include it in distro
-make user_* accept constant folded arguments
 
 
 

@@ -62,10 +62,7 @@
 #define INIT_LOCALE(x)
 #define _(x)             (x)
 
-/***** Magic numbers *****/
-#define PREVIEW_SIZE 384
-#define SCALE_WIDTH  200
-#define ENTRY_WIDTH  60
+#define DEFAULT_PREVIEW_SIZE	384
 
 /* Even more stuff from Quartics plugins */
 #define CHECK_SIZE  8
@@ -95,6 +92,7 @@ typedef struct {
 
 typedef struct {
     GtkWidget *preview;
+    GdkPixbuf *pixbuf;
     guchar *wimage;
     gint run;
 } mathmap_interface_t;
@@ -134,8 +132,14 @@ static void dialog_edge_behaviour_update (GtkWidget *widget, gpointer data);
 static void dialog_edge_color_changed (GtkWidget *color_well, gpointer data);
 static void dialog_animation_update (GtkWidget *widget, gpointer data);
 static void dialog_periodic_update (GtkWidget *widget, gpointer data);
+
+static void calc_preview_size (int max_width, int max_height, int *width, int *height);
+static gboolean alloc_preview_pixbuf (int width, int height);
+static void dialog_preview_size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data);
+static gboolean dialog_preview_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);
+
 static void dialog_save_callback (GtkWidget *widget, gpointer data);
 static void dialog_save_as_callback (GtkWidget *widget, gpointer data);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
@@ -175,12 +179,11 @@ static GimpDrawable *output_drawable;
 static gint tile_width, tile_height;
 gint sel_x1, sel_y1, sel_x2, sel_y2;
 gint sel_width, sel_height;
-gint preview_width, preview_height;
 
 static long num_pixels_requested = 0;
 
-static int debug_tuples = 0;
-static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
+//static int debug_tuples = 0;
+//static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkSourceBuffer *source_buffer;
 GtkWidget *expression_entry = 0,
@@ -191,7 +194,6 @@ GtkWidget *expression_entry = 0,
     *uservalues_scrolled_window,
     *uservalues_table,
     *tree_scrolled_window;
-GtkColorSelectionDialog *color_selection_dialog;
 
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
@@ -520,7 +522,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     int mutable_expression = 1;
     input_drawable_t *drawable;
     GimpDrawable *gimp_drawable;
-    int pwidth, pheight;
+    int default_preview_width, default_preview_height;
 
     INIT_LOCALE("mathmap");
 
@@ -559,22 +561,11 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     tile_height = gimp_tile_height();
 
     /* Calculate preview size */
-    if (sel_width > sel_height)
-    {
-	pwidth  = MIN(sel_width, PREVIEW_SIZE);
-	pheight = sel_height * pwidth / sel_width;
-    }
-    else
-    {
-	pheight = MIN(sel_height, PREVIEW_SIZE);
-	pwidth  = sel_width * pheight / sel_height;
-    }
-
-    preview_width  = MAX(pwidth, 2);  /* Min size is 2 */
-    preview_height = MAX(pheight, 2);
+    calc_preview_size(DEFAULT_PREVIEW_SIZE, DEFAULT_PREVIEW_SIZE,
+		      &default_preview_width, &default_preview_height);
 
     /* Calculate fast image source scaling factor */
-    fast_image_source_scale = MAX(sel_width / preview_width, 1);
+    fast_image_source_scale = MAX(sel_width / default_preview_width, 1);
     assert (fast_image_source_scale >= 1);
 
     /* Allocate drawable structure */
@@ -1284,14 +1275,7 @@ mathmap_dialog (int mutable_expression)
 
     gimp_ui_init("mathmap", TRUE);
 
-    gtk_preview_set_gamma(gimp_gamma());
-    gtk_preview_set_install_cmap(gimp_install_cmap());
-    gtk_preview_set_color_cube(color_cube[0], color_cube[1], color_cube[2], color_cube[3]);
-
-    gtk_widget_set_default_visual(gtk_preview_get_visual());
-    gtk_widget_set_default_colormap(gtk_preview_get_cmap());
-
-    wint.wimage = g_malloc(preview_width * preview_height * 3 * sizeof(guchar));
+    alloc_preview_pixbuf(DEFAULT_PREVIEW_SIZE, DEFAULT_PREVIEW_SIZE);
 
     dialog = gimp_dialog_new("MathMap", "mathmap",
 			     NULL, 0,
@@ -1310,26 +1294,30 @@ mathmap_dialog (int mutable_expression)
 		      G_CALLBACK (gtk_main_quit),
 		      NULL);
 
-    top_table = gtk_hbox_new(FALSE, 0);
+    top_table = gtk_hpaned_new();
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), top_table, TRUE, TRUE, 0);
     gtk_widget_show(top_table);
 
     /* Preview */
 
     vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(top_table), vbox, FALSE, FALSE, 0);
+    gtk_paned_add1(GTK_PANED(top_table), vbox);
     gtk_widget_show(vbox);
-    frame = gtk_frame_new(NULL);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
-    gtk_widget_show(frame);
 
-    wint.preview = gtk_preview_new(GTK_PREVIEW_COLOR);
+    wint.preview = gtk_drawing_area_new();
+    gtk_widget_set_size_request(wint.preview, gdk_pixbuf_get_width(wint.pixbuf), gdk_pixbuf_get_height(wint.pixbuf));
+    gtk_signal_connect(GTK_OBJECT(wint.preview), "expose-event",
+		       G_CALLBACK(dialog_preview_expose), NULL);
+    gtk_signal_connect(GTK_OBJECT(wint.preview), "size-allocate",
+		       G_CALLBACK(dialog_preview_size_allocate), NULL);
+
+    /*
     gtk_widget_add_events(GTK_WIDGET(wint.preview), GDK_BUTTON_PRESS_MASK);
     gtk_signal_connect (GTK_OBJECT (wint.preview), "button-press-event",
 			(GtkSignalFunc)dialog_preview_click, 0);
-    gtk_preview_size(GTK_PREVIEW(wint.preview), preview_width, preview_height);
-    gtk_container_add(GTK_CONTAINER(frame), wint.preview);
+    */
+
+    gtk_box_pack_start(GTK_BOX(vbox), wint.preview, TRUE, TRUE, 0);
     gtk_widget_show(wint.preview);
 
     button = gtk_button_new_with_label(_("Preview"));
@@ -1342,7 +1330,7 @@ mathmap_dialog (int mutable_expression)
 
     notebook = gtk_notebook_new();
     gtk_notebook_set_tab_pos (GTK_NOTEBOOK (notebook), GTK_POS_TOP);
-    gtk_box_pack_start(GTK_BOX(top_table), notebook, TRUE, TRUE, 0);
+    gtk_paned_add2(GTK_PANED(top_table), notebook);
     gtk_widget_show(notebook);
 
         /* Expression */
@@ -1649,11 +1637,20 @@ user_value_changed (void)
 	dialog_update_preview();
 }
 
-static void
-dialog_update_preview (void)
+static gboolean
+recalculate_preview (void)
 {
+    static int in_recalculate = 0;
+
+    if (in_recalculate > 0)
+	return FALSE;
+
+    ++in_recalculate;
+
     if (generate_code(0, mmvals.param_t))
     {
+	int preview_width = gdk_pixbuf_get_width(wint.pixbuf);
+	int preview_height = gdk_pixbuf_get_height(wint.pixbuf);
 	int x, y;
 	guchar *p_ul, *p;
 	gint check, check_0, check_1; 
@@ -1669,6 +1666,7 @@ dialog_update_preview (void)
 	invocation->row_stride = preview_width * 4;
 	invocation->output_bpp = 4;
 
+	/*
 	if (debug_tuples)
 	{
 	    int i;
@@ -1678,6 +1676,7 @@ dialog_update_preview (void)
 		pixel_debug_infos[i].num_debug_tuples = 0;
 	}
 	else
+	*/
 	    disable_debugging(invocation);
 
 	old_scale_x = invocation->scale_x;
@@ -1747,20 +1746,25 @@ dialog_update_preview (void)
 
 	free(buf);
 
-	p = wint.wimage;
+	--in_recalculate;
 
-	for (y = 0; y < preview_height; y++)
-	{
-	    gtk_preview_draw_row(GTK_PREVIEW(wint.preview), p, 0, y, preview_width);
+	return TRUE;
+    }
 
-	    p += preview_width * 3;
-	}
+    --in_recalculate;
 
+    return FALSE;
+}
+
+static void
+dialog_update_preview (void)
+{
+    if (recalculate_preview())
+    {
 	gtk_widget_draw(wint.preview, NULL);
 	gdk_flush();
     }
-} /* dialog_update_preview */
-
+}
 
 /*****/
 
@@ -1943,6 +1947,78 @@ dialog_periodic_update (GtkWidget *widget, gpointer data)
 /*****/
 
 static void
+calc_preview_size (int max_width, int max_height, int *width, int *height)
+{
+    int pwidth, pheight;
+
+    pwidth  = MIN(sel_width, max_width);
+    pheight = sel_height * pwidth / sel_width;
+
+    if (pheight > max_height)
+    {
+	pheight = MIN(sel_height, max_height);
+	pwidth  = sel_width * pheight / sel_height;
+    }
+
+    *width  = MAX(pwidth, 2);  /* Min size is 2 */
+    *height = MAX(pheight, 2);
+}
+
+static gboolean
+alloc_preview_pixbuf (int max_width, int max_height)
+{
+    int width, height;
+
+    calc_preview_size(max_width, max_height, &width, &height);
+
+    if (wint.pixbuf != 0)
+    {
+	if (gdk_pixbuf_get_width(wint.pixbuf) == width && gdk_pixbuf_get_height(wint.pixbuf) == height)
+	    return FALSE;
+	g_object_unref(G_OBJECT(wint.pixbuf));
+    }
+    if (wint.wimage != 0)
+	g_free(wint.wimage);
+
+    g_print("allocing pixbuf %dx%d\n", width, height);
+
+    wint.wimage = g_malloc(width * height * 3);
+    memset(wint.wimage, 0, width * height * 3);
+
+    wint.pixbuf = gdk_pixbuf_new_from_data(wint.wimage, GDK_COLORSPACE_RGB, FALSE, 8,
+					   width, height, width * 3,
+					   NULL, NULL);
+
+    return TRUE;
+}
+
+static void
+dialog_preview_size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data)
+{
+    g_print("size allocation: %dx%d\n", allocation->width, allocation->height);
+
+    if (alloc_preview_pixbuf(allocation->width, allocation->height))
+    {
+	if (auto_preview && !expression_changed)
+	    recalculate_preview();
+    }
+}
+
+static gboolean
+dialog_preview_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
+{
+    gdk_draw_pixbuf(widget->window,
+		    widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
+		    wint.pixbuf,
+		    0, 0,	/* source pos */
+		    0, 0,	/* dest pos */
+		    gdk_pixbuf_get_width(wint.pixbuf), gdk_pixbuf_get_height(wint.pixbuf), /* size */
+		    GDK_RGB_DITHER_NORMAL, 0, 0);
+
+    return TRUE;
+}
+
+static void
 dialog_preview_callback (GtkWidget *widget, gpointer data)
 {
     update_gradient();
@@ -1951,6 +2027,7 @@ dialog_preview_callback (GtkWidget *widget, gpointer data)
 
 /*****/
 
+/*
 static pixel_debug_info_t*
 get_pixel_debug_info (int row, int col)
 {
@@ -1958,10 +2035,12 @@ get_pixel_debug_info (int row, int col)
 
     return &pixel_debug_infos[row * PREVIEW_SIZE + col];
 }
+*/
 
 void
 save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
 {
+    /*
     pixel_debug_info_t *info = get_pixel_debug_info(row, col);
     int i;
 
@@ -1970,7 +2049,7 @@ save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
 
     for (i = 0; i < info->num_debug_tuples; ++i)
 	info->debug_tuples[i] = invocation->debug_tuples[i];
-
+    */
 }
 
 static void
@@ -1994,6 +2073,7 @@ print_tuple (tuple_t *tuple)
     printf("]");
 }
 
+/*
 static void
 dialog_preview_click (GtkWidget *widget, GdkEvent *event)
 {
@@ -2026,6 +2106,7 @@ dialog_preview_click (GtkWidget *widget, GdkEvent *event)
 	    break;
     }
 }
+*/
 
 /*****/
 
