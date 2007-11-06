@@ -232,7 +232,8 @@ int generate_plug_in (char *filter, char *output_filename,
 
 void user_value_changed (void);
 
-void set_expression_cursor (int line, int column);
+void delete_expression_marker (void);
+void set_expression_marker (int line, int column);
 
 int get_num_cpus (void);
 

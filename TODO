@@ -5,6 +5,7 @@
 ** GIMP Plug-In
 GIMP 2.4!
 Icon for about dialog
+Marker icon
 Color brightness bug (see mail by Alexandre Prokoudine)
 
 ** Language
@@ -24,9 +25,8 @@ Update screenshots
 
 ** GIMP Plug-In
 auto-completion?
-Edge behaviour selectable per input image
-UI names for user values
 Histogram
+Adapt fast image source size to preview size
 
 ** Language
 
@@ -34,7 +34,6 @@ Histogram
 All uservals on command line (not just input images)
 
 ** General
-Edge behaviour as image attributes
 Debug tuples
 
 ** Packaging
@@ -51,8 +50,14 @@ Remove dead whiles
 
 ** Documentation/Homepage
 
+* long term
 
+** GIMP Plug-In
+Preview in thread
+UI names for user values
 
+** General
+Edge behaviour as image attributes
 
 
 

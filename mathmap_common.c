@@ -362,13 +362,12 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 
 	    mathmap->flags &= ~MATHMAP_FLAG_NATIVE;
 
-	    if (try_compiler)
-		fprintf(stderr, "falling back to interpreter\n");
-
 	    try_compiler = 0;
 	}
 	else
 	    mathmap->flags |= MATHMAP_FLAG_NATIVE;
+
+	delete_expression_marker();
     } WITH_JUMP_HANDLER {
 	if (mathmap != 0)
 	{

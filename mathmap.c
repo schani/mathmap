@@ -186,6 +186,7 @@ static long num_pixels_requested = 0;
 //static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkSourceBuffer *source_buffer;
+GtkSourceMarker *source_marker;
 GtkWidget *expression_entry = 0,
     *animation_table,
     *frame_table,
@@ -1271,7 +1272,7 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *notebook;
     GtkWidget *t_table;
     GtkObject *adjustment;
-    guchar color_cube[4] = { 6, 6, 4, 24 };
+    GdkPixbuf *pixbuf;
 
     gimp_ui_init("mathmap", TRUE);
 
@@ -1367,6 +1368,16 @@ mathmap_dialog (int mutable_expression)
 	    expression_entry = gtk_source_view_new_with_buffer(source_buffer);
 	    gtk_widget_show(expression_entry);
 
+	    gtk_source_view_set_show_line_markers(GTK_SOURCE_VIEW(expression_entry), TRUE);
+
+	    if ((pixbuf = gdk_pixbuf_new_from_file ("/usr/share/pixmaps/apple-green.png", NULL)))
+	    {
+		gtk_source_view_set_marker_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
+		g_object_unref (pixbuf);
+	    }
+	    else
+		g_assert_not_reached();
+
 	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
 	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1,
@@ -1375,7 +1386,7 @@ mathmap_dialog (int mutable_expression)
 	    g_signal_connect(G_OBJECT(source_buffer), "changed",
 			     G_CALLBACK(dialog_text_changed),
 			     (gpointer)NULL);
-	    
+
 	    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), mmvals.expression,
 			    	     strlen(mmvals.expression));
 
@@ -1813,15 +1824,28 @@ dialog_text_update (void)
 }
 
 void
-set_expression_cursor (int line, int column)
+delete_expression_marker (void)
 {
+    if (source_marker != 0)
+    {
+	gtk_source_buffer_delete_marker(source_buffer, source_marker);
+	source_marker = 0;
+    }
+}
+
+void
+set_expression_marker (int line, int column)
+{
+    delete_expression_marker();
+
     if (expression_entry != 0)
     {
-	GtkTextIter start, end;
+	GtkTextIter iter;
 
-	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &start, line, 0);
-	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &end, line + 1, 0);
-	gtk_text_buffer_select_range(GTK_TEXT_BUFFER(source_buffer), &start, &end);
+	g_print("line %d\n", line);
+
+	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &iter, line, 0);
+	source_marker = gtk_source_buffer_create_marker(source_buffer, NULL, "one", &iter);
     }
 }
 
