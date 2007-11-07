@@ -136,9 +136,9 @@ static void dialog_periodic_update (GtkWidget *widget, gpointer data);
 static void calc_preview_size (int max_width, int max_height, int *width, int *height);
 static gboolean alloc_preview_pixbuf (int width, int height);
 static void dialog_preview_size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data);
-static gboolean dialog_preview_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);
+static void refresh_preview (void);
 
 static void dialog_save_callback (GtkWidget *widget, gpointer data);
 static void dialog_save_as_callback (GtkWidget *widget, gpointer data);
@@ -1305,10 +1305,8 @@ mathmap_dialog (int mutable_expression)
     gtk_paned_add1(GTK_PANED(top_table), vbox);
     gtk_widget_show(vbox);
 
-    wint.preview = gtk_drawing_area_new();
+    wint.preview = gimp_preview_area_new();
     gtk_widget_set_size_request(wint.preview, gdk_pixbuf_get_width(wint.pixbuf), gdk_pixbuf_get_height(wint.pixbuf));
-    gtk_signal_connect(GTK_OBJECT(wint.preview), "expose-event",
-		       G_CALLBACK(dialog_preview_expose), NULL);
     gtk_signal_connect(GTK_OBJECT(wint.preview), "size-allocate",
 		       G_CALLBACK(dialog_preview_size_allocate), NULL);
 
@@ -1772,8 +1770,8 @@ dialog_update_preview (void)
 {
     if (recalculate_preview())
     {
+	refresh_preview();
 	gtk_widget_draw(wint.preview, NULL);
-	gdk_flush();
     }
 }
 
@@ -2017,29 +2015,36 @@ alloc_preview_pixbuf (int max_width, int max_height)
 }
 
 static void
+refresh_preview (void)
+{
+    gimp_preview_area_fill(GIMP_PREVIEW_AREA(wint.preview),
+			   0, 0,
+			   wint.preview->allocation.width, wint.preview->allocation.height,
+			   0, 0, 0);
+
+    if (wint.wimage == 0)
+	return;
+
+    gimp_preview_area_draw(GIMP_PREVIEW_AREA(wint.preview),
+			   0, 0, /* pos */
+			   gdk_pixbuf_get_width(wint.pixbuf), gdk_pixbuf_get_height(wint.pixbuf), /* size */
+			   GIMP_RGB_IMAGE,
+			   wint.wimage,
+			   gdk_pixbuf_get_width(wint.pixbuf) * 3);
+}
+
+static void
 dialog_preview_size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data)
 {
-    g_print("size allocation: %dx%d\n", allocation->width, allocation->height);
+    //g_print("size allocation: %dx%d\n", allocation->width, allocation->height);
 
     if (alloc_preview_pixbuf(allocation->width, allocation->height))
     {
 	if (auto_preview && !expression_changed)
 	    recalculate_preview();
     }
-}
 
-static gboolean
-dialog_preview_expose (GtkWidget *widget, GdkEventExpose *event, gpointer user_data)
-{
-    gdk_draw_pixbuf(widget->window,
-		    widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-		    wint.pixbuf,
-		    0, 0,	/* source pos */
-		    0, 0,	/* dest pos */
-		    gdk_pixbuf_get_width(wint.pixbuf), gdk_pixbuf_get_height(wint.pixbuf), /* size */
-		    GDK_RGB_DITHER_NORMAL, 0, 0);
-
-    return TRUE;
+    refresh_preview();
 }
 
 static void
