@@ -1,10 +1,11 @@
 # $Id$
 %define _plugindir %{_libdir}/gimp/2.0/plug-ins
 %define _mathmapdir %{_datadir}/gimp/2.0/mathmap
+%define _langdir %{_datadir}/gtksourceview-1.0/language-specs
 
 Summary: MathMap GIMP Plug-In and Command-Line Tool
 Name: mathmap
-Version: 1.2.2
+Version: 1.2.3
 Release: 1
 License: GNU General Public License
 Group: Applications/Multimedia
@@ -22,6 +23,7 @@ BuildRequires: libjpeg-devel
 BuildRequires: giflib-devel
 BuildRequires: gsl-devel
 BuildRequires: gimp-devel
+BuildRequires: gtksourceview-devel
 BuildRequires: gimp
 BuildRequires: make
 
@@ -43,9 +45,11 @@ rm -rf $RPM_BUILD_ROOT
 install -d $RPM_BUILD_ROOT/%{_bindir}
 install -d $RPM_BUILD_ROOT/%{_plugindir}
 install -d $RPM_BUILD_ROOT/%{_mathmapdir}
+install -d $RPM_BUILD_ROOT/%{_langdir}
 install mathmap $RPM_BUILD_ROOT/%{_bindir}/mathmap
 ln -s %{_bindir}/mathmap $RPM_BUILD_ROOT/%{_plugindir}/mathmap
 install new_template.c opmacros.h $RPM_BUILD_ROOT/%{_mathmapdir}/
+install mathmap.lang $RPM_BUILD_ROOT/%{_langdir}/
 cp -r examples $RPM_BUILD_ROOT/%{_mathmapdir}/expressions
 
 %clean
@@ -56,9 +60,13 @@ rm -rf %{buildroot}
 %doc ANNOUNCEMENT COPYING README
 %{_bindir}/mathmap
 %{_plugindir}/mathmap
+%{_langdir}/mathmap.lang
 %{_mathmapdir}
 
 %changelog
+* Fri Nov 09 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.3
+- Update for version 1.2.3
+
 * Sun Nov 04 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.2
 - Update for version 1.2.2
 
