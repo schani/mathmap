@@ -4913,7 +4913,9 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 	return 0;
     }
 
+#ifdef DEBUG_OUTPUT
     printf("loaded %p\n", module);
+#endif
 
     assert(g_module_symbol(module, "mathmapinit", &initfunc_ptr));
     initfunc = (initfunc_t)initfunc_ptr;
@@ -4980,7 +4982,10 @@ unload_c_code (void *module_info)
 #ifndef OPENSTEP
     GModule *module = module_info;
 
+#ifdef DEBUG_OUTPUT
     printf("unloading %p\n", module);
+#endif
+
     assert(g_module_close(module));
 #else
     /* FIXME */

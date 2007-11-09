@@ -2002,7 +2002,9 @@ alloc_preview_pixbuf (int max_width, int max_height)
     if (wint.wimage != 0)
 	g_free(wint.wimage);
 
+#ifdef DEBUG_OUTPUT
     g_print("allocing pixbuf %dx%d\n", width, height);
+#endif
 
     wint.wimage = g_malloc(width * height * 3);
     memset(wint.wimage, 0, width * height * 3);
