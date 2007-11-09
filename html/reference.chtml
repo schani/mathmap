@@ -64,6 +64,21 @@
     <h2><a name="options">Options</a></h2>
 
     <blockquote>
+      <h3><tt>unit</tt></h3>
+
+      <blockquote>
+        <p>Filters and image user values can be given the
+	  <tt>unit</tt> option to use a differently scaled coordinate
+	  system.  Instead of pixel coordinates, which are the
+	  default, a filter or image with the <tt>unit</tt> option
+	  will be scaled such that the value along its shorter axis
+	  goes from <tt>-1</tt> to <tt>1</tt>.  The longer axis will
+	  be scaled to preserve the aspect ratio.
+
+        <p>If the <tt>unit</tt> option is given the <tt>stretched</tt>
+          sub-option in addition, the values along both axes will
+          go from <tt>-1</tt> to <tt>1</tt>.
+      </blockquote>
     </blockquote>
 
     <h2>The Type System</h2>
