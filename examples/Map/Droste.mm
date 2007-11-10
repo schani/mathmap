@@ -40,6 +40,8 @@ filter droste (image in,
                float p2: 0-10 (1),   #Number of strands
                float zoom: 0-10 (1),
                float rotate: -3.1416-3.1416 (0),
+               float x_origin: -1-1 (0),
+               float y_origin: -1-1 (0),
                float x_shift: -1-1 (0),
                float y_shift: -1-1 (0),
                int starting_level: 0-100 (6),
@@ -152,7 +154,7 @@ filter droste (image in,
     alphaRemaining=1;
     ix=minDimension/2*z[0];
     iy=minDimension/2*z[1];
-    clr=in(xy:[ix,iy]);
+    clr=in(xy:[ix + x_origin*W,iy + y_origin*H]);
     colorSoFar = colorSoFar + (clr*(alpha(clr)*alphaRemaining));
     alphaRemaining=alphaRemaining*(1-alpha(clr));
     sign=0;
@@ -195,8 +197,8 @@ filter droste (image in,
     while (sign != 0 && maxiteration > iteration) do
         z2=z*ratio;
         z=z2;
-        ix=minDimension/2*(z[0]);
-        iy=minDimension/2*(z[1]);
+        ix=minDimension/2*(z[0]) + x_origin*W;
+        iy=minDimension/2*(z[1]) + y_origin*H;
         sign=0;
         if (tileBasedOnTransparency) then
             clr=in(xy:[ix,iy]);
