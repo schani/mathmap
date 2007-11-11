@@ -1368,7 +1368,7 @@ mathmap_dialog (int mutable_expression)
 
 	    gtk_source_view_set_show_line_markers(GTK_SOURCE_VIEW(expression_entry), TRUE);
 
-	    if ((pixbuf = gdk_pixbuf_new_from_file ("/usr/share/pixmaps/apple-green.png", NULL)))
+	    if ((pixbuf = gdk_pixbuf_new_from_file ("/usr/share/pixmaps/apple-red.png", NULL)))
 	    {
 		gtk_source_view_set_marker_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
 		g_object_unref (pixbuf);
