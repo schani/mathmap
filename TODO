@@ -1,15 +1,11 @@
 -*- outline -*-
 
-* 1.2.3
+* 1.2.x
 
 ** GIMP Plug-In
-GIMP 2.4!
 Icon for about dialog
 Marker icon
 Color brightness bug (see mail by Alexandre Prokoudine) - ask if it's fixed
-
-** Packaging
-Install mathmap.lang
 
 ** Documentation/Homepage
 Update screenshots
@@ -29,6 +25,7 @@ All uservals on command line (not just input images)
 
 ** General
 Debug tuples
+Better source reference for error messages
 
 ** Packaging
 Real dependencies
