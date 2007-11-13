@@ -1256,6 +1256,8 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     return frame;
 }
 
+#define ERROR_PIXMAP_NAME	"/usr/share/pixmaps/apple-red.png"
+
 static gint
 mathmap_dialog (int mutable_expression)
 {
@@ -1368,13 +1370,13 @@ mathmap_dialog (int mutable_expression)
 
 	    gtk_source_view_set_show_line_markers(GTK_SOURCE_VIEW(expression_entry), TRUE);
 
-	    if ((pixbuf = gdk_pixbuf_new_from_file ("/usr/share/pixmaps/apple-red.png", NULL)))
+	    if ((pixbuf = gdk_pixbuf_new_from_file(ERROR_PIXMAP_NAME, NULL)))
 	    {
 		gtk_source_view_set_marker_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
 		g_object_unref (pixbuf);
 	    }
 	    else
-		g_assert_not_reached();
+		g_warning("Could not find image file `%s'.", ERROR_PIXMAP_NAME);
 
 	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
