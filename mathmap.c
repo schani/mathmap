@@ -754,7 +754,7 @@ generate_code (int current_frame, float current_t)
     if (expression_changed)
     {
 	mathmap_t *new_mathmap;
-	FILE *template;
+	char *template_filename;
 
 	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
@@ -762,10 +762,10 @@ generate_code (int current_frame, float current_t)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	template = open_rc_file(MAIN_TEMPLATE_FILENAME);
-	if (template == 0)
+	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME);
+	if (template_filename == 0)
 	{
-	    sprintf(error_string, "Cannot read template file `%s'.  MathMap is not installed correctly.", MAIN_TEMPLATE_FILENAME);
+	    sprintf(error_string, "Cannot find template file `%s'.  MathMap is not installed correctly.", MAIN_TEMPLATE_FILENAME);
 	    new_mathmap = 0;
 	}
 	else
@@ -778,9 +778,7 @@ generate_code (int current_frame, float current_t)
 		new_mathmap = 0;
 	    }
 	    else
-		new_mathmap = compile_mathmap(mmvals.expression, template, opmacros_name);
-
-	    fclose(template);
+		new_mathmap = compile_mathmap(mmvals.expression, template_filename, opmacros_name);
 	}
 
 	if (new_mathmap == 0)

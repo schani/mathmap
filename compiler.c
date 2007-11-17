@@ -325,6 +325,7 @@ static int stmt_stackp = 0;
        (s)->next = (l); (l) = (s); })
 
 static filter_code_t *main_filter_code;
+static filter_code_t **filter_codes;
 
 /*** hash tables ***/
 
@@ -4840,6 +4841,33 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     {
 	fprintf(out, "%d", mathmap->main_filter->num_uservals);
     }
+    else if (strcmp(directive, "filters") == 0)
+    {
+	int i;
+	filter_t *filter;
+
+	for (i = 0, filter = mathmap->filters;
+	     filter != 0;
+	     ++i, filter = filter->next)
+	{
+	    filter_code_t *code = filter_codes[i];
+
+	    g_assert(code->filter == filter);
+
+	    fprintf(out, "static color_t filter_%s (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y)\n{\ncolor_t return_color;\n", filter->decl->name);
+
+	    output_permanent_const_code(code, out, 0);
+
+	    fprintf(out, "return return_color;\n}\n\n");
+	}
+    }
+    else if (strcmp(directive, "filter_prototypes") == 0)
+    {
+	filter_t *filter;
+
+	for (filter = mathmap->filters; filter != 0; filter = filter->next)
+	    fprintf(out, "static color_t filter_%s (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y);\n", filter->decl->name);
+    }
     else
 	return 0;
     return 1;
@@ -4877,7 +4905,7 @@ exec_cmd (char *log_filename, char *format, ...)
 #define TMP_PREFIX		"/tmp/mathfunc"
 
 initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename)
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename, char *opmacros_filename)
 {
     static int last_mathfunc = 0;
 
@@ -4886,16 +4914,29 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     int pid = getpid();
     void *initfunc_ptr;
     initfunc_t initfunc;
-    filter_code_t *code;
+    int num_filters;
+    int i;
+    filter_t *filter;
 #ifndef OPENSTEP
     GModule *module = 0;
 #endif
 
-    assert(template != 0);
-
     init_pools(&compiler_pools);
 
-    code = generate_ir_code(mathmap->main_filter, 1, 0);
+    num_filters = 0;
+    for (filter = mathmap->filters; filter != 0; filter = filter->next)
+	++num_filters;
+
+    filter_codes = (filter_code_t**)pools_alloc(&compiler_pools, sizeof(filter_code_t*) * num_filters);
+
+    for (i = 0, filter = mathmap->filters;
+	 filter != 0;
+	 ++i, filter = filter->next)
+    {
+	filter_codes[i] = generate_ir_code(filter, 0, 0);
+    }
+
+    main_filter_code = generate_ir_code(mathmap->main_filter, 1, 0);
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);
     out = fopen(c_filename, "w");
@@ -4905,12 +4946,15 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 	return 0;
     }
 
-    main_filter_code = code;
-
     set_opmacros_filename(opmacros_filename);
-    process_template_file(mathmap, template, out, &compiler_template_processor);
+    if (!process_template_file(mathmap, template_filename, out, &compiler_template_processor))
+    {
+	sprintf(error_string, "Could not process template file `%s'", template_filename);
+	return 0;
+    }
 
     main_filter_code = 0;
+    filter_codes = 0;
 
     fclose(out);
 
@@ -4991,7 +5035,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     unlink(o_filename);
     g_free(o_filename);
 
-    unlink(c_filename);
+    //unlink(c_filename);
     g_free(c_filename);
 
     unlink(log_filename);
@@ -5035,7 +5079,7 @@ generate_plug_in (char *filter, char *output_filename,
 {
     char template_path[strlen(TEMPLATE_DIR) + 1 + strlen(template_filename) + 1];
     char opmacros_path[strlen(TEMPLATE_DIR) + 1 + strlen(opmacros_filename) + 1];
-    FILE *template, *out;
+    FILE *out;
     mathmap_t *mathmap;
 
     sprintf(template_path, "%s/%s", TEMPLATE_DIR, template_filename);
@@ -5051,14 +5095,8 @@ generate_plug_in (char *filter, char *output_filename,
 
     generate_ir_code(mathmap->main_filter, analyze_constants, 0);
 
-    template = fopen(template_path, "r");
     out = fopen(output_filename, "w");
 
-    if (template == 0)
-    {
-	fprintf(stderr, "Could not open template file `%s'\n", template_path);
-	exit(1);
-    }
     if (out == 0)
     {
 	fprintf(stderr, "Could not open output file `%s'\n", output_filename);
@@ -5066,9 +5104,12 @@ generate_plug_in (char *filter, char *output_filename,
     }
 
     set_opmacros_filename(opmacros_path);
-    process_template_file(mathmap, template, out, template_processor);
+    if (!process_template_file(mathmap, template_path, out, template_processor))
+    {
+	fprintf(stderr, "Could not process template file `%s'\n", template_path);
+	exit(1);
+    }
 
-    fclose(template);
     fclose(out);
 
     forget_ir_code(mathmap);

@@ -319,7 +319,7 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
+compile_mathmap (char *expression, char *template_filename, char *opmacros_filename)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     static int try_compiler = 1;
@@ -334,7 +334,7 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 		JUMP(1);
 	    }
 
-	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template, opmacros_filename);
+	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, opmacros_filename);
 	    if (mathmap->initfunc == 0 && !cmd_line_mode)
 	    {
 		char *message = g_strdup_printf("The MathMap compiler failed.  This is not a fatal error,\n"
@@ -842,54 +842,89 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 #define MAX_TEMPLATE_VAR_LENGTH       64
 #define is_word_character(c)          (isalnum((c)) || (c) == '_')
 
-void
-process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor)
+static int
+find_directive (char *template)
 {
-    int c;
+    char *p = strchr(template, '$');
 
-    while ((c = fgetc(template)) != EOF)
+    if (p == NULL)
+	return -1;
+
+    if (p[1] == '\0')
+	return -1;
+
+    return p - template;
+}
+
+void
+process_template (mathmap_t *mathmap, char *template, FILE *out, template_processor_func_t template_processor)
+{
+    int i = 0;
+    int j;
+
+    while ((j = find_directive(template + i)) >= 0)
     {
-	if (c == '$')
+	if (j > 0)
+	    fwrite(template + i, 1, j, out);
+
+	i += j;
+
+	if (!is_word_character(template[i + 1]))
 	{
-	    c = fgetc(template);
-	    assert(c != EOF);
-
-	    if (!is_word_character(c))
-		putc(c, out);
-	    else
-	    {
-		char name[MAX_TEMPLATE_VAR_LENGTH + 1];
-		int length = 1;
-
-		name[0] = c;
-
-		do
-		{
-		    c = fgetc(template);
-
-		    if (is_word_character(c))
-		    {
-			assert(length < MAX_TEMPLATE_VAR_LENGTH);
-			name[length++] = c;
-		    }
-		    else
-			if (c != EOF && c != '$')
-			    ungetc(c, template);
-		} while (is_word_character(c));
-
-		assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
-
-		name[length] = '\0';
-
-		if (!template_processor(mathmap, name, out)) {
-		    g_warning("Unknown template directive $%s.\n", name);
-		    fprintf(out, "$%s", name);
-		}
-	    }
+	    putc(template[i + 1], out);
+	    i += 2;
 	}
 	else
-	    putc(c, out);
+	{
+	    char name[MAX_TEMPLATE_VAR_LENGTH + 1];
+	    int length = 1;
+	    char c;
+
+	    name[0] = template[i + 1];
+	    i += 2;
+
+	    do
+	    {
+		c = template[i++];
+
+		if (is_word_character(c))
+		{
+		    assert(length < MAX_TEMPLATE_VAR_LENGTH);
+		    name[length++] = c;
+		}
+		else
+		    if (c != '\0' && c != '$')
+			--i;
+	    } while (is_word_character(c));
+
+	    assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
+
+	    name[length] = '\0';
+
+	    if (!template_processor(mathmap, name, out)) {
+		g_warning("Unknown template directive $%s.\n", name);
+		fprintf(out, "$%s", name);
+	    }
+	}
     }
+
+    fputs(template + i, out);
+}
+
+gboolean
+process_template_file (mathmap_t *mathmap, char *template_filename, FILE *out,
+		       template_processor_func_t template_processor)
+{
+    char *template;
+
+    if (!g_file_get_contents(template_filename, &template, NULL, NULL))
+	return FALSE;
+
+    process_template(mathmap, template, out, template_processor);
+
+    g_free(template);
+
+    return TRUE;
 }
 
 int

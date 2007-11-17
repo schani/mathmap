@@ -299,13 +299,23 @@ double gsl_sf_beta (double a, double b);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
-#define ARG(i)  (arguments[(i)])
-/*
-$filters
-*/
-#undef ARG
+static inline void
+calc_ra (float x, float y, float *_r, float *_a)
+{
+    float r, a;
 
-#define ARG(i)	(invocation->uservals[(i)])
+    r = hypot(x, y);
+    if (r == 0.0)
+	a = 0.0;
+    else
+	a = acos(x / r);
+
+    if (y < 0)
+	a = 2 * M_PI - a;
+
+    *_r = r;
+    *_a = a;
+}
 
 static void
 calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
@@ -360,14 +370,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 #if $uses_ra
 	    float r, a;
 
-	    r = hypot(x, y);
-	    if (r == 0.0)
-		a = 0.0;
-	    else
-		a = acos(x / r);
-
-	    if (y < 0)
-		a = 2 * M_PI - a;
+	    calc_ra(x, y, &r, &a);
 #endif
 
 	    if (invocation->do_debug)
@@ -454,3 +457,9 @@ mathmapinit (mathmap_invocation_t *invocation)
 
     return funcs;
 }
+
+#undef ARG
+#define ARG(i)			(arguments[(i)])
+
+#undef OUTPUT_COLOR
+#define OUTPUT_COLOR(c)		((return_color = (c)), 0)
