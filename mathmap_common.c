@@ -881,8 +881,10 @@ process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_p
 
 		name[length] = '\0';
 
-		if (!template_processor(mathmap, name, out))
-		    assert(0);
+		if (!template_processor(mathmap, name, out)) {
+		    g_warning("Unknown template directive $%s.\n", name);
+		    fprintf(out, "$%s", name);
+		}
 	    }
 	}
 	else

@@ -299,6 +299,14 @@ double gsl_sf_beta (double a, double b);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
+#define ARG(i)  (arguments[(i)])
+/*
+$filters
+*/
+#undef ARG
+
+#define ARG(i)	(invocation->uservals[(i)])
+
 static void
 calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {

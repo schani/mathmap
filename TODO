@@ -6,6 +6,7 @@
 Icon for about dialog
 Marker icon
 Color brightness bug (see mail by Alexandre Prokoudine) - ask if it's fixed
+Make preview background neutral grey (239/235/229)
 
 ** Documentation/Homepage
 Update screenshots
@@ -16,6 +17,7 @@ Update screenshots
 auto-completion?
 Histogram
 Adapt fast image source size to preview size
+zoom via preview
 
 ** Language
 Hypercomplex-Complex multiplication

@@ -133,12 +133,12 @@ typedef struct
 
 #define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
-#define USERVAL_INT_ACCESS(x)        (invocation->uservals[(x)].v.int_const)
-#define USERVAL_FLOAT_ACCESS(x)      (invocation->uservals[(x)].v.float_const)
-#define USERVAL_BOOL_ACCESS(x)       (invocation->uservals[(x)].v.bool_const)
-#define USERVAL_CURVE_ACCESS(x,p)    (invocation->uservals[(x)].v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
-#define USERVAL_COLOR_ACCESS(x)      (invocation->uservals[(x)].v.color.value)
-#define USERVAL_GRADIENT_ACCESS(x,p) (invocation->uservals[(x)].v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
+#define USERVAL_INT_ACCESS(x)        (ARG((x)).v.int_const)
+#define USERVAL_FLOAT_ACCESS(x)      (ARG((x)).v.float_const)
+#define USERVAL_BOOL_ACCESS(x)       (ARG((x)).v.bool_const)
+#define USERVAL_CURVE_ACCESS(x,p)    (ARG((x)).v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
+#define USERVAL_COLOR_ACCESS(x)      (ARG((x)).v.color.value)
+#define USERVAL_GRADIENT_ACCESS(x,p) (ARG((x)).v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
 #define ORIG_VAL(x,y,d,f)     get_orig_val_pixel_func(invocation, (x), (y), (d), (f))
 
 #ifdef IN_COMPILED_CODE

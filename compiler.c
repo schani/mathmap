@@ -249,6 +249,13 @@ typedef struct _pre_native_insn_t
     struct _pre_native_insn_t *next;
 } pre_native_insn_t;
 
+typedef struct
+{
+    filter_t *filter;
+    statement_t *first_stmt;
+    pre_native_insn_t *first_pre_native_insn;
+} filter_code_t;
+
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable, ...);
 static int rhs_is_foldable (rhs_t *rhs);
@@ -290,6 +297,8 @@ static type_t primary_type (primary_t *primary);
                                      		 c = get_orig_val_pixel(invocation, (x), (y), (d), (f)); \
                                  	     c; })
 
+#define ARG(i)	(invocation->uservals[(i)])
+
 #include "opdefs.h"
 
 static pools_t compiler_pools;
@@ -314,6 +323,8 @@ static int stmt_stackp = 0;
 #define UNSAFE_EMIT_STMT(s,l) \
     ({ (s)->parent = CURRENT_STACK_TOP; \
        (s)->next = (l); (l) = (s); })
+
+static filter_code_t *main_filter_code;
 
 /*** hash tables ***/
 
@@ -4309,11 +4320,11 @@ _output_value_if_needed_decl (value_t *value, statement_t *stmt, void *info)
 }
 
 static void
-output_permanent_const_declarations (FILE *out, int const_type)
+output_permanent_const_declarations (filter_code_t *code, FILE *out, int const_type)
 {
-    reset_have_defined(first_stmt);
+    reset_have_defined(code->first_stmt);
 
-    FOR_EACH_VALUE_IN_STATEMENTS(first_stmt, &_output_value_if_needed_decl, out, (void*)const_type);
+    FOR_EACH_VALUE_IN_STATEMENTS(code->first_stmt, &_output_value_if_needed_decl, out, (void*)const_type);
 }
 
 static int
@@ -4347,13 +4358,13 @@ _const_predicate (statement_t *stmt, void *info)
 }
 
 static void
-output_permanent_const_code (FILE *out, int const_type)
+output_permanent_const_code (filter_code_t *code, FILE *out, int const_type)
 {
     unsigned int slice_flag;
 
     /* declarations */
-    reset_have_defined(first_stmt);
-    FOR_EACH_VALUE_IN_STATEMENTS(first_stmt, &_output_value_if_needed_code, out, (void*)const_type);
+    reset_have_defined(code->first_stmt);
+    FOR_EACH_VALUE_IN_STATEMENTS(code->first_stmt, &_output_value_if_needed_code, out, (void*)const_type);
 
     /* code */
     if (const_type == (CONST_X | CONST_Y))
@@ -4365,9 +4376,9 @@ output_permanent_const_code (FILE *out, int const_type)
     else
 	slice_flag = SLICE_NO_CONST;
 
-    SLICE_CODE(first_stmt, slice_flag, &_const_predicate, (void*)const_type);
+    SLICE_CODE(code->first_stmt, slice_flag, &_const_predicate, (void*)const_type);
 
-    output_stmts(out, first_stmt, slice_flag);
+    output_stmts(out, code->first_stmt, slice_flag);
 }
 
 /*** generating interpreter code ***/
@@ -4644,23 +4655,22 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
-static void
-generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
+static filter_code_t*
+generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 {
     compvar_t **result;
     int changed;
+    filter_code_t *code;
 
     first_stmt = 0;
     emit_loc = &first_stmt;
     next_temp_number = 1;
     next_value_global_index = 0;
 
-    init_pools(&compiler_pools);
-
-    result = (compvar_t**)malloc(sizeof(compvar_t*) * mathmap->main_filter->decl->v.filter.body->result.length);
+    result = (compvar_t**)malloc(sizeof(compvar_t*) * filter->decl->v.filter.body->result.length);
     assert(result != 0);
 
-    gen_code(mathmap->main_filter->decl->v.filter.body, result, 0);
+    gen_code(filter->decl->v.filter.body, result, 0);
     {
 	compvar_t *color_tmp = make_temporary(TYPE_COLOR), *dummy = make_temporary(TYPE_INT);
 
@@ -4715,13 +4725,22 @@ generate_ir_code (mathmap_t *mathmap, int constant_analysis, int convert_types)
 #endif
     if (convert_types)
 	typecheck_pre_native_code();
+
+    code = (filter_code_t*)pools_alloc(&compiler_pools, sizeof(filter_code_t));
+
+    code->filter = filter;
+    code->first_stmt = first_stmt;
+    code->first_pre_native_insn = first_pre_native_insn;
+
+    first_stmt = 0;
+    first_pre_native_insn = 0;
+
+    return code;
 }
 
-void
+static void
 forget_ir_code (mathmap_t *mathmap)
 {
-    first_stmt = 0;
-
     free_pools(&compiler_pools);
 }
 
@@ -4751,7 +4770,7 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
 #endif
     }
     else if (strcmp(directive, "m") == 0)
-	output_permanent_const_code(out, 0);
+	output_permanent_const_code(main_filter_code, out, 0);
     else if (strcmp(directive, "p") == 0)
 	fprintf(out, "%d", USER_CURVE_POINTS);
     else if (strcmp(directive, "q") == 0)
@@ -4759,37 +4778,37 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     else if (strcmp(directive, "xy_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(out, CONST_X | CONST_Y);
+	output_permanent_const_declarations(main_filter_code, out, CONST_X | CONST_Y);
 #endif
     }
     else if (strcmp(directive, "x_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(out, CONST_X);
+	output_permanent_const_declarations(main_filter_code, out, CONST_X);
 #endif
     }
     else if (strcmp(directive, "y_decls") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(out, CONST_Y);
+	output_permanent_const_declarations(main_filter_code, out, CONST_Y);
 #endif
     }
     else if (strcmp(directive, "xy_code") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(out, CONST_X | CONST_Y);
+	output_permanent_const_code(main_filter_code, out, CONST_X | CONST_Y);
 #endif
     }
     else if (strcmp(directive, "x_code") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(out, CONST_X);
+	output_permanent_const_code(main_filter_code, out, CONST_X);
 #endif
     }
     else if (strcmp(directive, "y_code") == 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(out, CONST_Y);
+	output_permanent_const_code(main_filter_code, out, CONST_Y);
 #endif
     }
     else if (strcmp(directive, "opmacros_h") == 0)
@@ -4867,13 +4886,16 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     int pid = getpid();
     void *initfunc_ptr;
     initfunc_t initfunc;
+    filter_code_t *code;
 #ifndef OPENSTEP
     GModule *module = 0;
 #endif
 
     assert(template != 0);
 
-    generate_ir_code(mathmap, 1, 0);
+    init_pools(&compiler_pools);
+
+    code = generate_ir_code(mathmap->main_filter, 1, 0);
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);
     out = fopen(c_filename, "w");
@@ -4883,8 +4905,12 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
 	return 0;
     }
 
+    main_filter_code = code;
+
     set_opmacros_filename(opmacros_filename);
     process_template_file(mathmap, template, out, &compiler_template_processor);
+
+    main_filter_code = 0;
 
     fclose(out);
 
@@ -4971,8 +4997,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     unlink(log_filename);
     g_free(log_filename);
 
-    forget_ir_code(mathmap);
-
     return initfunc;
 }
 
@@ -4995,7 +5019,7 @@ unload_c_code (void *module_info)
 void
 generate_interpreter_code (mathmap_t *mathmap)
 {
-    generate_ir_code(mathmap, 1, 1);
+    generate_ir_code(mathmap->main_filter, 1, 1);
 
     generate_interpreter_code_from_ir(mathmap);
 
@@ -5025,7 +5049,7 @@ generate_plug_in (char *filter, char *output_filename,
 	return 0;
     }
 
-    generate_ir_code(mathmap, analyze_constants, 0);
+    generate_ir_code(mathmap->main_filter, analyze_constants, 0);
 
     template = fopen(template_path, "r");
     out = fopen(output_filename, "w");
