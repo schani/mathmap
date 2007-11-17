@@ -307,21 +307,6 @@ lookup_rc_file (char *name)
     return filename;
 }
 
-static FILE*
-open_rc_file (char *name)
-{
-    FILE *file;
-    gchar *filename = lookup_rc_file(name);
-
-    if (filename == 0)
-	return 0;
-
-    file = fopen(filename, "r");
-    g_free(filename);
-
-    return file;
-}
-
 /*****/
 
 static expression_db_t*

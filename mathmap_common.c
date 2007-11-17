@@ -843,7 +843,7 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 #define is_word_character(c)          (isalnum((c)) || (c) == '_')
 
 static int
-find_directive (char *template)
+next_directive (const char *template)
 {
     char *p = strchr(template, '$');
 
@@ -856,13 +856,34 @@ find_directive (char *template)
     return p - template;
 }
 
-void
-process_template (mathmap_t *mathmap, char *template, FILE *out, template_processor_func_t template_processor)
+static int
+find_directive (const char *template, char *name)
 {
     int i = 0;
     int j;
 
-    while ((j = find_directive(template + i)) >= 0)
+    while ((j = next_directive(template + i)) >= 0)
+    {
+	if (template[i + j + 1] == '\0')
+	    return -1;
+
+	if (strncmp(template + i + j + 1, name, strlen(name)) == 0)
+	    return i + j;
+
+	i += j + 2;
+    }
+
+    return -1;
+}
+
+void
+process_template (mathmap_t *mathmap, const char *template, FILE *out,
+		  template_processor_func_t template_processor, void *user_data)
+{
+    int i = 0;
+    int j;
+
+    while ((j = next_directive(template + i)) >= 0)
     {
 	if (j > 0)
 	    fwrite(template + i, 1, j, out);
@@ -879,6 +900,7 @@ process_template (mathmap_t *mathmap, char *template, FILE *out, template_proces
 	    char name[MAX_TEMPLATE_VAR_LENGTH + 1];
 	    int length = 1;
 	    char c;
+	    char *arg = 0;
 
 	    name[0] = template[i + 1];
 	    i += 2;
@@ -901,7 +923,26 @@ process_template (mathmap_t *mathmap, char *template, FILE *out, template_proces
 
 	    name[length] = '\0';
 
-	    if (!template_processor(mathmap, name, out)) {
+	    if (g_str_has_suffix(name, "_begin"))
+	    {
+		char *end_name = g_strdup(name);
+
+		strcpy(end_name + length - strlen("begin"), "end");
+
+		g_print("looking for %s\n", end_name);
+
+		j = find_directive(template + i, end_name);
+
+		g_assert(j >= 0);
+
+		arg = strndup(template + i, j);
+
+		i += j + 1 + strlen(end_name);
+
+		g_free(end_name);
+	    }
+
+	    if (!template_processor(mathmap, name, arg, out, user_data)) {
 		g_warning("Unknown template directive $%s.\n", name);
 		fprintf(out, "$%s", name);
 	    }
@@ -913,14 +954,14 @@ process_template (mathmap_t *mathmap, char *template, FILE *out, template_proces
 
 gboolean
 process_template_file (mathmap_t *mathmap, char *template_filename, FILE *out,
-		       template_processor_func_t template_processor)
+		       template_processor_func_t template_processor, void *user_data)
 {
     char *template;
 
     if (!g_file_get_contents(template_filename, &template, NULL, NULL))
 	return FALSE;
 
-    process_template(mathmap, template, out, template_processor);
+    process_template(mathmap, template, out, template_processor, user_data);
 
     g_free(template);
 

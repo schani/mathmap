@@ -4756,8 +4756,24 @@ set_opmacros_filename (const char *filename)
     assert(opmacros_filename != 0);
 }
 
+static int
+filter_template_processor (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data)
+{
+    filter_code_t *code = (filter_code_t*)data;
+
+    if (strcmp(directive, "name") == 0)
+	fputs(code->filter->decl->name, out);
+    else if (strcmp(directive, "m") == 0)
+	output_permanent_const_code(code, out, 0);
+    else if (strcmp(directive, "uses_ra") == 0)
+	fputs("1", out);
+    else
+	return 0;
+    return 1;
+}
+
 int
-compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
+compiler_template_processor (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data)
 {
     assert(mathmap->main_filter->decl != 0
 	   && mathmap->main_filter->decl->type == TOP_LEVEL_FILTER);
@@ -4841,10 +4857,12 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
     {
 	fprintf(out, "%d", mathmap->main_filter->num_uservals);
     }
-    else if (strcmp(directive, "filters") == 0)
+    else if (strcmp(directive, "filter_begin") == 0)
     {
 	int i;
 	filter_t *filter;
+
+	g_assert(arg != 0);
 
 	for (i = 0, filter = mathmap->filters;
 	     filter != 0;
@@ -4854,19 +4872,8 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, FILE *ou
 
 	    g_assert(code->filter == filter);
 
-	    fprintf(out, "static color_t filter_%s (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y)\n{\ncolor_t return_color;\n", filter->decl->name);
-
-	    output_permanent_const_code(code, out, 0);
-
-	    fprintf(out, "return return_color;\n}\n\n");
+	    process_template(mathmap, arg, out, filter_template_processor, code);
 	}
-    }
-    else if (strcmp(directive, "filter_prototypes") == 0)
-    {
-	filter_t *filter;
-
-	for (filter = mathmap->filters; filter != 0; filter = filter->next)
-	    fprintf(out, "static color_t filter_%s (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y);\n", filter->decl->name);
     }
     else
 	return 0;
@@ -4947,7 +4954,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     }
 
     set_opmacros_filename(opmacros_filename);
-    if (!process_template_file(mathmap, template_filename, out, &compiler_template_processor))
+    if (!process_template_file(mathmap, template_filename, out, &compiler_template_processor, 0))
     {
 	sprintf(error_string, "Could not process template file `%s'", template_filename);
 	return 0;
@@ -5104,7 +5111,7 @@ generate_plug_in (char *filter, char *output_filename,
     }
 
     set_opmacros_filename(opmacros_path);
-    if (!process_template_file(mathmap, template_path, out, template_processor))
+    if (!process_template_file(mathmap, template_path, out, template_processor, 0))
     {
 	fprintf(stderr, "Could not process template file `%s'\n", template_path);
 	exit(1);

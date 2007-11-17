@@ -299,6 +299,11 @@ double gsl_sf_beta (double a, double b);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
+$filter_begin
+static color_t
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y);
+$filter_end
+
 static inline void
 calc_ra (float x, float y, float *_r, float *_a)
 {
@@ -463,3 +468,25 @@ mathmapinit (mathmap_invocation_t *invocation)
 
 #undef OUTPUT_COLOR
 #define OUTPUT_COLOR(c)		((return_color = (c)), 0)
+
+$filter_begin
+static color_t
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y)
+{
+    float t = 0.0;
+    int frame = 0;
+    float X = invocation->image_X, Y = invocation->image_Y;
+    float W = invocation->image_W, H = invocation->image_H;
+    float R = invocation->image_R;
+    color_t return_color;
+#if $uses_ra
+    float r, a;
+
+    calc_ra(x, y, &r, &a);
+#endif
+
+    $m
+
+    return return_color;
+}
+$filter_end

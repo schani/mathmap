@@ -43,7 +43,7 @@ find_nth_image_userval (userval_info_t *infos, int n)
 }
 
 static int
-template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
+template_processor (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data)
 {
     if (strcmp(directive, "var_structs") == 0)
     {
@@ -144,7 +144,7 @@ template_processor (mathmap_t *mathmap, const char *directive, FILE *out)
 	fprintf(out, "%d", (info == 0) ? -1 : info->index);
     }
     else
-	return compiler_template_processor(mathmap, directive, out);
+	return compiler_template_processor(mathmap, directive, arg, out, data);
     return 1;
 }
 

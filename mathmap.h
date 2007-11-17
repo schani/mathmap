@@ -223,10 +223,12 @@ void update_image_internals (mathmap_invocation_t *invocation);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 
-typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
+typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data);
 
+void process_template (mathmap_t *mathmap, const char *template,
+		       FILE *out, template_processor_func_t template_processor, void *user_data);
 gboolean process_template_file (mathmap_t *mathmap, char *template_filename,
-				FILE *out, template_processor_func_t template_processor);
+				FILE *out, template_processor_func_t template_processor, void *user_data);
 int generate_plug_in (char *filter, char *output_filename,
 		      char *template_filename, char *opmacros_filename, int analyze_constants,
 		      template_processor_func_t template_processor);
