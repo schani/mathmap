@@ -57,6 +57,7 @@ typedef struct _filter_t
     int num_uservals;
     userval_info_t *userval_infos;
 
+    internal_t *internals;
     variable_t *variables;
 
     top_level_decl_t *decl;
@@ -66,8 +67,6 @@ typedef struct _filter_t
 
 typedef struct _mathmap_t
 {
-    internal_t *internals;
-
     filter_t *filters;
     filter_t *current_filter;	/* only valid during parsing */
     filter_t *main_filter;
@@ -202,8 +201,8 @@ void free_invocation (mathmap_invocation_t *invocation);
 void enable_debugging (mathmap_invocation_t *invocation);
 void disable_debugging (mathmap_invocation_t *invocation);
 
-int does_mathmap_use_ra (mathmap_t *mathmap);
-int does_mathmap_use_t (mathmap_t *mathmap);
+int does_filter_use_ra (filter_t *filter);
+int does_filter_use_t (filter_t *filter);
 
 void start_parsing_filter (mathmap_t *mathmap);
 void finish_parsing_filter (mathmap_t *mathmap);

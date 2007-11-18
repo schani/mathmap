@@ -556,12 +556,12 @@ make_var (const char *name)
     tuple_info_t info;
     exprtree *tree = 0;
 
-    if (lookup_internal(the_mathmap->internals, name, 0) != 0)
+    if (lookup_internal(the_mathmap->current_filter->internals, name, 0) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_INTERNAL;
-	tree->val.internal = lookup_internal(the_mathmap->internals, name, 0);
+	tree->val.internal = lookup_internal(the_mathmap->current_filter->internals, name, 0);
 	tree->result = make_tuple_info(nil_tag_number, 1);
     }
     else if (lookup_variable_macro(name, &info) != 0)

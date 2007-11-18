@@ -3,6 +3,7 @@
 * 1.2.x
 
 ** GIMP Plug-In
+Antialiasing in preview for big image sizes!
 Icon for about dialog
 Marker icon
 Color brightness bug (see mail by Alexandre Prokoudine) - ask if it's fixed

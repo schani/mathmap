@@ -282,7 +282,6 @@ cmdline_main (int argc, char *argv[])
 #endif
     int antialiasing = 0, supersampling = 0;
     int img_width, img_height;
-    FILE *template;
     char *generator = 0;
     char *template_filename, *opmacros_filename;
     userval_info_t *userval_info;
@@ -449,13 +448,7 @@ cmdline_main (int argc, char *argv[])
 	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
 	opmacros_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, OPMACROS_FILENAME);
 
-	template = fopen(template_filename, "r");
-	if (template == 0)
-	{
-	    fprintf(stderr, "Error: could not open template file `%s'.\n", template_filename);
-	    exit(1);
-	}
-	mathmap = compile_mathmap(argv[optind], template, opmacros_filename);
+	mathmap = compile_mathmap(argv[optind], template_filename, opmacros_filename);
 	if (mathmap == 0)
 	{
 	    fprintf(stderr, "Error: %s\n", error_string);

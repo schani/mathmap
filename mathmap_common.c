@@ -127,12 +127,30 @@ register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
     }
 }
 
+static void
+init_internals (filter_t *filter)
+{
+    register_internal(&filter->internals, "x", CONST_Y | CONST_T);
+    register_internal(&filter->internals, "y", CONST_X | CONST_T);
+    register_internal(&filter->internals, "r", CONST_T);
+    register_internal(&filter->internals, "a", CONST_T);
+    register_internal(&filter->internals, "t", CONST_X | CONST_Y);
+    register_internal(&filter->internals, "X", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "Y", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "W", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "H", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "R", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "frame", CONST_X | CONST_Y);
+}
+
 void
 start_parsing_filter (mathmap_t *mathmap)
 {
     g_assert(mathmap->current_filter == 0);
 
     mathmap->current_filter = g_new0(filter_t, 1);
+
+    init_internals(mathmap->current_filter);
 }
 
 void
@@ -213,27 +231,11 @@ free_invocation (mathmap_invocation_t *invocation)
 #define R_INTERNAL_INDEX         2
 #define A_INTERNAL_INDEX         3
 
-void
-init_internals (mathmap_t *mathmap)
-{
-    register_internal(&mathmap->internals, "x", CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "y", CONST_X | CONST_T);
-    register_internal(&mathmap->internals, "r", CONST_T);
-    register_internal(&mathmap->internals, "a", CONST_T);
-    register_internal(&mathmap->internals, "t", CONST_X | CONST_Y);
-    register_internal(&mathmap->internals, "X", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "Y", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "W", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "H", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "R", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "frame", CONST_X | CONST_Y);
-}
-
 int
-does_mathmap_use_ra (mathmap_t *mathmap)
+does_filter_use_ra (filter_t *filter)
 {
-    internal_t *r_internal = lookup_internal(mathmap->internals, "r", 1);
-    internal_t *a_internal = lookup_internal(mathmap->internals, "a", 1);
+    internal_t *r_internal = lookup_internal(filter->internals, "r", 1);
+    internal_t *a_internal = lookup_internal(filter->internals, "a", 1);
 
     assert(r_internal != 0 && a_internal != 0);
 
@@ -241,9 +243,9 @@ does_mathmap_use_ra (mathmap_t *mathmap)
 }
 
 int
-does_mathmap_use_t (mathmap_t *mathmap)
+does_filter_use_t (filter_t *filter)
 {
-    internal_t *t_internal = lookup_internal(mathmap->internals, "t", 1);
+    internal_t *t_internal = lookup_internal(filter->internals, "t", 1);
 
     assert(t_internal != 0);
 
@@ -257,8 +259,6 @@ parse_mathmap (char *expression)
     exprtree *expr;
 
     mathmap = g_new0(mathmap_t, 1);
-
-    init_internals(mathmap);
 
     the_mathmap = mathmap;
 
@@ -543,23 +543,23 @@ update_image_internals (mathmap_invocation_t *invocation)
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	return;
 
-    internal = lookup_internal(invocation->mathmap->internals, "t", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "t", 1);
     set_float_internal(invocation, internal->index, invocation->current_t);
 
-    internal = lookup_internal(invocation->mathmap->internals, "X", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "X", 1);
     set_float_internal(invocation, internal->index, invocation->image_X);
-    internal = lookup_internal(invocation->mathmap->internals, "Y", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "Y", 1);
     set_float_internal(invocation, internal->index, invocation->image_Y);
     
-    internal = lookup_internal(invocation->mathmap->internals, "W", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "W", 1);
     set_float_internal(invocation, internal->index, invocation->image_W);
-    internal = lookup_internal(invocation->mathmap->internals, "H", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "H", 1);
     set_float_internal(invocation, internal->index, invocation->image_H);
     
-    internal = lookup_internal(invocation->mathmap->internals, "R", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "R", 1);
     set_float_internal(invocation, internal->index, invocation->image_R);
 
-    internal = lookup_internal(invocation->mathmap->internals, "frame", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "frame", 1);
     set_float_internal(invocation, internal->index, invocation->current_frame);
 }
 
@@ -628,7 +628,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
 	float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
 	float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
-	int uses_ra = does_mathmap_use_ra(invocation->mathmap);
+	int uses_ra = does_filter_use_ra(invocation->mathmap->main_filter);
 
 	for (row = first_row; row < last_row; ++row)
 	{

@@ -4509,7 +4509,7 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
     GHashTable *value_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *label_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
     /* the first few values are the internals */
-    int num_values = number_of_internals(mathmap->internals);
+    int num_values = number_of_internals(mathmap->main_filter->internals);
     int num_insns = 0;
     pre_native_insn_t *insn;
     int index;
@@ -4667,6 +4667,8 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     emit_loc = &first_stmt;
     next_temp_number = 1;
     next_value_global_index = 0;
+
+    compiler_reset_variables(filter->variables);
 
     result = (compvar_t**)malloc(sizeof(compvar_t*) * filter->decl->v.filter.body->result.length);
     assert(result != 0);
@@ -4838,11 +4840,11 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
     }
     else if (strcmp(directive, "uses_ra") == 0)
     {
-	fprintf(out, "%d", does_mathmap_use_ra(mathmap) ? 1 : 0);
+	fprintf(out, "%d", does_filter_use_ra(mathmap->main_filter) ? 1 : 0);
     }
     else if (strcmp(directive, "uses_t") == 0)
     {
-	fprintf(out, "%d", does_mathmap_use_t(mathmap) ? 1 : 0);
+	fprintf(out, "%d", does_filter_use_t(mathmap->main_filter) ? 1 : 0);
     }
     else if (strcmp(directive, "filter_name") == 0)
     {
@@ -4940,9 +4942,11 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 	 filter != 0;
 	 ++i, filter = filter->next)
     {
+	g_print("compiling filter %s\n", filter->decl->name);
 	filter_codes[i] = generate_ir_code(filter, 0, 0);
     }
 
+    g_print("compiling main filter\n");
     main_filter_code = generate_ir_code(mathmap->main_filter, 1, 0);
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);

@@ -44,6 +44,8 @@ variable_t* register_variable (variable_t **vars, const char *name, tuple_info_t
 variable_t* lookup_variable (variable_t *vars, const char *name, tuple_info_t *type);
 variable_t* new_temporary_variable (variable_t **vars, tuple_info_t type);
 
+void compiler_reset_variables (variable_t *vars);
+
 tuple_t** instantiate_variables (variable_t *vars);
 void free_variables (variable_t *vars);
 

@@ -803,7 +803,7 @@ generate_code (int current_frame, float current_t)
 	}
 
 	if (animation_table != 0)
-	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), mathmap != 0 && does_mathmap_use_t(mathmap));
+	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), mathmap != 0 && does_filter_use_t(mathmap->main_filter));
     }
 
     if (invocation != 0)
@@ -2224,7 +2224,7 @@ dialog_ok_callback (GtkWidget *widget, gpointer data)
     if (generate_code(0, 0))
     {
 	wint.run = TRUE;
-	if (!does_mathmap_use_t(mathmap))
+	if (!does_filter_use_t(mathmap->main_filter))
 	    mmvals.flags &= ~FLAG_ANIMATION;
 	gtk_widget_destroy(GTK_WIDGET(data));
     }
