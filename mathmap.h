@@ -223,6 +223,8 @@ void update_image_internals (mathmap_invocation_t *invocation);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 
+void drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y);
+
 typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
 
 void process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor);

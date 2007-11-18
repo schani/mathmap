@@ -1089,6 +1089,15 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable,
 	return get_pixel(invocation, drawable, frame, x, y);
 }
 
+void
+drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y)
+{
+    if (previewing)
+	*inc_x = *inc_y = fast_image_source_scale;
+    else
+	*inc_x = *inc_y = 1;
+}
+
 /*****/
 
 static void
