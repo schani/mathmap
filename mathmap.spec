@@ -49,6 +49,7 @@ install -d $RPM_BUILD_ROOT/%{_langdir}
 install mathmap $RPM_BUILD_ROOT/%{_bindir}/mathmap
 ln -s %{_bindir}/mathmap $RPM_BUILD_ROOT/%{_plugindir}/mathmap
 install new_template.c opmacros.h $RPM_BUILD_ROOT/%{_mathmapdir}/
+install pixmaps/*.png $RPM_BUILD_ROOT/%{_mathmapdir}/
 install mathmap.lang $RPM_BUILD_ROOT/%{_langdir}/
 cp -r examples $RPM_BUILD_ROOT/%{_mathmapdir}/expressions
 

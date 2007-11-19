@@ -1265,7 +1265,7 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     return frame;
 }
 
-#define ERROR_PIXMAP_NAME	"/usr/share/pixmaps/apple-red.png"
+#define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
 
 static gint
 mathmap_dialog (int mutable_expression)
