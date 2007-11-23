@@ -3,7 +3,9 @@
 * 1.2.x
 
 ** GIMP Plug-In
-Color brightness bug (see mail by Alexandre Prokoudine) - ask if it's fixed
+
+** General
+Fix Blender plug-in generator
 
 ** Documentation/Homepage
 Update screenshots

@@ -63,6 +63,7 @@ install: build
 	install mathmap $(CURDIR)/debian/mathmap/usr/bin/mathmap
 	ln -s /usr/bin/mathmap $(CURDIR)/debian/mathmap/usr/lib/gimp/2.0/plug-ins/mathmap
 	install new_template.c opmacros.h $(CURDIR)/debian/mathmap/usr/share/gimp/2.0/mathmap
+	install generators/blender/blender_template.c generators/blender/blender_opmacros.h $(CURDIR)/debian/mathmap/usr/share/gimp/2.0/mathmap
 	install pixmaps/*.png $(CURDIR)/debian/mathmap/usr/share/gimp/2.0/mathmap
 	install mathmap.lang $(CURDIR)/debian/mathmap/usr/share/gtksourceview-1.0/language-specs
 	cp -r examples $(CURDIR)/debian/mathmap/usr/share/gimp/2.0/mathmap/expressions
