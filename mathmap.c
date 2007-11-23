@@ -1072,6 +1072,15 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable,
 	return get_pixel(invocation, drawable, frame, x, y);
 }
 
+void
+drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y)
+{
+    if (previewing)
+	*inc_x = *inc_y = fast_image_source_scale;
+    else
+	*inc_x = *inc_y = 1;
+}
+
 /*****/
 
 static void
@@ -1239,7 +1248,7 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     return frame;
 }
 
-#define ERROR_PIXMAP_NAME	"/usr/share/pixmaps/apple-red.png"
+#define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
 
 static gint
 mathmap_dialog (int mutable_expression)
@@ -2262,9 +2271,13 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 
 /*****/
 
+#define MATHMAP_PIXMAP_NAME	PIXMAP_DIR "/mathmap.png"
+
 static void
 dialog_about_callback (GtkWidget *widget, gpointer data)
 {
+    static GdkPixbuf *mathmap_logo = NULL;
+
     char *gpl = "MathMap is free software; you can redistribute it and/or modify it\n"\
 	"under the terms of the GNU General Public License as published by the\n"\
 	"Free Software Foundation; either version 2 of the License, or (at your\n"\
@@ -2279,15 +2292,21 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 	"along with MathMap; if not, write to the Free Software Foundation,\n"\
 	"Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.";
     char *authors[] = { "Mark Probst <schani@complang.tuwien.ac.at>", 0 };
+    char *artists[] = { "Herbert Poetzl <herbert@13thfloor.at>", 0 };
+
+    if (mathmap_logo == NULL)
+	mathmap_logo = gdk_pixbuf_new_from_file(MATHMAP_PIXMAP_NAME, NULL);
 
     gtk_show_about_dialog (NULL, 
 			   "name", "MathMap",
 			   "version", MATHMAP_VERSION,
 			   "authors", authors,
+			   "artists", artists,
 			   "comments", "An image generation and manipulation language",
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
 			   "copyright", "Copyright © 1997-2007 Mark Probst",
 			   "license", gpl,
+			   "logo", mathmap_logo,
 			   NULL);
 } /* dialog_about_callback */
 

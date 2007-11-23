@@ -224,6 +224,8 @@ color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *d
 
 typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data);
 
+void drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y);
+
 void process_template (mathmap_t *mathmap, const char *template,
 		       FILE *out, template_processor_func_t template_processor, void *user_data);
 gboolean process_template_file (mathmap_t *mathmap, char *template_filename,

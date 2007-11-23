@@ -5,7 +5,7 @@
 
 Summary: MathMap GIMP Plug-In and Command-Line Tool
 Name: mathmap
-Version: 1.2.3
+Version: 1.2.4
 Release: 1
 License: GNU General Public License
 Group: Applications/Multimedia
@@ -49,6 +49,8 @@ install -d $RPM_BUILD_ROOT/%{_langdir}
 install mathmap $RPM_BUILD_ROOT/%{_bindir}/mathmap
 ln -s %{_bindir}/mathmap $RPM_BUILD_ROOT/%{_plugindir}/mathmap
 install new_template.c opmacros.h $RPM_BUILD_ROOT/%{_mathmapdir}/
+install generators/blender/blender_template.c generators/blender/blender_opmacros.h $RPM_BUILD_ROOT/%{_mathmapdir}/
+install pixmaps/*.png $RPM_BUILD_ROOT/%{_mathmapdir}/
 install mathmap.lang $RPM_BUILD_ROOT/%{_langdir}/
 cp -r examples $RPM_BUILD_ROOT/%{_mathmapdir}/expressions
 
@@ -64,6 +66,9 @@ rm -rf %{buildroot}
 %{_mathmapdir}
 
 %changelog
+* Fri Nov 23 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.4
+- Update for version 1.2.4
+
 * Fri Nov 09 2007 Mark Probst <schani@complang.tuwien.ac.at> 1.2.3
 - Update for version 1.2.3
 

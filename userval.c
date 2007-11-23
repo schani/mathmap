@@ -481,7 +481,7 @@ assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawa
 static void
 userval_int_update (GtkAdjustment *adjustment, userval_t *userval)
 {
-    userval->v.int_const = adjustment->value;
+    userval->v.int_const = (int)lrint(adjustment->value);
 
     user_value_changed();
 }

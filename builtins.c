@@ -181,18 +181,50 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
     color_t pixel1, pixel2, pixel3, pixel4, result;
     float_color_t fpixel1, fpixel2, fpixel3, fpixel4, fresult;
     userval_t *userval = get_drawable_userval(invocation, drawable_index, &x, &y);
+    int pixel_inc_x, pixel_inc_y;
 
     if (userval == 0)
 	return COLOR_WHITE;
 
-    x1 = floor(x);
-    x2 = x1 + 1;
-    y1 = floor(y);
-    y2 = y1 + 1;
-    x2fact = (x - x1);
-    y2fact = (y - y1);
+    drawable_get_pixel_inc(invocation, userval->v.image.drawable, &pixel_inc_x, &pixel_inc_y);
+
+    if (pixel_inc_x > 1)
+    {
+	x -= pixel_inc_x / 2.0;
+
+	x1 = floor(x / pixel_inc_x) * pixel_inc_x;
+	x2 = x1 + pixel_inc_x;
+
+	x2fact = (x - x1) / pixel_inc_x;
+    }
+    else
+    {
+	x1 = floor(x);
+	x2 = x1 + 1;
+
+	x2fact = x - x1;
+    }
+
+    if (pixel_inc_y > 1)
+    {
+	y -= pixel_inc_y / 2.0;
+
+	y1 = floor(y / pixel_inc_y) * pixel_inc_y;
+	y2 = y1 + pixel_inc_y;
+
+	y2fact = (y - y1) / pixel_inc_y;
+    }
+    else
+    {
+	y1 = floor(y);
+	y2 = y1 + 1;
+
+	y2fact = y - y1;
+    }
+
     x1fact = 1.0 - x2fact;
     y1fact = 1.0 - y2fact;
+
     p1fact = x1fact * y1fact;
     p2fact = x1fact * y2fact;
     p3fact = x2fact * y1fact;

@@ -32,13 +32,10 @@ BINDIR = $(PREFIX)/bin
 # Directory where the localization files should be installed in
 LOCALEDIR = $(PREFIX)/share/locale
 
-# Directory where the template files should be installed in
-TEMPLATE_DIR = $(PREFIX)/share/mathmap
-
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.2.3
+VERSION = 1.3.0
 
 #OPT_CFLAGS := -O2
 OPT_CFLAGS := -g -DDEBUG_OUTPUT
@@ -62,7 +59,10 @@ GIMPDATADIR := `$(GIMPTOOL) --gimpdatadir`
 GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0`
 GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0`
 
-CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
+TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
+PIXMAP_DIR = $(GIMPDATADIR)/mathmap
+
+CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas
 
 ifeq ($(MOVIES),YES)
@@ -135,7 +135,11 @@ install : mathmap
 	if [ ! -d $(GIMPDATADIR)/mathmap ] ; then mkdir $(GIMPDATADIR)/mathmap ; fi
 	cp new_template.c $(GIMPDATADIR)/mathmap/
 	cp opmacros.h $(GIMPDATADIR)/mathmap/
+	cp generators/blender/blender_template.c $(GIMPDATADIR)/mathmap/
+	cp generators/blender/blender_opmacros.h $(GIMPDATADIR)/mathmap/
 	if [ ! -d $(GIMPDATADIR)/mathmap/expressions ] ; then cp -r examples $(GIMPDATADIR)/mathmap/expressions ; fi
+	if [ ! -d $(PIXMAP_DIR) ] ; then mkdir $(PIXMAP_DIR) ; fi
+	cp pixmaps/*.png $(PIXMAP_DIR)
 
 install-local : mathmap
 #	cp mathmap $(BINDIR)
@@ -186,8 +190,11 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
+	mkdir mathmap-$(VERSION)/pixmaps
+	cp pixmaps/*.png mathmap-$(VERSION)/pixmaps
 	cp -r examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
+	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)
