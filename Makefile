@@ -195,5 +195,6 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp -r examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
+	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)
