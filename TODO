@@ -34,6 +34,7 @@ Real dependencies
 ** Examples
 
 ** Compiler
+Why are bool user values float?
 Copy elimination for phis in pre-native code
 XY constants for interpreter code
 Remove dead whiles

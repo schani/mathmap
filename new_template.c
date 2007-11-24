@@ -301,7 +301,7 @@ extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int co
 
 $filter_begin
 static color_t
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y);
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments);
 $filter_end
 
 static inline void
@@ -471,8 +471,10 @@ mathmapinit (mathmap_invocation_t *invocation)
 
 $filter_begin
 static color_t
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y)
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments)
 {
+    float x = ARG($num_args - 2).v.float_const;
+    float y = ARG($num_args - 1).v.float_const;
     float t = 0.0;
     int frame = 0;
     float X = invocation->image_X, Y = invocation->image_Y;

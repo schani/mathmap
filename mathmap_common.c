@@ -256,7 +256,7 @@ mathmap_t*
 parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-    exprtree *expr;
+    filter_t *filter;
 
     mathmap = g_new0(mathmap_t, 1);
 
@@ -268,30 +268,42 @@ parse_mathmap (char *expression)
 	yyparse();
 	endScanningFromString();
 
-	if (mathmap->filters == 0
-	    || mathmap->filters->next != 0
-	    || mathmap->filters->decl->type != TOP_LEVEL_FILTER)
+	if (mathmap->filters == 0)
 	{
 	    free_filters(mathmap->filters);
 	    mathmap->filters = 0;
 
-	    sprintf(error_string, "Exactly one filter must be defined.");
+	    sprintf(error_string, "At least one filter must be defined.");
 	    JUMP(1);
+	}
+
+	for (filter = mathmap->filters; filter != 0; filter = filter->next)
+	{
+	    exprtree *expr;
+
+	    if (filter->decl->type != TOP_LEVEL_FILTER)
+	    {
+		free_filters(mathmap->filters);
+		mathmap->filters = 0;
+
+		sprintf(error_string, "Top-level declarations can only be filters.");
+		JUMP(1);
+	    }
+
+	    expr = filter->decl->v.filter.body;
+
+	    if (expr->result.number != rgba_tag_number
+		|| expr->result.length != 4)
+	    {
+		free_filters(mathmap->filters);
+		mathmap->filters = 0;
+
+		sprintf(error_string, "The filter `%s' must have the result type rgba:4.", filter->decl->name);
+		JUMP(1);
+	    }
 	}
 
 	mathmap->main_filter = mathmap->filters;
-
-	expr = mathmap->main_filter->decl->v.filter.body;
-
-	if (expr->result.number != rgba_tag_number
-	    || expr->result.length != 4)
-	{
-	    free_filters(mathmap->filters);
-	    mathmap->filters = 0;
-
-	    sprintf(error_string, "The expression must have the result type rgba:4.");
-	    JUMP(1);
-	}
 
 	mathmap->flags = image_flags_from_options(mathmap->main_filter->decl->v.filter.options);
     } WITH_JUMP_HANDLER {

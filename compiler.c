@@ -166,6 +166,7 @@ typedef struct _operation_t
 #define RHS_PRIMARY          1
 #define RHS_INTERNAL         2
 #define RHS_OP               3
+#define RHS_FILTER	     4
 
 typedef struct
 {
@@ -179,6 +180,11 @@ typedef struct
 	    operation_t *op;
 	    primary_t args[MAX_OP_ARGS];
 	} op;
+	struct
+	{
+	    filter_t *filter;
+	    primary_t *args;
+	} filter;
     } v;
 } rhs_t;
 
@@ -642,6 +648,25 @@ make_op_rhs (int op_index, ...)
     return make_op_rhs_from_array(op_index, args);
 }
 
+static int
+num_filter_args (filter_t *filter)
+{
+    /* uservals, x, y */
+    return filter->num_uservals + 2;
+}
+
+static rhs_t*
+make_filter_rhs (filter_t *filter, primary_t *args)
+{
+    rhs_t *rhs = alloc_rhs();
+
+    rhs->kind = RHS_FILTER;
+    rhs->v.filter.filter = filter;
+    rhs->v.filter.args = args;
+
+    return rhs;
+}
+
 statement_t*
 find_phi_assign (statement_t *stmts, compvar_t *compvar)
 {
@@ -687,6 +712,19 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 		return 0;
 	    }
 	    break;
+
+	case RHS_FILTER :
+	    {
+		int num_args = num_filter_args(rhs->v.filter.filter);
+		int i;
+
+		for (i = 0; i < num_args; ++i)
+		    if (rhs->v.filter.args[i].kind == PRIMARY_VALUE
+			&& rhs->v.filter.args[i].v.value == val)
+			return &rhs->v.filter.args[i];
+		return 0;
+	    }
+	    break;
     }
 
     return 0;
@@ -704,6 +742,19 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), vo
 	for (i = 0; i < rhs->v.op.op->num_args; ++i)
 	{
 	    primary_t *arg = &rhs->v.op.args[i];
+
+	    if (arg->kind == PRIMARY_VALUE)
+		func(arg->v.value, info);
+	}
+    }
+    else if (rhs->kind == RHS_FILTER)
+    {
+	int num_args = num_filter_args(rhs->v.filter.filter);
+	int i;
+
+	for (i = 0; i < num_args; ++i)
+	{
+	    primary_t *arg = &rhs->v.filter.args[i];
 
 	    if (arg->kind == PRIMARY_VALUE)
 		func(arg->v.value, info);
@@ -1366,6 +1417,20 @@ print_rhs (rhs_t *rhs)
 	    }
 	    break;
 
+	case RHS_FILTER :
+	    {
+		int num_args = num_filter_args(rhs->v.filter.filter);
+		int i;
+
+		printf("filter_%s", rhs->v.filter.filter->decl->name);
+		for (i = 0; i < num_args; ++i)
+		{
+		    printf(" ");
+		    print_primary(&rhs->v.filter.args[i]);
+		}
+	    }
+	    break;
+
 	default :
 	    g_assert_not_reached();
     }
@@ -1578,6 +1643,38 @@ alloc_var_compvars_if_needed (variable_t *var)
 	    var->compvar[i] = make_variable(var, i);
 }
 
+static void gen_code (exprtree *tree, compvar_t **dest, int is_alloced);
+
+static compvar_t***
+gen_args (exprtree *arg_trees, int **_arglengths, int **_argnumbers)
+{
+    exprtree *arg;
+    int num_args = 0;
+    compvar_t ***args;
+    int *arglengths, *argnumbers;
+    int i;
+
+    for (arg = arg_trees; arg != 0; arg = arg->next)
+	++num_args;
+
+    args = (compvar_t***)pools_alloc(&compiler_pools, num_args * sizeof(compvar_t**));
+    arglengths = (int*)pools_alloc(&compiler_pools, num_args * sizeof(int));
+    argnumbers = (int*)pools_alloc(&compiler_pools, num_args * sizeof(int));
+
+    for (i = 0, arg = arg_trees; i < num_args; ++i, arg = arg->next)
+    {
+	args[i] = (compvar_t**)pools_alloc(&compiler_pools, arg->result.length * sizeof(compvar_t*));
+	arglengths[i] = arg->result.length;
+	argnumbers[i] = arg->result.number;
+	gen_code(arg, args[i], 0);
+    }
+
+    *_arglengths = arglengths;
+    *_argnumbers = argnumbers;
+
+    return args;
+}
+
 static void
 gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 {
@@ -1748,25 +1845,10 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 	case EXPR_FUNC :
 	    {
-		exprtree *arg;
-		int num_args = 0;
 		compvar_t ***args;
 		int *arglengths, *argnumbers;
 
-		for (arg = tree->val.func.args; arg != 0; arg = arg->next)
-		    ++num_args;
-
-		args = (compvar_t***)alloca(num_args * sizeof(compvar_t**));
-		arglengths = (int*)alloca(num_args * sizeof(int));
-		argnumbers = (int*)alloca(num_args * sizeof(int));
-
-		for (i = 0, arg = tree->val.func.args; i < num_args; ++i, arg = arg->next)
-		{
-		    args[i] = (compvar_t**)alloca(arg->result.length * sizeof(compvar_t*));
-		    arglengths[i] = arg->result.length;
-		    argnumbers[i] = arg->result.number;
-		    gen_code(arg, args[i], 0);
-		}
+		args = gen_args(tree->val.func.args, &arglengths, &argnumbers);
 
 		if (!is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
@@ -1911,6 +1993,43 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    }
 	    break;
 
+	case EXPR_FILTER_CALL :
+	    {
+		compvar_t ***args;
+		int *arglengths, *argnumbers;
+		primary_t *arg_primaries;
+		int num_args = num_filter_args(tree->val.filter_call.filter);
+		compvar_t *color;
+		int i;
+
+		args = gen_args(tree->val.filter_call.args, &arglengths, &argnumbers);
+
+		arg_primaries = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
+
+		for (i = 0; i < num_args - 2; ++i)
+		{
+		    g_assert(arglengths[i] == 1);
+		    arg_primaries[i] = make_compvar_primary(args[i][0]);
+		}
+
+		g_assert(arglengths[num_args - 2] == 2);
+		arg_primaries[num_args - 2] = make_compvar_primary(args[num_args - 2][0]);
+		arg_primaries[num_args - 1] = make_compvar_primary(args[num_args - 2][1]);
+
+		color = make_temporary(TYPE_COLOR);
+		emit_assign(make_lhs(color), make_filter_rhs(tree->val.filter_call.filter, arg_primaries));
+
+		if (!is_alloced)
+		    for (i = 0; i < 4; ++i)
+			dest[i] = make_temporary(TYPE_FLOAT);
+
+		emit_assign(make_lhs(dest[0]), make_op_rhs(OP_RED, make_compvar_primary(color)));
+		emit_assign(make_lhs(dest[1]), make_op_rhs(OP_GREEN, make_compvar_primary(color)));
+		emit_assign(make_lhs(dest[2]), make_op_rhs(OP_BLUE, make_compvar_primary(color)));
+		emit_assign(make_lhs(dest[3]), make_op_rhs(OP_ALPHA, make_compvar_primary(color)));
+	    }
+	    break;
+
 	default :
 	    g_assert_not_reached();
    }
@@ -2028,6 +2147,9 @@ rhs_type (rhs_t *rhs)
 		return max;
 	    }
 	    break;
+
+	case RHS_FILTER :
+	    return TYPE_COLOR;
 
 	default :
 	    g_assert_not_reached();
@@ -2148,6 +2270,12 @@ rhs_constant (rhs_t *rhs)
 	    else
 		return CONST_NONE;
 	    break;
+
+	case RHS_FILTER :
+	    /* FIXME: Improve on this.  For each filter figure out
+	       whether it's pure.  Then handle pure filters like
+	       ops. */
+	    return CONST_NONE;
 
 	default :
 	    g_assert_not_reached();
@@ -2814,6 +2942,14 @@ simplify_ops (void)
 
 /*** dead assignment removal ***/
 
+static gboolean
+rhs_is_pure (rhs_t *rhs)
+{
+    if (rhs->kind != RHS_OP && rhs->kind != RHS_FILTER)
+	return TRUE;
+    return rhs->v.op.op->is_pure;
+}
+
 static value_list_t*
 add_value_if_new (value_list_t *list, value_t *value)
 {
@@ -2850,11 +2986,10 @@ remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *cha
 {
     assert(stmt->v.assign.lhs->uses == 0);
 
-    if ((stmt->v.assign.rhs->kind == RHS_OP
-	 && !stmt->v.assign.rhs->v.op.op->is_pure)
-	|| (stmt->kind == STMT_PHI_ASSIGN
-	    && stmt->v.assign.rhs2->kind == RHS_OP
-	    && !stmt->v.assign.rhs2->v.op.op->is_pure))
+    if (!rhs_is_pure(stmt->v.assign.rhs))
+	return;
+    if (stmt->kind == STMT_PHI_ASSIGN
+	&& !rhs_is_pure(stmt->v.assign.rhs2))
 	return;
 
     FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_remove_value, stmt, worklist, changed);
@@ -3104,14 +3239,6 @@ remove_dead_branches (void)
 /*** dead control structure removal ***/
 
 static gboolean
-rhs_is_pure (rhs_t *rhs)
-{
-    if (rhs->kind != RHS_OP)
-	return TRUE;
-    return rhs->v.op.op->is_pure;
-}
-
-static gboolean
 stmts_are_empty (statement_t *stmts)
 {
     while (stmts != 0 && stmts->kind == STMT_NIL)
@@ -3227,6 +3354,20 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 
 	    for (i = 0; i < rhs1->v.op.op->num_args; ++i)
 		if (!primaries_equal(&rhs1->v.op.args[i], &rhs2->v.op.args[i]))
+		    return 0;
+	    return 1;
+	}
+
+	case RHS_FILTER :
+	{
+	    int num_args = num_filter_args(rhs1->v.filter.filter);
+	    int i;
+
+	    if (rhs1->v.filter.filter != rhs2->v.filter.filter)
+		return 0;
+
+	    for (i = 0; i < num_args; ++i)
+		if (!primaries_equal(&rhs1->v.filter.args[i], &rhs2->v.filter.args[i]))
 		    return 0;
 	    return 1;
 	}
@@ -3503,6 +3644,22 @@ generate_pre_native_assigns (statement_t *stmt)
 }
 
 static void
+convert_args (int num_args, type_t *arg_types, primary_t *dst, primary_t *src)
+{
+    int i;
+
+    for (i = 0; i < num_args; ++i)
+	if (arg_types[i] != primary_type(&src[i]))
+	{
+	    statement_t *stmts = convert_primary(&src[i], arg_types[i], &dst[i]);
+
+	    generate_pre_native_assigns(stmts);
+	}
+	else
+	    dst[i] = src[i];
+}
+
+static void
 emit_pre_native_assign_with_op_rhs (value_t *lhs, rhs_t *rhs)
 {
     type_t lhs_type = lhs->compvar->type;
@@ -3539,15 +3696,7 @@ emit_pre_native_assign_with_op_rhs (value_t *lhs, rhs_t *rhs)
 	    arg_types[i] = op_type;
     }
 
-    for (i = 0; i < op->num_args; ++i)
-	if (arg_types[i] != primary_type(&rhs->v.op.args[i]))
-	{
-	    statement_t *stmts = convert_primary(&rhs->v.op.args[i], arg_types[i], &args[i]);
-
-	    generate_pre_native_assigns(stmts);
-	}
-	else
-	    args[i] = rhs->v.op.args[i];
+    convert_args(op->num_args, arg_types, args, rhs->v.op.args);
 
     if (op_type != lhs_type)
     {
@@ -3566,6 +3715,66 @@ emit_pre_native_assign_with_op_rhs (value_t *lhs, rhs_t *rhs)
 
 	generate_pre_native_assigns(stmts);
     }
+}
+
+static int
+type_for_userval_type (int userval_type)
+{
+    switch (userval_type)
+    {
+	case USERVAL_INT_CONST :
+	    return TYPE_INT;
+	case USERVAL_FLOAT_CONST :
+	    return TYPE_FLOAT;
+	case USERVAL_BOOL_CONST :
+	    return TYPE_INT;
+	case USERVAL_COLOR :
+	    return TYPE_COLOR;
+	default :
+	    g_assert_not_reached();
+    }
+}
+
+static type_t*
+get_filter_arg_types (filter_t *filter, int *_num_args)
+{
+    int num_args = num_filter_args(filter);
+    type_t *arg_types = (type_t*)pools_alloc(&compiler_pools, sizeof(type_t) * num_args);
+    int i;
+    userval_info_t *info;
+
+    for (i = 0, info = filter->userval_infos; info != 0; ++i, info = info->next)
+	arg_types[i] = type_for_userval_type(info->type);
+    g_assert(i == num_args - 2);
+
+    arg_types[num_args + 0] = TYPE_FLOAT; /* x */
+    arg_types[num_args + 1] = TYPE_FLOAT; /* y */
+
+    return arg_types;
+}
+
+static void
+emit_pre_native_assign_with_filter_rhs (value_t *lhs, rhs_t *rhs)
+{
+    type_t lhs_type = lhs->compvar->type;
+    type_t *arg_types;
+    primary_t *args;
+    int num_args;
+    statement_t *stmts;
+
+    g_assert(rhs->kind == RHS_FILTER);
+
+    arg_types = get_filter_arg_types(rhs->v.filter.filter, &num_args);
+
+    args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
+
+    convert_args(num_args, arg_types, args, rhs->v.filter.args);
+
+    g_assert (lhs_type == TYPE_COLOR);
+
+    stmts = make_assign(lhs, make_filter_rhs(rhs->v.filter.filter, args));
+
+    generate_pre_native_assigns(stmts);
 }
 
 static void
@@ -3590,6 +3799,10 @@ emit_pre_native_assign_with_conversion (value_t *lhs, rhs_t *rhs, statement_t *s
 
 	case RHS_OP :
 	    emit_pre_native_assign_with_op_rhs(lhs, rhs);
+	    break;
+
+	case RHS_FILTER :
+	    emit_pre_native_assign_with_filter_rhs(lhs, rhs);
 	    break;
 
 	default :
@@ -3789,7 +4002,19 @@ typecheck_pre_native_code (void)
 			    assert(primary_type(&rhs->v.op.args[i]) == arg_types[i]);
 		    }
 		    else
+		    {
 			assert(lhs_type == rhs_type(rhs));
+
+			if (rhs->kind == RHS_FILTER)
+			{
+			    int num_args;
+			    type_t *arg_types = get_filter_arg_types(rhs->v.filter.filter, &num_args);
+			    int i;
+
+			    for (i = 0; i < num_args; ++i)
+				g_assert(primary_type(&rhs->v.filter.args[i]) == arg_types[i]);
+			}
+		    }
 		}
 		break;
 
@@ -4183,6 +4408,24 @@ output_primary (FILE *out, primary_t *primary)
     }
 }
 
+static char*
+userval_element_name (userval_info_t *info)
+{
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	    return "int_const";
+	case USERVAL_FLOAT_CONST :
+	    return "float_const";
+	case USERVAL_BOOL_CONST :
+	    return "bool_const";
+	case USERVAL_COLOR :
+	    return "color.value";
+	default :
+	    g_assert_not_reached();
+    }
+}
+
 void
 output_rhs (FILE *out, rhs_t *rhs)
 {
@@ -4209,6 +4452,35 @@ output_rhs (FILE *out, rhs_t *rhs)
 		    output_primary(out, &rhs->v.op.args[i]);
 		}
 		fputs(")", out);
+	    }
+	    break;
+
+	case RHS_FILTER :
+	    {
+		int i;
+		int num_args = num_filter_args(rhs->v.filter.filter);
+		userval_info_t *info;
+
+		fprintf(out, "({ userval_t args[%d]; ", num_args);
+
+		for (i = 0, info = rhs->v.filter.filter->userval_infos;
+		     info != 0;
+		     ++i, info = info->next)
+		{
+		    fprintf(out, "args[%d].v.%s = ", i, userval_element_name(info));
+		    output_primary(out, &rhs->v.filter.args[i]);
+		    fprintf(out, "; ");
+		}
+		g_assert(i == num_args - 2);
+
+		for (i = num_args - 2; i < num_args; ++i)
+		{
+		    fprintf(out, "args[%d].v.float_const = ", i);
+		    output_primary(out, &rhs->v.filter.args[i]);
+		    fprintf(out, "; ");
+		}
+
+		fprintf(out, "filter_%s(invocation, args); })", rhs->v.filter.filter->decl->name);
 	    }
 	    break;
 
@@ -4769,6 +5041,8 @@ filter_template_processor (mathmap_t *mathmap, const char *directive, const char
 	output_permanent_const_code(code, out, 0);
     else if (strcmp(directive, "uses_ra") == 0)
 	fputs("1", out);
+    else if (strcmp(directive, "num_args") == 0)
+	fprintf(out, "%d", num_filter_args(code->filter));
     else
 	return 0;
     return 1;
