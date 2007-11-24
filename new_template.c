@@ -470,6 +470,7 @@ $filter_begin
 static color_t
 filter_$name (mathmap_invocation_t *invocation, userval_t *arguments)
 {
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     float x = ARG($num_args - 2).v.float_const;
     float y = ARG($num_args - 1).v.float_const;
     float t = 0.0;
@@ -482,6 +483,18 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments)
     float r, a;
 
     calc_ra(x, y, &r, &a);
+#endif
+
+#if $g
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel;
+#else
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel_fast;
 #endif
 
     $m

@@ -3732,6 +3732,8 @@ type_for_userval_type (int userval_type)
 	    return TYPE_INT;
 	case USERVAL_COLOR :
 	    return TYPE_COLOR;
+	case USERVAL_IMAGE :
+	    return TYPE_IMAGE;
 	default :
 	    g_assert_not_reached();
     }
@@ -4423,6 +4425,8 @@ userval_element_name (userval_info_t *info)
 	    return "bool_const";
 	case USERVAL_COLOR :
 	    return "color.value";
+	case USERVAL_IMAGE :
+	    return "image";
 	default :
 	    g_assert_not_reached();
     }
@@ -5037,7 +5041,15 @@ filter_template_processor (mathmap_t *mathmap, const char *directive, const char
 {
     filter_code_t *code = (filter_code_t*)data;
 
-    if (strcmp(directive, "name") == 0)
+    if (strcmp(directive, "g") == 0)
+    {
+#ifdef OPENSTEP
+	putc('0', out);
+#else
+	putc('1', out);
+#endif
+    }
+    else if (strcmp(directive, "name") == 0)
 	fputs(code->filter->decl->name, out);
     else if (strcmp(directive, "m") == 0)
 	output_permanent_const_code(code, out, 0);

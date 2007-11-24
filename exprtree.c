@@ -520,15 +520,8 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	case USERVAL_IMAGE :
-	    if (exprlist_length(args) != 1)
-	    {
-		sprintf(error_string, "An image takes one argument.");
-		JUMP(1);
-	    }
-
 	    tree->result.number = image_tag_number;
 	    tree->result.length = 1;
-
 	    break;
 
 	default :
@@ -542,7 +535,14 @@ make_userval (userval_info_t *info, exprtree *args)
     {
 	tree->val.userval.args = 0;
 
-	return make_function("origVal", exprlist_append(args, tree));
+	if (exprlist_length(args) == 1)
+	    return make_function("origVal", exprlist_append(args, tree));
+
+	if (exprlist_length(args) != 0)
+	{
+	    sprintf(error_string, "An image takes one or zero arguments.");
+	    JUMP(1);
+	}
     }
     else
 	tree->val.userval.args = args;
@@ -732,6 +732,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    case USERVAL_INT_CONST :
 	    case USERVAL_FLOAT_CONST :
 	    case USERVAL_BOOL_CONST :
+	    case USERVAL_IMAGE :
 		if ((*argp)->result.length != 1)
 		{
 		    sprintf(error_string, "Can only pass tuples of length 1 as numbers or booleans.");
@@ -740,7 +741,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 		break;
 
 	    default :
-		sprintf(error_string, "Cannot pass non-number values to filters yet.");
+		sprintf(error_string, "Can only pass numbers and images to filters yet.");
 		JUMP(1);
 	}
     }
