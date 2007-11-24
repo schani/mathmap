@@ -112,6 +112,11 @@ copy_input_drawable (input_drawable_t *drawable)
 	    g_assert_not_reached();
     }
 
+    copy->scale_x = drawable->scale_x;
+    copy->scale_y = drawable->scale_y;
+    copy->middle_x = drawable->middle_x;
+    copy->middle_y = drawable->middle_y;
+
     return copy;
 }
 

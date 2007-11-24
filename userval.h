@@ -79,6 +79,11 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
+typedef struct
+{
+    input_drawable_t *drawable;
+} image_t;
+
 typedef struct _userval_t
 {
     int type;
@@ -88,6 +93,7 @@ typedef struct _userval_t
 	int int_const;
 	float float_const;
 	float bool_const;
+	image_t image;
 
 	struct
 	{
@@ -106,15 +112,6 @@ typedef struct _userval_t
 	{
 	    color_t *values;
 	} gradient;
-
-	struct
-	{
-	    input_drawable_t *drawable;
-	    float scale_x;
-	    float scale_y;
-	    float middle_x;
-	    float middle_y;
-	} image;
     } v;
 
 #ifndef OPENSTEP

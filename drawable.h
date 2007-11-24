@@ -52,6 +52,11 @@ typedef struct {
     int width;
     int height;
 
+    float scale_x;
+    float scale_y;
+    float middle_x;
+    float middle_y;
+
     union
     {
 #ifdef OPENSTEP

@@ -140,8 +140,8 @@ get_drawable_userval (mathmap_invocation_t *invocation, int drawable_index, floa
     if (userval->type != USERVAL_IMAGE)
 	return 0;
 
-    *x = (*x + userval->v.image.middle_x) * userval->v.image.scale_x;
-    *y = -((*y - userval->v.image.middle_y) * userval->v.image.scale_y);
+    *x = (*x + userval->v.image.drawable->middle_x) * userval->v.image.drawable->scale_x;
+    *y = -((*y - userval->v.image.drawable->middle_y) * userval->v.image.drawable->scale_y);
 
     return userval;
 }

@@ -270,10 +270,10 @@ calc_image_values (userval_info_t *info, userval_t *val)
     height = val->v.image.drawable->height;
 
     calc_scale_factors(info->v.image.flags, width, height,
-		       &val->v.image.scale_x, &val->v.image.scale_y);
+		       &val->v.image.drawable->scale_x, &val->v.image.drawable->scale_y);
     calc_middle_values(width, height, 
-		       1.0 / val->v.image.scale_x, 1.0 / val->v.image.scale_y,
-		       &val->v.image.middle_x, &val->v.image.middle_y);
+		       1.0 / val->v.image.drawable->scale_x, 1.0 / val->v.image.drawable->scale_y,
+		       &val->v.image.drawable->middle_x, &val->v.image.drawable->middle_y);
 }
 
 void
@@ -442,11 +442,6 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 
 		if (dst_drawable != 0)
 		    free_input_drawable(dst_drawable);
-
-		dst->v.image.scale_x = src->v.image.scale_x;
-		dst->v.image.scale_y = src->v.image.scale_y;
-		dst->v.image.middle_x = src->v.image.middle_x;
-		dst->v.image.middle_y = src->v.image.middle_y;
 	    }
 	    break;
 

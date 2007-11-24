@@ -83,6 +83,11 @@ typedef unsigned int color_t;
 #define BLUE(c)                             (((c)>>8)&0xff)
 #define ALPHA(c)                            ((c)&0xff)
 
+typedef struct
+{
+    void *drawable;
+} image_t;
+
 typedef struct _userval_t
 {
     int type;
@@ -92,6 +97,7 @@ typedef struct _userval_t
 	int int_const;
 	float float_const;
 	float bool_const;
+	image_t image;
 
 	struct
 	{
@@ -110,15 +116,6 @@ typedef struct _userval_t
 	{
 	    color_t *values;
 	} gradient;
-
-	struct
-	{
-	    void *drawable;
-	    float scale_x;
-	    float scale_y;
-	    float middle_x;
-	    float middle_y;
-	} image;
     } v;
 
 #ifndef OPENSTEP
