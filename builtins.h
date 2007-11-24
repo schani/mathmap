@@ -33,20 +33,7 @@
 struct _mathmap_invocation_t;
 struct _compvar_t;
 
-#define MAX_BUILTIN_LENGTH     63
-
 typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
-
-/*
-typedef struct _builtin
-{
-    char name[MAX_BUILTIN_LENGTH + 1];
-    generator_function_t generator;
-    int numParams;
-    tuple_info_t tuple_info;
-    struct _builtin *next;
-} builtin;
-*/
 
 double color_to_double (unsigned int red, unsigned int green,
 			unsigned int blue, unsigned int alpha);
