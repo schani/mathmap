@@ -36,6 +36,9 @@
 						     ("crealf(~A)" "cimagf(~A)")))
 			(color      "color_t"       ("(%d,%d,%d,%d)" "MAKE_RGBA_COLOR(%d,%d,%d,%d)"
 						     ("RED(~A)" "GREEN(~A)" "BLUE(~A)" "ALPHA(~A)")))
+			(image      "image_t"       ("DRAWABLE(%p)" "MAKE_INPUT_IMAGE(%p)"
+						     ("(~A).drawable"))
+			            ("drawable"))
 			(gsl-matrix "gsl_matrix *"  ("***MATRIX***" "***MATRIX***" ()))
 			(v2         "mm_v2_t"       ("[%f,%f]" "MAKE_V2(%f,%f)"
 						     ("~A.v[0]" "~A.v[1]"))
@@ -144,7 +147,7 @@
 (defop 'start-debug-tuple 1 "START_DEBUG_TUPLE" :type 'int :arg-type 'int :pure nil)
 (defop 'set-debug-tuple-data 2 "SET_DEBUG_TUPLE_DATA" :type 'int :arg-types '(int float) :pure nil)
 
-(defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'color :arg-types '(float float int float) :foldable nil)
+(defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'color :arg-types '(float float image float) :foldable nil)
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)
 (defop 'green 1 "GREEN_FLOAT" :arg-type 'color :foldable nil)
 (defop 'blue 1 "BLUE_FLOAT" :arg-type 'color :foldable nil)
@@ -211,6 +214,7 @@
 (defop 'userval-curve 2 "USERVAL_CURVE_ACCESS" :type 'float :arg-types '(int float) :foldable nil)
 (defop 'userval-color 1 "USERVAL_COLOR_ACCESS" :type 'color :arg-type 'int :foldable nil)
 (defop 'userval-gradient 2 "USERVAL_GRADIENT_ACCESS" :type 'color :arg-types '(int float) :foldable nil)
+(defop 'userval-image 1 "USERVAL_IMAGE_ACCESS" :type 'image :arg-type 'int :foldable nil)
 
 (defop 'make-color 4 "MAKE_COLOR" :type 'color)
 (defop 'output-color 1 "OUTPUT_COLOR" :interpreter-c-name "OUTPUT_COLOR_INTERPRETER" :type 'int :arg-type 'color :pure nil)
@@ -307,6 +311,7 @@
   (labels ((interpret-format (char arg)
 	     (ecase char
 	       (#\d (format nil "fprintf(out, \"%d\", ~A);" arg))
+	       (#\p (format nil "fprintf(out, \"%p\", ~A);" arg))
 	       (#\f (format nil "{ gchar buf[G_ASCII_DTOSTR_BUF_SIZE]; g_ascii_dtostr(buf, sizeof(buf), ~A); fputs(buf, out); }"
 			    arg)))))
     (if (> (length format) 0)

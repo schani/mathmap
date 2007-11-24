@@ -296,11 +296,11 @@ static type_t primary_type (primary_t *primary);
 
 #define OUTPUT_COLOR_INTERPRETER(c)  ({ invocation->interpreter_output_color = (c); invocation->interpreter_ip = -1; 0; })
 
-#define ORIG_VAL_INTERPRETER(x,y,d,f)     ({ color_t c; \
+#define ORIG_VAL_INTERPRETER(x,y,i,f)     ({ color_t c; \
                                  	     if (invocation->antialiasing) \
-                                     	         c = get_orig_val_intersample_pixel(invocation, (x), (y), (d), (f)); \
+                                     	         c = get_orig_val_intersample_pixel(invocation, (x), (y), &(i), (f)); \
                                  	     else \
-                                     		 c = get_orig_val_pixel(invocation, (x), (y), (d), (f)); \
+                                     		 c = get_orig_val_pixel(invocation, (x), (y), &(i), (f)); \
                                  	     c; })
 
 #define ARG(i)	(invocation->uservals[(i)])
@@ -1984,8 +1984,10 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		case USERVAL_IMAGE :
 		    if (!is_alloced)
-			dest[0] = make_temporary(TYPE_INT);
-		    emit_assign(make_lhs(dest[0]), make_int_const_rhs(tree->val.userval.info->index));
+			dest[0] = make_temporary(TYPE_IMAGE);
+		    emit_assign(make_lhs(dest[0]),
+				make_op_rhs(OP_USERVAL_IMAGE,
+					    make_int_const_primary(tree->val.userval.info->index)));
 		    break;
 
 		default :

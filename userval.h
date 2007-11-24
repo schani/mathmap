@@ -79,7 +79,7 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
-typedef struct
+typedef struct _image_t
 {
     input_drawable_t *drawable;
 } image_t;

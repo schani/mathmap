@@ -117,42 +117,34 @@ apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int wi
 }
 
 static color_t
-get_pixel (mathmap_invocation_t *invocation, int x, int y, userval_t *userval, int frame)
+get_pixel (mathmap_invocation_t *invocation, int x, int y, input_drawable_t *drawable, int frame)
 { 
-    if (userval->v.image.drawable == NULL)
+    if (drawable == NULL)
 	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
-    apply_edge_behaviour(invocation, &x, &y, userval->v.image.drawable->width, userval->v.image.drawable->height);
+    apply_edge_behaviour(invocation, &x, &y, drawable->width, drawable->height);
 
-    return mathmap_get_pixel(invocation, userval->v.image.drawable, frame, x, y);
+    return mathmap_get_pixel(invocation, drawable, frame, x, y);
 }
 
-static userval_t*
-get_drawable_userval (mathmap_invocation_t *invocation, int drawable_index, float *x, float *y)
+static input_drawable_t*
+get_image_drawable (mathmap_invocation_t *invocation, image_t *image, float *x, float *y)
 {
-    userval_t *userval;
+    input_drawable_t *drawable = image->drawable;
 
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->main_filter->num_uservals)
-	return 0;
+    if (drawable == NULL)
+	return NULL;
 
-    userval = &invocation->uservals[drawable_index];
+    *x = (*x + drawable->middle_x) * drawable->scale_x;
+    *y = -((*y - drawable->middle_y) * drawable->scale_y);
 
-    if (userval->type != USERVAL_IMAGE)
-	return 0;
-
-    *x = (*x + userval->v.image.drawable->middle_x) * userval->v.image.drawable->scale_x;
-    *y = -((*y - userval->v.image.drawable->middle_y) * userval->v.image.drawable->scale_y);
-
-    return userval;
+    return drawable;
 }
 
 color_t
-get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame)
 {
-    userval_t *userval = get_drawable_userval(invocation, drawable_index, &x, &y);
-
-    if (userval == 0)
-	return COLOR_WHITE;
+    input_drawable_t *drawable = get_image_drawable(invocation, image, &x, &y);
 
     if (!invocation->supersampling)
     {
@@ -160,11 +152,11 @@ get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int draw
 	y += 0.5;
     }
 
-    return get_pixel(invocation, floor(x), floor(y), userval, frame);
+    return get_pixel(invocation, floor(x), floor(y), drawable, frame);
 }
 
 color_t
-get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame)
 {
     int x1,
 	x2,
@@ -180,13 +172,10 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
 	p4fact;
     color_t pixel1, pixel2, pixel3, pixel4, result;
     float_color_t fpixel1, fpixel2, fpixel3, fpixel4, fresult;
-    userval_t *userval = get_drawable_userval(invocation, drawable_index, &x, &y);
+    input_drawable_t *drawable = get_image_drawable(invocation, image, &x, &y);
     int pixel_inc_x, pixel_inc_y;
 
-    if (userval == 0)
-	return COLOR_WHITE;
-
-    drawable_get_pixel_inc(invocation, userval->v.image.drawable, &pixel_inc_x, &pixel_inc_y);
+    drawable_get_pixel_inc(invocation, drawable, &pixel_inc_x, &pixel_inc_y);
 
     if (pixel_inc_x > 1)
     {
@@ -230,10 +219,10 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
     p3fact = x2fact * y1fact;
     p4fact = x2fact * y2fact;
 
-    pixel1 = get_pixel(invocation, x1, y1, userval, frame);
-    pixel2 = get_pixel(invocation, x1, y2, userval, frame);
-    pixel3 = get_pixel(invocation, x2, y1, userval, frame);
-    pixel4 = get_pixel(invocation, x2, y2, userval, frame);
+    pixel1 = get_pixel(invocation, x1, y1, drawable, frame);
+    pixel2 = get_pixel(invocation, x1, y2, drawable, frame);
+    pixel3 = get_pixel(invocation, x2, y1, drawable, frame);
+    pixel4 = get_pixel(invocation, x2, y2, drawable, frame);
 
     fpixel1 = COLOR_MUL_FLOAT(pixel1, p1fact);
     fpixel2 = COLOR_MUL_FLOAT(pixel2, p2fact);

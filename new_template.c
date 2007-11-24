@@ -243,16 +243,16 @@ get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, i
     return *(color_t*)(userval->v.image.data + 4 * x + y * userval->v.image.row_stride);
 }
 
-extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
 
 static color_t
-get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame)
+get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame)
 {
-    return get_orig_val_intersample_pixel(invocation, x, y, drawable_index, frame);
+    return get_orig_val_intersample_pixel(invocation, x, y, image, frame);
 }
 #else
-extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
-extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
+extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
 #endif
 
 extern float noise (float, float, float);
@@ -323,7 +323,7 @@ static void
 calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {
     mathmap_invocation_t *invocation = slice->invocation;
-    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int row, col;
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
