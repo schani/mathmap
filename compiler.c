@@ -4344,7 +4344,12 @@ void
 output_value_name (FILE *out, value_t *value, int for_decl)
 {
     if (value->index < 0)
-	fputs("0 /* uninitialized */ ", out);
+    {
+	if (value->compvar->type == TYPE_IMAGE)
+	    fputs("UNINITED_IMAGE /* uninitialized */ ", out);
+	else
+	    fputs("0 /* uninitialized */ ", out);
+    }
     else
     {
 #ifndef NO_CONSTANTS_ANALYSIS

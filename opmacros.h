@@ -144,6 +144,8 @@ typedef struct
 #define USERVAL_GRADIENT_ACCESS(x,p) (ARG((x)).v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
 #define USERVAL_IMAGE_ACCESS(x)      (ARG((x)).v.image)
 
+#define UNINITED_IMAGE        ((image_t){0})
+
 #define ORIG_VAL(x,y,i,f)     get_orig_val_pixel_func(invocation, (x), (y), &(i), (f))
 
 #ifdef IN_COMPILED_CODE
