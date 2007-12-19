@@ -152,5 +152,5 @@ int
 blender_generate_plug_in (char *filter, char *output_filename)
 {
     return generate_plug_in(filter, output_filename,
-			    "blender_template.c", "blender_opmacros.h", 1, template_processor);
+			    "blender_template.c", 1, template_processor);
 }

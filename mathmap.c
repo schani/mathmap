@@ -763,7 +763,13 @@ generate_code (int current_frame, float current_t)
 		new_mathmap = 0;
 	    }
 	    else
-		new_mathmap = compile_mathmap(mmvals.expression, template_filename, opmacros_name);
+	    {
+		char *include_path = g_path_get_dirname(opmacros_name);
+
+		new_mathmap = compile_mathmap(mmvals.expression, template_filename, include_path);
+
+		g_free(include_path);
+	    }
 	}
 
 	if (new_mathmap == 0)

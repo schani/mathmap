@@ -71,7 +71,7 @@ void set_opmacros_filename (const char *filename);
 int compiler_template_processor (struct _mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data);
 
 initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
-				char *template_filename, char *opmacros_filename);
+				char *template_filename, char *include_path);
 void unload_c_code (void *module_info);
 
 void generate_interpreter_code (struct _mathmap_t *mathmap);

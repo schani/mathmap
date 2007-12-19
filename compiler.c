@@ -5030,15 +5030,15 @@ forget_ir_code (mathmap_t *mathmap)
     free_pools(&compiler_pools);
 }
 
-static char *opmacros_filename = 0;
+static char *include_path = 0;
 
-void
-set_opmacros_filename (const char *filename)
+static void
+set_include_path (const char *path)
 {
-    if (opmacros_filename != 0)
-	free(opmacros_filename);
-    opmacros_filename = strdup(filename);
-    assert(opmacros_filename != 0);
+    if (include_path != 0)
+	free(include_path);
+    include_path = strdup(path);
+    assert(include_path != 0);
 }
 
 static int
@@ -5123,9 +5123,9 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
 	output_permanent_const_code(main_filter_code, out, CONST_Y);
 #endif
     }
-    else if (strcmp(directive, "opmacros_h") == 0)
+    else if (strcmp(directive, "include") == 0)
     {
-	fputs(opmacros_filename, out);
+	fputs(include_path, out);
     }
     else if (strcmp(directive, "max_debug_tuples") == 0)
     {
@@ -5207,7 +5207,7 @@ exec_cmd (char *log_filename, char *format, ...)
 #define TMP_PREFIX		"/tmp/mathfunc"
 
 initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename, char *opmacros_filename)
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename, char *include_path)
 {
     static int last_mathfunc = 0;
 
@@ -5250,7 +5250,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 	return 0;
     }
 
-    set_opmacros_filename(opmacros_filename);
+    set_include_path(include_path);
     if (!process_template_file(mathmap, template_filename, out, &compiler_template_processor, 0))
     {
 	sprintf(error_string, "Could not process template file `%s'", template_filename);
@@ -5378,16 +5378,14 @@ generate_interpreter_code (mathmap_t *mathmap)
 #ifndef OPENSTEP
 int
 generate_plug_in (char *filter, char *output_filename,
-		  char *template_filename, char *opmacros_filename, int analyze_constants,
+		  char *template_filename, int analyze_constants,
 		  template_processor_func_t template_processor)
 {
     char template_path[strlen(TEMPLATE_DIR) + 1 + strlen(template_filename) + 1];
-    char opmacros_path[strlen(TEMPLATE_DIR) + 1 + strlen(opmacros_filename) + 1];
     FILE *out;
     mathmap_t *mathmap;
 
     sprintf(template_path, "%s/%s", TEMPLATE_DIR, template_filename);
-    sprintf(opmacros_path, "%s/%s", TEMPLATE_DIR, opmacros_filename);
 
     mathmap = parse_mathmap(filter);
 
@@ -5407,7 +5405,7 @@ generate_plug_in (char *filter, char *output_filename,
 	exit(1);
     }
 
-    set_opmacros_filename(opmacros_path);
+    set_include_path(TEMPLATE_DIR);
     if (!process_template_file(mathmap, template_path, out, template_processor, 0))
     {
 	fprintf(stderr, "Could not process template file `%s'\n", template_path);

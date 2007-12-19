@@ -446,9 +446,10 @@ cmdline_main (int argc, char *argv[])
 #endif
 
 	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
-	opmacros_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, OPMACROS_FILENAME);
 
-	mathmap = compile_mathmap(argv[optind], template_filename, opmacros_filename);
+	mathmap = compile_mathmap(argv[optind],
+				  GIMPDATADIR "/mathmap/" MAIN_TEMPLATE_FILENAME,
+				  GIMPDATADIR "/mathmap");
 	if (mathmap == 0)
 	{
 	    fprintf(stderr, "Error: %s\n", error_string);

@@ -45,7 +45,7 @@
 
 #define IN_COMPILED_CODE
 
-#include "$opmacros_h"
+#include "$include/opmacros.h"
 
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))

@@ -209,7 +209,7 @@ void finish_parsing_filter (mathmap_t *mathmap);
 
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
-mathmap_t* compile_mathmap (char *expression, char *template_filename, char *opmacros_filename);
+mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_frame (mathmap_slice_t *slice);
 void call_invocation_parallel (mathmap_invocation_t *invocation,
@@ -231,7 +231,7 @@ void process_template (mathmap_t *mathmap, const char *template,
 gboolean process_template_file (mathmap_t *mathmap, char *template_filename,
 				FILE *out, template_processor_func_t template_processor, void *user_data);
 int generate_plug_in (char *filter, char *output_filename,
-		      char *template_filename, char *opmacros_filename, int analyze_constants,
+		      char *template_filename, int analyze_constants,
 		      template_processor_func_t template_processor);
 
 void user_value_changed (void);
