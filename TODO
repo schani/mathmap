@@ -19,6 +19,7 @@ zoom via preview
 
 ** Language
 Hypercomplex-Complex multiplication
+XYZ, Lab color space support
 
 ** Command Line Tool
 All uservals on command line (not just input images)

@@ -125,6 +125,7 @@ struct _filter_t;
 #define EXPR_SUB_ASSIGNMENT 17
 #define EXPR_USERVAL        18
 #define EXPR_FILTER_CALL    19
+#define EXPR_FILTER_CLOSURE 20
 
 typedef struct _exprtree
 {
@@ -210,6 +211,11 @@ typedef struct _exprtree
 	    struct _filter_t *filter;
 	    struct _exprtree *args;
 	} filter_call;
+	struct
+	{
+	    struct _filter_t *filter;
+	    struct _exprtree *args;
+	} filter_closure;
     } val;
 
     struct _exprtree *next;

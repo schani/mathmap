@@ -715,13 +715,18 @@ make_filter_call (filter_t *filter, exprtree *args)
     userval_info_t *info;
     exprtree **argp;
     exprtree *tree;
+    int num_args = exprlist_length(args);
+    gboolean is_closure;
 
-    if (exprlist_length(args) != filter->num_uservals + 1)
+    if (num_args != filter->num_uservals
+	&& num_args != filter->num_uservals + 1)
     {
-	sprintf(error_string, "Filter %s takes %d arguments but is called with %d.",
-		filter->decl->name, filter->num_uservals + 1, exprlist_length(args));
+	sprintf(error_string, "Filter %s takes %d or %d arguments but is called with %d.",
+		filter->decl->name, filter->num_uservals, filter->num_uservals + 1, exprlist_length(args));
 	JUMP(1);
     }
+
+    is_closure = (num_args == filter->num_uservals);
 
     for (info = filter->userval_infos, argp = &args;
 	 info != 0;
@@ -746,29 +751,45 @@ make_filter_call (filter_t *filter, exprtree *args)
 	}
     }
 
-    g_assert(*argp != 0 && (*argp)->next == 0);
-
-    if ((*argp)->result.length != 2
-	|| ((*argp)->result.number != xy_tag_number
-	    && (*argp)->result.number != ra_tag_number))
+    if (is_closure)
     {
-	sprintf(error_string, "The last argument to a filter must be a tuple of type xy:2 or ra:2.");
-	JUMP(1);
+	g_assert(*argp == 0);
+
+	tree = alloc_exprtree();
+
+	tree->type = EXPR_FILTER_CLOSURE;
+	tree->val.filter_closure.filter = filter;
+	tree->val.filter_closure.args = args;
+
+	tree->result.number = image_tag_number;
+	tree->result.length = 1;
     }
+    else
+    {
+	g_assert(*argp != 0 && (*argp)->next == 0);
 
-    if ((*argp)->result.number == ra_tag_number)
-	*argp = make_function("toXY", *argp);
+	if ((*argp)->result.length != 2
+	    || ((*argp)->result.number != xy_tag_number
+		&& (*argp)->result.number != ra_tag_number))
+	{
+	    sprintf(error_string, "The last argument to a filter must be a tuple of type xy:2 or ra:2.");
+	    JUMP(1);
+	}
 
-    g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
+	if ((*argp)->result.number == ra_tag_number)
+	    *argp = make_function("toXY", *argp);
 
-    tree = alloc_exprtree();
+	g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
 
-    tree->type = EXPR_FILTER_CALL;
-    tree->val.filter_call.filter = filter;
-    tree->val.filter_call.args = args;
+	tree = alloc_exprtree();
 
-    tree->result.number = rgba_tag_number;
-    tree->result.length = 4;
+	tree->type = EXPR_FILTER_CALL;
+	tree->val.filter_call.filter = filter;
+	tree->val.filter_call.args = args;
+
+	tree->result.number = rgba_tag_number;
+	tree->result.length = 4;
+    }
 
     return tree;
 }
