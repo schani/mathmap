@@ -46,6 +46,7 @@
 #define IN_COMPILED_CODE
 
 #include "$include/opmacros.h"
+#include "$include/pools.h"
 
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))
@@ -209,6 +210,8 @@ typedef struct _mathmap_slice_t
 
     xy_const_vars_t *xy_vars;
     y_const_vars_t *y_vars;
+
+    pools_t pools;
 } mathmap_slice_t;
 
 #ifdef OPENSTEP
@@ -298,7 +301,7 @@ extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int co
 
 $filter_begin
 static color_t
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments);
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, pools_t *pools);
 $filter_end
 
 static inline void
@@ -339,6 +342,10 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
     xy_const_vars_t *xy_vars = slice->xy_vars;
+    pools_t pixel_pools;
+    pools_t *pools;
+
+    init_pools(&pixel_pools);
 
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
@@ -360,9 +367,13 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
 	unsigned char *p = q;
 
+	pools = &slice->pools;
+
 	$x_decls
 
 	$x_code
+
+	pools = &pixel_pools;
 
 	for (col = 0; col < slice->region_width; ++col)
 	{
@@ -377,6 +388,8 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 
 	    if (invocation->do_debug)
 		invocation->num_debug_tuples = 0;
+
+	    reset_pools(pools);
 
 	    {
 		$m
@@ -393,6 +406,8 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	if (!invocation->supersampling)
 	    invocation->rows_finished[row] = 1;
     }
+
+    free_pools(&pixel_pools);
 }
 
 static void
@@ -468,7 +483,7 @@ mathmapinit (mathmap_invocation_t *invocation)
 
 $filter_begin
 static color_t
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments)
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, pools_t *pools)
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
     float x = ARG($num_args - 2).v.float_const;

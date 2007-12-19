@@ -36,6 +36,8 @@
 #include "compiler.h"
 #include "color.h"
 
+#include "lispreader/pools.h"
+
 #ifndef OPENSTEP
 #include <libgimp/gimp.h>
 #endif
@@ -165,6 +167,8 @@ typedef struct _mathmap_slice_t
 
     void *xy_vars;
     void *y_vars;
+
+    pools_t pools;
 } mathmap_slice_t;
 
 typedef struct

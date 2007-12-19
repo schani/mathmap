@@ -697,6 +697,8 @@ init_slice (mathmap_slice_t *slice, mathmap_invocation_t *invocation, int region
     slice->sampling_offset_x = sampling_offset_x;
     slice->sampling_offset_y = sampling_offset_y;
 
+    init_pools(&slice->pools);
+
     init_frame(slice);
 }
 
@@ -707,6 +709,7 @@ deinit_slice (mathmap_slice_t *slice)
 	free(slice->xy_vars);
     if (slice->y_vars)
 	free(slice->y_vars);
+    free_pools(&slice->pools);
 }
 
 static void

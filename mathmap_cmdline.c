@@ -283,7 +283,7 @@ cmdline_main (int argc, char *argv[])
     int antialiasing = 0, supersampling = 0;
     int img_width, img_height;
     char *generator = 0;
-    char *template_filename, *opmacros_filename;
+    char *template_filename;
     userval_info_t *userval_info;
     int drawable_index;
     int size_is_set = 0;

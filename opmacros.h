@@ -182,4 +182,6 @@ typedef struct
 #define CALC_VIRTUAL_X(pxl,origin,scale,middle,sampl_off)	(((float)((pxl)+(origin)) + (sampl_off)) * (scale) - (middle))
 #define CALC_VIRTUAL_Y(pxl,origin,scale,middle,sampl_off)	((-(float)((pxl)+(origin)) - (sampl_off)) * (scale) + (middle))
 
+#define POOLS_ALLOC(s)			(pools_alloc(pools, (s)))
+
 #endif
