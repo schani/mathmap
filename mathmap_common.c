@@ -28,6 +28,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <pthread.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -761,69 +762,128 @@ call_invocation (mathmap_invocation_t *invocation, int region_x, int region_y, i
 
 typedef struct
 {
+    thread_handle_t thread_handle;
     mathmap_invocation_t *invocation;
     int region_x, region_y;
     int region_height, region_width;
     unsigned char *q;
 } thread_data_t;
 
-static gpointer
+typedef struct
+{
+    int num_threads;
+    thread_data_t datas[];
+} invocation_call_t;
+
+static void
 call_invocation_thread_func (gpointer _data)
 {
     thread_data_t *data = (thread_data_t*)_data;
 
-    call_invocation (data->invocation, data->region_x, data->region_y, data->region_width, data->region_height, data->q);
-
-    return NULL;
+    call_invocation (data->invocation, data->region_x, data->region_y,
+		     data->region_width, data->region_height, data->q);
 }
 
-void
+gpointer
 call_invocation_parallel (mathmap_invocation_t *invocation,
 			  int region_x, int region_y, int region_width, int region_height,
 			  unsigned char *q, int num_threads)
 {
-    GThread *threads[num_threads];
-    thread_data_t datas[num_threads];
+    invocation_call_t *call;
     int i;
     int first_row = region_y;
     int last_row = region_y + region_height;
 
-    assert(first_row >= 0 && last_row <= invocation->img_height && first_row <= last_row);
+    g_assert(first_row >= 0 && last_row <= invocation->img_height && first_row <= last_row);
 
     memset(invocation->rows_finished + first_row, 0, last_row - first_row);
 
-    if (num_threads < 2 || !(invocation->mathmap->flags & MATHMAP_FLAG_NATIVE))
-    {
-	call_invocation (invocation, region_x, region_y, region_width, region_height, q);
-	return;
-    }
+    if (!(invocation->mathmap->flags & MATHMAP_FLAG_NATIVE))
+	num_threads = 1;
 
-    if (!g_thread_supported())
-	g_thread_init(NULL);
+    call = g_malloc(sizeof(invocation_call_t) + sizeof(thread_data_t) * num_threads);
+
+    call->num_threads = num_threads;
 
     for (i = 0; i < num_threads; ++i)
     {
-	datas[i].invocation = invocation;
-	datas[i].region_x = region_x;
-	datas[i].region_width = region_width;
-	datas[i].region_y = first_row + (last_row - first_row) * i / num_threads;
-	datas[i].region_height = first_row + (last_row - first_row) * (i + 1) / num_threads - datas[i].region_y;
-	datas[i].q = q + (datas[i].region_y - region_y) * invocation->row_stride;
+	call->datas[i].invocation = invocation;
+	call->datas[i].region_x = region_x;
+	call->datas[i].region_width = region_width;
+	call->datas[i].region_y = first_row + (last_row - first_row) * i / num_threads;
+	call->datas[i].region_height = first_row + (last_row - first_row) * (i + 1) / num_threads - call->datas[i].region_y;
+	call->datas[i].q = q + (call->datas[i].region_y - region_y) * invocation->row_stride;
 
-	//call_invocation_thread_func (&datas[i]);
+	call->datas[i].thread_handle = mathmap_thread_start(call_invocation_thread_func, &call->datas[i]);
 
-	if (i > 0) {
-	    threads[i] = g_thread_create(call_invocation_thread_func, &datas[i], TRUE, NULL);
-
-	    g_assert (threads[i] != NULL);
-	}
+	g_assert (call->datas[i].thread_handle != NULL);
     }
 
-    call_invocation_thread_func (&datas[0]);
-
-    for (i = 1; i < num_threads; ++i)
-	g_thread_join(threads[i]);
+    return call;
 }
+
+void
+join_invocation_call (gpointer *_call)
+{
+    invocation_call_t *call = (invocation_call_t*)_call;
+    int i;
+
+    for (i = 0; i < call->num_threads; ++i)
+	mathmap_thread_join(call->datas[i].thread_handle);
+
+    g_free(call);    
+}
+
+void
+kill_invocation_call (gpointer *_call)
+{
+    invocation_call_t *call = (invocation_call_t*)_call;
+    int i;
+
+    for (i = 0; i < call->num_threads; ++i)
+	mathmap_thread_kill(call->datas[i].thread_handle);
+
+    g_free(call);    
+}
+
+void
+call_invocation_parallel_and_join (mathmap_invocation_t *invocation,
+				   int region_x, int region_y, int region_width, int region_height,
+				   unsigned char *q, int num_threads)
+{
+    gpointer call = call_invocation_parallel(invocation, region_x, region_y,
+					     region_width, region_height, q, num_threads);
+
+    join_invocation_call(call);
+}
+
+#ifdef USE_PTHREADS
+thread_handle_t
+mathmap_thread_start (void (*func) (gpointer), gpointer data)
+{
+    pthread_t *pthread = g_new0(pthread_t, 1);
+    int result;
+
+    result = pthread_create(pthread, NULL, (gpointer (*) (gpointer))func, data);
+    g_assert(result == 0);
+
+    return pthread;
+}
+
+void
+mathmap_thread_join (thread_handle_t thread)
+{
+    pthread_join(*thread, NULL);
+    g_free(thread);
+}
+
+void
+mathmap_thread_kill (thread_handle_t thread)
+{
+    pthread_kill(*thread, SIGTERM);
+    mathmap_thread_join(thread);
+}
+#endif
 
 void
 carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template)

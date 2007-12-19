@@ -517,7 +517,7 @@ cmdline_main (int argc, char *argv[])
 
 	    update_image_internals(invocation);
 
-	    call_invocation_parallel(invocation, 0, 0, img_width, img_height, output, 1);
+	    call_invocation_parallel_and_join(invocation, 0, 0, img_width, img_height, output, 1);
 
 #ifdef MOVIES
 	    if (generate_movie)

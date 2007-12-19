@@ -35,7 +35,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.2.4
+VERSION = 1.2.5
 
 OPT_CFLAGS := -O2
 #OPT_CFLAGS := -g -DDEBUG_OUTPUT
@@ -62,7 +62,7 @@ GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
 
-CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS)
+CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas
 
 ifeq ($(MOVIES),YES)

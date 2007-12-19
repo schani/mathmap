@@ -932,7 +932,8 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->row_stride = dest_rgn.rowstride;
 	    invocation->output_bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(output_drawable));
 
-	    call_invocation_parallel(invocation, region_x, region_y, region_width, region_height, dest_rgn.data, 1);
+	    call_invocation_parallel_and_join(invocation, region_x, region_y, region_width, region_height,
+					      dest_rgn.data, 1);
 
 	    /* Update progress */
 	    progress += region_width * region_height;
@@ -1707,10 +1708,10 @@ recalculate_preview (void)
 
 	if (previewing) {
 	    for_each_input_drawable(build_fast_image_source);
-	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, get_num_cpus());
+	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, get_num_cpus());
 	}
 	else
-	    call_invocation_parallel(invocation, 0, 0, preview_width, preview_height, buf, 1);
+	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, 1);
 
 	invocation->scale_x = old_scale_x;
 	invocation->scale_y = old_scale_y;
