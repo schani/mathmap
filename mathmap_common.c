@@ -767,6 +767,7 @@ typedef struct
     int region_x, region_y;
     int region_height, region_width;
     unsigned char *q;
+    gboolean is_done;
 } thread_data_t;
 
 typedef struct
@@ -782,6 +783,8 @@ call_invocation_thread_func (gpointer _data)
 
     call_invocation (data->invocation, data->region_x, data->region_y,
 		     data->region_width, data->region_height, data->q);
+
+    data->is_done = TRUE;
 }
 
 gpointer
@@ -813,6 +816,7 @@ call_invocation_parallel (mathmap_invocation_t *invocation,
 	call->datas[i].region_y = first_row + (last_row - first_row) * i / num_threads;
 	call->datas[i].region_height = first_row + (last_row - first_row) * (i + 1) / num_threads - call->datas[i].region_y;
 	call->datas[i].q = q + (call->datas[i].region_y - region_y) * invocation->row_stride;
+	call->datas[i].is_done = FALSE;
 
 	call->datas[i].thread_handle = mathmap_thread_start(call_invocation_thread_func, &call->datas[i]);
 
@@ -844,6 +848,18 @@ kill_invocation_call (gpointer *_call)
 	mathmap_thread_kill(call->datas[i].thread_handle);
 
     g_free(call);    
+}
+
+gboolean
+invocation_call_is_done (gpointer *_call)
+{
+    invocation_call_t *call = (invocation_call_t*)_call;
+    int i;
+
+    for (i = 0; i < call->num_threads; ++i)
+	if (!call->datas[i].is_done)
+	    return FALSE;
+    return TRUE;
 }
 
 void

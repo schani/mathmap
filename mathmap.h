@@ -223,6 +223,7 @@ void call_invocation_parallel_and_join (mathmap_invocation_t *invocation,
 
 void join_invocation_call (gpointer *_call);
 void kill_invocation_call (gpointer *_call);
+gboolean invocation_call_is_done (gpointer *_call);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
 
