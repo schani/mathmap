@@ -1,5 +1,6 @@
 syntax: glob
 .svn
+*.o
 *~
 builtins_doc.html
 compiler_types.h
@@ -10,3 +11,5 @@ scanner.c
 lispreader
 lisp-utils
 rwimg
+TAGS
+mathmap
