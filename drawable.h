@@ -34,6 +34,8 @@
 #endif
 
 #include "color.h"
+#include "userval.h"
+#include "lispreader/pools.h"
 
 #define INPUT_DRAWABLE_GIMP			1
 #define INPUT_DRAWABLE_CMDLINE_IMAGE		2
@@ -44,8 +46,33 @@
 struct _cache_entry_t;
 #endif
 
-typedef struct {
+#define IMAGE_DRAWABLE		1
+#define IMAGE_CLOSURE		2
+
+typedef color_t (*filter_func_t) (struct _mathmap_invocation_t*,
+				  struct _userval_t*,
+				  float, float,
+				  pools_t*);
+
+struct _input_drawable_t;
+
+typedef struct _image_t
+{
+    int type;
+    union
+    {
+	struct _input_drawable_t *drawable;
+	struct {
+	    filter_func_t func;
+	    userval_t args[];
+	} closure;
+    } v;
+} image_t;
+
+typedef struct _input_drawable_t {
     gboolean used;
+
+    image_t image;
 
     int kind;
 

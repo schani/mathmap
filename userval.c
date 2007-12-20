@@ -264,17 +264,17 @@ calc_image_values (userval_info_t *info, userval_t *val)
     int width, height;
 
     g_assert(info->type == USERVAL_IMAGE);
-    g_assert(val->v.image.type == IMAGE_DRAWABLE);
-    g_assert(val->v.image.v.drawable != NULL);
+    g_assert(val->v.image->type == IMAGE_DRAWABLE);
+    g_assert(val->v.image->v.drawable != NULL);
 
-    width = val->v.image.v.drawable->width;
-    height = val->v.image.v.drawable->height;
+    width = val->v.image->v.drawable->width;
+    height = val->v.image->v.drawable->height;
 
     calc_scale_factors(info->v.image.flags, width, height,
-		       &val->v.image.v.drawable->scale_x, &val->v.image.v.drawable->scale_y);
+		       &val->v.image->v.drawable->scale_x, &val->v.image->v.drawable->scale_y);
     calc_middle_values(width, height, 
-		       1.0 / val->v.image.v.drawable->scale_x, 1.0 / val->v.image.v.drawable->scale_y,
-		       &val->v.image.v.drawable->middle_x, &val->v.image.v.drawable->middle_y);
+		       1.0 / val->v.image->v.drawable->scale_x, 1.0 / val->v.image->v.drawable->scale_y,
+		       &val->v.image->v.drawable->middle_x, &val->v.image->v.drawable->middle_y);
 }
 
 void
@@ -332,8 +332,7 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_IMAGE :
-	    val->v.image.type = IMAGE_DRAWABLE;
-	    val->v.image.v.drawable = 0;
+	    val->v.image = NULL;
 	    /*
 	    get_default_input_drawable();
 	    if (val->v.image.drawable != 0)
@@ -400,9 +399,10 @@ free_uservals (userval_t *uservals, userval_info_t *infos)
 		break;
 
 	    case USERVAL_IMAGE :
-		if (uservals[info->index].v.image.type == IMAGE_DRAWABLE) {
-		    g_assert(uservals[info->index].v.image.v.drawable);
-		    free_input_drawable(uservals[info->index].v.image.v.drawable);
+		g_assert(uservals[info->index].v.image != NULL);
+		if (uservals[info->index].v.image->type == IMAGE_DRAWABLE) {
+		    g_assert(uservals[info->index].v.image->v.drawable);
+		    free_input_drawable(uservals[info->index].v.image->v.drawable);
 		}
 		break;
 	}
@@ -439,19 +439,22 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    {
 		input_drawable_t *dst_drawable;
 
-		g_assert (src->v.image.type == IMAGE_DRAWABLE);
+		g_assert (src->v.image != NULL);
+		g_assert (src->v.image->type == IMAGE_DRAWABLE);
 
-		if (dst->v.image.type == IMAGE_DRAWABLE)
-		    dst_drawable = dst->v.image.v.drawable;
+		if (dst->v.image->type == IMAGE_DRAWABLE)
+		    dst_drawable = dst->v.image->v.drawable;
 		else
 		    dst_drawable = NULL;
 
-		dst->v.image.type = IMAGE_DRAWABLE;
+		if (src->v.image->v.drawable != 0)
+		{
+		    input_drawable_t *copy = copy_input_drawable(src->v.image->v.drawable);
 
-		if (src->v.image.v.drawable != 0)
-		    dst->v.image.v.drawable = copy_input_drawable(src->v.image.v.drawable);
+		    dst->v.image = &copy->image;
+		}
 		else
-		    dst->v.image.v.drawable = 0;
+		    dst->v.image = 0;
 
 		if (dst_drawable != 0)
 		    free_input_drawable(dst_drawable);
@@ -477,12 +480,15 @@ assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawa
     g_assert(info->type == USERVAL_IMAGE);
     g_assert(val->type == USERVAL_IMAGE);
 
-    g_assert(val->v.image.type == IMAGE_DRAWABLE);
+    if (val->v.image != NULL)
+    {
+	g_assert(val->v.image->type == IMAGE_DRAWABLE);
 
-    if (val->v.image.v.drawable != 0)
-	free_input_drawable(val->v.image.v.drawable);
+	if (val->v.image->v.drawable != NULL)
+	    free_input_drawable(val->v.image->v.drawable);
+    }
 
-    val->v.image.v.drawable = drawable;
+    val->v.image = &drawable->image;
 
     calc_image_values(info, val);
 }
@@ -534,10 +540,11 @@ user_image_update (gint32 id, void **user_data)
     userval_t *userval = (userval_t*)user_data[1];
     GimpDrawable *drawable;
 
-    g_assert(userval->v.image.type == IMAGE_DRAWABLE);
+    g_assert(userval->v.image != NULL);
+    g_assert(userval->v.image->type == IMAGE_DRAWABLE);
 
-    if (userval->v.image.v.drawable != 0
-	&& get_gimp_input_drawable(userval->v.image.v.drawable) == gimp_drawable_get(id))
+    if (userval->v.image->v.drawable != 0
+	&& get_gimp_input_drawable(userval->v.image->v.drawable) == gimp_drawable_get(id))
 	return;
 
     drawable = gimp_drawable_get(id);
@@ -718,7 +725,8 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    gint32 drawable_id = -1;
 		    void **user_data;
 
-		    g_assert(uservals[info->index].v.image.type == IMAGE_DRAWABLE);
+		    g_assert(uservals[info->index].v.image != NULL);
+		    g_assert(uservals[info->index].v.image->type == IMAGE_DRAWABLE);
 
 		    /* FIXME: extremely ugly hack - memory will never be reclaimed! */
 		    user_data = (void**)malloc(sizeof(void*) * 2);
@@ -726,9 +734,9 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    user_data[0] = info;
 		    user_data[1] = &uservals[info->index];
 
-		    if (uservals[info->index].v.image.v.drawable != 0)
+		    if (uservals[info->index].v.image->v.drawable != 0)
 		    {
-			GimpDrawable *drawable = get_gimp_input_drawable(uservals[info->index].v.image.v.drawable);
+			GimpDrawable *drawable = get_gimp_input_drawable(uservals[info->index].v.image->v.drawable);
 
 			if (drawable != 0)
 			    drawable_id = GIMP_DRAWABLE_ID(drawable);

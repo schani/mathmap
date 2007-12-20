@@ -167,6 +167,7 @@ typedef struct _operation_t
 #define RHS_INTERNAL         2
 #define RHS_OP               3
 #define RHS_FILTER	     4
+#define RHS_CLOSURE	     5
 
 typedef struct
 {
@@ -185,6 +186,11 @@ typedef struct
 	    filter_t *filter;
 	    primary_t *args;
 	} filter;
+	struct
+	{
+	    filter_t *filter;
+	    primary_t *args;
+	} closure;
     } v;
 } rhs_t;
 
@@ -667,6 +673,18 @@ make_filter_rhs (filter_t *filter, primary_t *args)
     return rhs;
 }
 
+static rhs_t*
+make_closure_rhs (filter_t *filter, primary_t *args)
+{
+    rhs_t *rhs = alloc_rhs();
+
+    rhs->kind = RHS_CLOSURE;
+    rhs->v.closure.filter = filter;
+    rhs->v.closure.args = args;
+
+    return rhs;
+}
+
 statement_t*
 find_phi_assign (statement_t *stmts, compvar_t *compvar)
 {
@@ -725,6 +743,19 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 		return 0;
 	    }
 	    break;
+
+	case RHS_CLOSURE :
+	    {
+		int num_args = num_filter_args(rhs->v.closure.filter);
+		int i;
+
+		for (i = 0; i < num_args - 2; ++i)
+		    if (rhs->v.closure.args[i].kind == PRIMARY_VALUE
+			&& rhs->v.closure.args[i].v.value == val)
+			return &rhs->v.closure.args[i];
+		return 0;
+	    }
+	    break;
     }
 
     return 0;
@@ -755,6 +786,19 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), vo
 	for (i = 0; i < num_args; ++i)
 	{
 	    primary_t *arg = &rhs->v.filter.args[i];
+
+	    if (arg->kind == PRIMARY_VALUE)
+		func(arg->v.value, info);
+	}
+    }
+    else if (rhs->kind == RHS_CLOSURE)
+    {
+	int num_args = num_filter_args(rhs->v.closure.filter);
+	int i;
+
+	for (i = 0; i < num_args; ++i)
+	{
+	    primary_t *arg = &rhs->v.closure.args[i];
 
 	    if (arg->kind == PRIMARY_VALUE)
 		func(arg->v.value, info);
@@ -1445,6 +1489,20 @@ print_rhs (rhs_t *rhs)
 	    }
 	    break;
 
+	case RHS_CLOSURE :
+	    {
+		int num_args = num_filter_args(rhs->v.closure.filter);
+		int i;
+
+		printf("closure_%s", rhs->v.closure.filter->decl->name);
+		for (i = 0; i < num_args - 2; ++i)
+		{
+		    printf(" ");
+		    print_primary(&rhs->v.closure.args[i]);
+		}
+	    }
+	    break;
+
 	default :
 	    g_assert_not_reached();
     }
@@ -2046,6 +2104,29 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    }
 	    break;
 
+	case EXPR_FILTER_CLOSURE :
+	    {
+		compvar_t ***args;
+		int *arglengths, *argnumbers;
+		primary_t *arg_primaries;
+		int num_args = num_filter_args(tree->val.filter_closure.filter) - 2;
+		int i;
+
+		args = gen_args(tree->val.filter_closure.args, &arglengths, &argnumbers);
+
+		arg_primaries = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
+
+		for (i = 0; i < num_args; ++i)
+		{
+		    g_assert(arglengths[i] == 1);
+		    arg_primaries[i] = make_compvar_primary(args[i][0]);
+		}
+
+		dest[0] = make_temporary(TYPE_IMAGE);
+		emit_assign(make_lhs(dest[0]), make_closure_rhs(tree->val.filter_closure.filter, arg_primaries));
+	    }
+	    break;
+
 	default :
 	    g_assert_not_reached();
    }
@@ -2166,6 +2247,9 @@ rhs_type (rhs_t *rhs)
 
 	case RHS_FILTER :
 	    return TYPE_COLOR;
+
+	case RHS_CLOSURE :
+	    return TYPE_IMAGE;
 
 	default :
 	    g_assert_not_reached();
@@ -2291,6 +2375,11 @@ rhs_constant (rhs_t *rhs)
 	    /* FIXME: Improve on this.  For each filter figure out
 	       whether it's pure.  Then handle pure filters like
 	       ops. */
+	    return CONST_NONE;
+
+	case RHS_CLOSURE :
+	    /* FIXME: Improve on this.  Handle the closure like an
+	       op. */
 	    return CONST_NONE;
 
 	default :
@@ -2961,9 +3050,16 @@ simplify_ops (void)
 static gboolean
 rhs_is_pure (rhs_t *rhs)
 {
-    if (rhs->kind != RHS_OP && rhs->kind != RHS_FILTER)
-	return TRUE;
-    return rhs->v.op.op->is_pure;
+    switch (rhs->kind)
+    {
+	case RHS_OP:
+	    return rhs->v.op.op->is_pure;
+	case RHS_FILTER :
+	    /* FIXME: We can figure this out. */
+	    return FALSE;
+	default :
+	    return TRUE;
+    }
 }
 
 static value_list_t*
@@ -3398,6 +3494,20 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 	    return 1;
 	}
 
+	case RHS_CLOSURE :
+	{
+	    int num_args = num_filter_args(rhs1->v.closure.filter);
+	    int i;
+
+	    if (rhs1->v.closure.filter != rhs2->v.closure.filter)
+		return 0;
+
+	    for (i = 0; i < num_args - 2; ++i)
+		if (!primaries_equal(&rhs1->v.closure.args[i], &rhs2->v.closure.args[i]))
+		    return 0;
+	    return 1;
+	}
+
 	default :
 	    g_assert_not_reached();
     }
@@ -3806,6 +3916,30 @@ emit_pre_native_assign_with_filter_rhs (value_t *lhs, rhs_t *rhs)
 }
 
 static void
+emit_pre_native_assign_with_closure_rhs (value_t *lhs, rhs_t *rhs)
+{
+    type_t lhs_type = lhs->compvar->type;
+    type_t *arg_types;
+    primary_t *args;
+    int num_args;
+    statement_t *stmts;
+
+    g_assert(rhs->kind == RHS_CLOSURE);
+
+    arg_types = get_filter_arg_types(rhs->v.closure.filter, &num_args);
+
+    args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * (num_args - 2));
+
+    convert_args(num_args - 2, arg_types, args, rhs->v.closure.args);
+
+    g_assert (lhs_type == TYPE_COLOR);
+
+    stmts = make_assign(lhs, make_filter_rhs(rhs->v.closure.filter, args));
+
+    generate_pre_native_assigns(stmts);
+}
+
+static void
 emit_pre_native_assign_with_conversion (value_t *lhs, rhs_t *rhs, statement_t *stmt)
 {
     type_t lhs_type = lhs->compvar->type;
@@ -3831,6 +3965,10 @@ emit_pre_native_assign_with_conversion (value_t *lhs, rhs_t *rhs, statement_t *s
 
 	case RHS_FILTER :
 	    emit_pre_native_assign_with_filter_rhs(lhs, rhs);
+	    break;
+
+	case RHS_CLOSURE :
+	    emit_pre_native_assign_with_closure_rhs(lhs, rhs);
 	    break;
 
 	default :
@@ -4041,6 +4179,15 @@ typecheck_pre_native_code (void)
 
 			    for (i = 0; i < num_args; ++i)
 				g_assert(primary_type(&rhs->v.filter.args[i]) == arg_types[i]);
+			}
+			else if (rhs->kind == RHS_CLOSURE)
+			{
+			    int num_args;
+			    type_t *arg_types = get_filter_arg_types(rhs->v.closure.filter, &num_args);
+			    int i;
+
+			    for (i = 0; i < num_args - 2; ++i)
+				g_assert(primary_type(&rhs->v.closure.args[i]) == arg_types[i]);
 			}
 		    }
 		}
@@ -4515,7 +4662,33 @@ output_rhs (FILE *out, rhs_t *rhs)
 		    fprintf(out, "; ");
 		}
 
-		fprintf(out, "filter_%s(invocation, args, pools); })", rhs->v.filter.filter->decl->name);
+		fprintf(out, "filter_%s(invocation, args, ", rhs->v.filter.filter->decl->name);
+		output_primary(out, &rhs->v.filter.args[num_args - 2]);
+		fprintf(out, ", ");
+		output_primary(out, &rhs->v.filter.args[num_args - 1]);
+		fprintf(out, ", pools); })");
+	    }
+	    break;
+
+	case RHS_CLOSURE :
+	    {
+		int i;
+		int num_args = num_filter_args(rhs->v.filter.filter) - 2;
+		userval_info_t *info;
+
+		fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.filter.filter->decl->name);
+
+		for (i = 0, info = rhs->v.closure.filter->userval_infos;
+		     info != 0;
+		     ++i, info = info->next)
+		{
+		    fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
+		    output_primary(out, &rhs->v.filter.args[i]);
+		    fprintf(out, "; ");
+		}
+		g_assert(i == num_args);
+
+		fprintf(out, "image; })");
 	    }
 	    break;
 

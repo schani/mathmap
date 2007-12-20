@@ -87,13 +87,14 @@ typedef unsigned int color_t;
 #define IMAGE_DRAWABLE		1
 #define IMAGE_CLOSURE		2
 
-typedef struct
-{
-    int type;
-    union {
-	void *drawable;
-    } v;
-} image_t;
+struct _mathmap_invocation_t;
+struct _userval_t;
+struct _image_t;
+
+typedef color_t (*filter_func_t) (struct _mathmap_invocation_t*,
+				  struct _userval_t*,
+				  float, float,
+				  pools_t*);
 
 typedef struct _userval_t
 {
@@ -104,7 +105,7 @@ typedef struct _userval_t
 	int int_const;
 	float float_const;
 	float bool_const;
-	image_t image;
+	struct _image_t *image;
 
 	struct
 	{
@@ -129,6 +130,18 @@ typedef struct _userval_t
     void *widget;
 #endif
 } userval_t;
+
+typedef struct _image_t
+{
+    int type;
+    union {
+	void *drawable;
+	struct {
+	    filter_func_t func;
+	    userval_t args[];
+	} closure;
+    } v;
+} image_t;
 
 typedef struct _mathmap_t
 {
@@ -159,7 +172,6 @@ typedef struct
     $y_decls
 } y_const_vars_t;
 
-struct _mathmap_invocation_t;
 struct _mathmap_slice_t;
 
 typedef void (*init_frame_func_t) (struct _mathmap_slice_t*);
@@ -307,7 +319,7 @@ extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int co
 
 $filter_begin
 static color_t
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, pools_t *pools);
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, pools_t *pools);
 $filter_end
 
 static inline void
@@ -420,7 +432,7 @@ static void
 init_frame (mathmap_slice_t *slice)
 {
     mathmap_invocation_t *invocation = slice->invocation;
-    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
@@ -489,11 +501,9 @@ mathmapinit (mathmap_invocation_t *invocation)
 
 $filter_begin
 static color_t
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, pools_t *pools)
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, pools_t *pools)
 {
-    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
-    float x = ARG($num_args - 2).v.float_const;
-    float y = ARG($num_args - 1).v.float_const;
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     float t = 0.0;
     int frame = 0;
     float X = invocation->image_X, Y = invocation->image_Y;

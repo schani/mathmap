@@ -31,6 +31,7 @@
 #include "tuples.h"
 #include "exprtree.h"
 #include "userval.h"
+#include "drawable.h"
 
 #include "compiler_types.h"
 #include "opmacros.h"
