@@ -251,6 +251,7 @@ int get_num_cpus (void);
 #endif
 
 #ifdef USE_PTHREADS
+#include <pthread.h>
 typedef pthread_t* thread_handle_t;
 #else
 typedef gpointer thread_handle_t;
@@ -259,5 +260,7 @@ typedef gpointer thread_handle_t;
 thread_handle_t mathmap_thread_start (void (*func) (gpointer), gpointer data);
 void mathmap_thread_join (thread_handle_t thread);
 void mathmap_thread_kill (thread_handle_t thread);
+
+#define CALLBACK_SYMBOL __attribute((visibility("default")))
 
 #endif

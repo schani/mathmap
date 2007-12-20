@@ -115,6 +115,7 @@ copy_input_drawable (input_drawable_t *drawable)
     return copy;
 }
 
+#ifndef OPENSTEP
 input_drawable_t*
 get_default_input_drawable (void)
 {
@@ -127,6 +128,7 @@ get_default_input_drawable (void)
 	    return &input_drawables[i];
     return 0;
 }
+#endif
 
 int
 get_num_input_drawables (void)
