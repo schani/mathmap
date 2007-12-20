@@ -4491,7 +4491,7 @@ output_rhs (FILE *out, rhs_t *rhs)
 		    fprintf(out, "; ");
 		}
 
-		fprintf(out, "filter_%s(invocation, args); })", rhs->v.filter.filter->decl->name);
+		fprintf(out, "filter_%s(invocation, args, pools); })", rhs->v.filter.filter->decl->name);
 	    }
 	    break;
 
