@@ -23,7 +23,7 @@
 (load "lisp-utils/let-match.lisp")
 
 (defpackage "MATHMAP"
-  (:use "CL" "UTILS" "LET-MATCH"))
+  (:use "CL" #+clisp "EXT" "UTILS" "LET-MATCH"))
 
 (in-package :mathmap)
 
