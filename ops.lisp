@@ -22,36 +22,53 @@
 (in-package :mathmap)
 
 ;;; types
-(defstruct (rt-type (:type list))
-  name c-type print-info elements)
+(defstruct (rt-type (:constructor make-rt-type
+				  (name c-type &key print-info elements printer comparer)))
+  name
+  c-type
+  print-info
+  elements
+  printer
+  comparer)
 
 (defun rt-type-c-define (type)
   (format nil "TYPE_~A" (ucs (rt-type-name type))))
 
-(defparameter *types* '((nil         nil            ("NIL" "NIL" ()))
-			(int        "int"           ("%d" "%d" ("~A")))
-			(float      "float"         ("%f" "%f" ("~A")))
-			(complex    "complex float" ("%f + %f i"
-						     "COMPLEX(%f,%f)"
-						     ("crealf(~A)" "cimagf(~A)")))
-			(color      "color_t"       ("(%d,%d,%d,%d)" "MAKE_RGBA_COLOR(%d,%d,%d,%d)"
-						     ("RED(~A)" "GREEN(~A)" "BLUE(~A)" "ALPHA(~A)")))
-			(image      "image_t"       ("DRAWABLE(%p)" "MAKE_INPUT_IMAGE(%p)"
-						     ("(~A).drawable"))
-			            ("drawable"))
-			(gsl-matrix "gsl_matrix *"  ("***MATRIX***" "***MATRIX***" ()))
-			(v2         "mm_v2_t"       ("[%f,%f]" "MAKE_V2(%f,%f)"
-						     ("~A.v[0]" "~A.v[1]"))
-				    ("v[0]" "v[1]"))
-			(v3         "mm_v3_t"       ("[%f,%f,%f]" "MAKE_V3(%f,%f,%f)"
-						     ("~A.v[0]" "~A.v[1]" "~A.v[2]"))
-				    ("v[0]" "v[1]" "v[2]"))
-			(m2x2       "mm_m2x2_t"     ("[[%f,%f],[%f,%f]]" "MAKE_M2X2(%f,%f,%f,%f)"
-						     ("~A.a00" "~A.a01" "~A.a10" "~A.a11"))
-				    ("a00" "a01" "a10" "a11"))))
+(defparameter *types*
+  (list
+   (make-rt-type nil nil
+		 :print-info '("NIL" "NIL" ()))
+   (make-rt-type 'int "int"
+		 :print-info '("%d" "%d" ("~A")))
+   (make-rt-type 'float "float"
+		 :print-info '("%f" "%f" ("~A")))
+   (make-rt-type 'complex "complex float"
+		 :print-info '("%f + %f i"
+			       "COMPLEX(%f,%f)"
+			       ("crealf(~A)" "cimagf(~A)")))
+   (make-rt-type 'color "color_t"
+		 :print-info '("(%d,%d,%d,%d)" "MAKE_RGBA_COLOR(%d,%d,%d,%d)"
+			       ("RED(~A)" "GREEN(~A)" "BLUE(~A)" "ALPHA(~A)")))
+   (make-rt-type 'image "image_t *"
+		 :printer "print_image"
+		 :comparer "images_equal")
+   (make-rt-type 'gsl-matrix "gsl_matrix *"
+		 :print-info '("***MATRIX***" "***MATRIX***" ()))
+   (make-rt-type 'v2 "mm_v2_t"
+		 :print-info '("[%f,%f]" "MAKE_V2(%f,%f)"
+			       ("~A.v[0]" "~A.v[1]"))
+		 :elements '("v[0]" "v[1]"))
+   (make-rt-type 'v3 "mm_v3_t"
+		 :print-info '("[%f,%f,%f]" "MAKE_V3(%f,%f,%f)"
+			       ("~A.v[0]" "~A.v[1]" "~A.v[2]"))
+		 :elements '("v[0]" "v[1]" "v[2]"))
+   (make-rt-type 'm2x2 "mm_m2x2_t"
+		 :print-info '("[[%f,%f],[%f,%f]]" "MAKE_M2X2(%f,%f,%f,%f)"
+			       ("~A.a00" "~A.a01" "~A.a10" "~A.a11"))
+		 :elements '("a00" "a01" "a10" "a11"))))
 
 (defun rt-type-with-name (name)
-  (assoc name *types*))
+  (find name *types* :key #'rt-type-name))
 
 (defparameter *int-type* (rt-type-with-name 'int))
 (defparameter *float-type* (rt-type-with-name 'float))
@@ -359,30 +376,38 @@
 			     nil
 			     (list (dcs (rt-type-name type)) (rt-type-c-type type) (rt-type-c-define type))))
 		     *types*))
-    (format out "#define MAKE_CONST_COMPARATOR \\~%~{case ~A : return ~{prim1->v.constant.~A_value~A == prim2->v.constant.~2:*~A_value~A~^ && ~};~^ \\~%~}~%~%"
+    (format out "#define MAKE_CONST_COMPARATOR \\~%~{case ~A : return ~A;~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
 			 (if (null (rt-type-c-type type))
 			     nil
 			   (list (rt-type-c-define type)
 				 (let ((dcsname (dcs (rt-type-name type))))
-				   (if (null (rt-type-elements type))
-				       (list dcsname "")
-				     (mappend #'(lambda (element)
-						  (list dcsname (string-concat "." element)))
-					      (rt-type-elements type)))))))
+				   (if (null (rt-type-comparer type))
+				       (format nil "~{prim1->v.constant.~A_value~A == prim2->v.constant.~2:*~A_value~A~^ && ~}"
+					       (if (null (rt-type-elements type))
+						   (list dcsname "")
+						   (mappend #'(lambda (element)
+								(list dcsname (string-concat "." element)))
+							    (rt-type-elements type))))
+				       (format nil "~A(prim1->v.constant.~A_value, prim2->v.constant.~:*~A_value);"
+					       (rt-type-comparer type) dcsname))))))
 		     *types*))
     (labels ((printer (name spec-accessor)
 	       (format out "#define ~A \\~%~{case ~A : ~A break;~^ \\~%~}~%~%"
 		       name
 		       (mappend #'(lambda (type)
-				    (let* ((print-info (rt-type-print-info type))
-					   (args (mapcar #'(lambda (arg-spec)
-							     (format nil arg-spec
-								     (format nil "primary->v.constant.~A_value"
-									     (dcs (rt-type-name type)))))
-							 (car (last print-info)))))
-				      (list (rt-type-c-define type)
-					    (interpret-c-format-string (funcall spec-accessor print-info) args))))
+				    (list (rt-type-c-define type)
+					  (if (null (rt-type-printer type))
+					      (let* ((print-info (rt-type-print-info type))
+						     (args (mapcar #'(lambda (arg-spec)
+								       (format nil arg-spec
+									       (format nil "primary->v.constant.~A_value"
+										       (dcs (rt-type-name type)))))
+								   (car (last print-info)))))
+						(interpret-c-format-string (funcall spec-accessor print-info) args))
+					      (format nil "~A(primary->v.constant.~A_value);"
+						      (rt-type-printer type)
+						      (dcs (rt-type-name type))))))
 				*types*))))
       (printer "TYPE_DEBUG_PRINTER" #'first)
       (printer "TYPE_C_PRINTER" #'second))))

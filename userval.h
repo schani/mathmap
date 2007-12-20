@@ -79,9 +79,16 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
+#define IMAGE_DRAWABLE		1
+#define IMAGE_CLOSURE		2
+
 typedef struct _image_t
 {
-    input_drawable_t *drawable;
+    int type;
+    union
+    {
+	input_drawable_t *drawable;
+    } v;
 } image_t;
 
 typedef struct _userval_t

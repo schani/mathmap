@@ -142,11 +142,11 @@ typedef struct
 #define USERVAL_CURVE_ACCESS(x,p)    (ARG((x)).v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
 #define USERVAL_COLOR_ACCESS(x)      (ARG((x)).v.color.value)
 #define USERVAL_GRADIENT_ACCESS(x,p) (ARG((x)).v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
-#define USERVAL_IMAGE_ACCESS(x)      (ARG((x)).v.image)
+#define USERVAL_IMAGE_ACCESS(x)      (&ARG((x)).v.image)
 
-#define UNINITED_IMAGE        ((image_t){0})
+#define UNINITED_IMAGE        (0)
 
-#define ORIG_VAL(x,y,i,f)     get_orig_val_pixel_func(invocation, (x), (y), &(i), (f))
+#define ORIG_VAL(x,y,i,f)     get_orig_val_pixel_func(invocation, (x), (y), (i), (f))
 
 #ifdef IN_COMPILED_CODE
 #ifdef OPENSTEP

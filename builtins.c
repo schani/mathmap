@@ -130,7 +130,9 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, input_drawable_t *dra
 static input_drawable_t*
 get_image_drawable (mathmap_invocation_t *invocation, image_t *image, float *x, float *y)
 {
-    input_drawable_t *drawable = image->drawable;
+    input_drawable_t *drawable = image->v.drawable;
+
+    g_assert(image->type == IMAGE_DRAWABLE);
 
     if (drawable == NULL)
 	return NULL;

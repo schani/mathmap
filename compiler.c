@@ -298,9 +298,9 @@ static type_t primary_type (primary_t *primary);
 
 #define ORIG_VAL_INTERPRETER(x,y,i,f)     ({ color_t c; \
                                  	     if (invocation->antialiasing) \
-                                     	         c = get_orig_val_intersample_pixel(invocation, (x), (y), &(i), (f)); \
+                                     	         c = get_orig_val_intersample_pixel(invocation, (x), (y), (i), (f)); \
                                  	     else \
-                                     		 c = get_orig_val_pixel(invocation, (x), (y), &(i), (f)); \
+                                     		 c = get_orig_val_pixel(invocation, (x), (y), (i), (f)); \
                                  	     c; })
 
 #define ARG(i)	(invocation->uservals[(i)])
@@ -1363,6 +1363,20 @@ print_value (value_t *val)
 	printf("%s[%d]_%d", val->compvar->var->name, val->compvar->n, val->index);
     else
 	printf("$t%d_%d", val->compvar->temp->number, val->index);
+}
+
+static void
+print_image (image_t *image)
+{
+    switch (image->type)
+    {
+	case IMAGE_DRAWABLE :
+	    printf("DRAWABLE(%p)", image->v.drawable);
+	case IMAGE_CLOSURE :
+	    printf("CLOSURE()");
+	default :
+	    g_assert_not_reached();
+    }
 }
 
 static void
@@ -3301,6 +3315,16 @@ remove_dead_controls (void)
 }
 
 /*** common subexpression eliminiation ***/
+
+static int
+images_equal (image_t *i1, image_t *i2)
+{
+    if (i1->type != i2->type)
+	return 0;
+    if (i1->type != IMAGE_DRAWABLE)
+	return 0;
+    return i1->v.drawable == i2->v.drawable;
+}
 
 static int
 primaries_equal (primary_t *prim1, primary_t *prim2)

@@ -84,9 +84,15 @@ typedef unsigned int color_t;
 #define BLUE(c)                             (((c)>>8)&0xff)
 #define ALPHA(c)                            ((c)&0xff)
 
+#define IMAGE_DRAWABLE		1
+#define IMAGE_CLOSURE		2
+
 typedef struct
 {
-    void *drawable;
+    int type;
+    union {
+	void *drawable;
+    } v;
 } image_t;
 
 typedef struct _userval_t
