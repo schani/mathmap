@@ -781,6 +781,8 @@ call_invocation_thread_func (gpointer _data)
 {
     thread_data_t *data = (thread_data_t*)_data;
 
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
     call_invocation (data->invocation, data->region_x, data->region_y,
 		     data->region_width, data->region_height, data->q);
 
@@ -819,8 +821,6 @@ call_invocation_parallel (mathmap_invocation_t *invocation,
 	call->datas[i].is_done = FALSE;
 
 	call->datas[i].thread_handle = mathmap_thread_start(call_invocation_thread_func, &call->datas[i]);
-
-	g_assert (call->datas[i].thread_handle != NULL);
     }
 
     return call;
@@ -877,10 +877,10 @@ call_invocation_parallel_and_join (mathmap_invocation_t *invocation,
 thread_handle_t
 mathmap_thread_start (void (*func) (gpointer), gpointer data)
 {
-    pthread_t *pthread = g_new0(pthread_t, 1);
+    pthread_t pthread;
     int result;
 
-    result = pthread_create(pthread, NULL, (gpointer (*) (gpointer))func, data);
+    result = pthread_create(&pthread, NULL, (gpointer (*) (gpointer))func, data);
     g_assert(result == 0);
 
     return pthread;
@@ -889,14 +889,13 @@ mathmap_thread_start (void (*func) (gpointer), gpointer data)
 void
 mathmap_thread_join (thread_handle_t thread)
 {
-    pthread_join(*thread, NULL);
-    g_free(thread);
+    pthread_join(thread, NULL);
 }
 
 void
 mathmap_thread_kill (thread_handle_t thread)
 {
-    pthread_kill(*thread, SIGTERM);
+    pthread_cancel(thread);
     mathmap_thread_join(thread);
 }
 #endif

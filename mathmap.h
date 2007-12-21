@@ -253,7 +253,7 @@ int get_num_cpus (void);
 
 #ifdef USE_PTHREADS
 #include <pthread.h>
-typedef pthread_t* thread_handle_t;
+typedef pthread_t thread_handle_t;
 #else
 typedef gpointer thread_handle_t;
 #endif
