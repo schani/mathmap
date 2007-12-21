@@ -5,7 +5,6 @@
 ** GIMP Plug-In
 
 ** General
-Fix Blender plug-in generator
 
 ** Documentation/Homepage
 Update screenshots
@@ -16,6 +15,7 @@ Update screenshots
 auto-completion?
 Histogram
 Adapt fast image source size to preview size
+Get preview background gray from GtkStyle
 
 ** Language
 Hypercomplex-Complex multiplication

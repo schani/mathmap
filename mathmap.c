@@ -2034,7 +2034,7 @@ refresh_preview (void)
     gimp_preview_area_fill(GIMP_PREVIEW_AREA(wint.preview),
 			   0, 0,
 			   wint.preview->allocation.width, wint.preview->allocation.height,
-			   0, 0, 0);
+			   239, 235, 229);
 
     if (wint.wimage == 0)
 	return;
