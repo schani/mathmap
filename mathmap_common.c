@@ -781,7 +781,10 @@ call_invocation_thread_func (gpointer _data)
 {
     thread_data_t *data = (thread_data_t*)_data;
 
+#ifdef USE_PTHREADS
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+#endif
 
     call_invocation (data->invocation, data->region_x, data->region_y,
 		     data->region_width, data->region_height, data->q);
@@ -874,11 +877,25 @@ call_invocation_parallel_and_join (mathmap_invocation_t *invocation,
 }
 
 #ifdef USE_PTHREADS
+static void
+sigusr2_handler (int signum)
+{
+    pthread_testcancel();
+}
+
 thread_handle_t
 mathmap_thread_start (void (*func) (gpointer), gpointer data)
 {
+    static gboolean signal_handler_set = FALSE;
+
     pthread_t pthread;
     int result;
+
+    if (!signal_handler_set)
+    {
+	signal(SIGUSR2, sigusr2_handler);
+	signal_handler_set = TRUE;
+    }
 
     result = pthread_create(&pthread, NULL, (gpointer (*) (gpointer))func, data);
     g_assert(result == 0);
@@ -896,7 +913,8 @@ void
 mathmap_thread_kill (thread_handle_t thread)
 {
     pthread_cancel(thread);
-    mathmap_thread_join(thread);
+    pthread_kill(thread, SIGUSR2);
+    pthread_join(thread, NULL);
 }
 #endif
 
