@@ -42,7 +42,7 @@ find_name (char **list, char *name)
 static int
 resolv_ident (char *name)
 {
-    static char *keywords[] = { "if", "then", "else", "end", "while", "do", "xor", "filter", 0 };
+    static char *keywords[] = { "if", "then", "else", "end", "while", "do", "xor", "filter", "unit", 0 };
     static char *internals[] = {
         "x", "y", "r", "a", "t", "X", "Y", "W", "H", "R", "frame",
         "xy", "ra", "XY", "WH",
