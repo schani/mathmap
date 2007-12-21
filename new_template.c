@@ -232,49 +232,8 @@ typedef struct _mathmap_slice_t
     pools_t pools;
 } mathmap_slice_t;
 
-#ifdef OPENSTEP
-extern void apply_edge_behaviour (mathmap_invocation_t *invocation, int *x, int *y, int width, int height);
-
-static color_t
-get_orig_val_pixel_fast (mathmap_invocation_t *invocation, float _x, float _y, int drawable_index, int frame)
-{
-    int x, y;
-    int width, height;
-    userval_t *userval;
-
-    if (drawable_index < 0 || drawable_index >= invocation->mathmap->num_uservals
-	|| invocation->uservals[drawable_index].type != USERVAL_IMAGE)
-	return MAKE_RGBA_COLOR(255,255,255,255); /* illegal image */
-
-    userval = &invocation->uservals[drawable_index];
-
-    x = floor(_x + userval->v.image.middle_x);
-    y = floor(-_y + userval->v.image.middle_y);
-
-    width = userval->v.image.width;
-    height = userval->v.image.height;
-
-    apply_edge_behaviour(invocation, &x, &y, width, height);
-
-    if (x < 0 || x >= width)
-	return invocation->edge_color_x;
-    if (y < 0 || y >= height)
-	return invocation->edge_color_y;
-
-    return *(color_t*)(userval->v.image.data + 4 * x + y * userval->v.image.row_stride);
-}
-
-extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
-
-static color_t
-get_orig_val_intersample_pixel_fast (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame)
-{
-    return get_orig_val_intersample_pixel(invocation, x, y, image, frame);
-}
-#else
 extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
 extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
-#endif
 
 extern float noise (float, float, float);
 
@@ -368,17 +327,10 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
 
-#if $g
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
-#else
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel_fast;
-#endif
 
     for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
@@ -438,17 +390,10 @@ init_frame (mathmap_slice_t *slice)
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
 
-#if $g
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
-#else
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel_fast;
-#endif
 
     if (slice->xy_vars != 0)
 	free(slice->xy_vars);

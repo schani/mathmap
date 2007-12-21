@@ -36,14 +36,6 @@ struct _image_t;
 
 typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
 
-double color_to_double (unsigned int red, unsigned int green,
-			unsigned int blue, unsigned int alpha);
-void double_to_color (double val, unsigned int *red, unsigned int *green,
-		      unsigned int *blue, unsigned int *alpha);
-
-void convert_rgb_to_hsv (float *rgb, float *hsv);
-void convert_hsv_to_rgb (float *hsv, float *rgb);
-
 color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
 color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
 

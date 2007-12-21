@@ -35,7 +35,7 @@
 #include "overload.h"
 #include "mathmap.h"
 
-void
+static void
 apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int width, int height)
 {
     int x = *_x, y = *_y;
@@ -143,6 +143,7 @@ get_image_drawable (mathmap_invocation_t *invocation, image_t *image, float *x, 
     return drawable;
 }
 
+CALLBACK_SYMBOL
 color_t
 get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame)
 {
@@ -157,6 +158,7 @@ get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t 
     return get_pixel(invocation, floor(x), floor(y), drawable, frame);
 }
 
+CALLBACK_SYMBOL
 color_t
 get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame)
 {
@@ -238,134 +240,4 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
     result = FLOAT_COLOR_TO_COLOR(fresult);
 
     return result;
-}
-
-void
-solve_linear_equations (int dim, float *_a, float *_b)
-{
-    gsl_matrix *m;
-    gsl_vector *b, *r;
-    int i, j;
-
-    m = gsl_matrix_alloc(dim, dim);
-    b = gsl_vector_alloc(dim);
-    r = gsl_vector_alloc(dim);
-
-    for (i = 0; i < dim; ++i)
-	for (j = 0; j < dim; ++j)
-	    gsl_matrix_set(m, i, j, _a[i * dim + j]);
-
-    for (i = 0; i < dim; ++i)
-	gsl_vector_set(b, i, _b[i]);
-
-    gsl_linalg_HH_solve(m, b, r);
-
-    for (i = 0; i < dim; ++i)
-	_b[i] = gsl_vector_get(r, i);
-
-    gsl_vector_free(r);
-    gsl_vector_free(b);
-    gsl_matrix_free(m);
-}
-
-void
-convert_rgb_to_hsv (float *rgb, float *hsv)
-{
-    float max, min;
-    int i;
-
-    for (i = 0; i < 3; ++i)
-	if (rgb[i] < 0.0)
-	    rgb[i] = 0.0;
-	else if (rgb[i] > 1.0)
-	    rgb[i] = 1.0;
-
-    max = MAX(rgb[0], MAX(rgb[1], rgb[2]));
-    min = MIN(rgb[0], MIN(rgb[1], rgb[2]));
-    hsv[2] = max;
-
-    if (max != 0)
-	hsv[1] = (max - min) / max;
-    else
-	hsv[1] = 0.0;
-
-    if (hsv[1] == 0.0)
-	hsv[0] = 0.0;		/* actually undefined */
-    else
-    {
-	float delta = max - min;
-
-	if (rgb[0] == max)
-	    hsv[0] = (rgb[1] - rgb[2]) / delta;
-	else if (rgb[1] == max)
-	    hsv[0] = 2 + (rgb[2] - rgb[0]) / delta;
-	else
-	    hsv[0] = 4 + (rgb[0] - rgb[1]) / delta;
-
-	hsv[0] /= 6.0;
-
-	if (hsv[0] < 0.0)
-	    hsv[0] += 1.0;
-    }
-}
-
-void
-convert_hsv_to_rgb (float *hsv, float *rgb)
-{
-    int i;
-
-    for (i = 0; i < 3; ++i)
-	if (hsv[i] < 0.0)
-	    hsv[i] = 0.0;
-	else if (hsv[i] > 1.0)
-	    hsv[i] = 1.0;
-
-    if (hsv[1] == 0.0)
-	rgb[0] = rgb[1] = rgb[2] = hsv[2];
-    else
-    {
-	float h = hsv[0];
-	float f, p, q, t;
-	int i;
-
-	if (h >= 1.0)
-	    h = 0.0;
-	h *= 6.0;
-
-	i = floor(h);
-	f = h - i;
-	p = hsv[2] * (1 - hsv[1]);
-	q = hsv[2] * (1 - (hsv[1] * f));
-	t = hsv[2] * (1 - (hsv[1] * (1 - f)));
-
-	switch (i)
-	{
-	    case 0 :
-		rgb[0] = hsv[2]; rgb[1] = t; rgb[2] = p;
-		break;
-
-	    case 1 :
-		rgb[0] = q; rgb[1] = hsv[2]; rgb[2] = p;
-		break;
-
-	    case 2 :
-		rgb[0] = p; rgb[1] = hsv[2]; rgb[2] = t;
-		break;
-
-	    case 3 :
-		rgb[0] = p; rgb[1] = q; rgb[2] = hsv[2];
-		break;
-
-	    case 4 :
-		rgb[0] = t; rgb[1] = p; rgb[2] = hsv[2];
-		break;
-
-	    case 5 :
-		rgb[0] = hsv[2]; rgb[1] = p; rgb[2] = q;
-		break;
-
-	    default :
-		assert(0);
-	}
-    }
 }

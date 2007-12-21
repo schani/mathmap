@@ -216,9 +216,17 @@ mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_frame (mathmap_slice_t *slice);
-void call_invocation_parallel (mathmap_invocation_t *invocation,
-			       int region_x, int region_y, int region_width, int region_height,
-			       unsigned char *q, int num_threads);
+
+gpointer call_invocation_parallel (mathmap_invocation_t *invocation,
+				   int region_x, int region_y, int region_width, int region_height,
+				   unsigned char *q, int num_threads);
+void call_invocation_parallel_and_join (mathmap_invocation_t *invocation,
+					int region_x, int region_y, int region_width, int region_height,
+					unsigned char *q, int num_threads);
+
+void join_invocation_call (gpointer *_call);
+void kill_invocation_call (gpointer *_call);
+gboolean invocation_call_is_done (gpointer *_call);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
 
@@ -248,5 +256,18 @@ int get_num_cpus (void);
 #ifndef OPENSTEP
 #define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)
 #endif
+
+#ifdef USE_PTHREADS
+#include <pthread.h>
+typedef pthread_t thread_handle_t;
+#else
+typedef gpointer thread_handle_t;
+#endif
+
+thread_handle_t mathmap_thread_start (void (*func) (gpointer), gpointer data);
+void mathmap_thread_join (thread_handle_t thread);
+void mathmap_thread_kill (thread_handle_t thread);
+
+#define CALLBACK_SYMBOL __attribute((visibility("default")))
 
 #endif

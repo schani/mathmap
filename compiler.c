@@ -5411,12 +5411,12 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     FILE *out;
     char *c_filename, *o_filename, *so_filename, *log_filename;
     int pid = getpid();
-    void *initfunc_ptr;
     initfunc_t initfunc;
     int num_filters;
     int i;
     filter_t *filter;
 #ifndef OPENSTEP
+    void *initfunc_ptr;
     GModule *module = 0;
 #endif
 

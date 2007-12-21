@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2007 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#include "mathmap.h"
 #include "noise.h"
 
 #define G_SIZE         256
@@ -45,6 +46,7 @@ quick_wavelet (int i, int j, int k, float u, float v, float w, float sigma)
     return sigma * (g[f][0] * u + g[f][1] * v + g[f][2] * w);
 }
 
+CALLBACK_SYMBOL
 float
 noise (float x, float y, float z)
 {

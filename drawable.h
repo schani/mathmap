@@ -90,7 +90,7 @@ typedef struct _input_drawable_t {
 	struct
 	{
 	    int row_stride;
-	    void *data;
+	    unsigned char *data;
 	} openstep;
 #else
 	struct
@@ -128,14 +128,14 @@ input_drawable_t* copy_input_drawable (input_drawable_t *drawable);
 
 void for_each_input_drawable (void (*) (input_drawable_t *drawable));
 
-input_drawable_t* get_default_input_drawable (void);
-
 int get_num_input_drawables (void);
 input_drawable_t* get_nth_input_drawable (int n);
 
 #ifndef OPENSTEP
 input_drawable_t* alloc_gimp_input_drawable (GimpDrawable *drawable);
 GimpDrawable* get_gimp_input_drawable (input_drawable_t *drawable);
+
+input_drawable_t* get_default_input_drawable (void);
 #endif
 
 #ifdef MATHMAP_CMDLINE
