@@ -37,25 +37,6 @@ struct _compvar_t;
 
 typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
 
-/*
-typedef struct _builtin
-{
-    char name[MAX_BUILTIN_LENGTH + 1];
-    generator_function_t generator;
-    int numParams;
-    tuple_info_t tuple_info;
-    struct _builtin *next;
-} builtin;
-*/
-
-double color_to_double (unsigned int red, unsigned int green,
-			unsigned int blue, unsigned int alpha);
-void double_to_color (double val, unsigned int *red, unsigned int *green,
-		      unsigned int *blue, unsigned int *alpha);
-
-void convert_rgb_to_hsv (float *rgb, float *hsv);
-void convert_hsv_to_rgb (float *hsv, float *rgb);
-
 color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
 color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
 
