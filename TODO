@@ -36,6 +36,9 @@ Real dependencies
 ** Examples
 
 ** Compiler
+Inline filter calls
+Transform closure and application to filter call
+Return proper tuples, not colors
 Why are bool user values float?
 Copy elimination for phis in pre-native code
 XY constants for interpreter code
