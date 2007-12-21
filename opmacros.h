@@ -155,10 +155,6 @@ typedef struct
 #endif
 #endif
 
-#ifdef OPENSTEP
-#define MAKE_COLOR(r,g,b,a)   ({ float _a = CLAMP01((a)); MAKE_RGBA_COLOR(CLAMP01((r))*_a*255,CLAMP01((g))*_a*255,CLAMP01((b))*_a*255,_a*255); })
-#define OUTPUT_COLOR(c)       ({ (*(color_t*)p = (c)); 0; })
-#else
 #define MAKE_COLOR(r,g,b,a)   (MAKE_RGBA_COLOR(CLAMP01((r))*255,CLAMP01((g))*255,CLAMP01((b))*255,CLAMP01((a))*255))
 #define OUTPUT_COLOR(c) \
     ({ if (is_bw) { \
@@ -170,7 +166,6 @@ typedef struct
 	p[alpha_index] = ALPHA(c); \
     0; \
     })
-#endif
 
 #define CALC_VIRTUAL_X(pxl,origin,scale,middle,sampl_off)	(((float)((pxl)+(origin)) + (sampl_off)) * (scale) - (middle))
 #define CALC_VIRTUAL_Y(pxl,origin,scale,middle,sampl_off)	((-(float)((pxl)+(origin)) - (sampl_off)) * (scale) + (middle))

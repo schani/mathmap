@@ -58,7 +58,7 @@ typedef struct {
 	struct
 	{
 	    int row_stride;
-	    void *data;
+	    unsigned char *data;
 	} openstep;
 #else
 	struct

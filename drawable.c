@@ -77,6 +77,9 @@ free_input_drawable (input_drawable_t *drawable)
 	    break;
 #endif
 
+        case INPUT_DRAWABLE_OPENSTEP:
+	    break;
+
 	default :
 	    g_assert_not_reached();
     }
@@ -105,6 +108,12 @@ copy_input_drawable (input_drawable_t *drawable)
 	case INPUT_DRAWABLE_GIMP :
 	    copy = alloc_gimp_input_drawable(drawable->v.gimp.drawable);
 	    copy->v.gimp.has_selection = drawable->v.gimp.has_selection;
+	    break;
+#else
+        case INPUT_DRAWABLE_OPENSTEP:
+	    copy = alloc_input_drawable(INPUT_DRAWABLE_OPENSTEP, drawable->width, drawable->height);
+	    copy->v.openstep.row_stride = drawable->v.openstep.row_stride;
+	    copy->v.openstep.data = drawable->v.openstep.data;
 	    break;
 #endif
 

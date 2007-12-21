@@ -12,12 +12,13 @@
 
 #include "cocoa.h"
 
-mathmap_t* compile_mathmap_cocoa (const char *expression, char *template_filename, char *opmacros_filename)
+mathmap_t* compile_mathmap_cocoa (const char *expression,
+	const char *template_filename, const char *opmacros_filename)
 {
     FILE *template = fopen(template_filename, "r");
     mathmap_t *ret;
 
-    ret = compile_mathmap ((char *)expression, template, opmacros_filename);
+    ret = compile_mathmap ((char *)expression, template, (char *)opmacros_filename);
     fclose(template);
     return ret;
 }
