@@ -307,21 +307,6 @@ lookup_rc_file (char *name)
     return filename;
 }
 
-static FILE*
-open_rc_file (char *name)
-{
-    FILE *file;
-    gchar *filename = lookup_rc_file(name);
-
-    if (filename == 0)
-	return 0;
-
-    file = fopen(filename, "r");
-    g_free(filename);
-
-    return file;
-}
-
 /*****/
 
 static expression_db_t*
@@ -754,7 +739,7 @@ generate_code (int current_frame, float current_t)
     if (expression_changed)
     {
 	mathmap_t *new_mathmap;
-	FILE *template;
+	char *template_filename;
 
 	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
@@ -762,10 +747,10 @@ generate_code (int current_frame, float current_t)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	template = open_rc_file(MAIN_TEMPLATE_FILENAME);
-	if (template == 0)
+	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME);
+	if (template_filename == 0)
 	{
-	    sprintf(error_string, "Cannot read template file `%s'.  MathMap is not installed correctly.", MAIN_TEMPLATE_FILENAME);
+	    sprintf(error_string, "Cannot find template file `%s'.  MathMap is not installed correctly.", MAIN_TEMPLATE_FILENAME);
 	    new_mathmap = 0;
 	}
 	else
@@ -778,9 +763,13 @@ generate_code (int current_frame, float current_t)
 		new_mathmap = 0;
 	    }
 	    else
-		new_mathmap = compile_mathmap(mmvals.expression, template, opmacros_name);
+	    {
+		char *include_path = g_path_get_dirname(opmacros_name);
 
-	    fclose(template);
+		new_mathmap = compile_mathmap(mmvals.expression, template_filename, include_path);
+
+		g_free(include_path);
+	    }
 	}
 
 	if (new_mathmap == 0)
@@ -820,7 +809,7 @@ generate_code (int current_frame, float current_t)
 	}
 
 	if (animation_table != 0)
-	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), mathmap != 0 && does_mathmap_use_t(mathmap));
+	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), mathmap != 0 && does_filter_use_t(mathmap->main_filter));
     }
 
     if (invocation != 0)
@@ -2251,7 +2240,7 @@ dialog_ok_callback (GtkWidget *widget, gpointer data)
     if (generate_code(0, 0))
     {
 	wint.run = TRUE;
-	if (!does_mathmap_use_t(mathmap))
+	if (!does_filter_use_t(mathmap->main_filter))
 	    mmvals.flags &= ~FLAG_ANIMATION;
 	gtk_widget_destroy(GTK_WIDGET(data));
     }

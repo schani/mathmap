@@ -33,7 +33,6 @@
 #include "tuples.h"
 #include "exprtree.h"
 #include "color.h"
-#include "drawable.h"
 
 #define USER_CURVE_POINTS       1024
 #define USER_GRADIENT_POINTS    1024
@@ -79,6 +78,9 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
+struct _image_t;
+struct _input_drawable_t;
+
 typedef struct _userval_t
 {
     int type;
@@ -88,6 +90,7 @@ typedef struct _userval_t
 	int int_const;
 	float float_const;
 	float bool_const;
+	struct _image_t *image;
 
 	struct
 	{
@@ -106,15 +109,6 @@ typedef struct _userval_t
 	{
 	    color_t *values;
 	} gradient;
-
-	struct
-	{
-	    input_drawable_t *drawable;
-	    float scale_x;
-	    float scale_y;
-	    float middle_x;
-	    float middle_y;
-	} image;
     } v;
 
 #ifndef OPENSTEP
@@ -142,7 +136,7 @@ void set_userval_to_default (userval_t *val, userval_info_t *info, struct _mathm
 
 void copy_userval (userval_t *dst, userval_t *src, int type);
 
-void assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawable_t *drawable);
+void assign_image_userval_drawable (userval_info_t *info, userval_t *val, struct _input_drawable_t *drawable);
 
 #ifndef OPENSTEP
 GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);

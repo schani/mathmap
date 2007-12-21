@@ -32,13 +32,12 @@
 
 struct _mathmap_invocation_t;
 struct _compvar_t;
-
-#define MAX_BUILTIN_LENGTH     63
+struct _image_t;
 
 typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
 
-color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
-color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
+color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
 
 void init_builtins (void);
 

@@ -112,6 +112,23 @@ new_temporary_variable (variable_t **vars, tuple_info_t type)
 }
 
 void
+compiler_reset_variables (variable_t *vars)
+{
+    while (vars != 0)
+    {
+	int i;
+
+	for (i = 0; i < vars->type.length; ++i)
+	{
+	    vars->compvar[i] = 0;
+	    vars->last_index[i] = 0;
+	}
+
+	vars = vars->next;
+    }
+}
+
+void
 free_variables (variable_t *vars)
 {
     while (vars != 0)

@@ -32,7 +32,7 @@
 #define DRAWABLE1                  $drawable1
 #define DRAWABLE2                  $drawable2
 
-#include "$opmacros_h"
+#include "$include/blender_opmacros.h"
 
 #define USES_T                     $uses_t
 

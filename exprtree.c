@@ -520,15 +520,8 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	case USERVAL_IMAGE :
-	    if (exprlist_length(args) != 1)
-	    {
-		sprintf(error_string, "An image takes one argument.");
-		JUMP(1);
-	    }
-
 	    tree->result.number = image_tag_number;
 	    tree->result.length = 1;
-
 	    break;
 
 	default :
@@ -542,7 +535,14 @@ make_userval (userval_info_t *info, exprtree *args)
     {
 	tree->val.userval.args = 0;
 
-	return make_function("origVal", exprlist_append(args, tree));
+	if (exprlist_length(args) == 1)
+	    return make_function("origVal", exprlist_append(args, tree));
+
+	if (exprlist_length(args) != 0)
+	{
+	    sprintf(error_string, "An image takes one or zero arguments.");
+	    JUMP(1);
+	}
     }
     else
 	tree->val.userval.args = args;
@@ -556,12 +556,12 @@ make_var (const char *name)
     tuple_info_t info;
     exprtree *tree = 0;
 
-    if (lookup_internal(the_mathmap->internals, name, 0) != 0)
+    if (lookup_internal(the_mathmap->current_filter->internals, name, 0) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_INTERNAL;
-	tree->val.internal = lookup_internal(the_mathmap->internals, name, 0);
+	tree->val.internal = lookup_internal(the_mathmap->current_filter->internals, name, 0);
 	tree->result = make_tuple_info(nil_tag_number, 1);
     }
     else if (lookup_variable_macro(name, &info) != 0)
@@ -715,13 +715,18 @@ make_filter_call (filter_t *filter, exprtree *args)
     userval_info_t *info;
     exprtree **argp;
     exprtree *tree;
+    int num_args = exprlist_length(args);
+    gboolean is_closure;
 
-    if (exprlist_length(args) != filter->num_uservals + 1)
+    if (num_args != filter->num_uservals
+	&& num_args != filter->num_uservals + 1)
     {
-	sprintf(error_string, "Filter %s takes %d arguments but is called with %d.",
-		filter->decl->name, filter->num_uservals + 1, exprlist_length(args));
+	sprintf(error_string, "Filter %s takes %d or %d arguments but is called with %d.",
+		filter->decl->name, filter->num_uservals, filter->num_uservals + 1, exprlist_length(args));
 	JUMP(1);
     }
+
+    is_closure = (num_args == filter->num_uservals);
 
     for (info = filter->userval_infos, argp = &args;
 	 info != 0;
@@ -732,6 +737,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    case USERVAL_INT_CONST :
 	    case USERVAL_FLOAT_CONST :
 	    case USERVAL_BOOL_CONST :
+	    case USERVAL_IMAGE :
 		if ((*argp)->result.length != 1)
 		{
 		    sprintf(error_string, "Can only pass tuples of length 1 as numbers or booleans.");
@@ -740,34 +746,50 @@ make_filter_call (filter_t *filter, exprtree *args)
 		break;
 
 	    default :
-		sprintf(error_string, "Cannot pass non-number values to filters yet.");
+		sprintf(error_string, "Can only pass numbers and images to filters yet.");
 		JUMP(1);
 	}
     }
 
-    g_assert(*argp != 0 && (*argp)->next == 0);
-
-    if ((*argp)->result.length != 2
-	|| ((*argp)->result.number != xy_tag_number
-	    && (*argp)->result.number != ra_tag_number))
+    if (is_closure)
     {
-	sprintf(error_string, "The last argument to a filter must be a tuple of type xy:2 or ra:2.");
-	JUMP(1);
+	g_assert(*argp == 0);
+
+	tree = alloc_exprtree();
+
+	tree->type = EXPR_FILTER_CLOSURE;
+	tree->val.filter_closure.filter = filter;
+	tree->val.filter_closure.args = args;
+
+	tree->result.number = image_tag_number;
+	tree->result.length = 1;
     }
+    else
+    {
+	g_assert(*argp != 0 && (*argp)->next == 0);
 
-    if ((*argp)->result.number == ra_tag_number)
-	*argp = make_function("toXY", *argp);
+	if ((*argp)->result.length != 2
+	    || ((*argp)->result.number != xy_tag_number
+		&& (*argp)->result.number != ra_tag_number))
+	{
+	    sprintf(error_string, "The last argument to a filter must be a tuple of type xy:2 or ra:2.");
+	    JUMP(1);
+	}
 
-    g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
+	if ((*argp)->result.number == ra_tag_number)
+	    *argp = make_function("toXY", *argp);
 
-    tree = alloc_exprtree();
+	g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
 
-    tree->type = EXPR_FILTER_CALL;
-    tree->val.filter_call.filter = filter;
-    tree->val.filter_call.args = args;
+	tree = alloc_exprtree();
 
-    tree->result.number = rgba_tag_number;
-    tree->result.length = 4;
+	tree->type = EXPR_FILTER_CALL;
+	tree->val.filter_call.filter = filter;
+	tree->val.filter_call.args = args;
+
+	tree->result.number = rgba_tag_number;
+	tree->result.length = 4;
+    }
 
     return tree;
 }

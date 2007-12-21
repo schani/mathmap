@@ -133,13 +133,25 @@ typedef struct
 
 #define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
-#define USERVAL_INT_ACCESS(x)        (invocation->uservals[(x)].v.int_const)
-#define USERVAL_FLOAT_ACCESS(x)      (invocation->uservals[(x)].v.float_const)
-#define USERVAL_BOOL_ACCESS(x)       (invocation->uservals[(x)].v.bool_const)
-#define USERVAL_CURVE_ACCESS(x,p)    (invocation->uservals[(x)].v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
-#define USERVAL_COLOR_ACCESS(x)      (invocation->uservals[(x)].v.color.value)
-#define USERVAL_GRADIENT_ACCESS(x,p) (invocation->uservals[(x)].v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
-#define ORIG_VAL(x,y,d,f)     get_orig_val_pixel_func(invocation, (x), (y), (d), (f))
+
+#define ARG(i)	(invocation->uservals[(i)])
+
+#define USERVAL_INT_ACCESS(x)        (ARG((x)).v.int_const)
+#define USERVAL_FLOAT_ACCESS(x)      (ARG((x)).v.float_const)
+#define USERVAL_BOOL_ACCESS(x)       (ARG((x)).v.bool_const)
+#define USERVAL_CURVE_ACCESS(x,p)    (ARG((x)).v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
+#define USERVAL_COLOR_ACCESS(x)      (ARG((x)).v.color.value)
+#define USERVAL_GRADIENT_ACCESS(x,p) (ARG((x)).v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
+#define USERVAL_IMAGE_ACCESS(x)      (ARG((x)).v.image)
+
+#define UNINITED_IMAGE        (0)
+
+#define ORIG_VAL(x,y,i,f)     ({ color_t result; \
+	    			 if ((i)->type == IMAGE_CLOSURE) \
+				     result = (i)->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(i), (x), (y), pools); \
+				 else \
+				     result = get_orig_val_pixel_func(invocation, (x), (y), (i), (f)); result; \
+				 result; })
 
 #ifdef IN_COMPILED_CODE
 #ifdef OPENSTEP
@@ -169,5 +181,9 @@ typedef struct
 
 #define CALC_VIRTUAL_X(pxl,origin,scale,middle,sampl_off)	(((float)((pxl)+(origin)) + (sampl_off)) * (scale) - (middle))
 #define CALC_VIRTUAL_Y(pxl,origin,scale,middle,sampl_off)	((-(float)((pxl)+(origin)) - (sampl_off)) * (scale) + (middle))
+
+#define POOLS_ALLOC(s)			(pools_alloc(pools, (s)))
+#define ALLOC_CLOSURE_IMAGE(n)		((image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))))
+#define CLOSURE_IMAGE_ARGS(i)		((userval_t*)(i)->v.closure.args)
 
 #endif

@@ -45,7 +45,8 @@
 
 #define IN_COMPILED_CODE
 
-#include "$opmacros_h"
+#include "$include/opmacros.h"
+#include "$include/pools.h"
 
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))
@@ -83,6 +84,18 @@ typedef unsigned int color_t;
 #define BLUE(c)                             (((c)>>8)&0xff)
 #define ALPHA(c)                            ((c)&0xff)
 
+#define IMAGE_DRAWABLE		1
+#define IMAGE_CLOSURE		2
+
+struct _mathmap_invocation_t;
+struct _userval_t;
+struct _image_t;
+
+typedef color_t (*filter_func_t) (struct _mathmap_invocation_t*,
+				  struct _userval_t*,
+				  float, float,
+				  pools_t*);
+
 typedef struct _userval_t
 {
     int type;
@@ -92,6 +105,7 @@ typedef struct _userval_t
 	int int_const;
 	float float_const;
 	float bool_const;
+	struct _image_t *image;
 
 	struct
 	{
@@ -110,21 +124,24 @@ typedef struct _userval_t
 	{
 	    color_t *values;
 	} gradient;
-
-	struct
-	{
-	    void *drawable;
-	    float scale_x;
-	    float scale_y;
-	    float middle_x;
-	    float middle_y;
-	} image;
     } v;
 
 #ifndef OPENSTEP
     void *widget;
 #endif
 } userval_t;
+
+typedef struct _image_t
+{
+    int type;
+    union {
+	void *drawable;
+	struct {
+	    filter_func_t func;
+	    userval_t args[];
+	} closure;
+    } v;
+} image_t;
 
 typedef struct _mathmap_t
 {
@@ -155,7 +172,6 @@ typedef struct
     $y_decls
 } y_const_vars_t;
 
-struct _mathmap_invocation_t;
 struct _mathmap_slice_t;
 
 typedef void (*init_frame_func_t) (struct _mathmap_slice_t*);
@@ -212,10 +228,12 @@ typedef struct _mathmap_slice_t
 
     xy_const_vars_t *xy_vars;
     y_const_vars_t *y_vars;
+
+    pools_t pools;
 } mathmap_slice_t;
 
-extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
-extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, int drawable_index, int frame);
+extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
+extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
 
 extern float noise (float, float, float);
 
@@ -258,11 +276,34 @@ double gsl_sf_beta (double a, double b);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
+$filter_begin
+static color_t
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, pools_t *pools);
+$filter_end
+
+static inline void
+calc_ra (float x, float y, float *_r, float *_a)
+{
+    float r, a;
+
+    r = hypot(x, y);
+    if (r == 0.0)
+	a = 0.0;
+    else
+	a = acos(x / r);
+
+    if (y < 0)
+	a = 2 * M_PI - a;
+
+    *_r = r;
+    *_a = a;
+}
+
 static void
 calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {
     mathmap_invocation_t *invocation = slice->invocation;
-    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int row, col;
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
@@ -278,6 +319,10 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
     xy_const_vars_t *xy_vars = slice->xy_vars;
+    pools_t pixel_pools;
+    pools_t *pools;
+
+    init_pools(&pixel_pools);
 
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
@@ -292,9 +337,13 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
 	unsigned char *p = q;
 
+	pools = &slice->pools;
+
 	$x_decls
 
 	$x_code
+
+	pools = &pixel_pools;
 
 	for (col = 0; col < slice->region_width; ++col)
 	{
@@ -304,18 +353,13 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 #if $uses_ra
 	    float r, a;
 
-	    r = hypot(x, y);
-	    if (r == 0.0)
-		a = 0.0;
-	    else
-		a = acos(x / r);
-
-	    if (y < 0)
-		a = 2 * M_PI - a;
+	    calc_ra(x, y, &r, &a);
 #endif
 
 	    if (invocation->do_debug)
 		invocation->num_debug_tuples = 0;
+
+	    reset_pools(pools);
 
 	    {
 		$m
@@ -332,13 +376,15 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	if (!invocation->supersampling)
 	    invocation->rows_finished[row] = 1;
     }
+
+    free_pools(&pixel_pools);
 }
 
 static void
 init_frame (mathmap_slice_t *slice)
 {
     mathmap_invocation_t *invocation = slice->invocation;
-    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, int, int);
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
@@ -391,3 +437,44 @@ mathmapinit (mathmap_invocation_t *invocation)
 
     return funcs;
 }
+
+#undef ARG
+#define ARG(i)			(arguments[(i)])
+
+#undef OUTPUT_COLOR
+#define OUTPUT_COLOR(c)		((return_color = (c)), 0)
+
+$filter_begin
+static color_t
+filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, pools_t *pools)
+{
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
+    float t = 0.0;
+    int frame = 0;
+    float X = invocation->image_X, Y = invocation->image_Y;
+    float W = invocation->image_W, H = invocation->image_H;
+    float R = invocation->image_R;
+    color_t return_color;
+#if $uses_ra
+    float r, a;
+
+    calc_ra(x, y, &r, &a);
+#endif
+
+#if $g
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel;
+#else
+    if (invocation->antialiasing)
+	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
+    else
+	get_orig_val_pixel_func = get_orig_val_pixel_fast;
+#endif
+
+    $m
+
+    return return_color;
+}
+$filter_end

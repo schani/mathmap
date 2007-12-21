@@ -48,6 +48,9 @@ alloc_input_drawable (int kind, int width, int height)
     drawable->used = TRUE;
     drawable->kind = kind;
 
+    drawable->image.type = IMAGE_DRAWABLE;
+    drawable->image.v.drawable = drawable;
+
     drawable->width = width;
     drawable->height = height;
 
@@ -120,6 +123,11 @@ copy_input_drawable (input_drawable_t *drawable)
 	default :
 	    g_assert_not_reached();
     }
+
+    copy->scale_x = drawable->scale_x;
+    copy->scale_y = drawable->scale_y;
+    copy->middle_x = drawable->middle_x;
+    copy->middle_y = drawable->middle_y;
 
     return copy;
 }

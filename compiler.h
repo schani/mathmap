@@ -30,6 +30,8 @@
 
 #include "tuples.h"
 #include "exprtree.h"
+#include "userval.h"
+#include "drawable.h"
 
 #include "compiler_types.h"
 #include "opmacros.h"
@@ -67,9 +69,10 @@ struct _interpreter_insn_t
 void init_compiler (void);
 
 void set_opmacros_filename (const char *filename);
-int compiler_template_processor (struct _mathmap_t *mathmap, const char *directive, FILE *out);
+int compiler_template_processor (struct _mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data);
 
-initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info, FILE *template, char *opmacros_filename);
+initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
+				char *template_filename, char *include_path);
 void unload_c_code (void *module_info);
 
 void generate_interpreter_code (struct _mathmap_t *mathmap);

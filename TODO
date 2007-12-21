@@ -14,11 +14,14 @@ Update screenshots
 ** GIMP Plug-In
 auto-completion?
 Histogram
+Different fast image source size per drawable
 Adapt fast image source size to preview size
+zoom via preview
 Get preview background gray from GtkStyle
 
 ** Language
 Hypercomplex-Complex multiplication
+XYZ, Lab color space support
 
 ** Command Line Tool
 All uservals on command line (not just input images)
@@ -35,6 +38,10 @@ Real dependencies
 ** Examples
 
 ** Compiler
+Inline filter calls
+Transform closure and application to filter call
+Return proper tuples, not colors
+Why are bool user values float?
 Copy elimination for phis in pre-native code
 XY constants for interpreter code
 Remove dead whiles

@@ -128,12 +128,30 @@ register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
     }
 }
 
+static void
+init_internals (filter_t *filter)
+{
+    register_internal(&filter->internals, "x", CONST_Y | CONST_T);
+    register_internal(&filter->internals, "y", CONST_X | CONST_T);
+    register_internal(&filter->internals, "r", CONST_T);
+    register_internal(&filter->internals, "a", CONST_T);
+    register_internal(&filter->internals, "t", CONST_X | CONST_Y);
+    register_internal(&filter->internals, "X", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "Y", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "W", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "H", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "R", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->internals, "frame", CONST_X | CONST_Y);
+}
+
 void
 start_parsing_filter (mathmap_t *mathmap)
 {
     g_assert(mathmap->current_filter == 0);
 
     mathmap->current_filter = g_new0(filter_t, 1);
+
+    init_internals(mathmap->current_filter);
 }
 
 void
@@ -214,27 +232,11 @@ free_invocation (mathmap_invocation_t *invocation)
 #define R_INTERNAL_INDEX         2
 #define A_INTERNAL_INDEX         3
 
-void
-init_internals (mathmap_t *mathmap)
-{
-    register_internal(&mathmap->internals, "x", CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "y", CONST_X | CONST_T);
-    register_internal(&mathmap->internals, "r", CONST_T);
-    register_internal(&mathmap->internals, "a", CONST_T);
-    register_internal(&mathmap->internals, "t", CONST_X | CONST_Y);
-    register_internal(&mathmap->internals, "X", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "Y", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "W", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "H", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "R", CONST_X | CONST_Y | CONST_T);
-    register_internal(&mathmap->internals, "frame", CONST_X | CONST_Y);
-}
-
 int
-does_mathmap_use_ra (mathmap_t *mathmap)
+does_filter_use_ra (filter_t *filter)
 {
-    internal_t *r_internal = lookup_internal(mathmap->internals, "r", 1);
-    internal_t *a_internal = lookup_internal(mathmap->internals, "a", 1);
+    internal_t *r_internal = lookup_internal(filter->internals, "r", 1);
+    internal_t *a_internal = lookup_internal(filter->internals, "a", 1);
 
     assert(r_internal != 0 && a_internal != 0);
 
@@ -242,9 +244,9 @@ does_mathmap_use_ra (mathmap_t *mathmap)
 }
 
 int
-does_mathmap_use_t (mathmap_t *mathmap)
+does_filter_use_t (filter_t *filter)
 {
-    internal_t *t_internal = lookup_internal(mathmap->internals, "t", 1);
+    internal_t *t_internal = lookup_internal(filter->internals, "t", 1);
 
     assert(t_internal != 0);
 
@@ -255,11 +257,9 @@ mathmap_t*
 parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-    exprtree *expr;
+    filter_t *filter;
 
     mathmap = g_new0(mathmap_t, 1);
-
-    init_internals(mathmap);
 
     the_mathmap = mathmap;
 
@@ -269,30 +269,42 @@ parse_mathmap (char *expression)
 	yyparse();
 	endScanningFromString();
 
-	if (mathmap->filters == 0
-	    || mathmap->filters->next != 0
-	    || mathmap->filters->decl->type != TOP_LEVEL_FILTER)
+	if (mathmap->filters == 0)
 	{
 	    free_filters(mathmap->filters);
 	    mathmap->filters = 0;
 
-	    sprintf(error_string, "Exactly one filter must be defined.");
+	    sprintf(error_string, "At least one filter must be defined.");
 	    JUMP(1);
+	}
+
+	for (filter = mathmap->filters; filter != 0; filter = filter->next)
+	{
+	    exprtree *expr;
+
+	    if (filter->decl->type != TOP_LEVEL_FILTER)
+	    {
+		free_filters(mathmap->filters);
+		mathmap->filters = 0;
+
+		sprintf(error_string, "Top-level declarations can only be filters.");
+		JUMP(1);
+	    }
+
+	    expr = filter->decl->v.filter.body;
+
+	    if (expr->result.number != rgba_tag_number
+		|| expr->result.length != 4)
+	    {
+		free_filters(mathmap->filters);
+		mathmap->filters = 0;
+
+		sprintf(error_string, "The filter `%s' must have the result type rgba:4.", filter->decl->name);
+		JUMP(1);
+	    }
 	}
 
 	mathmap->main_filter = mathmap->filters;
-
-	expr = mathmap->main_filter->decl->v.filter.body;
-
-	if (expr->result.number != rgba_tag_number
-	    || expr->result.length != 4)
-	{
-	    free_filters(mathmap->filters);
-	    mathmap->filters = 0;
-
-	    sprintf(error_string, "The expression must have the result type rgba:4.");
-	    JUMP(1);
-	}
 
 	mathmap->flags = image_flags_from_options(mathmap->main_filter->decl->v.filter.options);
     } WITH_JUMP_HANDLER {
@@ -320,7 +332,7 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
+compile_mathmap (char *expression, char *template_filename, char *include_path)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     static int try_compiler = 1;
@@ -335,7 +347,7 @@ compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 		JUMP(1);
 	    }
 
-	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template, opmacros_filename);
+	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 	    if (mathmap->initfunc == 0 && !cmd_line_mode)
 	    {
 		char *message = g_strdup_printf("The MathMap compiler failed.  This is not a fatal error,\n"
@@ -544,23 +556,23 @@ update_image_internals (mathmap_invocation_t *invocation)
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
 	return;
 
-    internal = lookup_internal(invocation->mathmap->internals, "t", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "t", 1);
     set_float_internal(invocation, internal->index, invocation->current_t);
 
-    internal = lookup_internal(invocation->mathmap->internals, "X", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "X", 1);
     set_float_internal(invocation, internal->index, invocation->image_X);
-    internal = lookup_internal(invocation->mathmap->internals, "Y", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "Y", 1);
     set_float_internal(invocation, internal->index, invocation->image_Y);
     
-    internal = lookup_internal(invocation->mathmap->internals, "W", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "W", 1);
     set_float_internal(invocation, internal->index, invocation->image_W);
-    internal = lookup_internal(invocation->mathmap->internals, "H", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "H", 1);
     set_float_internal(invocation, internal->index, invocation->image_H);
     
-    internal = lookup_internal(invocation->mathmap->internals, "R", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "R", 1);
     set_float_internal(invocation, internal->index, invocation->image_R);
 
-    internal = lookup_internal(invocation->mathmap->internals, "frame", 1);
+    internal = lookup_internal(invocation->mathmap->main_filter->internals, "frame", 1);
     set_float_internal(invocation, internal->index, invocation->current_frame);
 }
 
@@ -629,7 +641,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
 	float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
 	float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
-	int uses_ra = does_mathmap_use_ra(invocation->mathmap);
+	int uses_ra = does_filter_use_ra(invocation->mathmap->main_filter);
 
 	for (row = first_row; row < last_row; ++row)
 	{
@@ -686,6 +698,8 @@ init_slice (mathmap_slice_t *slice, mathmap_invocation_t *invocation, int region
     slice->sampling_offset_x = sampling_offset_x;
     slice->sampling_offset_y = sampling_offset_y;
 
+    init_pools(&slice->pools);
+
     init_frame(slice);
 }
 
@@ -696,6 +710,7 @@ deinit_slice (mathmap_slice_t *slice)
 	free(slice->xy_vars);
     if (slice->y_vars)
 	free(slice->y_vars);
+    free_pools(&slice->pools);
 }
 
 static void
@@ -935,52 +950,130 @@ carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_inv
 #define MAX_TEMPLATE_VAR_LENGTH       64
 #define is_word_character(c)          (isalnum((c)) || (c) == '_')
 
-void
-process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor)
+static int
+next_directive (const char *template)
 {
-    int c;
+    char *p = strchr(template, '$');
 
-    while ((c = fgetc(template)) != EOF)
+    if (p == NULL)
+	return -1;
+
+    if (p[1] == '\0')
+	return -1;
+
+    return p - template;
+}
+
+static int
+find_directive (const char *template, char *name)
+{
+    int i = 0;
+    int j;
+
+    while ((j = next_directive(template + i)) >= 0)
     {
-	if (c == '$')
+	if (template[i + j + 1] == '\0')
+	    return -1;
+
+	if (strncmp(template + i + j + 1, name, strlen(name)) == 0)
+	    return i + j;
+
+	i += j + 2;
+    }
+
+    return -1;
+}
+
+void
+process_template (mathmap_t *mathmap, const char *template, FILE *out,
+		  template_processor_func_t template_processor, void *user_data)
+{
+    int i = 0;
+    int j;
+
+    while ((j = next_directive(template + i)) >= 0)
+    {
+	if (j > 0)
+	    fwrite(template + i, 1, j, out);
+
+	i += j;
+
+	if (!is_word_character(template[i + 1]))
 	{
-	    c = fgetc(template);
-	    assert(c != EOF);
-
-	    if (!is_word_character(c))
-		putc(c, out);
-	    else
-	    {
-		char name[MAX_TEMPLATE_VAR_LENGTH + 1];
-		int length = 1;
-
-		name[0] = c;
-
-		do
-		{
-		    c = fgetc(template);
-
-		    if (is_word_character(c))
-		    {
-			assert(length < MAX_TEMPLATE_VAR_LENGTH);
-			name[length++] = c;
-		    }
-		    else
-			if (c != EOF && c != '$')
-			    ungetc(c, template);
-		} while (is_word_character(c));
-
-		assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
-
-		name[length] = '\0';
-
-		if (!template_processor(mathmap, name, out))
-		    assert(0);
-	    }
+	    putc(template[i + 1], out);
+	    i += 2;
 	}
 	else
-	    putc(c, out);
+	{
+	    char name[MAX_TEMPLATE_VAR_LENGTH + 1];
+	    int length = 1;
+	    char c;
+	    char *arg = 0;
+
+	    name[0] = template[i + 1];
+	    i += 2;
+
+	    do
+	    {
+		c = template[i++];
+
+		if (is_word_character(c))
+		{
+		    assert(length < MAX_TEMPLATE_VAR_LENGTH);
+		    name[length++] = c;
+		}
+		else
+		    if (c != '\0' && c != '$')
+			--i;
+	    } while (is_word_character(c));
+
+	    assert(length > 0 && length <= MAX_TEMPLATE_VAR_LENGTH);
+
+	    name[length] = '\0';
+
+	    if (g_str_has_suffix(name, "_begin"))
+	    {
+		char *end_name = g_strdup(name);
+
+		strcpy(end_name + length - strlen("begin"), "end");
+
+		g_print("looking for %s\n", end_name);
+
+		j = find_directive(template + i, end_name);
+
+		g_assert(j >= 0);
+
+		arg = strndup(template + i, j);
+
+		i += j + 1 + strlen(end_name);
+
+		g_free(end_name);
+	    }
+
+	    if (!template_processor(mathmap, name, arg, out, user_data)) {
+		g_warning("Unknown template directive $%s.\n", name);
+		fprintf(out, "$%s", name);
+	    }
+	}
     }
+
+    fputs(template + i, out);
+}
+
+gboolean
+process_template_file (mathmap_t *mathmap, char *template_filename, FILE *out,
+		       template_processor_func_t template_processor, void *user_data)
+{
+    char *template;
+
+    if (!g_file_get_contents(template_filename, &template, NULL, NULL))
+	return FALSE;
+
+    process_template(mathmap, template, out, template_processor, user_data);
+
+    g_free(template);
+
+    return TRUE;
 }
 
 int

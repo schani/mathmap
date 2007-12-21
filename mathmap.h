@@ -36,6 +36,8 @@
 #include "compiler.h"
 #include "color.h"
 
+#include "lispreader/pools.h"
+
 #ifndef OPENSTEP
 #include <libgimp/gimp.h>
 #endif
@@ -57,6 +59,7 @@ typedef struct _filter_t
     int num_uservals;
     userval_info_t *userval_infos;
 
+    internal_t *internals;
     variable_t *variables;
 
     top_level_decl_t *decl;
@@ -66,8 +69,6 @@ typedef struct _filter_t
 
 typedef struct _mathmap_t
 {
-    internal_t *internals;
-
     filter_t *filters;
     filter_t *current_filter;	/* only valid during parsing */
     filter_t *main_filter;
@@ -166,6 +167,8 @@ typedef struct _mathmap_slice_t
 
     void *xy_vars;
     void *y_vars;
+
+    pools_t pools;
 } mathmap_slice_t;
 
 typedef struct
@@ -202,15 +205,15 @@ void free_invocation (mathmap_invocation_t *invocation);
 void enable_debugging (mathmap_invocation_t *invocation);
 void disable_debugging (mathmap_invocation_t *invocation);
 
-int does_mathmap_use_ra (mathmap_t *mathmap);
-int does_mathmap_use_t (mathmap_t *mathmap);
+int does_filter_use_ra (filter_t *filter);
+int does_filter_use_t (filter_t *filter);
 
 void start_parsing_filter (mathmap_t *mathmap);
 void finish_parsing_filter (mathmap_t *mathmap);
 
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
-mathmap_t* compile_mathmap (char *expression, FILE *template, char *opmacros_filename);
+mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_frame (mathmap_slice_t *slice);
 
@@ -231,13 +234,16 @@ void update_image_internals (mathmap_invocation_t *invocation);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 
+typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data);
+
 void drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y);
 
-typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *directive, FILE *out);
-
-void process_template_file (mathmap_t *mathmap, FILE *template, FILE *out, template_processor_func_t template_processor);
+void process_template (mathmap_t *mathmap, const char *template,
+		       FILE *out, template_processor_func_t template_processor, void *user_data);
+gboolean process_template_file (mathmap_t *mathmap, char *template_filename,
+				FILE *out, template_processor_func_t template_processor, void *user_data);
 int generate_plug_in (char *filter, char *output_filename,
-		      char *template_filename, char *opmacros_filename, int analyze_constants,
+		      char *template_filename, int analyze_constants,
 		      template_processor_func_t template_processor);
 
 void user_value_changed (void);
