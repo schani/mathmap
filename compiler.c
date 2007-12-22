@@ -2793,6 +2793,71 @@ optimize_make_color (statement_t *stmt)
     }
 }
 
+/*** closure application ***/
+
+static void
+optimize_closure_application (statement_t *stmt)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_ASSIGN :
+		if (stmt->v.assign.rhs->kind == RHS_OP
+		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_ORIG_VAL
+		    && stmt->v.assign.rhs->v.op.args[2].kind == PRIMARY_VALUE)
+		{
+		    statement_t *def = stmt->v.assign.rhs->v.op.args[2].v.value->def;
+
+		    if (def->kind == STMT_ASSIGN
+			&& def->v.assign.rhs->kind == RHS_CLOSURE)
+		    {
+			filter_t *filter = def->v.assign.rhs->v.filter.filter;
+			int num_args = num_filter_args(filter);
+			primary_t *args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
+			int i;
+
+			for (i = 0; i < num_args - 2; ++i)
+			    args[i] = def->v.assign.rhs->v.filter.args[i];
+
+			args[num_args - 2] = stmt->v.assign.rhs->v.op.args[0]; /* x */
+			args[num_args - 1] = stmt->v.assign.rhs->v.op.args[1]; /* y */
+
+			remove_use(stmt->v.assign.rhs->v.op.args[2].v.value, stmt); /* image */
+			if (stmt->v.assign.rhs->v.op.args[3].kind == PRIMARY_VALUE)
+			    remove_use(stmt->v.assign.rhs->v.op.args[3].v.value, stmt);	/* t */
+
+			stmt->v.assign.rhs = make_filter_rhs(filter, args);
+
+			for (i = 0; i < num_args - 2; ++i)
+			    if (args[i].kind == PRIMARY_VALUE)
+				add_use(args[i].v.value, stmt);
+
+		    }
+		}
+		break;
+
+	    case STMT_IF_COND :
+		optimize_closure_application(stmt->v.if_cond.consequent);
+		optimize_closure_application(stmt->v.if_cond.alternative);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		optimize_closure_application(stmt->v.while_loop.body);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
 /*** copy propagation ***/
 
 static void
@@ -5207,6 +5272,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 #endif
 
 	optimize_make_color(first_stmt);
+	optimize_closure_application(first_stmt);
 
 	changed = 0;
 
