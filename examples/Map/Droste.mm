@@ -1,100 +1,125 @@
-##
-# Droste Effect Code
-# Original code by breic ( www.flickr.com/photos/breic )
-# Adapted by Pisco Bandito (www.flickr.com/photos/joshsommers)
-# see also the flickr group: www.flickr.com/groups/escherdroste
-# Version 5 - For Windows and Linux
-# last modified: 3/23/2007
-##
+################################################################
+# Droste effect code version 10 for Mathmap 1.2.0
+# Original Droste formula by:
+# breic ( www.flickr.com/photos/breic )
+# Additional Features and Mathmap 1.2 conversion by:
+# Josh Sommers ( www.flickr.com/photos/joshsommers )
+# Also see the flickr group: www.flickr.com/groups/escherdroste
+# Last modified: 6/10/2007
+################################################################
 
-##Explanations:
-##
-# Roughly, p2 can be thought of as the "number of strands," while p1 is the "periodicity."
-# See gadl's chessboard set (http://flickr.com/photos/gadl/sets/72157594305663827/) for a
-# better explanation of the (p1, p2) parameters -- although he may have switched them!
-# Mathematically, we rotate point (p1,p2) in the annular lattice in log coordinates to (0,1).
-# The labels at escherdroste.math.leidenuniv.nl/index.php?menu=im&sub...
-# agree with our notation here.
-# There is a good explanation of the Droste-effect math at
-# www.josleys.com/articles/printgallery.htm .
-##
-##
-# Tiling can be based on transparency (if the input image is a tiff), or simply based on the
-# radius. Using transparency, there can be protrusions between different annular layers.
-# Tiling based on transparency, you can decide whether you want to look inward or
-# outward from a transparent pixel. For example, with a frame you'll want to look inward,
-# while for a flower you'll want to look outward.
-##
-##
-# To avoid framing problems on the largest annulus when tiling based on transparency, look
-# outside (StartingLevel) levels to see if something farther out should cover up this pixel
-# Try setting to 0 to see framing errors; 1 should be sufficient unless you have three or more
-# image layers contributing to some pixel (in which case set it to 2 or more). Larger values
-# slow the code down, and may lead to floating point errors.
-##
+#Decription of User Values:
 
-filter droste (image in,
-               float r1: 0-2 (0.4),  #Inner Radius (must be less than r2)
-               float r2: 0-2 (1),    #Outer Radius
-               int periodicity: 2-20 (4),   #Periodicity
-               float p2: 0-10 (1),   #Number of strands
-               float zoom: 0-10 (1),
-               float rotate: -3.1416-3.1416 (0),
-               float x_origin: -1-1 (0),
-               float y_origin: -1-1 (0),
-               float x_shift: -1-1 (0),
-               float y_shift: -1-1 (0),
-               int starting_level: 0-100 (6),
-               int number_of_levels: 0-100 (10),
-               int level_frequency: 1-10 (1),
-               bool no_transparency (1), bool external_transparency,
-               bool mirror_effect, bool untwist)
+###New Settings in Version 10###
+#ShowBothPoles: Select this option to see both poles of the droste effect. This means you will see one pole where Periodicity=-1 and one where Periodicity=1. Note that you may need to increase the values of StartingLevel and NumberOfLeves when you use this option.
 
-    p1 = periodicity / 4;
+#PoleRotation: Rotation of the pole when ShowBothPoles is true. At +/-90 you will see both poles. At 0 and +/-180 you will see just one pole.
 
-    #For the mirror effect
-    #Fiddle with this value depending on the values you have for p1 and p2 to get an alternating reflected effect
-    MirrorCoefficient=1;
+#PoleLat: Use in conjunction with the ShowBothPoles, TilePoles or HyperDroste options. Latitude adjustment.
 
-    # Miscellaneous useful variables
-    true=1;
-    false=0;
-    epsilon=.01; # used to avoid hard comparisons
-    imageX=W;
-    imageY=H;
-    minDimension=min(imageX, imageY);
+#PoleLong: Same as PoleLat, but for Longitude adjustment.
 
-    if zoom > 0 then
-        zoom=(zoom*p1)/10;
+#TilePoles: Cannot be used at the same time as ShowBothPoles. Set this option to tile the poles horizontally.
+
+#HyperDroste: A cool fractal-like droste effect.
+
+#FractalPoints: Use in conjuntion with TilePoles and or HyperDroste settings to create fractal like droste images.
+
+###Old Settings Pre Version 10###
+#InnerRadius: The percentage of the overall image that you want to be occupied by the spiral.
+#OuterRadius: The percentage size of the overall image that you want to use in the effect.
+#Periodicity: The number of times the image is repeated on each iteration of the spiral.
+#Strands: The number of strands/arms the spiral will have.
+#Zoom: Zoom in or out of the spiral.
+#Rotate: Rotate the spiral. Positive numbers rotate clockwise.
+#XShift: Shift the image on the X axis. Positive numbers shift to the right.
+#YShift: Shift the image on the Y axis. Positive numbers shift upwards.
+#XCenterShift: Shift the center of the spiral on the X axis. Positive numbers shift to the right.
+#YCenterShift: Shift the center of the spiral on the Y axis. Positive numbers shift upwards.
+#StartingLevel: The level that the spiral starts at. For internal transparency or no transparency, the first level is the outermost level. For outer transparency, the first level is the innermost level.
+#NumberOfLevels: The total number of repetitions of the spiral.
+#LevelFrequency: The frequency of levels. If set at 1, you will get every level. If set at 2 you will get every other level. If set at 3 you will get every third level, and so on.
+#AutoSetPeriodicity: If set to true, the optimal value for Periodicity will be set for you.
+#NoTransparency: Set to true if you do not wish to tile based upon a transparent region in your image.
+#ExternalTransparency: Set the to true if the transparent region is on the outside of the image. The default is false, indicating that the transparent region is on the inside of the image.
+#MirroEffect: Only works when using multiple strands. Set to true to mirror strands.
+#Untwist: Set to true to see the image in log coordinates.
+#DoNotFlattenTransparency: Set to true to leave semi-transparent pixels semi-transparent.
+#Show Grid: The green grid shows each basic annulus, with (outer radius)/(inner radius) = r2/r1. The blue grid shows the green grid mapped into log coordinates (in which it truly is a grid), rotated, and exponentiated forward again. This allows visualization of the Droste transformation.
+#ShowFrame: The frame is a black-and-white border in the standard view, and its preimage in the log coordinates. In log coordinates, the shaded region to the right of the frame will be mapped outside the viewport, while the region to the left will be visible.
+
+
+
+
+############################################################
+## You should not need to change anything below this line ##
+############################################################
+
+filter droste (
+    image in,
+    float InnerRadius: 1 - 100 (25),
+    int OuterRadius: 1 - 100 (100),
+    float Periodicity: -6 - 6 (1),
+    int Strands: -6 - 6 (1),
+    int Zoom: 1-100 (1),
+    int Rotate: -360-360 (0),
+    int XShift: -100 - 100 (0),
+    int YShift: -100 - 100 (0),
+    int XCenterShift: -100 - 100 (0),
+    int YCenterShift: -100 - 100 (0),
+    int StartingLevel: 1-20 (1),
+    int NumberOfLevels: 1-20 (10),
+    int LevelFrequency: 1-10 (1),
+    bool ShowBothPoles,
+    int PoleRotation: -180-180 (90),
+    int PoleLong: -100-100 (0),
+    int PoleLat: -100-100 (0),
+    bool TilePoles,
+    bool HyperDroste,
+    int FractalPoints: 1-10 (1),
+    bool AutoSetPeriodicity,
+    bool NoTransparency,
+    bool ExternalTransparency,
+    bool MirrorEffect,
+    bool Untwist,
+    bool DoNotFlattenTransparency,
+    bool ShowGrid,
+    bool ShowFrame)
+
+    #Set code variables from user variables
+    r1= InnerRadius/100;
+    r2= OuterRadius/100;
+    p1= Periodicity;
+    p2= Strands;
+    xCenterShift = XCenterShift/100;
+    yCenterShift = YCenterShift/100;
+    xShift = (XShift*W/X)/100;
+    yShift = (YShift*H/Y)/100;
+    tileBasedOnTransparency = !(NoTransparency);
+    transparentPointsIn = !(ExternalTransparency);
+    levelsToLookOut=StartingLevel;
+    levelToShow=LevelFrequency;
+    retwist=!(Untwist);
+
+    if (AutoSetPeriodicity) then
+        p1= p2/2 * (1+sqrt(1-(log(r2/r1)/pi)^2));
     end;
 
-    #User Values Defined
-    tileBasedOnTransparency = !no_transparency;
-    transparentPointsIn = !external_transparency;
-    retwist=!untwist;
-
-    ##
-    # Droste-effect code starts here
-    # Set Droste effect parameters
-    ##
-    alpha=atan(p2/p1*log(r2/r1)/(2*pi));
-    f=cos(alpha);
-    beta=f*exp(I*alpha);
-
-    # the angle of rotation between adjacent annular levels
-    angle = 2*pi*p1;
-
-    if mirror_effect then
-        angle=angle/MirrorCoefficient;
+    #Set Rotation
+    if p1 > 0 then
+        rotate=-(pi/180) * Rotate;
+    else
+        rotate=(pi/180) * Rotate;
     end;
 
-    if (0>p2) then
-        angle = -angle;
-    end;
+    #Set Zoom
+    zoom=((Zoom+InnerRadius-1)/100);
 
-    ##
-    # Code to set up the viewport properly
-    ##
+    epsilon=.01;
+
+    #######################
+    # Set up the viewport #
+    #######################
     if (retwist) then
         xbounds=[-r2,r2];
         ybounds=[-r2,r2];
@@ -103,26 +128,46 @@ filter droste (image in,
         xbounds=[-log(r2/r1), log(r2/r1)];
     end;
 
+    minDimension=min(W, H);
     xymiddle=ri:[0.5*(xbounds[0]+xbounds[1]),0.5*(ybounds[0]+ybounds[1])];
     xyrange=xy:[xbounds[1]-xbounds[0], ybounds[1]-ybounds[0]];
     aspectRatio=W/H;
     xyrange[0]=xyrange[1]*aspectRatio;
     xbounds=[xymiddle[0]-0.5*xyrange[0],xymiddle[0]+0.5*xyrange[0]];
     z=ri:[xbounds[0]+(xbounds[1]-xbounds[0])*(x+W/2)/W,ybounds[0]+(ybounds[1]-ybounds[0])*(y+H/2)/H];
-    z[0] = z[0]-(x_shift);
-    z[1] = z[1]-(y_shift);
-    if (retwist) then # only allow for procedural zooming/scaling in the standard coordinates
+
+    # only allow for procedural zooming/scaling in the standard coordinates
+    if (retwist) then
         zinitial=z;
+        z = z - ri:[xShift,yShift];
         z=xymiddle+(z-xymiddle)/zoom*exp(-I*rotate);
     else
         zinitial=r1*exp(z); # save these coordinates for drawing a frame later
-        zinitial=zinitial*zoom*exp(I*rotate);
+        zinitial=zinitial*Zoom*exp(I*rotate);
     end;
 
-    ##
-    # The Droste effect math all takes place over the next six lines.
-    # All the rest of the code is for niceties.
-    ##
+    if ShowBothPoles then
+        theta=(pi/180)*PoleRotation;
+        xx = z[0];
+        yy = z[1];
+        div = .5 * (1+ xx^2 + yy^2 + ((1-xx^2-yy^2) * cos(theta)) - (2 * xx * sin(theta)));
+        xx = xx * cos(theta) + (0.5*(1 - xx^2 - yy^2) * sin(theta));
+        z = ri:[xx,yy];
+        z = z/div;
+    else
+        if HyperDroste then
+            z = sin(z);
+        end;
+
+        if TilePoles then
+            z = z^FractalPoints;
+            z = tan(2*z);
+        end
+    end;
+
+    pLat = (PoleLat*W/X)/100;
+    pLon = (PoleLong*W/X)/100;
+    z= z + ri:[pLat,pLon];
 
     if (retwist) then
         z2=log(z/r1);
@@ -130,36 +175,50 @@ filter droste (image in,
         z2 = z;
     end;
 
-    z=p1*z2/beta;
-    z=r1*exp(z);
+    ##################################
+    # Droste-effect math starts here #
+    ##################################
 
-    ## End Droste effect math
+    alpha=atan(p2/p1*log(r2/r1)/(2*pi));
+    f=cos(alpha);
+    beta=f*exp(I*alpha);
 
-    if (tileBasedOnTransparency && starting_level > 0) then
-        if (!transparentPointsIn) then
-            ratio=r2/r1*exp( I*angle);
-        end;
-        if ( transparentPointsIn) then
-            ratio=r1/r2*exp(-I*angle);
-        end;
-        z=z*exp(starting_level*log(ratio));
+    # the angle of rotation between adjacent annular levels
+    if (p2 > 0) then
+        angle = 2*pi*p1;
+    else
+        angle =-2*pi*p1;
     end;
 
-    ##
-    # When tiling based on transparency, color is accumulated into the colorSoFar variable,
-    # while alphaRemaining tells how much remains for lower layers to contribute (initially 1,
-    # finally 0).
-    ##
+    if MirrorEffect then
+        angle=angle/Strands;
+    end;
+
+    z=p1*z2/beta;
+    rotatedscaledlogz=z; # save these coordinates for drawing a grid later
+    logz=z2; # save these coordinates for drawing a grid later
+    z=r1*exp(z);
+
+    ################################
+    # Droste-effect math ends here #
+    ################################
+
+    if (tileBasedOnTransparency && levelsToLookOut > 0) then
+        if (!transparentPointsIn) then ratio=r2/r1*exp( I*angle); end;
+        if ( transparentPointsIn) then ratio=r1/r2*exp(-I*angle); end;
+        z = z * (ratio^levelsToLookOut)/1;
+    end;
+
     colorSoFar=rgba:[0,0,0,0];
     alphaRemaining=1;
-    ix=minDimension/2*z[0];
-    iy=minDimension/2*z[1];
-    clr=in(xy:[ix + x_origin*W,iy + y_origin*H]);
-    colorSoFar = colorSoFar + (clr*(alpha(clr)*alphaRemaining));
-    alphaRemaining=alphaRemaining*(1-alpha(clr));
-    sign=0;
+    ix=minDimension/2*(z[0]+xCenterShift);
+    iy=minDimension/2*(z[1]+yCenterShift);
+    iXY = xy:[ix,iy];
 
-    # do we need to look inward from the current point, or outward?
+    ColorOut=in(iXY);
+    colorSoFar = colorSoFar = colorSoFar + (ColorOut*(alpha(ColorOut)*alphaRemaining));
+    alphaRemaining=alphaRemaining*(1-alpha(ColorOut));
+    sign=0;
 
     if (tileBasedOnTransparency) then
         if ( transparentPointsIn && alphaRemaining > epsilon) then
@@ -170,51 +229,84 @@ filter droste (image in,
         end;
     else
         radius=sqrt(z[0]*z[0]+z[1]*z[1]);
-        if (r1 > radius) then
-            sign=-1;
-        end;
-        if (radius > r2) then
-            sign= 1;
-        end;
+        if (radius < r1) then sign=-1; end;
+        if (radius > r2) then sign= 1; end;
     end;
 
-    if (0 > sign) then ratio=r2/r1*exp( I*angle); end;
-    if (sign > 0) then ratio=r1/r2*exp(-I*angle); end;
-
-    if (level_frequency > 1) then
-        ratio = exp(log(ratio)*level_frequency);
+    if (sign < 0) then
+        ratio=r2/r1*exp( I*angle);
     end;
 
-    ##
-    # Iteratively move inward or outward, until
-    # the point has radius r in [r1, r2), if tileBasedOnTransparency=false
-    # or until alphaRemaining=0, if tileBasedOnTransparency=true
-    # In the latter case, we accumulate color at each step
-    ##
-    iteration=starting_level;
-    maxiteration=number_of_levels+starting_level-1;
+    if (sign > 0) then
+        ratio=r1/r2*exp(-I*angle);
+    end;
 
-    while (sign != 0 && maxiteration > iteration) do
+    if (levelToShow > 1) then
+        ratio = exp(log(ratio)*levelToShow);
+    end;
+
+    iteration=StartingLevel;
+    maxiteration=NumberOfLevels+StartingLevel-1;
+
+    while (sign != 0 && iteration < maxiteration) do
         z2=z*ratio;
         z=z2;
-        ix=minDimension/2*(z[0]) + x_origin*W;
-        iy=minDimension/2*(z[1]) + y_origin*H;
+        rotatedscaledlogz=rotatedscaledlogz+ri:[0,-sign*angle];
+        ix=minDimension/2*(z[0]+xCenterShift);
+        iy=minDimension/2*(z[1]+yCenterShift);
+        iXY = xy:[ix,iy];
         sign=0;
         if (tileBasedOnTransparency) then
-            clr=in(xy:[ix,iy]);
-            colorSoFar = colorSoFar + (clr*(alpha(clr)*alphaRemaining));
-            alphaRemaining=alphaRemaining*(1-alpha(clr));
+            ColorOut=in(iXY);
+            colorSoFar = colorSoFar + (ColorOut*(alpha(ColorOut)*alphaRemaining));
+            alphaRemaining=alphaRemaining*(1-alpha(ColorOut));
             if ( transparentPointsIn && alphaRemaining > epsilon) then sign=-1; end;
             if (!transparentPointsIn && alphaRemaining > epsilon) then sign= 1; end;
         else
             radius=sqrt(z[0]*z[0]+z[1]*z[1]);
-            colorSoFar=in(xy:[ix,iy]);
-            if (r1 > radius) then sign=-1; end;
+            colorSoFar=in(iXY);
+            if (radius < r1) then sign=-1; end;
             if (radius > r2) then sign= 1; end;
         end;
         iteration=iteration+1;
     end;
 
-    colorSoFar
+    ColorOut=colorSoFar;
 
-end
+    if (ShowGrid) then
+        gridz=xy:[(logz[0]+10*log(r2/r1))%log(r2/r1), (logz[1]+10*2*pi)%(2*pi)];
+
+        if (gridz[0] < epsilon || gridz[0] > (log(r2/r1)-epsilon) || gridz[1] < epsilon || gridz[1] > (2*pi-epsilon)) then
+            ColorOut=rgba:[0,1,0,1];
+        end;
+
+        gridz=xy:[(rotatedscaledlogz[0]+10*log(r2/r1))%log(r2/r1), (rotatedscaledlogz[1]+10*2*pi)%(2*pi)];
+
+        if (gridz[0] < epsilon || gridz[0] > (log(r2/r1)-epsilon) || gridz[1] < epsilon || gridz[1] > (2*pi-epsilon)) then
+            ColorOut=rgba:[0,0,1,1];
+        end;
+    end;
+
+    if (ShowFrame) then
+        gridz=xy:[zinitial[0],zinitial[1]];
+        if (gridz[0] < (aspectRatio*r2) && gridz[0] > -(aspectRatio*r2) && gridz[1] < r2 && gridz[1] > -r2) then
+            dx=min((aspectRatio*r2)-gridz[0], gridz[0]+(aspectRatio*r2));
+            dy=min(r2-gridz[1], gridz[1]+r2);
+            if (dx < (4*epsilon) || dy < (4*epsilon)) then
+                ColorOut=rgba:[1,1,1,1];
+            end;
+            if (dx < (2*epsilon) || dy < (2*epsilon)) then
+                ColorOut=rgba:[0,0,0,1];
+            end;
+        else
+            ColorOut=rgba:[0.75*red(ColorOut),0.75*green(ColorOut),0.75*blue(ColorOut),1];
+        end;
+    end;
+
+    if !(DoNotFlattenTransparency) then
+        ColorOut=rgba:[ColorOut[0], ColorOut[1], ColorOut[2], 1];
+    end;
+
+    ColorOut
+
+end 
