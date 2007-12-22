@@ -276,6 +276,21 @@ typedef struct
     pre_native_insn_t *first_pre_native_insn;
 } filter_code_t;
 
+typedef struct
+{
+    int userval_type;
+    int var_type;
+    int num_vars;
+    int getter_op;
+} userval_representation_t;
+
+typedef struct _userval_values_t
+{
+    userval_info_t *info;
+    struct _userval_values_t *next;
+    value_t *values[];
+} userval_values_t;
+
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable, ...);
 static int rhs_is_foldable (rhs_t *rhs);
@@ -332,6 +347,8 @@ static statement_t **emit_loc = &first_stmt;
 static statement_t dummy_stmt = { STMT_NIL };
 
 static inlining_history_t *inlining_history = NULL;
+
+static userval_values_t *userval_values = NULL;
 
 static pre_native_insn_t *first_pre_native_insn;
 static pre_native_insn_t *last_pre_native_insn;
@@ -1426,6 +1443,42 @@ push_inlined_filter (filter_t *filter, inlining_history_t *old)
     return new;
 }
 
+/*** uservals ***/
+
+static userval_representation_t*
+lookup_userval_representation (int userval_type)
+{
+    static userval_representation_t reps[] =
+        {
+	    { USERVAL_INT_CONST, TYPE_INT, 1, OP_USERVAL_INT },
+	    { USERVAL_FLOAT_CONST, TYPE_FLOAT, 1, OP_USERVAL_FLOAT },
+	    { USERVAL_BOOL_CONST, TYPE_INT, 1, OP_USERVAL_BOOL },
+	    /* USERVAL_CURVE */
+	    /* USERVAL_COLOR */
+	    /* USERVAL_GRADIENT */
+	    { USERVAL_IMAGE, TYPE_IMAGE, 1, OP_USERVAL_IMAGE },
+	    { -1, -1, -1 }
+	};
+
+    int i;
+
+    for (i = 0; reps[i].userval_type != -1; ++i)
+	if (reps[i].userval_type == userval_type)
+	    return &reps[i];
+    return NULL;
+}
+
+static userval_values_t*
+lookup_userval_values (userval_info_t *info)
+{
+    userval_values_t *uv;
+
+    for (uv = userval_values; uv != NULL; uv = uv->next)
+	if (uv->info == info)
+	    return uv;
+    return NULL;
+}
+
 /*** debug printing ***/
 
 static void
@@ -2045,77 +2098,74 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    break;
 
 	case EXPR_USERVAL :
-	    switch (tree->val.userval.info->type)
 	    {
-		case USERVAL_INT_CONST :
-		    if (!is_alloced)
-			dest[0] = make_temporary(TYPE_INT);
-		    emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_INT, make_int_const_primary(tree->val.userval.info->index)));
-		    break;
+		userval_representation_t *rep = lookup_userval_representation(tree->val.userval.info->type);
+		
+		if (rep != NULL)
+		{
+		    userval_values_t *uv = lookup_userval_values(tree->val.userval.info);
 
-		case USERVAL_FLOAT_CONST :
-		    if (!is_alloced)
-			dest[0] = make_temporary(TYPE_FLOAT);
-		    emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_FLOAT, make_int_const_primary(tree->val.userval.info->index)));
-		    break;
+		    g_assert(uv != NULL);
 
-		case USERVAL_BOOL_CONST :
 		    if (!is_alloced)
-			dest[0] = make_temporary(TYPE_INT);
-		    emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_BOOL, make_int_const_primary(tree->val.userval.info->index)));
-		    break;
-
-		case USERVAL_CURVE :
+			dest[0] = make_temporary(rep->var_type);
+		    emit_assign(make_lhs(dest[0]), make_value_rhs(uv->values[0]));
+		}
+		else
+		{
+		    switch (tree->val.userval.info->type)
 		    {
-			compvar_t *pos;
+			case USERVAL_CURVE :
+			    {
+				compvar_t *pos;
 
-			if (!is_alloced)
-			    dest[0] = make_temporary(TYPE_FLOAT);
+				if (!is_alloced)
+				    dest[0] = make_temporary(TYPE_FLOAT);
 
-			gen_code(tree->val.userval.args, &pos, 0);
+				gen_code(tree->val.userval.args, &pos, 0);
 
-			emit_assign(make_lhs(dest[0]), make_op_rhs(OP_USERVAL_CURVE, make_int_const_primary(tree->val.userval.info->index),
-								   make_compvar_primary(pos)));
+				emit_assign(make_lhs(dest[0]),
+					    make_op_rhs(OP_USERVAL_CURVE,
+							make_int_const_primary(tree->val.userval.info->index),
+							make_compvar_primary(pos)));
+			    }
+			    break;
+
+			case USERVAL_COLOR :
+			case USERVAL_GRADIENT :
+			    {
+				compvar_t *pos;
+				compvar_t *temp = make_temporary(TYPE_INT);
+				int i;
+
+				if (!is_alloced)
+				    for (i = 0; i < 4; ++i)
+					dest[i] = make_temporary(TYPE_FLOAT);
+
+				if (tree->val.userval.info->type == USERVAL_COLOR)
+				    emit_assign(make_lhs(temp),
+						make_op_rhs(OP_USERVAL_COLOR,
+							    make_int_const_primary(tree->val.userval.info->index)));
+				else
+				{
+				    gen_code(tree->val.userval.args, &pos, 0);
+				    emit_assign(make_lhs(temp),
+						make_op_rhs(OP_USERVAL_GRADIENT,
+							    make_int_const_primary(tree->val.userval.info->index),
+							    make_compvar_primary(pos)));
+				}
+
+				emit_assign(make_lhs(dest[0]), make_op_rhs(OP_RED, make_compvar_primary(temp)));
+				emit_assign(make_lhs(dest[1]), make_op_rhs(OP_GREEN, make_compvar_primary(temp)));
+				emit_assign(make_lhs(dest[2]), make_op_rhs(OP_BLUE, make_compvar_primary(temp)));
+				emit_assign(make_lhs(dest[3]), make_op_rhs(OP_ALPHA, make_compvar_primary(temp)));
+			    }
+			    break;
+
+			default :
+			    g_assert_not_reached();
 		    }
-		    break;
-
-		case USERVAL_COLOR :
-		case USERVAL_GRADIENT :
-		    {
-			compvar_t *pos;
-			compvar_t *temp = make_temporary(TYPE_INT);
-			int i;
-
-			if (!is_alloced)
-			    for (i = 0; i < 4; ++i)
-				dest[i] = make_temporary(TYPE_FLOAT);
-
-			if (tree->val.userval.info->type == USERVAL_COLOR)
-			    emit_assign(make_lhs(temp), make_op_rhs(OP_USERVAL_COLOR, make_int_const_primary(tree->val.userval.info->index)));
-			else
-			{
-			    gen_code(tree->val.userval.args, &pos, 0);
-			    emit_assign(make_lhs(temp), make_op_rhs(OP_USERVAL_GRADIENT, make_int_const_primary(tree->val.userval.info->index),
-								    make_compvar_primary(pos)));
-			}
-
-			emit_assign(make_lhs(dest[0]), make_op_rhs(OP_RED, make_compvar_primary(temp)));
-			emit_assign(make_lhs(dest[1]), make_op_rhs(OP_GREEN, make_compvar_primary(temp)));
-			emit_assign(make_lhs(dest[2]), make_op_rhs(OP_BLUE, make_compvar_primary(temp)));
-			emit_assign(make_lhs(dest[3]), make_op_rhs(OP_ALPHA, make_compvar_primary(temp)));
-		    }
-		    break;
-
-		case USERVAL_IMAGE :
-		    if (!is_alloced)
-			dest[0] = make_temporary(TYPE_IMAGE);
-		    emit_assign(make_lhs(dest[0]),
-				make_op_rhs(OP_USERVAL_IMAGE,
-					    make_int_const_primary(tree->val.userval.info->index)));
-		    break;
-
-		default :
-		    g_assert_not_reached();
+		}
 	    }
 	    break;
 
@@ -5269,6 +5319,49 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
+static userval_values_t*
+new_userval_values (userval_info_t *info, userval_values_t *next, int num_values)
+{
+    userval_values_t *uv = (userval_values_t*)pools_alloc(&compiler_pools, sizeof(userval_values_t)
+							  + num_values * sizeof(value_t*));
+    int i;
+
+    uv->info = info;
+    for (i = 0; i < num_values; ++i)
+	uv->values[i] = NULL;
+    uv->next = next;
+
+    return uv;
+}
+
+static userval_values_t*
+gen_userval_values (userval_info_t *info)
+{
+    userval_values_t *uvs = NULL;
+
+    while (info != NULL)
+    {
+	userval_representation_t *rep = lookup_userval_representation(info->type);
+
+	if (rep != NULL)
+	{
+	    int i;
+
+	    uvs = new_userval_values(info, uvs, rep->num_vars);
+
+	    for (i = 0; i < rep->num_vars; ++i)
+		uvs->values[i] = current_value(make_temporary(rep->var_type));
+
+	    emit_assign(uvs->values[0],
+			make_op_rhs(rep->getter_op, make_int_const_primary(info->index)));
+	}
+
+	info = info->next;
+    }
+
+    return uvs;
+}
+
 static statement_t*
 gen_filter_code (filter_t *filter, compvar_t *color, inlining_history_t *history)
 {
@@ -5280,6 +5373,7 @@ gen_filter_code (filter_t *filter, compvar_t *color, inlining_history_t *history
 
     first_stmt = NULL;
     emit_loc = &first_stmt;
+    userval_values = gen_userval_values(filter->userval_infos);
 
     gen_code(filter->decl->v.filter.body, result, FALSE);
 
@@ -5291,6 +5385,7 @@ gen_filter_code (filter_t *filter, compvar_t *color, inlining_history_t *history
 
     first_stmt = NULL;
     emit_loc = NULL;
+    userval_values = NULL;
 
     inlining_history = history_save;
 
