@@ -1748,6 +1748,21 @@ gen_args (exprtree *arg_trees, int **_arglengths, int **_argnumbers)
 }
 
 static void
+gen_deconstruct_color (compvar_t *color, compvar_t **dest, gboolean is_alloced)
+{
+    static int color_ops[] = { OP_RED, OP_GREEN, OP_BLUE, OP_ALPHA };
+
+    int i;
+
+    for (i = 0; i < 4; ++i)
+    {
+	if (!is_alloced)
+	    dest[i] = make_temporary(TYPE_FLOAT);
+	emit_assign(make_lhs(dest[i]), make_op_rhs(color_ops[i], make_compvar_primary(color)));
+    }
+}
+
+static void
 gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 {
     int i;
@@ -2093,14 +2108,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		color = make_temporary(TYPE_COLOR);
 		emit_assign(make_lhs(color), make_filter_rhs(tree->val.filter_call.filter, arg_primaries));
 
-		if (!is_alloced)
-		    for (i = 0; i < 4; ++i)
-			dest[i] = make_temporary(TYPE_FLOAT);
-
-		emit_assign(make_lhs(dest[0]), make_op_rhs(OP_RED, make_compvar_primary(color)));
-		emit_assign(make_lhs(dest[1]), make_op_rhs(OP_GREEN, make_compvar_primary(color)));
-		emit_assign(make_lhs(dest[2]), make_op_rhs(OP_BLUE, make_compvar_primary(color)));
-		emit_assign(make_lhs(dest[3]), make_op_rhs(OP_ALPHA, make_compvar_primary(color)));
+		gen_deconstruct_color(color, dest, is_alloced);
 	    }
 	    break;
 
@@ -2122,8 +2130,35 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		    arg_primaries[i] = make_compvar_primary(args[i][0]);
 		}
 
-		dest[0] = make_temporary(TYPE_IMAGE);
+		if (!is_alloced)
+		    dest[0] = make_temporary(TYPE_IMAGE);
 		emit_assign(make_lhs(dest[0]), make_closure_rhs(tree->val.filter_closure.filter, arg_primaries));
+	    }
+	    break;
+
+	case EXPR_IMAGE_CALL :
+	    {
+		compvar_t *image = make_temporary(TYPE_IMAGE);
+		compvar_t *xy[2];
+		compvar_t *t;
+		compvar_t *color;
+
+		xy[0] = make_temporary(TYPE_FLOAT);
+		xy[1] = make_temporary(TYPE_FLOAT);
+		t = make_temporary(TYPE_FLOAT);
+
+		gen_code(tree->val.image_call.image, &image, 1);
+		gen_code(tree->val.image_call.args, xy, 1);
+
+		emit_assign(make_lhs(t), make_float_const_rhs(0.0));
+
+		color = make_temporary(TYPE_COLOR);
+
+		emit_assign(make_lhs(color),
+			    make_op_rhs(OP_ORIG_VAL, make_compvar_primary(xy[0]), make_compvar_primary(xy[1]),
+					make_compvar_primary(image), make_compvar_primary(t)));
+
+		gen_deconstruct_color(color, dest, is_alloced);
 	    }
 	    break;
 
@@ -2713,7 +2748,7 @@ optimize_make_color (statement_t *stmt)
 	switch (stmt->kind)
 	{
 	    case STMT_NIL :
-		stmt = stmt->next;
+	    case STMT_PHI_ASSIGN :
 		break;
 
 	    case STMT_ASSIGN :
@@ -2739,27 +2774,22 @@ optimize_make_color (statement_t *stmt)
 			add_use(vals[0], stmt);
 		    }
 		}
-		stmt = stmt->next;
-		break;
-
-	    case STMT_PHI_ASSIGN :
-		stmt = stmt->next;
 		break;
 
 	    case STMT_IF_COND :
 		optimize_make_color(stmt->v.if_cond.consequent);
 		optimize_make_color(stmt->v.if_cond.alternative);
-		stmt = stmt->next;
 		break;
 
 	    case STMT_WHILE_LOOP :
 		optimize_make_color(stmt->v.while_loop.body);
-		stmt = stmt->next;
 		break;
 
 	    default :
 		g_assert_not_reached();
 	}
+
+	stmt = stmt->next;
     }
 }
 

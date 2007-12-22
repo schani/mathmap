@@ -2,10 +2,6 @@
 
 * 1.2.x
 
-** GIMP Plug-In
-
-** General
-
 ** Documentation/Homepage
 Update screenshots
 
@@ -38,6 +34,7 @@ Real dependencies
 ** Examples
 
 ** Compiler
+number*image must trigger an error!
 Inline filter calls
 Transform closure and application to filter call
 Return proper tuples, not colors

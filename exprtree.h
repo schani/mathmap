@@ -126,6 +126,7 @@ struct _filter_t;
 #define EXPR_USERVAL        18
 #define EXPR_FILTER_CALL    19
 #define EXPR_FILTER_CLOSURE 20
+#define EXPR_IMAGE_CALL     21
 
 typedef struct _exprtree
 {
@@ -216,6 +217,11 @@ typedef struct _exprtree
 	    struct _filter_t *filter;
 	    struct _exprtree *args;
 	} filter_closure;
+	struct
+	{
+	    struct _exprtree *image;
+	    struct _exprtree *args;
+	} image_call;
     } val;
 
     struct _exprtree *next;

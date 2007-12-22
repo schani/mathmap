@@ -137,7 +137,7 @@ static void calc_preview_size (int max_width, int max_height, int *width, int *h
 static gboolean alloc_preview_pixbuf (int width, int height);
 static void dialog_preview_size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpointer user_data);
 static void dialog_preview_callback (GtkWidget *widget, gpointer data);
-static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);
+/*static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);*/
 static void refresh_preview (void);
 
 static void dialog_save_callback (GtkWidget *widget, gpointer data);
@@ -2084,6 +2084,7 @@ save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
     */
 }
 
+/*
 static void
 print_tuple (tuple_t *tuple)
 {
@@ -2105,7 +2106,6 @@ print_tuple (tuple_t *tuple)
     printf("]");
 }
 
-/*
 static void
 dialog_preview_click (GtkWidget *widget, GdkEvent *event)
 {

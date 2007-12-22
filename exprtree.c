@@ -551,6 +551,18 @@ make_userval (userval_info_t *info, exprtree *args)
 }
 
 exprtree*
+make_var_exprtree (variable_t *var, tuple_info_t info)
+{
+    exprtree *tree = alloc_exprtree();
+
+    tree->type = EXPR_VARIABLE;
+    tree->val.var = var;
+    tree->result = info;
+
+    return tree;
+}
+
+exprtree*
 make_var (const char *name)
 {
     tuple_info_t info;
@@ -578,11 +590,9 @@ make_var (const char *name)
     }
     else if (lookup_variable(the_mathmap->current_filter->variables, name, &info) != 0)
     {
-	tree = alloc_exprtree();
+	variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &info);
 
-	tree->type = EXPR_VARIABLE;
-	tree->val.var = lookup_variable(the_mathmap->current_filter->variables, name, &tree->result);
-	tree->result = info;
+	return make_var_exprtree(var, info);
     }
     else
     {
@@ -794,6 +804,33 @@ make_filter_call (filter_t *filter, exprtree *args)
     return tree;
 }
 
+static exprtree*
+make_image_call (exprtree *image, exprtree *args)
+{
+    exprtree *tree = alloc_exprtree();
+
+    if (exprlist_length(args) != 1
+	|| args->result.length != 2
+	|| (args->result.number != xy_tag_number
+	    && args->result.number != ra_tag_number))
+    {
+	sprintf(error_string, "An image must be invoked with one argument of type xy:2 or ra:2.");
+	JUMP(1);
+    }
+
+    if (args->result.number == ra_tag_number)
+	args = make_function("toXY", args);
+
+    tree->type = EXPR_IMAGE_CALL;
+    tree->val.image_call.image = image;
+    tree->val.image_call.args = args;
+
+    tree->result.number = rgba_tag_number;
+    tree->result.length = 4;
+
+    return tree;
+}
+
 exprtree*
 make_function (const char *name, exprtree *args)
 {
@@ -860,8 +897,19 @@ make_function (const char *name, exprtree *args)
 	else
 	    assert(0);
     }
-    else
+    else if (lookup_variable(the_mathmap->current_filter->variables, name, &info))
     {
+	variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &info);
+
+	if (info.number != image_tag_number
+	    || info.length != 1)
+	{
+	    sprintf(error_string, "Variable %s is not an image and cannot be invoked.", name);
+	    JUMP(1);
+	}
+
+	return make_image_call(make_var_exprtree(var, info), args);
+    } else {
 	sprintf(error_string, "Unable to resolve invocation of %s.", name);
 	JUMP(1);
     }
