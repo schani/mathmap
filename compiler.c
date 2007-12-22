@@ -939,6 +939,17 @@ stmt_is_within_limit (statement_t *stmt, statement_t *limit)
     return 1;
 }
 
+static statement_t*
+last_stmt_of_block (statement_t *stmt)
+{
+    g_assert(stmt != NULL);
+
+    while (stmt->next != NULL)
+	stmt = stmt->next;
+
+    return stmt;
+}
+
 /* assumes that old is used at least once in stmt */
 static void
 rewrite_use (statement_t *stmt, value_t *old, primary_t new)
@@ -1173,6 +1184,7 @@ emit_stmt (statement_t *stmt)
 
     stmt->parent = CURRENT_STACK_TOP;
 
+    stmt->next = *emit_loc;
     *emit_loc = stmt;
     emit_loc = &stmt->next;
 
@@ -5257,16 +5269,32 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
-static void
-gen_filter_code (filter_t *filter, compvar_t **dest, gboolean is_alloced, inlining_history_t *history)
+static statement_t*
+gen_filter_code (filter_t *filter, compvar_t *color, inlining_history_t *history)
 {
     inlining_history_t *history_save = inlining_history;
+    statement_t *stmt;
+    compvar_t *result[filter->decl->v.filter.body->result.length];
 
     inlining_history = push_inlined_filter(filter, history);
 
-    gen_code(filter->decl->v.filter.body, dest, is_alloced);
+    first_stmt = NULL;
+    emit_loc = &first_stmt;
+
+    gen_code(filter->decl->v.filter.body, result, FALSE);
+
+    emit_assign(make_lhs(color), make_op_rhs(OP_MAKE_COLOR,
+					     make_compvar_primary(result[0]), make_compvar_primary(result[1]),
+					     make_compvar_primary(result[2]), make_compvar_primary(result[3])));
+
+    stmt = first_stmt;
+
+    first_stmt = NULL;
+    emit_loc = NULL;
 
     inlining_history = history_save;
+
+    return stmt;
 }
 
 static filter_code_t*
@@ -5275,25 +5303,22 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     int changed;
     filter_code_t *code;
     compvar_t *color_tmp, *dummy;
-    compvar_t *result[filter->decl->v.filter.body->result.length];
 
-    first_stmt = NULL;
-    emit_loc = &first_stmt;
     next_temp_number = 1;
     next_value_global_index = 0;
     inlining_history = NULL;
 
     compiler_reset_variables(filter->variables);
 
-    gen_filter_code(filter, result, FALSE, inlining_history);
-
     color_tmp = make_temporary(TYPE_COLOR);
-    dummy = make_temporary(TYPE_INT);
+    first_stmt = gen_filter_code(filter, color_tmp, inlining_history);
 
-    emit_assign(make_lhs(color_tmp), make_op_rhs(OP_MAKE_COLOR,
-						 make_compvar_primary(result[0]), make_compvar_primary(result[1]),
-						 make_compvar_primary(result[2]), make_compvar_primary(result[3])));
+    emit_loc = &(last_stmt_of_block(first_stmt)->next);
+
+    dummy = make_temporary(TYPE_INT);
     emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
+
+    emit_loc = NULL;
 
     propagate_types();
 
