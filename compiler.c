@@ -163,6 +163,12 @@ typedef struct _operation_t
     type_t arg_types[MAX_OP_ARGS]; /* used only if type_prop == TYPE_PROP_CONST */
 } operation_t;
 
+typedef struct _inlining_history_t
+{
+    filter_t *filter;
+    struct _inlining_history_t *next;
+} inlining_history_t;
+
 #define RHS_PRIMARY          1
 #define RHS_INTERNAL         2
 #define RHS_OP               3
@@ -185,11 +191,13 @@ typedef struct
 	{
 	    filter_t *filter;
 	    primary_t *args;
+	    inlining_history_t *history;
 	} filter;
 	struct
 	{
 	    filter_t *filter;
 	    primary_t *args;
+	    inlining_history_t *history;
 	} closure;
     } v;
 } rhs_t;
@@ -319,9 +327,11 @@ static operation_t ops[NUM_OPS];
 
 static int next_temp_number = 1;
 
-static statement_t *first_stmt = 0;
+static statement_t *first_stmt = NULL;
 static statement_t **emit_loc = &first_stmt;
 static statement_t dummy_stmt = { STMT_NIL };
+
+static inlining_history_t *inlining_history = NULL;
 
 static pre_native_insn_t *first_pre_native_insn;
 static pre_native_insn_t *last_pre_native_insn;
@@ -669,6 +679,7 @@ make_filter_rhs (filter_t *filter, primary_t *args)
     rhs->kind = RHS_FILTER;
     rhs->v.filter.filter = filter;
     rhs->v.filter.args = args;
+    rhs->v.filter.history = inlining_history;
 
     return rhs;
 }
@@ -681,6 +692,7 @@ make_closure_rhs (filter_t *filter, primary_t *args)
     rhs->kind = RHS_CLOSURE;
     rhs->v.closure.filter = filter;
     rhs->v.closure.args = args;
+    rhs->v.closure.history = inlining_history;
 
     return rhs;
 }
@@ -1388,6 +1400,19 @@ end_while_loop (void)
 #define STKP                  (invocation->stack_machine->stackp)
 
 #include "new_builtins.c"
+
+/*** inline history ***/
+
+static inlining_history_t*
+push_inlined_filter (filter_t *filter, inlining_history_t *old)
+{
+    inlining_history_t *new = (inlining_history_t*)pools_alloc(&compiler_pools, sizeof(inlining_history_t));
+
+    new->filter = filter;
+    new->next = old;
+
+    return new;
+}
 
 /*** debug printing ***/
 
@@ -2832,6 +2857,7 @@ optimize_closure_application (statement_t *stmt)
 			    remove_use(stmt->v.assign.rhs->v.op.args[3].v.value, stmt);	/* t */
 
 			stmt->v.assign.rhs = make_filter_rhs(filter, args);
+			stmt->v.assign.rhs->v.filter.history = def->v.assign.rhs->v.closure.history;
 
 			for (i = 0; i < num_args - 2; ++i)
 			    if (args[i].kind == PRIMARY_VALUE)
@@ -5231,34 +5257,43 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
+static void
+gen_filter_code (filter_t *filter, compvar_t **dest, gboolean is_alloced, inlining_history_t *history)
+{
+    inlining_history_t *history_save = inlining_history;
+
+    inlining_history = push_inlined_filter(filter, history);
+
+    gen_code(filter->decl->v.filter.body, dest, is_alloced);
+
+    inlining_history = history_save;
+}
+
 static filter_code_t*
 generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 {
-    compvar_t **result;
     int changed;
     filter_code_t *code;
+    compvar_t *color_tmp, *dummy;
+    compvar_t *result[filter->decl->v.filter.body->result.length];
 
-    first_stmt = 0;
+    first_stmt = NULL;
     emit_loc = &first_stmt;
     next_temp_number = 1;
     next_value_global_index = 0;
+    inlining_history = NULL;
 
     compiler_reset_variables(filter->variables);
 
-    result = (compvar_t**)malloc(sizeof(compvar_t*) * filter->decl->v.filter.body->result.length);
-    assert(result != 0);
+    gen_filter_code(filter, result, FALSE, inlining_history);
 
-    gen_code(filter->decl->v.filter.body, result, 0);
-    {
-	compvar_t *color_tmp = make_temporary(TYPE_COLOR), *dummy = make_temporary(TYPE_INT);
+    color_tmp = make_temporary(TYPE_COLOR);
+    dummy = make_temporary(TYPE_INT);
 
-	emit_assign(make_lhs(color_tmp), make_op_rhs(OP_MAKE_COLOR,
-						     make_compvar_primary(result[0]), make_compvar_primary(result[1]),
-						     make_compvar_primary(result[2]), make_compvar_primary(result[3])));
-	emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
-    }
-
-    free(result);
+    emit_assign(make_lhs(color_tmp), make_op_rhs(OP_MAKE_COLOR,
+						 make_compvar_primary(result[0]), make_compvar_primary(result[1]),
+						 make_compvar_primary(result[2]), make_compvar_primary(result[3])));
+    emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
 
     propagate_types();
 
