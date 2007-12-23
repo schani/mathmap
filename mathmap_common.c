@@ -506,22 +506,6 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->uservals = instantiate_uservals(mathmap->main_filter->userval_infos, invocation);
 
-#ifndef OPENSTEP
-    if (!cmd_line_mode)
-    {
-	userval_info_t *info;
-
-	// we give the original image as the first input image
-	for (info = mathmap->main_filter->userval_infos; info != 0; info = info->next)
-	    if (info->type == USERVAL_IMAGE)
-	    {
-		assign_image_userval_drawable(info, &invocation->uservals[info->index],
-					      copy_input_drawable(get_default_input_drawable()));
-		break;
-	    }
-    }
-#endif
-
     if (template != 0)
 	carry_over_uservals_from_template(invocation, template);
 

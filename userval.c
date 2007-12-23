@@ -332,11 +332,18 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_IMAGE :
-	    val->v.image = NULL;
+	    assign_image_userval_drawable(info, val,
+					  copy_input_drawable(get_default_input_drawable()));
 	    /*
-	    get_default_input_drawable();
-	    if (val->v.image.drawable != 0)
+	    {
+		input_drawable_t *drawable = get_default_input_drawable();
+
+		g_assert(drawable != NULL);
+
+		val->v.image = &drawable->image;
+
 		calc_image_values(info, val);
+	    }
 	    */
 	    break;
     }
