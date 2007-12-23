@@ -27,6 +27,7 @@ Debug tuples
 Better source reference for error messages
 
 ** Packaging
+Test suite
 Real dependencies
 
 ** Image Processing
@@ -34,12 +35,10 @@ Real dependencies
 ** Examples
 
 ** Compiler
+make filters return tuples, not colors
 optimization for filters which use the "current" pixel
 pools in init_frame!
 number*image must trigger an error!
-Inline filter calls
-Transform closure and application to filter call
-Return proper tuples, not colors
 Why are bool user values float?
 Copy elimination for phis in pre-native code
 XY constants for interpreter code
