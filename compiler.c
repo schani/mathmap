@@ -284,12 +284,16 @@ typedef struct
     int getter_op;
 } userval_representation_t;
 
-typedef struct _userval_values_t
+#define BINDING_USERVAL		1
+#define BINDING_INTERNAL	2
+
+typedef struct _binding_values_t
 {
-    userval_info_t *info;
-    struct _userval_values_t *next;
+    int kind;
+    gpointer key;
+    struct _binding_values_t *next;
     value_t *values[];
-} userval_values_t;
+} binding_values_t;
 
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable, ...);
@@ -348,7 +352,7 @@ static statement_t dummy_stmt = { STMT_NIL };
 
 static inlining_history_t *inlining_history = NULL;
 
-static userval_values_t *userval_values = NULL;
+static binding_values_t *binding_values = NULL;
 
 static pre_native_insn_t *first_pre_native_insn;
 static pre_native_insn_t *last_pre_native_insn;
@@ -1468,14 +1472,14 @@ lookup_userval_representation (int userval_type)
     return NULL;
 }
 
-static userval_values_t*
-lookup_userval_values (userval_info_t *info)
+static binding_values_t*
+lookup_binding_values (int kind, gpointer key)
 {
-    userval_values_t *uv;
+    binding_values_t *bv;
 
-    for (uv = userval_values; uv != NULL; uv = uv->next)
-	if (uv->info == info)
-	    return uv;
+    for (bv = binding_values; bv != NULL; bv = bv->next)
+	if (bv->kind == kind && bv->key == key)
+	    return bv;
     return NULL;
 }
 
@@ -1948,9 +1952,17 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    break;
 
 	case EXPR_INTERNAL :
-	    if (!is_alloced)
-		dest[0] = make_temporary(TYPE_INT);
-	    emit_assign(make_lhs(dest[0]), make_internal_rhs(tree->val.internal));
+	    {
+		binding_values_t *bv = lookup_binding_values(BINDING_INTERNAL,
+							     tree->val.internal);
+
+		if (!is_alloced)
+		    dest[0] = make_temporary(TYPE_INT);
+		if (bv != NULL)
+		    emit_assign(make_lhs(dest[0]), make_value_rhs(bv->values[0]));
+		else
+		    emit_assign(make_lhs(dest[0]), make_internal_rhs(tree->val.internal));
+	    }
 	    break;
 
 	case EXPR_ASSIGNMENT :
@@ -2103,13 +2115,13 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		
 		if (rep != NULL)
 		{
-		    userval_values_t *uv = lookup_userval_values(tree->val.userval.info);
+		    binding_values_t *bv = lookup_binding_values(BINDING_USERVAL, tree->val.userval.info);
 
-		    g_assert(uv != NULL);
+		    g_assert(bv != NULL);
 
 		    if (!is_alloced)
 			dest[0] = make_temporary(rep->var_type);
-		    emit_assign(make_lhs(dest[0]), make_value_rhs(uv->values[0]));
+		    emit_assign(make_lhs(dest[0]), make_value_rhs(bv->values[0]));
 		}
 		else
 		{
@@ -2254,6 +2266,188 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
    }
 }
 
+static binding_values_t*
+new_binding_values (int kind, gpointer key, binding_values_t *next, int num_values, int var_type)
+{
+    binding_values_t *bv = (binding_values_t*)pools_alloc(&compiler_pools, sizeof(binding_values_t)
+							  + num_values * sizeof(value_t*));
+    int i;
+
+    g_assert(key != NULL);
+
+    bv->kind = kind;
+    bv->key = key;
+    for (i = 0; i < num_values; ++i)
+	bv->values[i] = current_value(make_temporary(var_type));
+    bv->next = next;
+
+    return bv;
+}
+
+static binding_values_t*
+gen_binding_values_from_userval_infos (userval_info_t *info)
+{
+    binding_values_t *bvs = NULL;
+
+    while (info != NULL)
+    {
+	userval_representation_t *rep = lookup_userval_representation(info->type);
+
+	if (rep != NULL)
+	{
+	    bvs = new_binding_values(BINDING_USERVAL, info, bvs, rep->num_vars, rep->var_type);
+
+	    emit_assign(bvs->values[0],
+			make_op_rhs(rep->getter_op, make_int_const_primary(info->index)));
+	}
+
+	info = info->next;
+    }
+
+    return bvs;
+}
+
+static binding_values_t*
+gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
+{
+    int num_args = num_filter_args(filter);
+    userval_info_t *info;
+    int i;
+    binding_values_t *bvs = NULL;
+    internal_t *internal;
+
+    for (i = 0, info = filter->userval_infos;
+	 i < num_args - 2;
+	 ++i, info = info->next)
+    {
+	userval_representation_t *rep = lookup_userval_representation(info->type);
+
+	g_assert(rep != NULL);
+	g_assert(rep->num_vars == 1);
+
+	bvs = new_binding_values(BINDING_USERVAL, info, bvs, rep->num_vars, rep->var_type);
+
+	emit_assign(bvs->values[0], make_primary_rhs(args[i]));
+    }
+    g_assert(info == NULL);
+
+    internal = lookup_internal(filter->internals, "x", TRUE);
+    g_assert(internal != NULL);
+    bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
+    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 2]));
+
+    internal = lookup_internal(filter->internals, "y", TRUE);
+    g_assert(internal != NULL);
+    bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
+    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 1]));
+
+    return bvs;
+}
+
+static value_t*
+get_internal_value (filter_t *filter, const char *name)
+{
+    internal_t *internal;
+    binding_values_t *bv;
+
+    internal = lookup_internal(filter->internals, name, TRUE);
+    g_assert(internal != NULL);
+
+    bv = lookup_binding_values(BINDING_INTERNAL, internal);
+    if (bv != NULL)
+	return bv->values[0];
+    else
+    {
+	compvar_t *temp = make_temporary(TYPE_INT);
+	emit_assign(make_lhs(temp), make_internal_rhs(internal));
+	return current_value(temp);
+    }
+}
+
+static binding_values_t*
+gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
+{
+    compvar_t *r = make_temporary(TYPE_FLOAT);
+    compvar_t *a = make_temporary(TYPE_FLOAT);
+    compvar_t *x_over_r = make_temporary(TYPE_FLOAT);
+    value_t *x = get_internal_value(filter, "x");
+    value_t *y = get_internal_value(filter, "y");
+    rhs_t *rhs;
+
+    emit_assign(make_lhs(r), make_op_rhs(OP_HYPOT, make_value_primary(x), make_value_primary(y)));
+
+    start_if_cond(make_op_rhs(OP_EQ, make_compvar_primary(r), make_float_const_primary(0.0)));
+
+    emit_assign(make_lhs(a), make_float_const_rhs(0.0));
+
+    switch_if_branch();
+
+    emit_assign(make_lhs(x_over_r), make_op_rhs(OP_DIV, make_value_primary(x), make_compvar_primary(r)));
+    emit_assign(make_lhs(a), make_op_rhs(OP_ACOS, make_compvar_primary(x_over_r)));
+
+    end_if_cond();
+
+    start_if_cond(make_op_rhs(OP_LESS, make_value_primary(y), make_float_const_primary(0.0)));
+
+    rhs = make_op_rhs(OP_SUB, make_float_const_primary(2 * M_PI), make_compvar_primary(a));
+    emit_assign(make_lhs(a), rhs);
+
+    switch_if_branch();
+    end_if_cond();
+
+    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->internals, "r", TRUE), bvs, 1, TYPE_FLOAT);
+    emit_assign(bvs->values[0], make_compvar_rhs(r));
+
+    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->internals, "a", TRUE), bvs, 1, TYPE_FLOAT);
+    emit_assign(bvs->values[0], make_compvar_rhs(a));
+
+    return bvs;
+}
+
+static statement_t*
+gen_filter_code (filter_t *filter, compvar_t *color, primary_t *args,
+		 rhs_t **make_color_rhs, inlining_history_t *history)
+{
+    statement_t *first_stmt_save = first_stmt;
+    inlining_history_t *history_save = inlining_history;
+    statement_t *stmt;
+    compvar_t *result[filter->decl->v.filter.body->result.length];
+    rhs_t *rhs;
+
+    inlining_history = push_inlined_filter(filter, history);
+
+    first_stmt = NULL;
+    emit_loc = &first_stmt;
+    if (args != NULL)
+	binding_values = gen_binding_values_from_filter_args(filter, args);
+    else
+	binding_values = gen_binding_values_from_userval_infos(filter->userval_infos);
+
+    if (does_filter_use_ra(filter))
+	binding_values = gen_ra_binding_values(filter, binding_values);
+
+    gen_code(filter->decl->v.filter.body, result, FALSE);
+
+    rhs = make_op_rhs(OP_MAKE_COLOR,
+		      make_compvar_primary(result[0]), make_compvar_primary(result[1]),
+		      make_compvar_primary(result[2]), make_compvar_primary(result[3]));
+    if (make_color_rhs != NULL)
+	*make_color_rhs = rhs;
+
+    if (color != NULL)
+	emit_assign(make_lhs(color), rhs);
+
+    stmt = first_stmt;
+
+    first_stmt = first_stmt_save;
+    emit_loc = NULL;
+    binding_values = NULL;
+
+    inlining_history = history_save;
+
+    return stmt;
+}
+
 /*** dfa ***/
 
 static statement_list_t*
@@ -2393,6 +2587,11 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist, void *inf
 {
     switch (stmt->kind)
     {
+	case STMT_NIL :
+	case STMT_IF_COND :
+	case STMT_WHILE_LOOP :
+	    break;
+
 	case STMT_ASSIGN :
 	case STMT_PHI_ASSIGN :
 	{
@@ -2425,10 +2624,6 @@ propagate_types_worker (statement_t *stmt, statement_list_t *worklist, void *inf
 	    }
 	}
 	break;
-
-	case STMT_IF_COND :
-	case STMT_WHILE_LOOP :
-	    break;
 
 	default :
 	    g_assert_not_reached();
@@ -3699,15 +3894,19 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 }
 
 static void
+replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt)
+{
+    remove_uses_in_rhs(*rhs, stmt);
+
+    *rhs = new;
+
+    FOR_EACH_VALUE_IN_RHS(*rhs, &_add_use_in_stmt, stmt);
+}
+
+static void
 replace_rhs_with_value (rhs_t **rhs, value_t *val, statement_t *stmt)
 {
-    void *closure[1] = { stmt };
-
-    for_each_value_in_rhs(*rhs, &_remove_value_use, closure);
-
-    *rhs = make_value_rhs(val);
-
-    add_use(val, stmt);
+    replace_rhs(rhs, make_value_rhs(val), stmt);
 }
 
 static void
@@ -3806,6 +4005,111 @@ common_subexpression_elimination (void)
     int changed = 0;
 
     cse_recursively(first_stmt, &changed);
+
+    return changed;
+}
+
+/*** inlining ***/
+
+static gboolean
+can_inline (filter_t *filter, inlining_history_t *history)
+{
+    userval_info_t *info;
+
+    while (history != NULL)
+    {
+	if (history->filter == filter)
+	{
+#ifdef DEBUG_OUTPUT
+	    printf("cannot inline filter %s due to recursion\n", filter->decl->name);
+#endif
+	    return FALSE;
+	}
+	history = history->next;
+    }
+
+    for (info = filter->userval_infos; info != NULL; info = info->next) 
+    {
+	userval_representation_t *rep = lookup_userval_representation(info->type);
+
+	if (!rep)
+	{
+#ifdef DEBUG_OUTPUT
+	    printf("cannot inline filter %s because userval %s cannot be represented\n",
+		   filter->decl->name, info->name);
+#endif
+	    return FALSE;
+	}
+    }
+
+    return TRUE;
+}
+
+static void
+insert_stmts_before (statement_t *stmts, statement_t **stmt)
+{
+    statement_t *last = last_stmt_of_block(stmts);
+
+    g_assert(last->next == NULL);
+
+    last->next = *stmt;
+    *stmt = stmts;
+}
+
+static void
+do_inlining_recursively (statement_t **stmt, gboolean *changed)
+{
+    while (*stmt != NULL)
+    {
+	switch ((*stmt)->kind)
+	{
+	    case STMT_NIL :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_ASSIGN :
+		if ((*stmt)->v.assign.rhs->kind == RHS_FILTER
+		    && can_inline((*stmt)->v.assign.rhs->v.filter.filter, (*stmt)->v.assign.rhs->v.filter.history))
+		{
+		    filter_t *filter = (*stmt)->v.assign.rhs->v.filter.filter;
+		    rhs_t *make_color_rhs;
+		    statement_t *stmts = gen_filter_code(filter, NULL,
+							 (*stmt)->v.assign.rhs->v.filter.args, &make_color_rhs,
+							 (*stmt)->v.assign.rhs->v.filter.history);
+
+		    printf("inlining filter %s\n", filter->decl->name);
+
+		    replace_rhs(&(*stmt)->v.assign.rhs, make_color_rhs, *stmt);
+
+		    insert_stmts_before(stmts, stmt);
+
+		    *changed = TRUE;
+		}
+		break;
+
+	    case STMT_IF_COND :
+		do_inlining_recursively(&(*stmt)->v.if_cond.consequent, changed);
+		do_inlining_recursively(&(*stmt)->v.if_cond.alternative, changed);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		do_inlining_recursively(&(*stmt)->v.while_loop.body, changed);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = &(*stmt)->next;
+    }
+}
+
+static gboolean
+do_inlining (void)
+{
+    gboolean changed = FALSE;
+
+    do_inlining_recursively(&first_stmt, &changed);
 
     return changed;
 }
@@ -5319,79 +5623,6 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
-static userval_values_t*
-new_userval_values (userval_info_t *info, userval_values_t *next, int num_values)
-{
-    userval_values_t *uv = (userval_values_t*)pools_alloc(&compiler_pools, sizeof(userval_values_t)
-							  + num_values * sizeof(value_t*));
-    int i;
-
-    uv->info = info;
-    for (i = 0; i < num_values; ++i)
-	uv->values[i] = NULL;
-    uv->next = next;
-
-    return uv;
-}
-
-static userval_values_t*
-gen_userval_values (userval_info_t *info)
-{
-    userval_values_t *uvs = NULL;
-
-    while (info != NULL)
-    {
-	userval_representation_t *rep = lookup_userval_representation(info->type);
-
-	if (rep != NULL)
-	{
-	    int i;
-
-	    uvs = new_userval_values(info, uvs, rep->num_vars);
-
-	    for (i = 0; i < rep->num_vars; ++i)
-		uvs->values[i] = current_value(make_temporary(rep->var_type));
-
-	    emit_assign(uvs->values[0],
-			make_op_rhs(rep->getter_op, make_int_const_primary(info->index)));
-	}
-
-	info = info->next;
-    }
-
-    return uvs;
-}
-
-static statement_t*
-gen_filter_code (filter_t *filter, compvar_t *color, inlining_history_t *history)
-{
-    inlining_history_t *history_save = inlining_history;
-    statement_t *stmt;
-    compvar_t *result[filter->decl->v.filter.body->result.length];
-
-    inlining_history = push_inlined_filter(filter, history);
-
-    first_stmt = NULL;
-    emit_loc = &first_stmt;
-    userval_values = gen_userval_values(filter->userval_infos);
-
-    gen_code(filter->decl->v.filter.body, result, FALSE);
-
-    emit_assign(make_lhs(color), make_op_rhs(OP_MAKE_COLOR,
-					     make_compvar_primary(result[0]), make_compvar_primary(result[1]),
-					     make_compvar_primary(result[2]), make_compvar_primary(result[3])));
-
-    stmt = first_stmt;
-
-    first_stmt = NULL;
-    emit_loc = NULL;
-    userval_values = NULL;
-
-    inlining_history = history_save;
-
-    return stmt;
-}
-
 static filter_code_t*
 generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 {
@@ -5406,7 +5637,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     compiler_reset_variables(filter->variables);
 
     color_tmp = make_temporary(TYPE_COLOR);
-    first_stmt = gen_filter_code(filter, color_tmp, inlining_history);
+    first_stmt = gen_filter_code(filter, color_tmp, NULL, NULL, inlining_history);
 
     emit_loc = &(last_stmt_of_block(first_stmt)->next);
 
@@ -5414,10 +5645,6 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
 
     emit_loc = NULL;
-
-    propagate_types();
-
-    check_ssa(first_stmt);
 
     do
     {
@@ -5431,6 +5658,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 
 	changed = 0;
 
+	changed = do_inlining() || changed;
 	changed = copy_propagation() || changed;
 	changed = common_subexpression_elimination() || changed;
 	changed = copy_propagation() || changed;
@@ -5441,12 +5669,17 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 	changed = remove_dead_controls() || changed;
     } while (changed);
 
+    propagate_types();
+
+    check_ssa(first_stmt);
+
 #ifndef NO_CONSTANTS_ANALYSIS
     if (constant_analysis)
 	analyze_constants();
 #endif
 
 #ifdef DEBUG_OUTPUT
+    printf("----------- final ---------------------\n");
     dump_code(first_stmt, 0);
 #endif
     check_ssa(first_stmt);
@@ -5455,6 +5688,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 
     generate_pre_native_code(convert_types);
 #ifdef DEBUG_OUTPUT
+    printf("----------- pre-native ---------------------\n");
     dump_pre_native_code();
 #endif
     if (convert_types)

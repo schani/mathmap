@@ -34,6 +34,8 @@ Real dependencies
 ** Examples
 
 ** Compiler
+optimization for filters which use the "current" pixel
+pools in init_frame!
 number*image must trigger an error!
 Inline filter calls
 Transform closure and application to filter call

@@ -281,24 +281,6 @@ static color_t
 filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, pools_t *pools);
 $filter_end
 
-static inline void
-calc_ra (float x, float y, float *_r, float *_a)
-{
-    float r, a;
-
-    r = hypot(x, y);
-    if (r == 0.0)
-	a = 0.0;
-    else
-	a = acos(x / r);
-
-    if (y < 0)
-	a = 2 * M_PI - a;
-
-    *_r = r;
-    *_a = a;
-}
-
 static void
 calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {
@@ -349,12 +331,6 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	{
 	    y_const_vars_t *y_vars = &slice->y_vars[col];
 	    float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
-
-#if $uses_ra
-	    float r, a;
-
-	    calc_ra(x, y, &r, &a);
-#endif
 
 	    if (invocation->do_debug)
 		invocation->num_debug_tuples = 0;
@@ -455,11 +431,6 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
     color_t return_color;
-#if $uses_ra
-    float r, a;
-
-    calc_ra(x, y, &r, &a);
-#endif
 
 #if $g
     if (invocation->antialiasing)
