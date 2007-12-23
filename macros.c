@@ -113,7 +113,7 @@ macro_func_origValImage (exprtree *args)
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  exprlist_append(make_int_number(0),
+								  exprlist_append(make_var("t"),
 										  args->next))));
 }
 
@@ -126,18 +126,6 @@ macro_func_origValImageFrame (exprtree *args)
 			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
 								  exprlist_append(args->next,
 										  args->next->next))));
-}
-
-exprtree*
-macro_func_origValXY (exprtree *args)
-{
-    return make_function("origVal", make_cast("xy", make_tuple_exprtree(args)));
-}
-
-exprtree*
-macro_func_origValRA (exprtree *args)
-{
-    return make_function("origVal", make_cast("ra", make_tuple_exprtree(args)));
 }
 
 void

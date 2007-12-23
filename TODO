@@ -35,14 +35,16 @@ Real dependencies
 ** Examples
 
 ** Compiler
+origVal should be __origVal
+pass t to filters
+filter call argument checking
 make filters return tuples, not colors
-optimization for filters which use the "current" pixel
 pools in init_frame!
 number*image must trigger an error!
-Why are bool user values float?
+optimization for filters which use the "current" pixel
 Copy elimination for phis in pre-native code
-XY constants for interpreter code
 Remove dead whiles
+XY constants for interpreter code
 
 ** Documentation/Homepage
 

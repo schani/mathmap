@@ -688,8 +688,8 @@ make_op_rhs (int op_index, ...)
 static int
 num_filter_args (filter_t *filter)
 {
-    /* uservals, x, y */
-    return filter->num_uservals + 2;
+    /* uservals, x, y, t */
+    return filter->num_uservals + 3;
 }
 
 static rhs_t*
@@ -782,7 +782,7 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 		int num_args = num_filter_args(rhs->v.closure.filter);
 		int i;
 
-		for (i = 0; i < num_args - 2; ++i)
+		for (i = 0; i < num_args - 3; ++i)
 		    if (rhs->v.closure.args[i].kind == PRIMARY_VALUE
 			&& rhs->v.closure.args[i].v.value == val)
 			return &rhs->v.closure.args[i];
@@ -829,7 +829,7 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), vo
 	int num_args = num_filter_args(rhs->v.closure.filter);
 	int i;
 
-	for (i = 0; i < num_args; ++i)
+	for (i = 0; i < num_args - 3; ++i)
 	{
 	    primary_t *arg = &rhs->v.closure.args[i];
 
@@ -1589,7 +1589,7 @@ print_rhs (rhs_t *rhs)
 		int i;
 
 		printf("closure_%s", rhs->v.closure.filter->decl->name);
-		for (i = 0; i < num_args - 2; ++i)
+		for (i = 0; i < num_args - 3; ++i)
 		{
 		    printf(" ");
 		    print_primary(&rhs->v.closure.args[i]);
@@ -2148,11 +2148,6 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			    {
 				compvar_t *pos;
 				compvar_t *temp = make_temporary(TYPE_INT);
-				int i;
-
-				if (!is_alloced)
-				    for (i = 0; i < 4; ++i)
-					dest[i] = make_temporary(TYPE_FLOAT);
 
 				if (tree->val.userval.info->type == USERVAL_COLOR)
 				    emit_assign(make_lhs(temp),
@@ -2167,10 +2162,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 							    make_compvar_primary(pos)));
 				}
 
-				emit_assign(make_lhs(dest[0]), make_op_rhs(OP_RED, make_compvar_primary(temp)));
-				emit_assign(make_lhs(dest[1]), make_op_rhs(OP_GREEN, make_compvar_primary(temp)));
-				emit_assign(make_lhs(dest[2]), make_op_rhs(OP_BLUE, make_compvar_primary(temp)));
-				emit_assign(make_lhs(dest[3]), make_op_rhs(OP_ALPHA, make_compvar_primary(temp)));
+				gen_deconstruct_color(temp, dest, is_alloced);
 			    }
 			    break;
 
@@ -2194,15 +2186,18 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		arg_primaries = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
 
-		for (i = 0; i < num_args - 2; ++i)
+		for (i = 0; i < num_args - 3; ++i)
 		{
 		    g_assert(arglengths[i] == 1);
 		    arg_primaries[i] = make_compvar_primary(args[i][0]);
 		}
 
-		g_assert(arglengths[num_args - 2] == 2);
-		arg_primaries[num_args - 2] = make_compvar_primary(args[num_args - 2][0]);
-		arg_primaries[num_args - 1] = make_compvar_primary(args[num_args - 2][1]);
+		g_assert(arglengths[num_args - 3] == 2);
+		arg_primaries[num_args - 3] = make_compvar_primary(args[num_args - 3][0]); /* x */
+		arg_primaries[num_args - 2] = make_compvar_primary(args[num_args - 3][1]); /* y */
+
+		g_assert(arglengths[num_args - 2] == 1);
+		arg_primaries[num_args - 1] = make_compvar_primary(args[num_args - 2][0]); /* t */
 
 		color = make_temporary(TYPE_COLOR);
 		emit_assign(make_lhs(color), make_filter_rhs(tree->val.filter_call.filter, arg_primaries));
@@ -2216,7 +2211,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t ***args;
 		int *arglengths, *argnumbers;
 		primary_t *arg_primaries;
-		int num_args = num_filter_args(tree->val.filter_closure.filter) - 2;
+		int num_args = num_filter_args(tree->val.filter_closure.filter) - 3;
 		int i;
 
 		args = gen_args(tree->val.filter_closure.args, &arglengths, &argnumbers);
@@ -2232,32 +2227,6 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		if (!is_alloced)
 		    dest[0] = make_temporary(TYPE_IMAGE);
 		emit_assign(make_lhs(dest[0]), make_closure_rhs(tree->val.filter_closure.filter, arg_primaries));
-	    }
-	    break;
-
-	case EXPR_IMAGE_CALL :
-	    {
-		compvar_t *image = make_temporary(TYPE_IMAGE);
-		compvar_t *xy[2];
-		compvar_t *t;
-		compvar_t *color;
-
-		xy[0] = make_temporary(TYPE_FLOAT);
-		xy[1] = make_temporary(TYPE_FLOAT);
-		t = make_temporary(TYPE_FLOAT);
-
-		gen_code(tree->val.image_call.image, &image, 1);
-		gen_code(tree->val.image_call.args, xy, 1);
-
-		emit_assign(make_lhs(t), make_float_const_rhs(0.0));
-
-		color = make_temporary(TYPE_COLOR);
-
-		emit_assign(make_lhs(color),
-			    make_op_rhs(OP_ORIG_VAL, make_compvar_primary(xy[0]), make_compvar_primary(xy[1]),
-					make_compvar_primary(image), make_compvar_primary(t)));
-
-		gen_deconstruct_color(color, dest, is_alloced);
 	    }
 	    break;
 
@@ -2317,7 +2286,7 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     internal_t *internal;
 
     for (i = 0, info = filter->userval_infos;
-	 i < num_args - 2;
+	 i < num_args - 3;
 	 ++i, info = info->next)
     {
 	userval_representation_t *rep = lookup_userval_representation(info->type);
@@ -2334,9 +2303,14 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     internal = lookup_internal(filter->internals, "x", TRUE);
     g_assert(internal != NULL);
     bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
-    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 2]));
+    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 3]));
 
     internal = lookup_internal(filter->internals, "y", TRUE);
+    g_assert(internal != NULL);
+    bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
+    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 2]));
+
+    internal = lookup_internal(filter->internals, "t", TRUE);
     g_assert(internal != NULL);
     bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
     emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 1]));
@@ -3103,20 +3077,19 @@ optimize_closure_application (statement_t *stmt)
 			primary_t *args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
 			int i;
 
-			for (i = 0; i < num_args - 2; ++i)
+			for (i = 0; i < num_args - 3; ++i)
 			    args[i] = def->v.assign.rhs->v.filter.args[i];
 
-			args[num_args - 2] = stmt->v.assign.rhs->v.op.args[0]; /* x */
-			args[num_args - 1] = stmt->v.assign.rhs->v.op.args[1]; /* y */
+			args[num_args - 3] = stmt->v.assign.rhs->v.op.args[0]; /* x */
+			args[num_args - 2] = stmt->v.assign.rhs->v.op.args[1]; /* y */
+			args[num_args - 1] = stmt->v.assign.rhs->v.op.args[3]; /* t */
 
 			remove_use(stmt->v.assign.rhs->v.op.args[2].v.value, stmt); /* image */
-			if (stmt->v.assign.rhs->v.op.args[3].kind == PRIMARY_VALUE)
-			    remove_use(stmt->v.assign.rhs->v.op.args[3].v.value, stmt);	/* t */
 
 			stmt->v.assign.rhs = make_filter_rhs(filter, args);
 			stmt->v.assign.rhs->v.filter.history = def->v.assign.rhs->v.closure.history;
 
-			for (i = 0; i < num_args - 2; ++i)
+			for (i = 0; i < num_args - 3; ++i)
 			    if (args[i].kind == PRIMARY_VALUE)
 				add_use(args[i].v.value, stmt);
 
@@ -3880,7 +3853,7 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 	    if (rhs1->v.closure.filter != rhs2->v.closure.filter)
 		return 0;
 
-	    for (i = 0; i < num_args - 2; ++i)
+	    for (i = 0; i < num_args - 3; ++i)
 		if (!primaries_equal(&rhs1->v.closure.args[i], &rhs2->v.closure.args[i]))
 		    return 0;
 	    return 1;
@@ -4370,10 +4343,13 @@ get_filter_arg_types (filter_t *filter, int *_num_args)
 
     for (i = 0, info = filter->userval_infos; info != 0; ++i, info = info->next)
 	arg_types[i] = type_for_userval_type(info->type);
-    g_assert(i == num_args - 2);
+    g_assert(i == num_args - 3);
 
     arg_types[num_args + 0] = TYPE_FLOAT; /* x */
     arg_types[num_args + 1] = TYPE_FLOAT; /* y */
+    arg_types[num_args + 2] = TYPE_FLOAT; /* t */
+
+    *_num_args = num_args + 3;
 
     return arg_types;
 }
@@ -4415,9 +4391,9 @@ emit_pre_native_assign_with_closure_rhs (value_t *lhs, rhs_t *rhs)
 
     arg_types = get_filter_arg_types(rhs->v.closure.filter, &num_args);
 
-    args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * (num_args - 2));
+    args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * (num_args - 3));
 
-    convert_args(num_args - 2, arg_types, args, rhs->v.closure.args);
+    convert_args(num_args - 3, arg_types, args, rhs->v.closure.args);
 
     g_assert (lhs_type == TYPE_COLOR);
 
@@ -4673,7 +4649,7 @@ typecheck_pre_native_code (void)
 			    type_t *arg_types = get_filter_arg_types(rhs->v.closure.filter, &num_args);
 			    int i;
 
-			    for (i = 0; i < num_args - 2; ++i)
+			    for (i = 0; i < num_args - 3; ++i)
 				g_assert(primary_type(&rhs->v.closure.args[i]) == arg_types[i]);
 			}
 		    }
@@ -5130,7 +5106,7 @@ output_rhs (FILE *out, rhs_t *rhs)
 		int num_args = num_filter_args(rhs->v.filter.filter);
 		userval_info_t *info;
 
-		fprintf(out, "({ userval_t args[%d]; ", num_args);
+		fprintf(out, "({ userval_t args[%d]; ", num_args - 3);
 
 		for (i = 0, info = rhs->v.filter.filter->userval_infos;
 		     info != 0;
@@ -5140,16 +5116,11 @@ output_rhs (FILE *out, rhs_t *rhs)
 		    output_primary(out, &rhs->v.filter.args[i]);
 		    fprintf(out, "; ");
 		}
-		g_assert(i == num_args - 2);
-
-		for (i = num_args - 2; i < num_args; ++i)
-		{
-		    fprintf(out, "args[%d].v.float_const = ", i);
-		    output_primary(out, &rhs->v.filter.args[i]);
-		    fprintf(out, "; ");
-		}
+		g_assert(i == num_args - 3);
 
 		fprintf(out, "filter_%s(invocation, args, ", rhs->v.filter.filter->decl->name);
+		output_primary(out, &rhs->v.filter.args[num_args - 3]);
+		fprintf(out, ", ");
 		output_primary(out, &rhs->v.filter.args[num_args - 2]);
 		fprintf(out, ", ");
 		output_primary(out, &rhs->v.filter.args[num_args - 1]);
@@ -5160,7 +5131,7 @@ output_rhs (FILE *out, rhs_t *rhs)
 	case RHS_CLOSURE :
 	    {
 		int i;
-		int num_args = num_filter_args(rhs->v.filter.filter) - 2;
+		int num_args = num_filter_args(rhs->v.filter.filter) - 3;
 		userval_info_t *info;
 
 		fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.filter.filter->decl->name);
@@ -5742,8 +5713,6 @@ filter_template_processor (mathmap_t *mathmap, const char *directive, const char
 	output_permanent_const_code(code, out, 0);
     else if (strcmp(directive, "uses_ra") == 0)
 	fputs("1", out);
-    else if (strcmp(directive, "num_args") == 0)
-	fprintf(out, "%d", num_filter_args(code->filter));
     else
 	return 0;
     return 1;

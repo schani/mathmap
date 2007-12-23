@@ -535,12 +535,12 @@ make_userval (userval_info_t *info, exprtree *args)
     {
 	tree->val.userval.args = 0;
 
-	if (exprlist_length(args) == 1)
+	if (exprlist_length(args) == 1 || exprlist_length(args) == 2)
 	    return make_function("origVal", exprlist_append(args, tree));
 
 	if (exprlist_length(args) != 0)
 	{
-	    sprintf(error_string, "An image takes one or zero arguments.");
+	    sprintf(error_string, "An image takes one or two arguments.");
 	    JUMP(1);
 	}
     }
@@ -728,11 +728,11 @@ make_filter_call (filter_t *filter, exprtree *args)
     int num_args = exprlist_length(args);
     gboolean is_closure;
 
-    if (num_args != filter->num_uservals
-	&& num_args != filter->num_uservals + 1)
+    if (num_args < filter->num_uservals
+	|| num_args >= filter->num_uservals + 3)
     {
-	sprintf(error_string, "Filter %s takes %d or %d arguments but is called with %d.",
-		filter->decl->name, filter->num_uservals, filter->num_uservals + 1, exprlist_length(args));
+	sprintf(error_string, "Filter %s takes %d to %d arguments but is called with %d.",
+		filter->decl->name, filter->num_uservals, filter->num_uservals + 2, exprlist_length(args));
 	JUMP(1);
     }
 
@@ -776,20 +776,38 @@ make_filter_call (filter_t *filter, exprtree *args)
     }
     else
     {
-	g_assert(*argp != 0 && (*argp)->next == 0);
+	g_assert(*argp != NULL);
 
 	if ((*argp)->result.length != 2
 	    || ((*argp)->result.number != xy_tag_number
 		&& (*argp)->result.number != ra_tag_number))
 	{
-	    sprintf(error_string, "The last argument to a filter must be a tuple of type xy:2 or ra:2.");
+	    sprintf(error_string, "The coordinate argument to a filter must be a tuple of type xy:2 or ra:2.");
 	    JUMP(1);
 	}
 
 	if ((*argp)->result.number == ra_tag_number)
+	{
+	    exprtree *next = (*argp)->next;
+
+	    (*argp)->next = NULL;
 	    *argp = make_function("toXY", *argp);
+	    (*argp)->next = next;
+	}
 
 	g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
+
+	argp = &(*argp)->next;
+
+	if (*argp == NULL)
+	    *argp = make_var("t");
+	else if ((*argp)->result.length != 1)
+	{
+	    sprintf(error_string, "The time argument to a filter must be a tuple of length 1.");
+	    JUMP(1);
+	}
+
+	g_assert(exprlist_length(args) == filter->num_uservals + 2);
 
 	tree = alloc_exprtree();
 
@@ -807,28 +825,32 @@ make_filter_call (filter_t *filter, exprtree *args)
 static exprtree*
 make_image_call (exprtree *image, exprtree *args)
 {
-    exprtree *tree = alloc_exprtree();
-
-    if (exprlist_length(args) != 1
-	|| args->result.length != 2
-	|| (args->result.number != xy_tag_number
-	    && args->result.number != ra_tag_number))
+    if (exprlist_length(args) != 1 && exprlist_length(args) != 2)
     {
-	sprintf(error_string, "An image must be invoked with one argument of type xy:2 or ra:2.");
+	sprintf(error_string, "An image must be invoked with one or two arguments.");
 	JUMP(1);
     }
 
+    if (args->result.length != 2
+	|| (args->result.number != xy_tag_number
+	    && args->result.number != ra_tag_number))
+    {
+	sprintf(error_string, "The coordinate argument to an image must be of type xy:2 or ra:2.");
+	JUMP(1);
+    }
     if (args->result.number == ra_tag_number)
 	args = make_function("toXY", args);
 
-    tree->type = EXPR_IMAGE_CALL;
-    tree->val.image_call.image = image;
-    tree->val.image_call.args = args;
+    if (args->next != NULL)
+    {
+	if (args->next->result.length != 1)
+	{
+	    sprintf(error_string, "The time argument to an image have length 1.");
+	    JUMP(1);
+	}
+    }
 
-    tree->result.number = rgba_tag_number;
-    tree->result.length = 4;
-
-    return tree;
+    return make_function("origVal", exprlist_append(args, image));
 }
 
 exprtree*
