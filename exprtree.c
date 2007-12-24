@@ -536,7 +536,7 @@ make_userval (userval_info_t *info, exprtree *args)
 	tree->val.userval.args = 0;
 
 	if (exprlist_length(args) == 1 || exprlist_length(args) == 2)
-	    return make_function("origVal", exprlist_append(args, tree));
+	    return make_function("__origVal", exprlist_append(args, tree));
 
 	if (exprlist_length(args) != 0)
 	{
@@ -850,7 +850,7 @@ make_image_call (exprtree *image, exprtree *args)
 	}
     }
 
-    return make_function("origVal", exprlist_append(args, image));
+    return make_function("__origVal", exprlist_append(args, image));
 }
 
 exprtree*

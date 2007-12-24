@@ -112,9 +112,9 @@ macro_func_origValImage (exprtree *args)
     variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
-			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  exprlist_append(make_var("t"),
-										  args->next))));
+			 make_function("__origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
+								    exprlist_append(make_var("t"),
+										    args->next))));
 }
 
 exprtree*
@@ -123,9 +123,9 @@ macro_func_origValImageFrame (exprtree *args)
     variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
-			 make_function("origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								  exprlist_append(args->next,
-										  args->next->next))));
+			 make_function("__origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
+								    exprlist_append(args->next,
+										    args->next->next))));
 }
 
 void
@@ -140,7 +140,7 @@ init_macros (void)
     register_variable_macro("pi", macro_var_pi, make_tuple_info(nil_tag_number, 1));
     register_variable_macro("e", macro_var_e, make_tuple_info(nil_tag_number, 1));
 
-    register_overloaded_macro("origVal", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
-    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
-    register_overloaded_macro("origVal", "((rgba 4) (ra 2) (nil 1) (image 1))", macro_func_origValImageFrame);
+    register_overloaded_macro("__origVal", "((rgba 4) (xy 2) (image 1))", macro_func_origValImage);
+    register_overloaded_macro("__origVal", "((rgba 4) (ra 2) (image 1))", macro_func_origValImage);
+    register_overloaded_macro("__origVal", "((rgba 4) (ra 2) (nil 1) (image 1))", macro_func_origValImageFrame);
 }

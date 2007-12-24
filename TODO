@@ -16,6 +16,7 @@ zoom via preview
 Get preview background gray from GtkStyle
 
 ** Language
+make unit default
 Hypercomplex-Complex multiplication
 XYZ, Lab color space support
 
@@ -35,8 +36,6 @@ Real dependencies
 ** Examples
 
 ** Compiler
-origVal should be __origVal
-pass t to filters
 filter call argument checking
 make filters return tuples, not colors
 pools in init_frame!

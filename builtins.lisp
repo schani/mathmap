@@ -1140,7 +1140,7 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
       (set result (make (?T 1) 1))
       (set result (make (?T 1) 0))))
 
-(defbuiltin "origVal" origValXY (rgba 4) ((p (xy 2)) (frame (nil 1)) (drawable (image 1)))
+(defbuiltin "__origVal" origValXY (rgba 4) ((p (xy 2)) (frame (nil 1)) (drawable (image 1)))
   (let ((c (orig-val (nth 0 p) (nth 1 p) (nth 0 drawable) (nth 0 frame))))
     (set result (make (rgba 4) (red c) (green c) (blue c) (alpha c)))))
 
