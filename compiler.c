@@ -174,6 +174,7 @@ typedef struct _inlining_history_t
 #define RHS_OP               3
 #define RHS_FILTER	     4
 #define RHS_CLOSURE	     5
+#define RHS_TUPLE	     6
 
 typedef struct
 {
@@ -199,6 +200,11 @@ typedef struct
 	    primary_t *args;
 	    inlining_history_t *history;
 	} closure;
+	struct
+	{
+	    int length;
+	    primary_t *args;
+	} tuple;
     } v;
 } rhs_t;
 
@@ -327,14 +333,14 @@ static type_t primary_type (primary_t *primary);
 				      RHS_ARG((i)).const_type == TYPE_COMPLEX ? RHS_ARG((i)).v.constant.complex_value : \
 				      ({ g_assert_not_reached(); 0.0; })); })
 
-#define OUTPUT_COLOR_INTERPRETER(c)  ({ invocation->interpreter_output_color = (c); invocation->interpreter_ip = -1; 0; })
-
 #define ORIG_VAL_INTERPRETER(x,y,i,f)     ({ color_t c; \
                                  	     if (invocation->antialiasing) \
                                      	         c = get_orig_val_intersample_pixel(invocation, (x), (y), (i), (f)); \
                                  	     else \
                                      		 c = get_orig_val_pixel(invocation, (x), (y), (i), (f)); \
-                                 	     c; })
+                                 	     /*TUPLE_FROM_COLOR(c);*/ NULL; })
+
+#define OUTPUT_TUPLE_INTERPRETER(t)	0
 
 #define ARG(i)	(invocation->uservals[(i)])
 
@@ -685,6 +691,35 @@ make_op_rhs (int op_index, ...)
     return make_op_rhs_from_array(op_index, args);
 }
 
+static rhs_t*
+make_tuple_rhs_from_array (int length, primary_t *args)
+{
+    rhs_t *rhs = alloc_rhs();
+
+    rhs->kind = RHS_TUPLE;
+    rhs->v.tuple.length = length;
+    rhs->v.tuple.args = pools_alloc(&compiler_pools, sizeof(primary_t) * length);
+
+    memcpy(rhs->v.tuple.args, args, sizeof(primary_t) * length);
+
+    return rhs;
+}
+
+static rhs_t*
+make_tuple_rhs (int length, ...)
+{
+    primary_t args[length];
+    va_list ap;
+    int i;
+
+    va_start(ap, length);
+    for (i = 0; i < length; ++i)
+	args[i] = va_arg(ap, primary_t);
+    va_end(ap);
+
+    return make_tuple_rhs_from_array(length, args);
+}
+
 static int
 num_filter_args (filter_t *filter)
 {
@@ -737,106 +772,63 @@ find_phi_assign (statement_t *stmts, compvar_t *compvar)
 }
 
 primary_t*
-find_value_in_rhs (value_t *val, rhs_t *rhs)
+get_rhs_primaries (rhs_t *rhs, int *num_primaries)
 {
     switch (rhs->kind)
     {
 	case RHS_PRIMARY :
-	    if (rhs->v.primary.kind == PRIMARY_VALUE
-		&& rhs->v.primary.v.value == val)
-		return &rhs->v.primary;
-	    else
-		return 0;
-	    break;
+	    *num_primaries = 1;
+	    return &rhs->v.primary;
 
 	case RHS_INTERNAL :
-	    return 0;
+	    *num_primaries = 0;
+	    return NULL;
 
 	case RHS_OP :
-	    {
-		int i;
-
-		for (i = 0; i < rhs->v.op.op->num_args; ++i)
-		    if (rhs->v.op.args[i].kind == PRIMARY_VALUE
-			&& rhs->v.op.args[i].v.value == val)
-			return &rhs->v.op.args[i];
-		return 0;
-	    }
-	    break;
+	    *num_primaries = rhs->v.op.op->num_args;
+	    return rhs->v.op.args;
 
 	case RHS_FILTER :
-	    {
-		int num_args = num_filter_args(rhs->v.filter.filter);
-		int i;
-
-		for (i = 0; i < num_args; ++i)
-		    if (rhs->v.filter.args[i].kind == PRIMARY_VALUE
-			&& rhs->v.filter.args[i].v.value == val)
-			return &rhs->v.filter.args[i];
-		return 0;
-	    }
-	    break;
+	    *num_primaries = num_filter_args(rhs->v.filter.filter);
+	    return rhs->v.filter.args;
 
 	case RHS_CLOSURE :
-	    {
-		int num_args = num_filter_args(rhs->v.closure.filter);
-		int i;
+	    *num_primaries = num_filter_args(rhs->v.closure.filter) - 3;
+	    return rhs->v.closure.args;
 
-		for (i = 0; i < num_args - 3; ++i)
-		    if (rhs->v.closure.args[i].kind == PRIMARY_VALUE
-			&& rhs->v.closure.args[i].v.value == val)
-			return &rhs->v.closure.args[i];
-		return 0;
-	    }
-	    break;
+	case RHS_TUPLE :
+	    *num_primaries = rhs->v.tuple.length;
+	    return rhs->v.tuple.args;
+
+	default :
+	    g_assert_not_reached();
     }
+}
 
-    return 0;
+primary_t*
+find_value_in_rhs (value_t *val, rhs_t *rhs)
+{
+    int num_primaries;
+    primary_t *primaries = get_rhs_primaries(rhs, &num_primaries);
+    int i;
+
+    for (i = 0; i < num_primaries; ++i)
+	if (primaries[i].kind == PRIMARY_VALUE
+	    && primaries[i].v.value == val)
+	    return &primaries[i];
+    return NULL;
 }
 
 static void
 for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), void *info)
 {
-    if (rhs->kind == RHS_PRIMARY && rhs->v.primary.kind == PRIMARY_VALUE)
-	func(rhs->v.primary.v.value, info);
-    else if (rhs->kind == RHS_OP)
-    {
-	int i;
+    int num_primaries;
+    primary_t *primaries = get_rhs_primaries(rhs, &num_primaries);
+    int i;
 
-	for (i = 0; i < rhs->v.op.op->num_args; ++i)
-	{
-	    primary_t *arg = &rhs->v.op.args[i];
-
-	    if (arg->kind == PRIMARY_VALUE)
-		func(arg->v.value, info);
-	}
-    }
-    else if (rhs->kind == RHS_FILTER)
-    {
-	int num_args = num_filter_args(rhs->v.filter.filter);
-	int i;
-
-	for (i = 0; i < num_args; ++i)
-	{
-	    primary_t *arg = &rhs->v.filter.args[i];
-
-	    if (arg->kind == PRIMARY_VALUE)
-		func(arg->v.value, info);
-	}
-    }
-    else if (rhs->kind == RHS_CLOSURE)
-    {
-	int num_args = num_filter_args(rhs->v.closure.filter);
-	int i;
-
-	for (i = 0; i < num_args - 3; ++i)
-	{
-	    primary_t *arg = &rhs->v.closure.args[i];
-
-	    if (arg->kind == PRIMARY_VALUE)
-		func(arg->v.value, info);
-	}
-    }
+    for (i = 0; i < num_primaries; ++i)
+	if (primaries[i].kind == PRIMARY_VALUE)
+	    func(primaries[i].v.value, info);
 }
 
 #define FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; for_each_value_in_rhs((rhs),(func),__clos); } while (0)
@@ -1518,6 +1510,12 @@ print_image (image_t *image)
 }
 
 static void
+print_tuple (float *tuple)
+{
+    g_assert_not_reached();
+}
+
+static void
 print_primary (primary_t *primary)
 {
     FILE *out = stdout;
@@ -1593,6 +1591,19 @@ print_rhs (rhs_t *rhs)
 		{
 		    printf(" ");
 		    print_primary(&rhs->v.closure.args[i]);
+		}
+	    }
+	    break;
+
+	case RHS_TUPLE :
+	    {
+		int i;
+
+		printf("tuple");
+		for (i = 0; i < rhs->v.tuple.length; ++i)
+		{
+		    printf(" ");
+		    print_primary(&rhs->v.tuple.args[i]);
 		}
 	    }
 	    break;
@@ -2346,8 +2357,7 @@ gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
 }
 
 static statement_t*
-gen_filter_code (filter_t *filter, compvar_t *color, primary_t *args,
-		 rhs_t **make_color_rhs, inlining_history_t *history)
+gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tuple_rhs, inlining_history_t *history)
 {
     statement_t *first_stmt_save = first_stmt;
     inlining_history_t *history_save = inlining_history;
@@ -2369,14 +2379,14 @@ gen_filter_code (filter_t *filter, compvar_t *color, primary_t *args,
 
     gen_code(filter->decl->v.filter.body, result, FALSE);
 
-    rhs = make_op_rhs(OP_MAKE_COLOR,
-		      make_compvar_primary(result[0]), make_compvar_primary(result[1]),
-		      make_compvar_primary(result[2]), make_compvar_primary(result[3]));
-    if (make_color_rhs != NULL)
-	*make_color_rhs = rhs;
+    rhs = make_tuple_rhs(4,
+			 make_compvar_primary(result[0]), make_compvar_primary(result[1]),
+			 make_compvar_primary(result[2]), make_compvar_primary(result[3]));
+    if (tuple_rhs != NULL)
+	*tuple_rhs = rhs;
 
-    if (color != NULL)
-	emit_assign(make_lhs(color), rhs);
+    if (tuple != NULL)
+	emit_assign(make_lhs(tuple), rhs);
 
     stmt = first_stmt;
 
@@ -2508,6 +2518,9 @@ rhs_type (rhs_t *rhs)
 	case RHS_CLOSURE :
 	    return TYPE_IMAGE;
 
+	case RHS_TUPLE :
+	    return TYPE_TUPLE;
+
 	default :
 	    g_assert_not_reached();
     }
@@ -2604,40 +2617,35 @@ rhs_constant (rhs_t *rhs)
 {
     switch (rhs->kind)
     {
-	case RHS_PRIMARY :
-	    return primary_constant(&rhs->v.primary);
-
 	case RHS_INTERNAL :
 	    return rhs->v.internal->const_type;
 
 	case RHS_OP :
-	    if (rhs->v.op.op->is_pure)
+	    if (!rhs->v.op.op->is_pure)
+		return CONST_NONE;
+	case RHS_PRIMARY :
+	case RHS_CLOSURE :
+	case RHS_TUPLE :
 	    {
+		int num_primaries;
+		primary_t *primaries = get_rhs_primaries(rhs, &num_primaries);
 		int i;
 		int const_type_max = CONST_MAX;
 
-		for (i = 0; i < rhs->v.op.op->num_args; ++i)
+		for (i = 0; i < num_primaries; ++i)
 		{
-		    int const_type = primary_constant(&rhs->v.op.args[i]);
+		    int const_type = primary_constant(&primaries[i]);
 
 		    const_type_max &= const_type;
 		}
 
 		return const_type_max;
 	    }
-	    else
-		return CONST_NONE;
-	    break;
 
 	case RHS_FILTER :
 	    /* FIXME: Improve on this.  For each filter figure out
 	       whether it's pure.  Then handle pure filters like
 	       ops. */
-	    return CONST_NONE;
-
-	case RHS_CLOSURE :
-	    /* FIXME: Improve on this.  Handle the closure like an
-	       op. */
 	    return CONST_NONE;
 
 	default :
@@ -2945,75 +2953,6 @@ analyze_constants (void)
     } while (changed);
 
     analyze_least_const_type_directly_used_in(first_stmt);
-}
-
-/*** make_color optimization ***/
-
-static int
-is_color_def (statement_t *stmt, int op, value_t **value)
-{
-    if (stmt->kind == STMT_ASSIGN
-	&& stmt->v.assign.rhs->kind == RHS_OP
-	&& op_index(stmt->v.assign.rhs->v.op.op) == op
-	&& stmt->v.assign.rhs->v.op.args[0].kind == PRIMARY_VALUE)
-    {
-	*value = stmt->v.assign.rhs->v.op.args[0].v.value;
-	return 1;
-    }
-    return 0;
-}
-
-static void
-optimize_make_color (statement_t *stmt)
-{
-    while (stmt != 0)
-    {
-	switch (stmt->kind)
-	{
-	    case STMT_NIL :
-	    case STMT_PHI_ASSIGN :
-		break;
-
-	    case STMT_ASSIGN :
-		if (stmt->v.assign.rhs->kind == RHS_OP
-		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_MAKE_COLOR)
-		{
-		    static int ops[] = { OP_RED, OP_GREEN, OP_BLUE, OP_ALPHA };
-
-		    value_t *vals[4];
-		    int i;
-
-		    for (i = 0; i < 4; ++i)
-			if (stmt->v.assign.rhs->v.op.args[i].kind != PRIMARY_VALUE
-			    || !is_color_def(stmt->v.assign.rhs->v.op.args[i].v.value->def, ops[i], &vals[i]))
-			    break;
-
-		    if (i == 4 && vals[0] == vals[1] && vals[0] == vals[2] && vals[0] == vals[3]) /* successful? */
-		    {
-			for (i = 0; i < 4; ++i)
-			    remove_use(stmt->v.assign.rhs->v.op.args[i].v.value, stmt);
-
-			stmt->v.assign.rhs = make_value_rhs(vals[0]);
-			add_use(vals[0], stmt);
-		    }
-		}
-		break;
-
-	    case STMT_IF_COND :
-		optimize_make_color(stmt->v.if_cond.consequent);
-		optimize_make_color(stmt->v.if_cond.alternative);
-		break;
-
-	    case STMT_WHILE_LOOP :
-		optimize_make_color(stmt->v.while_loop.body);
-		break;
-
-	    default :
-		g_assert_not_reached();
-	}
-
-	stmt = stmt->next;
-    }
 }
 
 /*** closure application ***/
@@ -3741,6 +3680,12 @@ images_equal (image_t *i1, image_t *i2)
 }
 
 static int
+tuples_equal (float *t1, float *t2)
+{
+    g_assert_not_reached();
+}
+
+static int
 primaries_equal (primary_t *prim1, primary_t *prim2)
 {
     if (prim1->kind != prim2->kind)
@@ -3825,6 +3770,19 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 		    return 0;
 	    return 1;
 	}
+
+	case RHS_TUPLE :
+	    {
+		int i;
+
+		if (rhs1->v.tuple.length != rhs2->v.tuple.length)
+		    return FALSE;
+
+		for (i = 0; i < rhs1->v.tuple.length; ++i)
+		    if (!primaries_equal(&rhs1->v.tuple.args[i], &rhs2->v.tuple.args[i]))
+			return FALSE;
+		return TRUE;
+	    }
 
 	default :
 	    g_assert_not_reached();
@@ -4362,9 +4320,34 @@ emit_pre_native_assign_with_closure_rhs (value_t *lhs, rhs_t *rhs)
 
     convert_args(num_args - 3, arg_types, args, rhs->v.closure.args);
 
-    g_assert (lhs_type == TYPE_COLOR);
+    g_assert (lhs_type == TYPE_IMAGE);
 
-    stmts = make_assign(lhs, make_filter_rhs(rhs->v.closure.filter, args));
+    stmts = make_assign(lhs, make_closure_rhs(rhs->v.closure.filter, args));
+
+    generate_pre_native_assigns(stmts);
+}
+
+static void
+emit_pre_native_assign_with_tuple_rhs (value_t *lhs, rhs_t *rhs)
+{
+    type_t lhs_type = lhs->compvar->type;
+    type_t arg_types[rhs->v.tuple.length];
+    primary_t *args;
+    statement_t *stmts;
+    int i;
+
+    g_assert(rhs->kind == RHS_TUPLE);
+
+    for (i = 0; i < rhs->v.tuple.length; ++i)
+	arg_types[i] = TYPE_FLOAT;
+
+    args = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * rhs->v.tuple.length);
+
+    convert_args(rhs->v.tuple.length, arg_types, args, rhs->v.tuple.args);
+
+    g_assert (lhs_type == TYPE_TUPLE);
+
+    stmts = make_assign(lhs, make_tuple_rhs(rhs->v.tuple.length, args));
 
     generate_pre_native_assigns(stmts);
 }
@@ -4399,6 +4382,10 @@ emit_pre_native_assign_with_conversion (value_t *lhs, rhs_t *rhs, statement_t *s
 
 	case RHS_CLOSURE :
 	    emit_pre_native_assign_with_closure_rhs(lhs, rhs);
+	    break;
+
+	case RHS_TUPLE :
+	    emit_pre_native_assign_with_tuple_rhs(lhs, rhs);
 	    break;
 
 	default :
@@ -4618,6 +4605,16 @@ typecheck_pre_native_code (void)
 
 			    for (i = 0; i < num_args - 3; ++i)
 				g_assert(primary_type(&rhs->v.closure.args[i]) == arg_types[i]);
+			}
+			else if (rhs->kind == RHS_TUPLE)
+			{
+			    int i;
+
+			    for (i = 0; i < rhs->v.tuple.length; ++i)
+			    {
+				int type = primary_type(&rhs->v.tuple.args[i]);
+				g_assert(type == TYPE_FLOAT || type == TYPE_INT);
+			    }
 			}
 		    }
 		}
@@ -5117,6 +5114,23 @@ output_rhs (FILE *out, rhs_t *rhs)
 	    }
 	    break;
 
+	case RHS_TUPLE :
+	    {
+		int i;
+
+		fprintf(out, "({ float *tuple = ALLOC_TUPLE(%d); ", rhs->v.tuple.length);
+
+		for (i = 0; i < rhs->v.tuple.length; ++i)
+		{
+		    fprintf(out, "TUPLE_SET(tuple, %d, ", i);
+		    output_primary(out, &rhs->v.tuple.args[i]);
+		    fprintf(out, "); ");
+		}
+
+		fprintf(out, "tuple; })");
+	    }
+	    break;
+
 	default :
 	    g_assert_not_reached();
     }
@@ -5566,7 +5580,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 {
     int changed;
     filter_code_t *code;
-    compvar_t *color_tmp, *dummy;
+    compvar_t *tuple_tmp, *dummy;
 
     next_temp_number = 1;
     next_value_global_index = 0;
@@ -5574,13 +5588,13 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 
     compiler_reset_variables(filter->variables);
 
-    color_tmp = make_temporary(TYPE_COLOR);
-    first_stmt = gen_filter_code(filter, color_tmp, NULL, NULL, inlining_history);
+    tuple_tmp = make_temporary(TYPE_TUPLE);
+    first_stmt = gen_filter_code(filter, tuple_tmp, NULL, NULL, inlining_history);
 
     emit_loc = &(last_stmt_of_block(first_stmt)->next);
 
     dummy = make_temporary(TYPE_INT);
-    emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_COLOR, make_compvar_primary(color_tmp)));
+    emit_assign(make_lhs(dummy), make_op_rhs(OP_OUTPUT_TUPLE, make_compvar_primary(tuple_tmp)));
 
     emit_loc = NULL;
 
@@ -5591,7 +5605,6 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 	dump_code(first_stmt, 0);
 #endif
 
-	optimize_make_color(first_stmt);
 	optimize_closure_application(first_stmt);
 
 	changed = 0;

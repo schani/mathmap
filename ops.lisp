@@ -52,6 +52,9 @@
    (make-rt-type 'image "image_t *"
 		 :printer "print_image"
 		 :comparer "images_equal")
+   (make-rt-type 'tuple "float *"
+		 :printer "print_tuple"
+		 :comparer "tuples_equal")
    (make-rt-type 'gsl-matrix "gsl_matrix *"
 		 :print-info '("***MATRIX***" "***MATRIX***" ()))
    (make-rt-type 'v2 "mm_v2_t"
@@ -162,13 +165,17 @@
 (defop 'newline 0 "NEWLINE" :type 'int :pure nil)
 
 (defop 'start-debug-tuple 1 "START_DEBUG_TUPLE" :type 'int :arg-type 'int :pure nil)
-(defop 'set-debug-tuple-data 2 "SET_DEBUG_TUPLE_DATA" :type 'int :arg-types '(int float) :pure nil)
+(defop 'set-debug-tuple-data 2 "SET_DEBUG_TUPLE_DATA" :type 'int
+       :arg-types '(int float) :pure nil)
 
-(defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'color :arg-types '(float float image float) :foldable nil)
+(defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'tuple
+       :arg-types '(float float image float) :foldable nil)
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)
 (defop 'green 1 "GREEN_FLOAT" :arg-type 'color :foldable nil)
 (defop 'blue 1 "BLUE_FLOAT" :arg-type 'color :foldable nil)
 (defop 'alpha 1 "ALPHA_FLOAT" :arg-type 'color :foldable nil)
+
+(defop 'tuple-nth 2 "TUPLE_NTH" :type 'float :arg-types '(tuple int) :foldable nil)
 
 (defop 'complex 2 "COMPLEX" :type 'complex)
 (defop 'c-real 1 "crealf" :arg-type 'complex)
@@ -233,8 +240,8 @@
 (defop 'userval-gradient 2 "USERVAL_GRADIENT_ACCESS" :type 'color :arg-types '(int float) :foldable nil)
 (defop 'userval-image 1 "USERVAL_IMAGE_ACCESS" :type 'image :arg-type 'int :foldable nil)
 
-(defop 'make-color 4 "MAKE_COLOR" :type 'color)
-(defop 'output-color 1 "OUTPUT_COLOR" :interpreter-c-name "OUTPUT_COLOR_INTERPRETER" :type 'int :arg-type 'color :pure nil)
+(defop 'output-tuple 1 "OUTPUT_TUPLE" :interpreter-c-name "OUTPUT_TUPLE_INTERPRETER"
+       :type 'int :arg-type 'tuple :pure nil)
 
 (defun max-type (types)
   (cond ((null types)

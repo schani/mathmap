@@ -49,10 +49,10 @@ struct _cache_entry_t;
 #define IMAGE_DRAWABLE		1
 #define IMAGE_CLOSURE		2
 
-typedef color_t (*filter_func_t) (struct _mathmap_invocation_t*,
-				  struct _userval_t*,
-				  float, float,
-				  pools_t*);
+typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
+				 struct _userval_t*,
+				 float, float,
+				 pools_t*);
 
 struct _input_drawable_t;
 

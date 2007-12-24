@@ -91,10 +91,10 @@ struct _mathmap_invocation_t;
 struct _userval_t;
 struct _image_t;
 
-typedef color_t (*filter_func_t) (struct _mathmap_invocation_t*,
-				  struct _userval_t*,
-				  float, float,
-				  pools_t*);
+typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
+				 struct _userval_t*,
+				 float, float,
+				 pools_t*);
 
 typedef struct _userval_t
 {
@@ -277,7 +277,7 @@ double gsl_sf_beta (double a, double b);
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
 $filter_begin
-static color_t
+static float*
 filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, float t, pools_t *pools);
 $filter_end
 
@@ -331,6 +331,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	{
 	    y_const_vars_t *y_vars = &slice->y_vars[col];
 	    float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
+	    float *return_tuple;
 
 	    if (invocation->do_debug)
 		invocation->num_debug_tuples = 0;
@@ -340,6 +341,19 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	    {
 		$m
 	    }
+
+	    if (is_bw)
+		p[0] = (TUPLE_RED(return_tuple) * 0.299
+			+ TUPLE_GREEN(return_tuple) * 0.587
+			+ TUPLE_BLUE(return_tuple) * 0.114) * 255.0;
+	    else
+	    {
+		p[0] = TUPLE_RED(return_tuple) * 255.0;
+		p[1] = TUPLE_GREEN(return_tuple) * 255.0;
+		p[2] = TUPLE_BLUE(return_tuple) * 255.0;
+	    }
+	    if (need_alpha)
+		p[alpha_index] = TUPLE_ALPHA(return_tuple) * 255.0;
 
 	    if (invocation->do_debug)
 		save_debug_tuples(invocation, row, col);
@@ -417,11 +431,8 @@ mathmapinit (mathmap_invocation_t *invocation)
 #undef ARG
 #define ARG(i)			(arguments[(i)])
 
-#undef OUTPUT_COLOR
-#define OUTPUT_COLOR(c)		((return_color = (c)), 0)
-
 $filter_begin
-static color_t
+static float*
 filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, float t, pools_t *pools)
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
@@ -429,7 +440,7 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
-    color_t return_color;
+    float *return_tuple;
 
 #if $g
     if (invocation->antialiasing)
@@ -445,6 +456,6 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
 
     $m
 
-    return return_color;
+    return return_tuple;
 }
 $filter_end

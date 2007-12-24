@@ -42,7 +42,7 @@
 #include <libgimp/gimp.h>
 #endif
 
-#define MATHMAP_DATE          "November 2007"
+#define MATHMAP_DATE		"December 2007"
 
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"

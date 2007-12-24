@@ -146,13 +146,6 @@ typedef struct
 
 #define UNINITED_IMAGE        (0)
 
-#define ORIG_VAL(x,y,i,f)     ({ color_t result; \
-	    			 if ((i)->type == IMAGE_CLOSURE) \
-				     result = (i)->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(i), (x), (y), pools); \
-				 else \
-				     result = get_orig_val_pixel_func(invocation, (x), (y), (i), (f)); result; \
-				 result; })
-
 #ifdef IN_COMPILED_CODE
 #ifdef OPENSTEP
 #define RED_FLOAT(c)          (((RED(c)*(ALPHA(c)+1))>>8)/255.0)
@@ -168,16 +161,6 @@ typedef struct
 #endif
 
 #define MAKE_COLOR(r,g,b,a)   (MAKE_RGBA_COLOR(CLAMP01((r))*255,CLAMP01((g))*255,CLAMP01((b))*255,CLAMP01((a))*255))
-#define OUTPUT_COLOR(c) \
-    ({ if (is_bw) { \
-	p[0] = (RED(c)*299 + GREEN(c)*587 + BLUE(c)*114)/1000; \
-    } else { \
-	p[0] = RED(c); p[1] = GREEN(c); p[2] = BLUE(c); \
-    } \
-    if (need_alpha) \
-	p[alpha_index] = ALPHA(c); \
-    0; \
-    })
 
 #define CALC_VIRTUAL_X(pxl,origin,scale,middle,sampl_off)	(((float)((pxl)+(origin)) + (sampl_off)) * (scale) - (middle))
 #define CALC_VIRTUAL_Y(pxl,origin,scale,middle,sampl_off)	((-(float)((pxl)+(origin)) - (sampl_off)) * (scale) + (middle))
@@ -185,5 +168,31 @@ typedef struct
 #define POOLS_ALLOC(s)			(pools_alloc(pools, (s)))
 #define ALLOC_CLOSURE_IMAGE(n)		((image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))))
 #define CLOSURE_IMAGE_ARGS(i)		((userval_t*)(i)->v.closure.args)
+
+#define ALLOC_TUPLE(n)			(POOLS_ALLOC(sizeof(float) * (n)))
+#define TUPLE_SET(t,n,x)		((t)[(n)] = (x))
+#define TUPLE_NTH(t,n)			((t)[(n)])
+#define OUTPUT_TUPLE(t)			((return_tuple = (t)), 0)
+
+#define TUPLE_FROM_COLOR(c)	({ float *tuple = ALLOC_TUPLE(4); \
+	    			   TUPLE_SET(tuple, 0, RED_FLOAT((c))); \
+	    			   TUPLE_SET(tuple, 1, GREEN_FLOAT((c))); \
+	    			   TUPLE_SET(tuple, 2, BLUE_FLOAT((c))); \
+	    			   TUPLE_SET(tuple, 3, ALPHA_FLOAT((c))); \
+				   tuple; })
+
+#define TUPLE_RED(t)		CLAMP01(TUPLE_NTH((t),0))
+#define TUPLE_GREEN(t)		CLAMP01(TUPLE_NTH((t),1))
+#define TUPLE_BLUE(t)		CLAMP01(TUPLE_NTH((t),2))
+#define TUPLE_ALPHA(t)		CLAMP01(TUPLE_NTH((t),3))
+
+#define ORIG_VAL(x,y,i,f)     ({ float *result; \
+	    			 if ((i)->type == IMAGE_CLOSURE) \
+				     result = (i)->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(i), (x), (y), pools); \
+				 else { \
+				     color_t color = get_orig_val_pixel_func(invocation, (x), (y), (i), (f)); \
+				     result = TUPLE_FROM_COLOR(color); \
+				 } \
+				 result; })
 
 #endif
