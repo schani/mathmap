@@ -3971,6 +3971,92 @@ optimize_tuple_nth (void)
     return changed;
 }
 
+/*** make tuple ***/
+
+static void
+optimize_make_tuple_recursively (statement_t *stmt, gboolean *changed)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_ASSIGN :
+		if (stmt->v.assign.rhs->kind == RHS_TUPLE)
+		{
+		    int i;
+		    value_t *tuple = NULL;
+
+		    for (i = 0; i < stmt->v.assign.rhs->v.tuple.length; ++i)
+		    {
+			primary_t *arg = &stmt->v.assign.rhs->v.tuple.args[i];
+			statement_t *def;
+
+			if (arg->kind != PRIMARY_VALUE)
+			    break;
+
+			def = arg->v.value->def;
+			if (def->kind != STMT_ASSIGN
+			    || def->v.assign.rhs->kind != RHS_OP
+			    || op_index(def->v.assign.rhs->v.op.op) != OP_TUPLE_NTH)
+			    break;
+
+			g_assert(def->v.assign.rhs->v.op.args[1].kind == PRIMARY_CONST
+				 && def->v.assign.rhs->v.op.args[1].const_type == TYPE_INT);
+
+			if (def->v.assign.rhs->v.op.args[1].v.constant.int_value != i)
+			    break;
+
+			if (def->v.assign.rhs->v.op.args[0].kind != PRIMARY_VALUE)
+			    break;
+
+			if (tuple == NULL)
+			    tuple = def->v.assign.rhs->v.op.args[0].v.value;
+			else if (tuple != def->v.assign.rhs->v.op.args[0].v.value)
+			    break;
+		    }
+
+		    if (i == stmt->v.assign.rhs->v.tuple.length)
+		    {
+			g_assert(tuple != NULL);
+
+			replace_rhs(&stmt->v.assign.rhs, make_value_rhs(tuple), stmt);
+
+			*changed = TRUE;
+		    }
+		}
+		break;
+
+	    case STMT_IF_COND :
+		optimize_make_tuple_recursively(stmt->v.if_cond.consequent, changed);
+		optimize_make_tuple_recursively(stmt->v.if_cond.alternative, changed);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		optimize_make_tuple_recursively(stmt->v.while_loop.body, changed);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static gboolean
+optimize_make_tuple (void)
+{
+    gboolean changed = FALSE;
+
+    optimize_make_tuple_recursively(first_stmt, &changed);
+
+    return changed;
+}
+
 /*** inlining ***/
 
 static gboolean
@@ -5676,6 +5762,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 	changed = do_inlining() || changed;
 	changed = copy_propagation() || changed;
 	changed = optimize_tuple_nth() || changed;
+	changed = optimize_make_tuple() || changed;
 	changed = common_subexpression_elimination() || changed;
 	changed = copy_propagation() || changed;
 	changed = constant_folding() || changed;

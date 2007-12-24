@@ -36,7 +36,6 @@ Real dependencies
 ** Examples
 
 ** Compiler
-tuple optimization: tuple(nth(x,0),nth(x,1),nth(x,2),...) -> x
 filter call argument checking
 pools in init_frame!
 number*image must trigger an error!
