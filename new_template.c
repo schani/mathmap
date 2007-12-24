@@ -379,6 +379,7 @@ init_frame (mathmap_slice_t *slice)
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
+    pools_t *pools = &slice->pools;
 
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;

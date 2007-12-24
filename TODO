@@ -37,7 +37,6 @@ Real dependencies
 
 ** Compiler
 filter call argument checking
-pools in init_frame!
 number*image must trigger an error!
 optimization for filters which use the "current" pixel
 Copy elimination for phis in pre-native code
