@@ -2173,39 +2173,6 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    }
 	    break;
 
-	case EXPR_FILTER_CALL :
-	    {
-		compvar_t ***args;
-		int *arglengths, *argnumbers;
-		primary_t *arg_primaries;
-		int num_args = num_filter_args(tree->val.filter_call.filter);
-		compvar_t *color;
-		int i;
-
-		args = gen_args(tree->val.filter_call.args, &arglengths, &argnumbers);
-
-		arg_primaries = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
-
-		for (i = 0; i < num_args - 3; ++i)
-		{
-		    g_assert(arglengths[i] == 1);
-		    arg_primaries[i] = make_compvar_primary(args[i][0]);
-		}
-
-		g_assert(arglengths[num_args - 3] == 2);
-		arg_primaries[num_args - 3] = make_compvar_primary(args[num_args - 3][0]); /* x */
-		arg_primaries[num_args - 2] = make_compvar_primary(args[num_args - 3][1]); /* y */
-
-		g_assert(arglengths[num_args - 2] == 1);
-		arg_primaries[num_args - 1] = make_compvar_primary(args[num_args - 2][0]); /* t */
-
-		color = make_temporary(TYPE_COLOR);
-		emit_assign(make_lhs(color), make_filter_rhs(tree->val.filter_call.filter, arg_primaries));
-
-		gen_deconstruct_color(color, dest, is_alloced);
-	    }
-	    break;
-
 	case EXPR_FILTER_CLOSURE :
 	    {
 		compvar_t ***args;

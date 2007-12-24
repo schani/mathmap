@@ -724,9 +724,10 @@ make_filter_call (filter_t *filter, exprtree *args)
 {
     userval_info_t *info;
     exprtree **argp;
-    exprtree *tree;
+    exprtree *closure;
     int num_args = exprlist_length(args);
     gboolean is_closure;
+    exprtree *closure_args, *call_args;
 
     if (num_args < filter->num_uservals
 	|| num_args >= filter->num_uservals + 3)
@@ -761,65 +762,62 @@ make_filter_call (filter_t *filter, exprtree *args)
 	}
     }
 
-    if (is_closure)
-    {
-	g_assert(*argp == 0);
-
-	tree = alloc_exprtree();
-
-	tree->type = EXPR_FILTER_CLOSURE;
-	tree->val.filter_closure.filter = filter;
-	tree->val.filter_closure.args = args;
-
-	tree->result.number = image_tag_number;
-	tree->result.length = 1;
-    }
+    if (filter->num_uservals == 0)
+	closure_args = NULL;
     else
+	closure_args = args;
+    call_args = *argp;
+    *argp = NULL;
+
+    if (is_closure)
+	g_assert(call_args == 0);
+
+    closure = alloc_exprtree();
+
+    closure->type = EXPR_FILTER_CLOSURE;
+    closure->val.filter_closure.filter = filter;
+    closure->val.filter_closure.args = closure_args;
+
+    closure->result.number = image_tag_number;
+    closure->result.length = 1;
+
+    if (is_closure)
+	return closure;
+
+    g_assert(call_args != NULL);
+
+    if (call_args->result.length != 2
+	|| (call_args->result.number != xy_tag_number
+	    && call_args->result.number != ra_tag_number))
     {
-	g_assert(*argp != NULL);
-
-	if ((*argp)->result.length != 2
-	    || ((*argp)->result.number != xy_tag_number
-		&& (*argp)->result.number != ra_tag_number))
-	{
-	    sprintf(error_string, "The coordinate argument to a filter must be a tuple of type xy:2 or ra:2.");
-	    JUMP(1);
-	}
-
-	if ((*argp)->result.number == ra_tag_number)
-	{
-	    exprtree *next = (*argp)->next;
-
-	    (*argp)->next = NULL;
-	    *argp = make_function("toXY", *argp);
-	    (*argp)->next = next;
-	}
-
-	g_assert((*argp)->result.length == 2 && (*argp)->result.number == xy_tag_number);
-
-	argp = &(*argp)->next;
-
-	if (*argp == NULL)
-	    *argp = make_var("t");
-	else if ((*argp)->result.length != 1)
-	{
-	    sprintf(error_string, "The time argument to a filter must be a tuple of length 1.");
-	    JUMP(1);
-	}
-
-	g_assert(exprlist_length(args) == filter->num_uservals + 2);
-
-	tree = alloc_exprtree();
-
-	tree->type = EXPR_FILTER_CALL;
-	tree->val.filter_call.filter = filter;
-	tree->val.filter_call.args = args;
-
-	tree->result.number = rgba_tag_number;
-	tree->result.length = 4;
+	sprintf(error_string, "The coordinate argument to a filter must be a tuple of type xy:2 or ra:2.");
+	JUMP(1);
     }
 
-    return tree;
+    if (call_args->result.number == ra_tag_number)
+    {
+	exprtree *next = call_args->next;
+
+	call_args->next = NULL;
+	call_args = make_function("toXY", call_args);
+	call_args->next = next;
+    }
+
+    g_assert(call_args->result.length == 2 && call_args->result.number == xy_tag_number);
+
+    argp = &call_args->next;
+
+    if (*argp == NULL)
+	*argp = make_var("t");
+    else if ((*argp)->result.length != 1)
+    {
+	sprintf(error_string, "The time argument to a filter must be a tuple of length 1.");
+	JUMP(1);
+    }
+
+    g_assert(exprlist_length(call_args) == 2);
+
+    return make_function("__origVal", exprlist_append(call_args, closure));
 }
 
 static exprtree*
