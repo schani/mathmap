@@ -36,8 +36,8 @@ Real dependencies
 ** Examples
 
 ** Compiler
+tuple optimization: tuple(nth(x,0),nth(x,1),nth(x,2),...) -> x
 filter call argument checking
-make filters return tuples, not colors
 pools in init_frame!
 number*image must trigger an error!
 optimization for filters which use the "current" pixel

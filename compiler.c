@@ -3907,6 +3907,70 @@ common_subexpression_elimination (void)
     return changed;
 }
 
+/*** tuple_nth ***/
+
+static void
+optimize_tuple_nth_recursively (statement_t *stmt, gboolean *changed)
+{
+    while (stmt != 0)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+	    case STMT_PHI_ASSIGN :
+		break;
+
+	    case STMT_ASSIGN :
+		if (stmt->v.assign.rhs->kind == RHS_OP
+		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_TUPLE_NTH
+		    && stmt->v.assign.rhs->v.op.args[0].kind == PRIMARY_VALUE
+		    && stmt->v.assign.rhs->v.op.args[0].v.value->def->kind == STMT_ASSIGN
+		    && stmt->v.assign.rhs->v.op.args[0].v.value->def->v.assign.rhs->kind == RHS_TUPLE)
+		{
+		    rhs_t *nth_rhs = stmt->v.assign.rhs;
+		    rhs_t *def_rhs = nth_rhs->v.op.args[0].v.value->def->v.assign.rhs;
+		    int n;
+
+		    g_assert(nth_rhs->v.op.args[1].kind == PRIMARY_CONST
+			     && nth_rhs->v.op.args[1].const_type == TYPE_INT);
+
+		    n = nth_rhs->v.op.args[1].v.constant.int_value;
+
+		    g_assert(n < def_rhs->v.tuple.length);
+
+		    replace_rhs(&stmt->v.assign.rhs, make_primary_rhs(def_rhs->v.tuple.args[n]), stmt);
+
+		    *changed = TRUE;
+		}
+		break;
+
+	    case STMT_IF_COND :
+		optimize_tuple_nth_recursively(stmt->v.if_cond.consequent, changed);
+		optimize_tuple_nth_recursively(stmt->v.if_cond.alternative, changed);
+		break;
+
+	    case STMT_WHILE_LOOP :
+		optimize_tuple_nth_recursively(stmt->v.while_loop.body, changed);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+static gboolean
+optimize_tuple_nth (void)
+{
+    gboolean changed = FALSE;
+
+    optimize_tuple_nth_recursively(first_stmt, &changed);
+
+    return changed;
+}
+
 /*** inlining ***/
 
 static gboolean
@@ -5611,6 +5675,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 
 	changed = do_inlining() || changed;
 	changed = copy_propagation() || changed;
+	changed = optimize_tuple_nth() || changed;
 	changed = common_subexpression_elimination() || changed;
 	changed = copy_propagation() || changed;
 	changed = constant_folding() || changed;
