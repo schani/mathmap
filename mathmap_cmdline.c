@@ -251,14 +251,15 @@ usage (void)
 	   "      print out version number\n"
 	   "  mathmap --help\n"
 	   "      print this help text\n"
-	   "  mathmap [option ...] <expression> <outfile>\n"
-	   "      transform one or more inputs with <expression> and write\n"
+	   "  mathmap [option ...] [<script>] <outfile>\n"
+	   "      transform one or more inputs with <script> and write\n"
 	   "      the result to <outfile>\n"
 	   "Options:\n"
+	   "  -f, --script-file=FILENAME  read script from FILENAME\n"
 	   "  -I, --image=FILENAME        input image FILENAME\n"
 #ifdef MOVIES
 	   "  -M, --movie=FILENAME        input movie FILENAME\n"
-	   "  -f, --frames=NUM            output movie has NUM frames\n"
+	   "  -F, --frames=NUM            output movie has NUM frames\n"
 #endif
 	   "  -i, --intersampling         use intersampling\n"
 	   "  -o, --oversampling          use oversampling\n"
@@ -287,6 +288,8 @@ cmdline_main (int argc, char *argv[])
     userval_info_t *userval_info;
     int drawable_index;
     int size_is_set = 0;
+    char *script = NULL;
+    char *output_filename;
 
     for (;;)
     {
@@ -300,8 +303,9 @@ cmdline_main (int argc, char *argv[])
 		{ "image", required_argument, 0, 'I' },
 		{ "generator", required_argument, 0, 'g' },
 		{ "size", required_argument, 0, 's' },
+		{ "script-file", required_argument, 0, 'f' },
 #ifdef MOVIES
-		{ "frames", required_argument, 0, 'f' },
+		{ "frames", required_argument, 0, 'F' },
 		{ "movie", required_argument, 0, 'M' },
 #endif
 		{ 0, 0, 0, 0 }
@@ -311,9 +315,9 @@ cmdline_main (int argc, char *argv[])
 
 	option = getopt_long(argc, argv, 
 #ifdef MOVIES
-			     "iof:I:M:c:g:s:", 
+			     "f:ioF:I:M:c:g:s:", 
 #else
-			     "ioI:c:g:s:",
+			     "f:ioI:c:g:s:",
 #endif
 			     long_options, &option_index);
 
@@ -346,6 +350,14 @@ cmdline_main (int argc, char *argv[])
 		usage();
 		return 0;
 
+	    case 'f' :
+		if (!g_file_get_contents(optarg, &script, NULL, NULL))
+		{
+		    fprintf(stderr, "Error: The script file `%s' could not be read.\n", optarg);
+		    return 1;
+		}
+		break;
+
 	    case 'i' :
 		antialiasing = 1;
 		break;
@@ -377,7 +389,7 @@ cmdline_main (int argc, char *argv[])
 		break;
 
 #ifdef MOVIES
-	    case 'f' :
+	    case 'F' :
 		generate_movie = 1;
 		num_frames = atoi(optarg);
 		assert(num_frames > 0);
@@ -390,10 +402,26 @@ cmdline_main (int argc, char *argv[])
 	}
     }
 
-    if (argc - optind != 2)
+    if (script != NULL)
     {
-	usage();
-	return 1;
+	if (argc - optind != 1)
+	{
+	    usage();
+	    return 1;
+	}
+
+	output_filename = argv[optind];
+    }
+    else
+    {
+	if (argc - optind != 2)
+	{
+	    usage();
+	    return 1;
+	}
+
+	script = argv[optind];
+	output_filename = argv[optind + 1];
     }
 
     init_tags();
@@ -447,7 +475,7 @@ cmdline_main (int argc, char *argv[])
 
 	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
 
-	mathmap = compile_mathmap(argv[optind],
+	mathmap = compile_mathmap(script,
 				  GIMPDATADIR "/mathmap/" MAIN_TEMPLATE_FILENAME,
 				  GIMPDATADIR "/mathmap");
 	if (mathmap == 0)
@@ -492,7 +520,7 @@ cmdline_main (int argc, char *argv[])
 #ifdef MOVIES
 	if (generate_movie)
 	{
-	    output_movie = quicktime_open(argv[optind + 1], 0, 1);
+	    output_movie = quicktime_open(output_filename, 0, 1);
 	    assert(output_movie != 0);
 
 	    quicktime_set_video(output_movie, 1, img_width, img_height, 25, QUICKTIME_JPEG);
@@ -527,14 +555,14 @@ cmdline_main (int argc, char *argv[])
 	    quicktime_close(output_movie);
 	else
 #endif
-	    write_image(argv[optind + 1], img_width, img_height, output,
+	    write_image(output_filename, img_width, img_height, output,
 			invocation->output_bpp, img_width * invocation->output_bpp, IMAGE_FORMAT_PNG);
     }
     else
     {
 	if (strcmp(generator, "blender") == 0)
 	{
-	    if (!blender_generate_plug_in(argv[optind], argv[optind + 1]))
+	    if (!blender_generate_plug_in(script, output_filename))
 		return 1;
 	}
 	/*
