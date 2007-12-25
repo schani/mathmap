@@ -83,6 +83,13 @@ free_input_drawable (input_drawable_t *drawable)
         case INPUT_DRAWABLE_OPENSTEP:
 	    break;
 
+#ifdef MATHMAP_CMDLINE
+	case INPUT_DRAWABLE_CMDLINE_IMAGE :
+	    g_free(drawable->v.cmdline.image_filename);
+	    g_free(drawable->v.cmdline.cache_entries);
+	    break;
+#endif
+
 	default :
 	    g_assert_not_reached();
     }
@@ -120,6 +127,18 @@ copy_input_drawable (input_drawable_t *drawable)
 	    break;
 #endif
 
+#ifdef MATHMAP_CMDLINE
+	case INPUT_DRAWABLE_CMDLINE_IMAGE :
+	    copy = alloc_cmdline_image_input_drawable(drawable->v.cmdline.image_filename);
+	    break;
+
+#ifdef MOVIES
+	case INPUT_DRAWABLE_CMDLINE_MOVIE :
+	    copy = alloc_cmdline_movie_input_drawable(drawable->v.cmdline.image_filename);
+	    break;
+#endif
+#endif
+
 	default :
 	    g_assert_not_reached();
     }
@@ -142,6 +161,11 @@ get_default_input_drawable (void)
 	if (input_drawables[i].used
 	    && input_drawables[i].kind == INPUT_DRAWABLE_GIMP
 	    && input_drawables[i].v.gimp.has_selection)
+	    return &input_drawables[i];
+    /* No GIMP drawable with selection found, which means we're
+       probably not in GIMP.  Just return the first used drawable. */
+    for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
+	if (input_drawables[i].used)
 	    return &input_drawables[i];
     return 0;
 }

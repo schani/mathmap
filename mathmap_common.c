@@ -348,7 +348,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 	    }
 
 	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
-	    if (mathmap->initfunc == 0 && !cmd_line_mode)
+	    if (mathmap->initfunc == 0)
 	    {
 		char *message = g_strdup_printf("The MathMap compiler failed.  This is not a fatal error,\n"
 						"because MathMap has a fallback interpreter which can do\n"
@@ -356,8 +356,10 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 						"is recommended that you use the compiler.\n"
 						"This is the reason why the compiler failed:\n%s", error_string);
 
-		gimp_message(message);
-
+		if (cmd_line_mode)
+		    fprintf(stderr, "%s\n", message);
+		else
+		    gimp_message(message);
 		g_free(message);
 	    }
 	}

@@ -185,7 +185,7 @@ alloc_cmdline_image_input_drawable (const char *filename)
 
     drawable->v.cmdline.cache_entries = g_new0(cache_entry_t*, 1);
     drawable->v.cmdline.num_frames = 1;
-    drawable->v.cmdline.image_filename = optarg;
+    drawable->v.cmdline.image_filename = strdup(filename);
 
     bind_cache_entry_to_drawable(cache_entry, drawable, 0);
 

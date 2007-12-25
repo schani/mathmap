@@ -4497,7 +4497,7 @@ emit_pre_native_assign_with_tuple_rhs (value_t *lhs, rhs_t *rhs)
 
     g_assert (lhs_type == TYPE_TUPLE);
 
-    stmts = make_assign(lhs, make_tuple_rhs(rhs->v.tuple.length, args));
+    stmts = make_assign(lhs, make_tuple_rhs_from_array(rhs->v.tuple.length, args));
 
     generate_pre_native_assigns(stmts);
 }
