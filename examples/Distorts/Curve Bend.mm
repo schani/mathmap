@@ -1,5 +1,5 @@
-unit filter curve_bend (unit image in, float alpha: 0-6.28318530,
-                        curve lower, curve upper)
+filter curve_bend (image in, float alpha: 0-6.28318530,
+                   curve lower, curve upper)
     dir = xy:[cos(alpha),sin(alpha)];
     ndir = xy:[-dir[1],dir[0]];
     p = xy / m2x2:[dir[0],-ndir[0],

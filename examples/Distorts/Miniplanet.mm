@@ -2,12 +2,12 @@
 ## Original by Nathan de gargoyle, mangled by VMOS
 
 #REM setup controls
-filter StereoNdeG (image in,
-                   float turn: 0-1 (0.00),
-                   float zoom: 0-10 (1.00),
-                   float sc: 0-4 (1),
-                   float warp: 0-3.141592,
-                   color back)
+pixel filter StereoNdeG (pixel image in,
+                         float turn: 0-1 (0.00),
+                         float zoom: 0-10 (1.00),
+                         float sc: 0-4 (1),
+                         float warp: 0-3.141592,
+                         color back)
 
     #REM show your working
     zeta=-sin(warp)*1+cos(warp);

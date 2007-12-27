@@ -16,11 +16,10 @@ zoom via preview
 Get preview background gray from GtkStyle
 
 ** Language
-recursive filters
-filters as first class values
-make unit default
+indirectly recursive filters
 Hypercomplex-Complex multiplication
 XYZ, Lab color space support
+filters as first class values
 
 ** Command Line Tool
 All uservals on command line (not just input images)

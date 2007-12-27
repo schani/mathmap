@@ -1,7 +1,7 @@
 # by Herbert Poetzl
-unit filter wobbly_transition (float scale: 0-50 (5), float speed: 0-10,
-                               float smoothness: 1-5,
-                               unit image input1, unit image input2)
+filter wobbly_transition (float scale: 0-50 (5), float speed: 0-10,
+                          float smoothness: 1-5,
+                          image input1, image input2)
     mt=t;
     nxy=xy*scale;
     xyn1=noise([nxy[0],nxy[1],mt*speed*1.5])*sin(t*pi);

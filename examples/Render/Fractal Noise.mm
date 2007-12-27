@@ -1,5 +1,5 @@
-unit filter fractal_noise (float z: 0-10 (1.0), int depth: 1-10 (5),
-                           float persistence: 0-1 (0.6), float granularity: 0-50 (7.0))
+filter fractal_noise (float z: 0-10 (1.0), int depth: 1-10 (5),
+                      float persistence: 0-1 (0.6), float granularity: 0-50 (7.0))
     pers = persistence;
     g = granularity;
     nxy = xy * g;

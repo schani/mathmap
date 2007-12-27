@@ -1,5 +1,5 @@
 # tomr@aceldama.com
-unit filter peel (unit image in, color outside)
+filter peel (image in, color outside)
     if (r > 1) then
         outside
     else

@@ -1,5 +1,5 @@
-unit(stretched)
-filter lomoize (unit(stretched) image in,
+stretched
+filter lomoize (stretched image in,
                 float brightness: 0-8 (1.0), float contrast: 0-8 (1.6),
                 float vignette_radius: 0-1 (0.4), float vignette_hardness: 0-10 (2.0))
     p=in(xy);

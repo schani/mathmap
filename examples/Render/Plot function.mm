@@ -20,7 +20,7 @@
 #
 #########
 
-filter function_plotter ()
+pixel filter function_plotter ()
 
     #########
     #

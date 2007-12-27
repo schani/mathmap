@@ -1,5 +1,6 @@
 # by Herbert Poetzl
-filter mugl (image in, int edges: 3-10 (5),
+pixel
+filter mugl (pixel image in, int edges: 3-10 (5),
              float grid_size: 10-300 (100), float polygon_size: 1.2-5 (2.0),
              color edge_color, float edge_width: 0-50 (5),
              color background)

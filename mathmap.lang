@@ -19,8 +19,8 @@
 		<keyword>filter</keyword>
 		
 		<!-- Filter Modifiers -->
-		<keyword>unit</keyword>
-		<keyword>square</keyword>
+		<keyword>pixel</keyword>
+		<keyword>stretched</keyword>
 	</keyword-list>
 
 	<keyword-list _name = "Boolean Bitwise Operators" style = "Keyword" case-sensitive="TRUE">

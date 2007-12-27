@@ -1,7 +1,7 @@
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-unit filter hsv_domain_coloring ()
+filter hsv_domain_coloring ()
     z = x + I*y;
     # This sets the corners of the window
     # to 1.2 + 1.2i, 1.2 - 1.2i, -1.2 + 1.2i, -1.2 - 1.2i

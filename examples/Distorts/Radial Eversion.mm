@@ -1,5 +1,5 @@
 # by tomr@aceldama.com
-unit filter radial_eversion (unit image in, color outside)
+filter radial_eversion (image in, color outside)
     if (r > 1) then
         outside
     else

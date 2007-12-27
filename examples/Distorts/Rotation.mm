@@ -1,8 +1,11 @@
 # by Alexander Heide <heide@ra.physik.uni-halle.de>
 # see http://www.physik.uni-halle.de/~heide/crystal/crystal.html
-filter rotation (image in, float x_center: -1024-1024 (0), float y_center: -1024-1024 (0),
-                 float psi: 0-3.141592 (0), float theta: -3.141592-3.141592 (0), float radius: 1-2048 (2048),
-                 float x_shift: -2048-2048 (0), float y_shift: -2048-2048 (0), float zoom: -1-1 (0))
+pixel filter rotation (pixel image in,
+                       float x_center: -1024-1024 (0), float y_center: -1024-1024 (0),
+                       float psi: 0-3.141592 (0), float theta: -3.141592-3.141592 (0),
+                       float radius: 1-2048 (2048),
+                       float x_shift: -2048-2048 (0), float y_shift: -2048-2048 (0),
+                       float zoom: -1-1 (0))
     x0=x_center-X;
     y0=-(y_center-Y);
 

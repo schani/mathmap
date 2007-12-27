@@ -47,8 +47,8 @@
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"
 
-#define IMAGE_FLAG_UNIT		0x0001
-#define IMAGE_FLAG_SQUARE	0x0002
+#define IMAGE_FLAG_UNIT		0x0001 /* unit coordinate system (vs. pixel) */
+#define IMAGE_FLAG_SQUARE	0x0002 /* square pixels */
 
 #define MATHMAP_FLAG_NATIVE	0x0100
 

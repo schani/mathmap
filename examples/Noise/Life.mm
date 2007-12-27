@@ -1,4 +1,4 @@
-filter life (image in)
+pixel filter life (pixel image in)
     num=(gray(in(xy+xy:[-1,-1]))>0.5)+
         (gray(in(xy+xy:[-1,0]))>0.5)+
         (gray(in(xy+xy:[-1,1]))>0.5)+

@@ -55,8 +55,9 @@
 ## You should not need to change anything below this line ##
 ############################################################
 
+pixel
 filter droste (
-    image in,
+    pixel image in,
     float InnerRadius: 1 - 100 (25),
     int OuterRadius: 1 - 100 (100),
     float Periodicity: -6 - 6 (1),

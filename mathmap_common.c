@@ -49,12 +49,11 @@ static unsigned int
 image_flags_from_options (option_t *options)
 {
     unsigned int flags = 0;
-    option_t *unit_option = find_option_with_name(options, "unit");
 
-    if (unit_option != 0)
+    if (find_option_with_name(options, "pixel") == NULL)
     {
 	flags |= IMAGE_FLAG_UNIT;
-	if (find_option_with_name(unit_option->suboptions, "stretched") == 0)
+	if (find_option_with_name(options, "stretched") == NULL)
 	    flags |= IMAGE_FLAG_SQUARE;
     }
 
