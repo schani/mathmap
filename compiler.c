@@ -2513,13 +2513,11 @@ rhs_type (rhs_t *rhs)
 	    break;
 
 	case RHS_FILTER :
-	    return TYPE_COLOR;
+	case RHS_TUPLE :
+	    return TYPE_TUPLE;
 
 	case RHS_CLOSURE :
 	    return TYPE_IMAGE;
-
-	case RHS_TUPLE :
-	    return TYPE_TUPLE;
 
 	default :
 	    g_assert_not_reached();
@@ -4094,9 +4092,16 @@ can_inline (filter_t *filter, inlining_history_t *history)
 }
 
 static void
-insert_stmts_before (statement_t *stmts, statement_t **stmt)
+insert_stmts_before (statement_t *stmts, statement_t **stmt, statement_t *new_parent)
 {
+    statement_t *iter;
     statement_t *last = last_stmt_of_block(stmts);
+
+    for (iter = stmts; iter != NULL; iter = iter->next)
+    {
+	g_assert(iter->parent == NULL);
+	iter->parent = new_parent;
+    }
 
     g_assert(last->next == NULL);
 
@@ -4129,7 +4134,7 @@ do_inlining_recursively (statement_t **stmt, gboolean *changed)
 
 		    replace_rhs(&(*stmt)->v.assign.rhs, make_color_rhs, *stmt);
 
-		    insert_stmts_before(stmts, stmt);
+		    insert_stmts_before(stmts, stmt, (*stmt)->parent);
 
 		    *changed = TRUE;
 		}
@@ -4446,7 +4451,7 @@ emit_pre_native_assign_with_filter_rhs (value_t *lhs, rhs_t *rhs)
 
     convert_args(num_args, arg_types, args, rhs->v.filter.args);
 
-    g_assert (lhs_type == TYPE_COLOR);
+    g_assert (lhs_type == TYPE_TUPLE);
 
     stmts = make_assign(lhs, make_filter_rhs(rhs->v.filter.filter, args));
 
@@ -5753,6 +5758,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 #ifdef DEBUG_OUTPUT
 	printf("--------------------------------\n");
 	dump_code(first_stmt, 0);
+	check_ssa(first_stmt);
 #endif
 
 	optimize_closure_application(first_stmt);

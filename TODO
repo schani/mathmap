@@ -16,6 +16,8 @@ zoom via preview
 Get preview background gray from GtkStyle
 
 ** Language
+recursive filters
+filters as first class values
 make unit default
 Hypercomplex-Complex multiplication
 XYZ, Lab color space support
@@ -28,7 +30,6 @@ Debug tuples
 Better source reference for error messages
 
 ** Packaging
-Test suite
 Real dependencies
 
 ** Image Processing

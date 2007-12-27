@@ -70,17 +70,17 @@ filters :
 
 filter : options_opt T_FILTER T_IDENT docstring_opt '(' args_decl ')'
                              {
-				 start_parsing_filter(the_mathmap);
+				 top_level_decl_t *decl = make_filter_decl($<ident>3, $<ident>4, $<arg_decl>6,
+									   $<options>1);
+				 start_parsing_filter(the_mathmap, decl);
 				 register_args_as_uservals(the_mathmap->current_filter, $<arg_decl>6);
 			     }
          expr T_END
 			     {
-				 top_level_decl_t *decl = make_filter_decl($<ident>3, $<ident>4, $<arg_decl>6,
-									   $<exprtree>9, $<options>1);
 				 free($<ident>3);
-				 if ($<ident>4 != 0)
+				 if ($<ident>4 != NULL)
 				     free($<ident>4);
-				 the_mathmap->current_filter->decl = decl;
+				 the_mathmap->current_filter->decl->v.filter.body = $<exprtree>9;
 				 finish_parsing_filter(the_mathmap);
 			     }
        ;

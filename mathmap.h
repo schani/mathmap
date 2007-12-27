@@ -208,7 +208,7 @@ void disable_debugging (mathmap_invocation_t *invocation);
 int does_filter_use_ra (filter_t *filter);
 int does_filter_use_t (filter_t *filter);
 
-void start_parsing_filter (mathmap_t *mathmap);
+void start_parsing_filter (mathmap_t *mathmap, top_level_decl_t *decl);
 void finish_parsing_filter (mathmap_t *mathmap);
 
 int check_mathmap (char *expression);

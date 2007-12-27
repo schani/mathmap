@@ -166,13 +166,13 @@ make_top_level_decl (int type, const char *name, const char *docstring)
 }
 
 top_level_decl_t*
-make_filter_decl (const char *name, const char *docstring, arg_decl_t *args, exprtree *body, option_t *options)
+make_filter_decl (const char *name, const char *docstring, arg_decl_t *args, option_t *options)
 {
     top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
 
     top_level->v.filter.args = args;
     top_level->v.filter.options = options;
-    top_level->v.filter.body = body;
+    top_level->v.filter.body = NULL; /* will be filled in by parser */
 
     return top_level;
 }

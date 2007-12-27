@@ -124,6 +124,8 @@ register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 	    JUMP(1);
 	}
 
+	++filter->num_uservals;
+
 	arg_decls = arg_decls->next;
     }
 }
@@ -145,29 +147,30 @@ init_internals (filter_t *filter)
 }
 
 void
-start_parsing_filter (mathmap_t *mathmap)
+start_parsing_filter (mathmap_t *mathmap, top_level_decl_t *decl)
 {
-    g_assert(mathmap->current_filter == 0);
+    filter_t *filter;
 
-    mathmap->current_filter = g_new0(filter_t, 1);
+    g_assert(mathmap->current_filter == NULL);
 
-    init_internals(mathmap->current_filter);
+    filter = g_new0(filter_t, 1);
+
+    filter->decl = decl;
+
+    init_internals(filter);
+
+    filter->next = mathmap->filters;
+    mathmap->filters = filter;
+
+    mathmap->current_filter = filter;
 }
 
 void
 finish_parsing_filter (mathmap_t *mathmap)
 {
     filter_t *filter = mathmap->current_filter;
-    userval_info_t *info;
 
-    g_assert(filter != 0);
-
-    filter->num_uservals = 0;
-    for (info = filter->userval_infos; info != 0; info = info->next)
-	++filter->num_uservals;
-
-    filter->next = mathmap->filters;
-    mathmap->filters = filter;
+    g_assert(filter != NULL);
 
     mathmap->current_filter = 0;
 }

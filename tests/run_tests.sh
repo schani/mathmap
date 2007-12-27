@@ -35,11 +35,11 @@ run_test () {
 }
 
 run_render_test () {
-    run_test $1 $2 "-s 256x256"
+    run_test "$1" "$2" "-s 256x256"
 }
 
 run_modify_test () {
-    run_test $1 $2 "-I marlene.png"
+    run_test "$1" "$2" "-I marlene.png"
 }
 
 run_modify_test ../examples/Map/Droste.mm droste.png
@@ -49,3 +49,4 @@ run_render_test Apply.mm apply.png
 run_modify_test Circle.mm circle.png
 run_modify_test Closure.mm closure.png
 run_modify_test Twice.mm twice.png
+run_modify_test "../examples/Map/IFS Functional.mm" ifs.png
