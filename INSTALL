@@ -1,9 +1,14 @@
 Installing MathMap
 ==================
 
-This version of MathMap has only been tested on Linux (FC6 and
-Ubuntu), and will probably not work on other operating systems without
-some adjustments.
+This version of MathMap has only been tested on Linux and will
+probably not work on other operating systems without some adjustments.
+We provide packages for several Linux distributions as well as
+versions for Windows and MacOS X.  Is is recommended that you use
+these rather than compiling MathMap yourself, if possible.  They are
+available on the MathMap homepage:
+
+    http://www.complang.tuwien.ac.at/schani/mathmap/
 
 Requirements
 ------------
@@ -11,7 +16,7 @@ Requirements
 MathMap requires the following software packages, including
 development packages, to compile and to run:
 
-  * The GIMP 2.2 or 2.3
+  * The GIMP 2.2 or 2.4
   * GSL (GNU Scientific Library), including GSL CBLAS
 
 If you want MathMap to have a command-line interface as well (which is
@@ -37,7 +42,7 @@ If it does not work, the most probable cause is that you don't have
 all the required packages (see above) installed.  Consult the
 documentation of your Linux distribution or whatever you have on how
 to install packages.  The packages you're looking for are probably
-called something like "gimp-devel" and "gsl-devel" or just "gsl".
+called something like "gimp-devel" or "libgimp-dev", or just "gimp".
 
 Installation
 ------------
@@ -63,6 +68,5 @@ development release), become root and type
 
 If you have any problems with this process, feel free to contact me.
 
----
-Mark Probst
-schani@complang.tuwien.ac.at
+-- 
+Mark Probst <schani@complang.tuwien.ac.at>

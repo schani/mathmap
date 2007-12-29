@@ -16,6 +16,7 @@ zoom via preview
 Get preview background gray from GtkStyle
 
 ** Language
+provide syntactic sugar for returning images instead of colors
 indirectly recursive filters
 Hypercomplex-Complex multiplication
 XYZ, Lab color space support
@@ -29,6 +30,7 @@ Debug tuples
 Better source reference for error messages
 
 ** Packaging
+HTML doc generation from filter docstrings
 Real dependencies
 
 ** Image Processing
@@ -36,6 +38,7 @@ Real dependencies
 ** Examples
 
 ** Compiler
+passing of colors, curves and gradients to filters
 filter call argument checking
 number*image must trigger an error!
 optimization for filters which use the "current" pixel
