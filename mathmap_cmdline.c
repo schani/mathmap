@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <ctype.h>
+
 #include <glib.h>
 
 #include "getopt.h"
@@ -243,6 +245,139 @@ parse_image_size (char *str, int *width, int *height)
     return 1;
 }
 
+static gboolean
+is_ident_char (char c)
+{
+    if (isalnum(c))
+	return TRUE;
+    return c == '_';
+}
+
+static gboolean
+print_html_char (FILE *out, char c)
+{
+    /* FIXME: Implement properly */
+    if (putc(c, out) == EOF)
+	return FALSE;
+    return TRUE;
+}
+
+static gboolean
+write_filter_html_doc (FILE *out, top_level_decl_t *decl)
+{
+    arg_decl_t *arg;
+    int num_args;
+    int arg_indent;
+
+    g_assert(decl->type == TOP_LEVEL_FILTER);
+
+    fprintf(out, "<p><a name=\"filter_%s\"></a><font size=\"+1\"><tt>filter <b>%s</b> (",
+	    decl->name, decl->name);
+
+    num_args = 0;
+    for (arg = decl->v.filter.args; arg != NULL; arg = arg->next)
+	++num_args;
+
+    arg_indent = strlen("filter") + strlen(decl->name) + 3;
+
+    for (arg = decl->v.filter.args; arg != NULL; arg = arg->next)
+    {
+	static struct { int num; const char *name; } types[] =
+	    { { ARG_TYPE_INT, "int" },
+	      { ARG_TYPE_FLOAT, "float" },
+	      { ARG_TYPE_COLOR, "color" },
+	      { ARG_TYPE_GRADIENT, "gradient" },
+	      { ARG_TYPE_CURVE, "curve" },
+	      { ARG_TYPE_IMAGE, "image" },
+	      { 0, NULL } };
+
+	int i;
+
+	for (i = 0; types[i].name != NULL; ++i)
+	    if (types[i].num == arg->type)
+		break;
+	g_assert(types[i].name != NULL);
+
+	fprintf(out, "%s <b>%s</b>", types[i].name, arg->name);
+
+	switch (arg->type)
+	{
+	    case ARG_TYPE_INT :
+		if (arg->v.integer.have_limits)
+		    fprintf(out, ": %d - %d", arg->v.integer.min, arg->v.integer.max);
+		break;
+
+	    case ARG_TYPE_FLOAT :
+		if (arg->v.floating.have_limits)
+		    fprintf(out, ": %g - %g", arg->v.floating.min, arg->v.floating.max);
+		break;
+
+	    default :
+		break;
+	}
+
+	if (arg->next != NULL)
+	{
+	    if (num_args > 2)
+	    {
+		int i;
+
+		fprintf(out, ",\n<br>");
+
+		for (i = 0; i < arg_indent; ++i)
+		    fprintf(out, "&nbsp;");
+	    }
+	    else
+		fprintf(out, ", ");
+	}
+    }
+
+    fprintf(out, ")</font>\n");
+
+    if (decl->docstring != NULL)
+    {
+	char *p;
+	gboolean bold_mode = FALSE;
+	gboolean newline = FALSE;
+
+	fprintf(out, "<blockquote>");
+	for (p = decl->docstring; *p != '\0'; ++p)
+	{
+	    if (*p == '\n')
+	    {
+		if (newline)
+		{
+		    fprintf(out, "\n<p>");
+		    continue;
+		}
+		newline = TRUE;
+	    }
+	    else
+		newline = FALSE;
+
+	    if (*p == '@')
+	    {
+		fprintf(out, "<b>");
+		bold_mode = TRUE;
+	    }
+	    else
+	    {
+		if (bold_mode && !is_ident_char(*p))
+		{
+		    fprintf(out, "</b>");
+		    bold_mode = FALSE;
+		}
+
+		if (!print_html_char(out, *p))
+		    return FALSE;
+	    }
+	}
+	fprintf(out, "</blockquote>\n");
+    }
+
+    return TRUE;
+}
+
 static void
 usage (void)
 {
@@ -254,6 +389,9 @@ usage (void)
 	   "  mathmap [option ...] [<script>] <outfile>\n"
 	   "      transform one or more inputs with <script> and write\n"
 	   "      the result to <outfile>\n"
+	   "  mathmap --htmldoc [<script>] <outfile>\n"
+	   "      outputs HTML documentation for the filters in\n"
+	   "      the script to <outfile>\n"
 	   "Options:\n"
 	   "  -f, --script-file=FILENAME  read script from FILENAME\n"
 	   "  -I, --image=FILENAME        input image FILENAME\n"
@@ -270,6 +408,10 @@ usage (void)
 	   "Report bugs and suggestions to schani@complang.tuwien.ac.at\n",
 	   cache_size);
 }
+
+#define OPTION_VERSION			256
+#define OPTION_HELP			257
+#define OPTION_HTMLDOC			258
 
 int
 cmdline_main (int argc, char *argv[])
@@ -290,13 +432,14 @@ cmdline_main (int argc, char *argv[])
     int size_is_set = 0;
     char *script = NULL;
     char *output_filename;
+    gboolean htmldoc = FALSE;
 
     for (;;)
     {
 	static struct option long_options[] =
 	    {
-		{ "version", no_argument, 0, 256 },
-		{ "help", no_argument, 0, 257 },
+		{ "version", no_argument, 0, OPTION_VERSION },
+		{ "help", no_argument, 0, OPTION_HELP },
 		{ "intersampling", no_argument, 0, 'i' },
 		{ "oversampling", no_argument, 0, 'o' },
 		{ "cache", required_argument, 0, 'c' },
@@ -304,6 +447,7 @@ cmdline_main (int argc, char *argv[])
 		{ "generator", required_argument, 0, 'g' },
 		{ "size", required_argument, 0, 's' },
 		{ "script-file", required_argument, 0, 'f' },
+		{ "htmldoc", no_argument, 0, OPTION_HTMLDOC },
 #ifdef MOVIES
 		{ "frames", required_argument, 0, 'F' },
 		{ "movie", required_argument, 0, 'M' },
@@ -326,7 +470,7 @@ cmdline_main (int argc, char *argv[])
 
 	switch (option)
 	{
-	    case 256 :
+	    case OPTION_VERSION :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
 		       "Copyright (C) 1997-2007 Mark Probst\n"
@@ -346,9 +490,13 @@ cmdline_main (int argc, char *argv[])
 		       "Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.\n");
 		return 0;
 
-	    case 257 :
+	    case OPTION_HELP :
 		usage();
 		return 0;
+
+	    case OPTION_HTMLDOC :
+		htmldoc = TRUE;
+		break;
 
 	    case 'f' :
 		if (!g_file_get_contents(optarg, &script, NULL, NULL))
@@ -430,7 +578,33 @@ cmdline_main (int argc, char *argv[])
     init_noise();
     init_compiler();
 
-    if (generator == 0)
+    if (htmldoc)
+    {
+	mathmap_t *mathmap = parse_mathmap(script);
+	filter_t *filter;
+	FILE *out;
+
+	if (mathmap == NULL)
+	{
+	    fprintf(stderr, "Error: Could not read MathMap script: %s\n", error_string);
+	    return 1;
+	}
+
+	out = fopen(output_filename, "w");
+	if (out == NULL)
+	{
+	    fprintf(stderr, "Error: Cannot open file `%s' for writing: %s\n",
+		    output_filename, strerror(errno));
+	    return 1;
+	}
+
+	for (filter = mathmap->filters; filter != NULL; filter = filter->next)
+	    if (!write_filter_html_doc(out, filter->decl))
+		return 1;
+
+	fclose(out);
+    }
+    else if (generator == 0)
     {
 	int num_input_drawables = get_num_input_drawables();
 	mathmap_t *mathmap;

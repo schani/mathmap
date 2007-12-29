@@ -59,7 +59,16 @@ xor                         return T_XOR;
 				yylval.ident = strdup(yytext);
 				return T_IDENT;
 	                    }
-\"[^\"\n]*\"                {
+\"[^\"]*\"                  {
+				char *p = yytext;
+				for (;;)
+				{
+				    p = strchr(p, '\n');
+				    if (p == NULL)
+					break;
+				    ++scanner_line_num;
+				    ++p;
+				}
 				yylval.ident = strdup(yytext + 1);
 				yylval.ident[yyleng - 2] = '\0';
 				return T_STRING;
