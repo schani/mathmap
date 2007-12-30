@@ -49,7 +49,13 @@
 #include "rwimg/writeimage.h"
 
 #include "generators/blender/blender.h"
-//#include "generators/pixeltree/pixeltree.h"
+
+typedef struct _define_t
+{
+    char *name;
+    char *value;
+    struct _define_t *next;
+} define_t;
 
 typedef struct _cache_entry_t
 {
@@ -379,6 +385,43 @@ write_filter_html_doc (FILE *out, top_level_decl_t *decl)
 }
 
 static void
+append_define (const char *str, define_t **defines)
+{
+    define_t *define = g_new0(define_t, 1);
+    const char *p;
+
+    p = strchr(str, '=');
+    if (p == NULL)
+    {
+	fprintf(stderr, "Error: Option to -D is malformed: `%s'.\n", str);
+	exit(1);
+    }
+
+    define->name = malloc(p - str + 1);
+    memcpy(define->name, str, p - str);
+    define->name[p - str] = '\0';
+
+    define->value = strdup(p + 1);
+
+    define->next = *defines;
+    *defines = define;
+}
+
+static define_t*
+lookup_define (define_t *defines, const char *name)
+{
+    while (defines != NULL)
+    {
+	if (strcmp(name, defines->name) == 0)
+	    return defines;
+
+	defines = defines->next;
+    }
+
+    return NULL;
+}
+
+static void
 usage (void)
 {
     printf("Usage:\n"
@@ -394,7 +437,7 @@ usage (void)
 	   "      the script to <outfile>\n"
 	   "Options:\n"
 	   "  -f, --script-file=FILENAME  read script from FILENAME\n"
-	   "  -I, --image=FILENAME        input image FILENAME\n"
+	   "  -D<name>=<value>            define user value\n"
 #ifdef MOVIES
 	   "  -M, --movie=FILENAME        input movie FILENAME\n"
 	   "  -F, --frames=NUM            output movie has NUM frames\n"
@@ -428,11 +471,12 @@ cmdline_main (int argc, char *argv[])
     char *generator = 0;
     char *template_filename;
     userval_info_t *userval_info;
-    int drawable_index;
-    int size_is_set = 0;
+    int num_input_drawables = 0;
+    gboolean size_is_set = FALSE;
     char *script = NULL;
     char *output_filename;
     gboolean htmldoc = FALSE;
+    define_t *defines = NULL;
 
     for (;;)
     {
@@ -443,7 +487,6 @@ cmdline_main (int argc, char *argv[])
 		{ "intersampling", no_argument, 0, 'i' },
 		{ "oversampling", no_argument, 0, 'o' },
 		{ "cache", required_argument, 0, 'c' },
-		{ "image", required_argument, 0, 'I' },
 		{ "generator", required_argument, 0, 'g' },
 		{ "size", required_argument, 0, 's' },
 		{ "script-file", required_argument, 0, 'f' },
@@ -459,9 +502,9 @@ cmdline_main (int argc, char *argv[])
 
 	option = getopt_long(argc, argv, 
 #ifdef MOVIES
-			     "f:ioF:I:M:c:g:s:", 
+			     "f:ioF:D:M:c:g:s:", 
 #else
-			     "f:ioI:c:g:s:",
+			     "f:ioD:c:g:s:",
 #endif
 			     long_options, &option_index);
 
@@ -517,6 +560,10 @@ cmdline_main (int argc, char *argv[])
 	    case 'c' :
 		cache_size = atoi(optarg);
 		assert(cache_size > 0);
+		break;
+
+	    case 'D' :
+		append_define(optarg, &defines);
 		break;
 
 	    case 'I' :
@@ -606,46 +653,8 @@ cmdline_main (int argc, char *argv[])
     }
     else if (generator == 0)
     {
-	int num_input_drawables = get_num_input_drawables();
 	mathmap_t *mathmap;
 	mathmap_invocation_t *invocation;
-
-	if (!size_is_set)
-	{
-	    input_drawable_t *drawable;
-
-	    if (num_input_drawables == 0)
-	    {
-		fprintf(stderr, "Error: Image size not set and no input images given.\n");
-		exit(1);
-	    }
-
-	    drawable = get_nth_input_drawable(0);
-
-	    if (drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE)
-	    {
-		cache_entry_t *cache_entry = get_cache_entry_for_image(drawable->v.cmdline.image_filename,
-								       &img_width, &img_height);
-
-		bind_cache_entry_to_drawable(cache_entry, drawable, 0);
-	    }
-#ifdef MOVIES
-	    else
-	    {
-		img_width = quicktime_video_width(input_drawables[0].v.movie, 0);
-		img_height = quicktime_video_height(input_drawables[0].v.movie, 0);
-	    }
-#endif
-	}
-
-#ifdef MOVIES
-	for (i = 0; i < num_input_drawables; ++i)
-	    if (input_drawables[i].type == DRAWABLE_MOVIE)
-	    {
-		assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
-		assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
-	    }
-#endif
 
 	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
 
@@ -658,30 +667,95 @@ cmdline_main (int argc, char *argv[])
 	    exit(1);
 	}
 
-	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
-
-	drawable_index = 0;
-	for (userval_info = mathmap->main_filter->userval_infos; userval_info != 0; userval_info = userval_info->next)
-	    if (userval_info->type == USERVAL_IMAGE)
+	if (!size_is_set)
+	    for (userval_info = mathmap->main_filter->userval_infos;
+		 userval_info != NULL;
+		 userval_info = userval_info->next)
 	    {
-		userval_t *userval = &invocation->uservals[userval_info->index];
+		define_t *define;
+		unsigned char *image;
 
-		if (drawable_index >= num_input_drawables)
+		if (userval_info->type != USERVAL_IMAGE)
+		    continue;
+
+		define = lookup_define(defines, userval_info->name);
+		if (define == NULL)
 		{
-		    fprintf(stderr, "Error: Not enough input images specified.\n");
-		    exit(1);
+		    fprintf(stderr, "Error: No value defined for input image `%s'.", userval_info->name);
+		    return 1;
 		}
 
-		assign_image_userval_drawable(userval_info, userval, get_nth_input_drawable(drawable_index));
+		image = read_image(define->value, &img_width, &img_height);
+		if (image == NULL)
+		{
+		    fprintf(stderr, "Error: Could not read input image `%s'.", define->value);
+		    return 1;
+		}
+		free(image);
 
-		++drawable_index;
+		size_is_set = TRUE;
+
+		break;
 	    }
 
-	if (drawable_index != num_input_drawables)
+	if (!size_is_set)
 	{
-	    fprintf(stderr, "Error: Too many input images specified.\n");
+	    fprintf(stderr, "Error: Image size not set and no input images given.\n");
 	    exit(1);
 	}
+
+	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
+
+	for (userval_info = mathmap->main_filter->userval_infos;
+	     userval_info != NULL;
+	     userval_info = userval_info->next)
+	{
+	    userval_t *userval = &invocation->uservals[userval_info->index];
+	    define_t *define = lookup_define(defines, userval_info->name);
+
+	    if (define == NULL)
+	    {
+		if (userval_info->type == USERVAL_IMAGE)
+		{
+		    fprintf(stderr, "Error: No value defined for input image `%s'.", userval_info->name);
+		    return 1;
+		}
+	    }
+	    else
+		switch (userval_info->type)
+		{
+		    case USERVAL_INT_CONST :
+			userval->v.int_const = atoi(define->value);
+			break;
+
+		    case USERVAL_FLOAT_CONST :
+			userval->v.float_const = g_ascii_strtod(define->value, NULL);
+			break;
+
+		    case USERVAL_BOOL_CONST :
+			userval->v.bool_const = (float)atoi(define->value);
+			break;
+
+		    case USERVAL_IMAGE :
+			assign_image_userval_drawable(userval_info, userval,
+						      alloc_cmdline_image_input_drawable(define->value));
+			++num_input_drawables;
+			break;
+
+		    default :
+			fprintf(stderr, "Error: Can only define user values for types int, float, bool and image.\n");
+			return 1;
+		}
+	}
+
+#ifdef MOVIES
+	for (i = 0; i < num_input_drawables; ++i)
+	    if (input_drawables[i].type == DRAWABLE_MOVIE)
+	    {
+		assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
+		assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
+	    }
+#endif
 
 	invocation->antialiasing = antialiasing;
 	invocation->supersampling = supersampling;

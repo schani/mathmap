@@ -23,14 +23,13 @@ XYZ, Lab color space support
 filters as first class values
 
 ** Command Line Tool
-All uservals on command line (not just input images)
+Colors as definable user values
 
 ** General
 Debug tuples
 Better source reference for error messages
 
 ** Packaging
-HTML doc generation from filter docstrings
 Real dependencies
 
 ** Image Processing

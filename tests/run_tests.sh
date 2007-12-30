@@ -39,7 +39,7 @@ run_render_test () {
 }
 
 run_modify_test () {
-    run_test "$1" "$2" "-I marlene.png"
+    run_test "$1" "$2" "-Din=marlene.png"
 }
 
 run_modify_test ../examples/Map/Droste.mm droste.png
