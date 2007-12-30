@@ -71,7 +71,7 @@ LDFLAGS += -lquicktime -lpthread
 endif
 
 ifeq ($(CMDLINE),YES)
-CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o #generators/pixeltree/pixeltree.o
+CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
@@ -167,7 +167,7 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *.o generators/blender/*.o generators/pixeltree/*.o mathmap compiler parser.output core
+	rm -f *.o generators/blender/*.o mathmap compiler parser.output core
 	find . -name '*~' | xargs -r -d '\n' rm
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
