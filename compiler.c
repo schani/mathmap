@@ -4130,7 +4130,9 @@ do_inlining_recursively (statement_t **stmt, gboolean *changed)
 							 (*stmt)->v.assign.rhs->v.filter.args, &make_color_rhs,
 							 (*stmt)->v.assign.rhs->v.filter.history);
 
+#ifdef DEBUG_OUTPUT
 		    printf("inlining filter %s\n", filter->decl->name);
+#endif
 
 		    replace_rhs(&(*stmt)->v.assign.rhs, make_color_rhs, *stmt);
 
@@ -6024,11 +6026,15 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 	 filter != 0;
 	 ++i, filter = filter->next)
     {
+#ifdef DEBUG_OUTPUT
 	g_print("compiling filter %s\n", filter->decl->name);
+#endif
 	filter_codes[i] = generate_ir_code(filter, 0, 0);
     }
 
+#ifdef DEBUG_OUTPUT
     g_print("compiling main filter\n");
+#endif
     main_filter_code = generate_ir_code(mathmap->main_filter, 1, 0);
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);

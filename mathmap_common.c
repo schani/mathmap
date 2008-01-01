@@ -1025,8 +1025,6 @@ process_template (mathmap_t *mathmap, const char *template, FILE *out,
 
 		strcpy(end_name + length - strlen("begin"), "end");
 
-		g_print("looking for %s\n", end_name);
-
 		j = find_directive(template + i, end_name);
 
 		g_assert(j >= 0);
