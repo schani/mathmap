@@ -20,6 +20,18 @@ from questions to bug reports to feature requests, and so on:
 
     http://groups.google.com/group/mathmap
 
+Binaries for several Linux distributions are available here:
+
+    http://download.opensuse.org/repositories/home:/mark_probst/
+
+The source package can be downloaded here:
+
+    http://www.complang.tuwien.ac.at/schani/mathmap/files/mathmap-1.3.0.tar.gz
+
+For instructions on how to get the absolutely latest MathMap sources via Mercurial, read this:
+
+    http://www.complang.tuwien.ac.at/schani/mathmap/README.mercurial
+
 Changes in 1.3.0:
 
   * Filters can call other filters and can be applied to images to
