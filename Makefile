@@ -37,8 +37,8 @@ LOCALEDIR = $(PREFIX)/share/locale
 
 VERSION = 1.3.0
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g -DDEBUG_OUTPUT
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -171,6 +171,7 @@ clean :
 	find . -name '*~' | xargs -r -d '\n' rm
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
+	rm -rf debian/mathmap debian/mathmap.substvars
 
 realclean : clean
 	rm -f new_builtins.c opdefs.h compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
@@ -181,7 +182,7 @@ TAGS : *.c *.h *.lisp
 dist : new_builtins.c parser.c scanner.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender BUGS ANNOUNCEMENT COPYING INSTALL mathmap.spec *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.mercurial BUGS ANNOUNCEMENT COPYING INSTALL mathmap.spec *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils
@@ -192,7 +193,7 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	mkdir mathmap-$(VERSION)/pixmaps
 	cp pixmaps/*.png mathmap-$(VERSION)/pixmaps
-	cp -r examples lispreader rwimg mathmap-$(VERSION)/
+	cp -rL examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
 	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/compiler_types.h
