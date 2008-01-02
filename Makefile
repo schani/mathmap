@@ -135,6 +135,7 @@ install : mathmap
 	if [ ! -d $(GIMPDATADIR)/mathmap ] ; then mkdir $(GIMPDATADIR)/mathmap ; fi
 	cp new_template.c $(GIMPDATADIR)/mathmap/
 	cp opmacros.h $(GIMPDATADIR)/mathmap/
+	cp lispreader/pools.h $(GIMPDATADIR)/mathmap/
 	cp generators/blender/blender_template.c $(GIMPDATADIR)/mathmap/
 	cp generators/blender/blender_opmacros.h $(GIMPDATADIR)/mathmap/
 	if [ ! -d $(GIMPDATADIR)/mathmap/expressions ] ; then cp -r examples $(GIMPDATADIR)/mathmap/expressions ; fi
