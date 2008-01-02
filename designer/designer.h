@@ -27,6 +27,10 @@
 
 #include <glib.h>
 
+typedef struct _designer_design_type_t designer_design_type_t;
+typedef struct _designer_design_t designer_design_t;
+typedef struct _designer_node_t designer_node_t;
+
 typedef struct
 {
     char *name;
@@ -36,45 +40,62 @@ typedef struct
 {
     char *name;
     designer_type_t *type;
-} designer_slot_type_t;
+} designer_slot_spec_t;
 
 typedef struct
 {
+    designer_design_type_t *design_type;
     char *name;
-    GSList *input_slot_types;
-    GSList *output_slot_types;
+    GSList *input_slot_specs;
+    GSList *output_slot_specs;
 } designer_node_type_t;
 
-typedef struct _designer_node_t designer_node_t;
-
 typedef struct
 {
-    struct _designer_node_t *partner; /* NULL if not assigned */
+    designer_node_t *partner; /* NULL if not assigned */
     int partner_slot_index;
 } designer_slot_t;
 
 struct _designer_node_t
 {
+    designer_design_t *design;
     designer_node_type_t *type;
     char *name;
     designer_slot_t *input_slots;
     designer_slot_t *output_slots;
 };
 
-typedef struct
+struct _designer_design_type_t
 {
     gboolean allow_cycles;
     GSList *types;
     GSList *node_types;
-} designer_design_type_t;
+};
 
-typedef struct
+struct _designer_design_t
 {
     designer_design_type_t *type;
     GSList *nodes;
-} designer_design_t;
+};
 
 extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
+
+extern designer_design_type_t* designer_make_design_type (gboolean allow_cycles);
+
+extern void designer_add_type (designer_design_type_t *design_type, const char *name);
+
+extern designer_node_type_t* designer_add_node_type (designer_design_type_t *design_type, const char *name);
+extern void designer_add_input_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name);
+extern void designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name);
+
+extern designer_design_t* designer_make_design (designer_design_type_t *type);
+
+extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
+
+extern gboolean designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
+					designer_node_t *dest, const char *input_slot_name);
+extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
+				       designer_node_t *dest, const char *input_slot_name);
 
 #endif

@@ -47,7 +47,7 @@ nodes_from_design (designer_design_t *design, int *_num_nodes, int *_num_edges, 
     for (node_list = design->nodes; node_list != NULL; node_list = node_list->next)
     {
 	designer_node_t *node = node_list->data;
-	int num_slots = g_slist_length(node->type->output_slot_types);
+	int num_slots = g_slist_length(node->type->output_slot_specs);
 	int num_edges = 0;
 
 	for (i = 0; i < num_slots; ++i)
@@ -69,7 +69,7 @@ nodes_from_design (designer_design_t *design, int *_num_nodes, int *_num_edges, 
 	 ++i, node_list = node_list->next)
     {
 	designer_node_t *node = node_list->data;
-	int num_slots = g_slist_length(node->type->output_slot_types);
+	int num_slots = g_slist_length(node->type->output_slot_specs);
 	int j, k;
 
 	nodes[i].edges = &edges[edge_index];
