@@ -27,7 +27,7 @@ language reference.  NOTE: The new language features in the 1.3 branch
 are not documented in the reference, yet.  Please consult
 README.filters or go here:
 
-    http://www.complang.tuwien.ac.at/schani/mathmap/filters.html
+    http://www.complang.tuwien.ac.at/schani/mathmap/README.filters
 
 Note also: The command line version of MathMap is not very thoroughly
 tested and probably has lots of bugs.  The QuickTime Movie support in
