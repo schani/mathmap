@@ -34,6 +34,7 @@
 #define SLOT_DIAMETER			(SLOT_RADIUS * 2)
 #define SLOT_SPACING			3.0
 #define TITLE_PADDING			3.0
+#define SLOT_NAME_PADDING		10.0
 
 typedef struct
 {
@@ -395,12 +396,36 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     PangoFontDescription *font_desc = pango_font_description_from_string("Sans 10");
     int title_width, title_height;
     double slots_y1;
+    double widest_line;
 
     g_assert(font_desc != NULL);
 
     get_text_size(node->name, GTK_WIDGET(canvas), font_desc, &title_width, &title_height);
 
-    width = MAX(60.0, title_width + TITLE_PADDING * 2);
+    widest_line = 0.0;
+    for (i = 0; i < MAX(num_input_slots, num_output_slots); ++i)
+    {
+	designer_slot_spec_t *input = g_slist_nth_data(node->type->input_slot_specs, i);
+	designer_slot_spec_t *output = g_slist_nth_data(node->type->output_slot_specs, i);
+	int dummy, input_width, output_width;
+	double width;
+
+	if (input != NULL)
+	    get_text_size(input->name, GTK_WIDGET(canvas), font_desc, &input_width, &dummy);
+	else
+	    input_width = 0;
+
+	if (output != NULL)
+	    get_text_size(output->name, GTK_WIDGET(canvas), font_desc, &output_width, &dummy);
+	else
+	    output_width = 0;
+
+	width = (SLOT_DIAMETER + SLOT_SPACING * 2) * 2 + SLOT_NAME_PADDING + input_width + output_width;
+	if (width > widest_line)
+	    widest_line = width;
+    }
+
+    width = MAX(widest_line, title_width + TITLE_PADDING * 2);
     height = title_height + TITLE_PADDING * 2 + max_slots * (SLOT_DIAMETER + SLOT_SPACING) + SLOT_SPACING;
 
     slots_y1 = title_height + TITLE_PADDING * 2 + SLOT_SPACING;
@@ -436,33 +461,57 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     for (i = 0; i < num_input_slots; ++i)
     {
 	designer_slot_spec_t *slot_spec = g_slist_nth_data(node->type->input_slot_specs, i);
+	GnomeCanvasItem *text;
+	double y1 = slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER);
 
 	ellipse = gnome_canvas_item_new(group,
 					gnome_canvas_ellipse_get_type(),
 					"x1", SLOT_SPACING,
-					"y1", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER),
+					"y1", y1,
 					"x2", SLOT_SPACING + SLOT_DIAMETER,
-					"y2", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER) + SLOT_DIAMETER,
+					"y2", y1 + SLOT_DIAMETER,
 					"fill_color", "yellow",
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
 	g_object_set_data(G_OBJECT(ellipse), "slot-is-input", GINT_TO_POINTER(1));
+
+	text = gnome_canvas_item_new(group,
+				     gnome_canvas_text_get_type(),
+				     "text", slot_spec->name,
+				     "x", SLOT_SPACING * 2 + SLOT_DIAMETER,
+				     "y", y1,
+				     "font-desc", font_desc,
+				     "anchor", GTK_ANCHOR_NW,
+				     "fill-color", "white",
+				     NULL);
     }
 
     for (i = 0; i < num_output_slots; ++i)
     {
 	designer_slot_spec_t *slot_spec = g_slist_nth_data(node->type->output_slot_specs, i);
+	GnomeCanvasItem *text;
+	double y1 = slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER);
 
 	ellipse = gnome_canvas_item_new(group,
 					gnome_canvas_ellipse_get_type(),
 					"x1", width - SLOT_SPACING - SLOT_DIAMETER,
-					"y1", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER),
+					"y1", y1,
 					"x2", width - SLOT_SPACING,
-					"y2", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER) + SLOT_DIAMETER,
+					"y2", y1 + SLOT_DIAMETER,
 					"fill_color", "yellow",
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
 	g_object_set_data(G_OBJECT(ellipse), "slot-is-input", GINT_TO_POINTER(0));
+
+	text = gnome_canvas_item_new(group,
+				     gnome_canvas_text_get_type(),
+				     "text", slot_spec->name,
+				     "x", width - SLOT_SPACING * 2 - SLOT_DIAMETER,
+				     "y", y1,
+				     "font-desc", font_desc,
+				     "anchor", GTK_ANCHOR_NE,
+				     "fill-color", "white",
+				     NULL);
     }
 
     return group;
