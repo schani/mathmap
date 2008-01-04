@@ -44,14 +44,17 @@ nodes_from_design (designer_design_t *design, int *_num_nodes, int *_num_edges, 
     int edge_index;
 
     num_total_edges = 0;
-    for (node_list = design->nodes; node_list != NULL; node_list = node_list->next)
+    for (i = 0, node_list = design->nodes;
+	 node_list != NULL;
+	 ++i, node_list = node_list->next)
     {
 	designer_node_t *node = node_list->data;
 	int num_slots = g_slist_length(node->type->output_slot_specs);
 	int num_edges = 0;
+	int j;
 
-	for (i = 0; i < num_slots; ++i)
-	    if (node->output_slots[i].partner != NULL)
+	for (j = 0; j < num_slots; ++j)
+	    if (node->output_slots[j].partner != NULL)
 		++num_edges;
 
 	num_total_edges += num_edges;
@@ -60,6 +63,7 @@ nodes_from_design (designer_design_t *design, int *_num_nodes, int *_num_edges, 
 	nodes[i].num_edges = num_edges;
 	g_hash_table_insert(node_hash, node, &nodes[i]);
     }
+    g_assert(i == num_nodes);
 
     edges = g_new0(node_t*, num_total_edges);
 

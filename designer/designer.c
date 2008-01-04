@@ -198,10 +198,13 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
 
     node = g_new0(designer_node_t, 1);
 
+    node->design = design;
     node->name = g_strdup(name);
     node->type = node_type;
     node->input_slots = g_new0(designer_slot_t, num_input_slots);
     node->output_slots = g_new0(designer_slot_t, num_output_slots);
+
+    design->nodes = g_slist_prepend(design->nodes, node);
 
     return node;
 }
@@ -241,9 +244,11 @@ designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
 							     &input_slot_index);
 
     g_assert(source->design == dest->design);
-    g_assert(source_type->design_type == dest_type->design_type);
     g_assert(output_slot_spec != NULL);
     g_assert(input_slot_spec != NULL);
+
+    if (source_type->design_type != dest_type->design_type)
+	return FALSE;
 
     g_assert(source->output_slots[output_slot_index].partner == NULL);
     g_assert(dest->input_slots[input_slot_index].partner == NULL);
