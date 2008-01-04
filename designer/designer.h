@@ -98,4 +98,7 @@ extern gboolean designer_connect_nodes (designer_node_t *source, const char *out
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
 
+extern char* make_filter_source_from_node (designer_node_t *root, const char *filter_name);
+
+
 #endif

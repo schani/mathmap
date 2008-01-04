@@ -1,0 +1,162 @@
+/* -*- c -*- */
+
+/*
+ * filter.c
+ *
+ * MathMap
+ *
+ * Copyright (C) 2008 Mark Probst
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+#include "designer.h"
+
+static void
+append_node_slot (GString *string, designer_node_t *node, designer_slot_spec_t *slot_spec)
+{
+    g_string_append_printf(string, "%s_%s", node->name, slot_spec->name);
+}
+
+static void
+append_node_result (GString *string, designer_node_t *node)
+{
+    designer_slot_spec_t *slot_spec;
+
+    g_assert(g_slist_length(node->type->output_slot_specs) == 1);
+
+    slot_spec = node->type->output_slot_specs->data;
+
+    append_node_slot(string, node, slot_spec);
+}
+
+static void
+compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
+{
+    int num_slots, i;
+    gboolean first;
+    GSList *list;
+
+    if (g_slist_find(*computed_nodes, node) != NULL)
+	return;
+
+    num_slots = g_slist_length(node->type->input_slot_specs);
+
+    /* compute all the dependencies first */
+    for (i = 0; i < num_slots; ++i)
+	if (node->input_slots[i].partner != NULL)
+	    compute_node(node->input_slots[i].partner, string, computed_nodes);
+
+    g_string_append(string, "    ");
+    append_node_result(string, node);
+    g_string_append_printf(string, " = %s(", node->type->name);
+
+    first = TRUE;
+    for (i = 0, list = node->type->input_slot_specs;
+	 list != NULL;
+	 ++i, list = list->next)
+    {
+	designer_slot_spec_t *slot_spec = list->data;
+
+	if (!first)
+	    g_string_append(string, ", ");
+	else
+	    first = FALSE;
+
+	append_node_slot(string, node, slot_spec);
+    }
+
+    g_string_append(string, ");\n");
+
+    g_assert(g_slist_find(*computed_nodes, node) == NULL);
+    *computed_nodes = g_slist_prepend(*computed_nodes, node);
+}
+
+char*
+make_filter_source_from_node (designer_node_t *root, const char *filter_name)
+{
+    GSList *nodes = g_slist_prepend(NULL, root);
+    GString *string;
+    gboolean first;
+    GSList *list;
+    GSList *computed_nodes = NULL;
+
+    for (;;)
+    {
+	gboolean finished = TRUE;
+
+	for (list = nodes; list != NULL; list = list->next)
+	{
+	    designer_node_t *node = list->data;
+	    int num_slots = g_slist_length(node->type->input_slot_specs);
+	    int i;
+
+	    for (i = 0; i < num_slots; ++i)
+	    {
+		designer_node_t *partner = node->input_slots[i].partner;
+
+		if (partner != NULL && g_slist_find(nodes, partner) == NULL)
+		{
+		    nodes = g_slist_prepend(nodes, partner);
+		    finished = FALSE;
+		}
+	    }
+	}
+
+	if (finished)
+	    break;
+    }
+
+    string = g_string_new("filter ");
+    g_string_append_printf(string, "%s (", filter_name);
+
+    first = TRUE;
+    for (list = nodes; list != NULL; list = list->next)
+    {
+	designer_node_t *node = list->data;
+	GSList *slot_list;
+	int i;
+
+	for (i = 0, slot_list = node->type->input_slot_specs;
+	     slot_list != NULL;
+	     ++i, slot_list = slot_list->next)
+	{
+	    if (node->input_slots[i].partner == NULL)
+	    {
+		designer_slot_spec_t *slot_spec = slot_list->data;
+
+		if (!first)
+		    g_string_append(string, ", ");
+		else
+		    first = FALSE;
+
+		g_string_append_printf(string, "%s ", slot_spec->type->name);
+		append_node_slot(string, node, slot_spec);
+	    }
+	}
+    }
+    g_string_append(string, ")\n");
+
+    compute_node(root, string, &computed_nodes);
+
+    g_string_append(string, "    ");
+    append_node_result(string, root);
+    g_string_append(string, "(xy)\nend\n");
+
+    g_slist_free(nodes);
+    g_slist_free(computed_nodes);
+
+    return g_string_free(string, FALSE);
+}

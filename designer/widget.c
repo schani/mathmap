@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -86,6 +86,28 @@ update_node_edges (GnomeCanvasGroup *group)
     }
 }
 
+static designer_node_t*
+group_get_node (GnomeCanvasGroup *group)
+{
+    designer_node_t *node = g_object_get_data(G_OBJECT(group), "node");
+
+    g_assert(node != NULL);
+
+    return node;
+}
+
+static designer_node_t*
+slot_get_node (GnomeCanvasItem *slot)
+{
+    GnomeCanvasGroup *group;
+
+    g_object_get(slot, "parent", &group, NULL);
+
+    g_assert(group != NULL);
+
+    return group_get_node(group);
+}
+
 static gint
 rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 {
@@ -127,31 +149,28 @@ rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 	    break;
 
 	case GDK_BUTTON_RELEASE :
-	    data->dragging = FALSE;
-	    return TRUE;
+	    {
+		designer_node_t *node = group_get_node(group);
+		char *text;
+
+		g_assert(node != NULL);
+
+		text = make_filter_source_from_node(node, "bla");
+
+		g_print("%s\n", text);
+
+		g_free(text);
+
+		data->dragging = FALSE;
+		return TRUE;
+	    }
+	    break;
 
 	default :
 	    break;
     }
 
     return FALSE;
-}
-
-static designer_node_t*
-slot_get_node (GnomeCanvasItem *slot)
-{
-    GnomeCanvasGroup *group;
-    designer_node_t *node;
-
-    g_object_get(slot, "parent", &group, NULL);
-
-    g_assert(group != NULL);
-
-    node = g_object_get_data(G_OBJECT(group), "node");
-
-    g_assert(node != NULL);
-
-    return node;
 }
 
 static gboolean

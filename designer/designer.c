@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -142,7 +142,7 @@ add_slot_spec (designer_node_type_t *node_type, const char *name, const char *ty
     slot_spec->name = g_strdup(name);
     slot_spec->type = type;
 
-    *slot_specs = g_slist_prepend(*slot_specs, slot_spec);
+    *slot_specs = g_slist_append(*slot_specs, slot_spec);
 }
 
 void
