@@ -33,6 +33,7 @@
 #define SLOT_RADIUS			5.0
 #define SLOT_DIAMETER			(SLOT_RADIUS * 2)
 #define SLOT_SPACING			3.0
+#define TITLE_PADDING			3.0
 
 typedef struct
 {
@@ -365,20 +366,44 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
     return FALSE;
 }
 
+static void
+get_text_size (const char *text, GtkWidget *widget, PangoFontDescription *font_desc, int *width, int *height)
+{
+    PangoContext *context = gtk_widget_get_pango_context(widget);
+    PangoLayout *layout = pango_layout_new(context);
+
+    g_assert(layout != NULL);
+
+    pango_layout_set_text(layout, text, -1);
+
+    pango_layout_get_pixel_size(layout, width, height);
+
+    g_object_unref(G_OBJECT(layout));
+}
+
 static GnomeCanvasGroup*
 make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widget_data_t *data)
 {
     GnomeCanvasGroup *group;
-    GnomeCanvasItem *rectangle;
-    GnomeCanvasItem *ellipse;
+    GnomeCanvasItem *rectangle, *ellipse, *title;
     double width, height;
     int num_input_slots = g_slist_length(node->type->input_slot_specs);
     int num_output_slots = g_slist_length(node->type->output_slot_specs);
     int max_slots = MAX(num_input_slots, num_output_slots);
     int i;
+    /* FIXME: get some standard font from preferences here */
+    PangoFontDescription *font_desc = pango_font_description_from_string("Sans 10");
+    int title_width, title_height;
+    double slots_y1;
 
-    width = 60;
-    height = max_slots * (SLOT_DIAMETER + SLOT_SPACING) + SLOT_SPACING;
+    g_assert(font_desc != NULL);
+
+    get_text_size(node->name, GTK_WIDGET(canvas), font_desc, &title_width, &title_height);
+
+    width = MAX(60.0, title_width + TITLE_PADDING * 2);
+    height = title_height + TITLE_PADDING * 2 + max_slots * (SLOT_DIAMETER + SLOT_SPACING) + SLOT_SPACING;
+
+    slots_y1 = title_height + TITLE_PADDING * 2 + SLOT_SPACING;
 
     group = GNOME_CANVAS_GROUP(gnome_canvas_item_new(gnome_canvas_root(canvas),
 						     gnome_canvas_group_get_type(),
@@ -394,9 +419,19 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				      "y1", 0.0,
 				      "x2", width,
 				      "y2", height,
-				      "fill_color", "darkred",
+				      "fill-color", "lightblue",
 				      NULL);
     g_signal_connect(rectangle, "event", G_CALLBACK(rectangle_event), data);
+
+    title = gnome_canvas_item_new(group,
+				  gnome_canvas_text_get_type(),
+				  "text", node->name,
+				  "x", width / 2,
+				  "y", TITLE_PADDING,
+				  "font-desc", font_desc,
+				  "anchor", GTK_ANCHOR_N,
+				  "fill-color", "white",
+				  NULL);
 
     for (i = 0; i < num_input_slots; ++i)
     {
@@ -405,9 +440,9 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 	ellipse = gnome_canvas_item_new(group,
 					gnome_canvas_ellipse_get_type(),
 					"x1", SLOT_SPACING,
-					"y1", i * (SLOT_SPACING + SLOT_DIAMETER) + SLOT_SPACING,
+					"y1", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER),
 					"x2", SLOT_SPACING + SLOT_DIAMETER,
-					"y2", (i + 1) * (SLOT_SPACING + SLOT_DIAMETER),
+					"y2", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER) + SLOT_DIAMETER,
 					"fill_color", "yellow",
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
@@ -421,9 +456,9 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 	ellipse = gnome_canvas_item_new(group,
 					gnome_canvas_ellipse_get_type(),
 					"x1", width - SLOT_SPACING - SLOT_DIAMETER,
-					"y1", i * (SLOT_SPACING + SLOT_DIAMETER) + SLOT_SPACING,
+					"y1", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER),
 					"x2", width - SLOT_SPACING,
-					"y2", (i + 1) * (SLOT_SPACING + SLOT_DIAMETER),
+					"y2", slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER) + SLOT_DIAMETER,
 					"fill_color", "yellow",
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
@@ -472,7 +507,7 @@ main(int argc, char** argv)
     g_signal_connect(window, "destroy",
 		     G_CALLBACK(gtk_main_quit), NULL);
 
-    canvas = gnome_canvas_new_aa();
+    canvas = gnome_canvas_new();
 
     data = g_new0(widget_data_t, 1);
     data->canvas = GNOME_CANVAS(canvas);
@@ -480,7 +515,7 @@ main(int argc, char** argv)
     g_signal_connect(gnome_canvas_root(GNOME_CANVAS(canvas)), "event", G_CALLBACK(root_event), data);
 
     make_node(GNOME_CANVAS(canvas), node1, 10, 10, data);
-    make_node(GNOME_CANVAS(canvas), node2, 110, 110, data);
+    make_node(GNOME_CANVAS(canvas), node2, 70, 70, data);
 
     gtk_container_add(GTK_CONTAINER(window), canvas);
     gtk_widget_show_all(window);
