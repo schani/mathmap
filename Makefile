@@ -56,8 +56,8 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 GIMPDATADIR := `$(GIMPTOOL) --gimpdatadir`
-GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0`
-GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0`
+GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0 libgnomecanvas-2.0`
+GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0 libgnomecanvas-2.0`
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
@@ -90,7 +90,7 @@ CC = gcc
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o designer/designer.o designer/cycles.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o designer/designer.o designer/cycles.o designer/widget.o designer/filter.o
 
 GIMP_OBJECTS = mathmap.o
 
