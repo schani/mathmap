@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,6 +30,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <glib.h>
 
 #include "expression_db.h"
 
@@ -294,48 +296,16 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
     return edb1;
 }
 
-#define START_SIZE         1024
-
 char*
 read_expression (const char *path)
 {
-    FILE *file;
     char *expr;
-    size_t alloced, read;
-    size_t result;
 
-    file = fopen(path, "r");
-    if (file == 0)
+    if (!g_file_get_contents(path, &expr, NULL, NULL))
     {
 	fprintf(stderr, "Cannot read file `%s': %m\n", path);
-	return 0;
+	return NULL;
     }
 
-    expr = (char*)malloc(START_SIZE);
-    assert(expr != 0);
-    alloced = START_SIZE;
-    read = 0;
-
-    for (;;)
-    {
-	result = fread(expr + read, 1, alloced - read, file);
-
-	if (result == 0)
-	{
-	    fclose(file);
-	    expr[read] = '\0';
-
-	    return expr;
-	}
-
-	read += result;
-	assert(read <= alloced);
-
-	if (read == alloced)
-	{
-	    alloced *= 2;
-	    expr = realloc(expr, alloced);
-	    assert(expr != 0);
-	}
-    }
+    return expr;
 }
