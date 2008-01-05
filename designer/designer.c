@@ -131,7 +131,9 @@ lookup_type (designer_design_type_t *design_type, const char *name)
 }
 
 static void
-add_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name, GSList **slot_specs)
+add_slot_spec (designer_node_type_t *node_type, const char *name,
+	       const char *type_name, gpointer data,
+	       GSList **slot_specs)
 {
     designer_type_t *type = lookup_type(node_type->design_type, type_name);
     designer_slot_spec_t *slot_spec;
@@ -142,20 +144,23 @@ add_slot_spec (designer_node_type_t *node_type, const char *name, const char *ty
 
     slot_spec->name = g_strdup(name);
     slot_spec->type = type;
+    slot_spec->data = data;
 
     *slot_specs = g_slist_append(*slot_specs, slot_spec);
 }
 
 void
-designer_add_input_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name)
+designer_add_input_slot_spec (designer_node_type_t *node_type, const char *name,
+			      const char *type_name, gpointer data)
 {
-    add_slot_spec(node_type, name, type_name, &node_type->input_slot_specs);
+    add_slot_spec(node_type, name, type_name, data, &node_type->input_slot_specs);
 }
 
 void
-designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name)
+designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name,
+			       const char *type_name, gpointer data)
 {
-    add_slot_spec(node_type, name, type_name, &node_type->output_slot_specs);
+    add_slot_spec(node_type, name, type_name, data, &node_type->output_slot_specs);
 }
 
 designer_design_t*

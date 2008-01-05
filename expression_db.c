@@ -201,7 +201,11 @@ free_expression_db (expression_db_t *edb)
 
 	free(edb->name);
 	if (edb->kind == EXPRESSION_DB_EXPRESSION)
+	{
 	    free(edb->v.expression.path);
+	    if (edb->v.expression.mathmap != NULL)
+		free_mathmap(edb->v.expression.mathmap);
+	}
 	else if (edb->kind == EXPRESSION_DB_GROUP)
 	    free_expression_db(edb->v.group.subs);
 	else

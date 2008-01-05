@@ -1149,11 +1149,11 @@ add_filter_node_type (designer_design_type_t *design_type, const char *name, use
 
     while (args != NULL)
     {
-	designer_add_input_slot_spec(type, args->name, userval_type_name(args->type));
+	designer_add_input_slot_spec(type, args->name, userval_type_name(args->type), args);
 	args = args->next;
     }
 
-    designer_add_output_slot_spec(type, "out", userval_type_name(USERVAL_IMAGE));
+    designer_add_output_slot_spec(type, "out", userval_type_name(USERVAL_IMAGE), NULL);
 }
 
 static void

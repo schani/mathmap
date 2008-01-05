@@ -23,6 +23,7 @@
  */
 
 #include "designer/designer.h"
+#include "userval.h"
 
 static void
 append_node_slot (GString *string, designer_node_t *node, designer_slot_spec_t *slot_spec)
@@ -85,6 +86,32 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
 
     g_assert(g_slist_find(*computed_nodes, node) == NULL);
     *computed_nodes = g_slist_prepend(*computed_nodes, node);
+}
+
+static void
+append_limits_and_defaults (GString *string, userval_info_t *info)
+{
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	    g_string_append_printf(string, " : %d - %d (%d)",
+				   info->v.int_const.min, info->v.int_const.max,
+				   info->v.int_const.default_value);
+	    break;
+
+	case USERVAL_FLOAT_CONST :
+	    g_string_append_printf(string, " : %g - %g (%g)",
+				   info->v.float_const.min, info->v.float_const.max,
+				   info->v.float_const.default_value);
+	    break;
+
+	case USERVAL_BOOL_CONST :
+	    g_string_append_printf(string, " (%c)", info->v.bool_const.default_value ? '1' : '0');
+	    break;
+
+	default :
+	    break;
+    }
 }
 
 char*
@@ -160,6 +187,9 @@ make_filter_source_from_node (designer_node_t *root, const char *filter_name)
 	    if (node->input_slots[i].partner == NULL)
 	    {
 		designer_slot_spec_t *slot_spec = slot_list->data;
+		userval_info_t *info = slot_spec->data;
+
+		g_assert(info != NULL);
 
 		if (!first)
 		    g_string_append(string, ", ");
@@ -168,6 +198,7 @@ make_filter_source_from_node (designer_node_t *root, const char *filter_name)
 
 		g_string_append_printf(string, "%s ", slot_spec->type->name);
 		append_node_slot(string, node, slot_spec);
+		append_limits_and_defaults(string, info);
 	    }
 	}
     }

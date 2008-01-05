@@ -700,11 +700,12 @@ get_current_design (void)
 
     if (the_design_type == NULL)
     {
-	expression_db_t *edb = read_expressions();
+	static expression_db_t *edb = NULL;
+
+	if (edb == NULL)
+	    edb = read_expressions();
 
 	the_design_type = design_type_from_expression_db(edb);
-
-	free_expression_db(edb);
     }
 
     if (the_design == NULL)

@@ -41,6 +41,7 @@ typedef struct
 {
     char *name;
     designer_type_t *type;
+    gpointer data;
 } designer_slot_spec_t;
 
 typedef struct
@@ -88,8 +89,10 @@ extern designer_design_type_t* designer_make_design_type (gboolean allow_cycles)
 extern void designer_add_type (designer_design_type_t *design_type, const char *name);
 
 extern designer_node_type_t* designer_add_node_type (designer_design_type_t *design_type, const char *name, gpointer data);
-extern void designer_add_input_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name);
-extern void designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name);
+extern void designer_add_input_slot_spec (designer_node_type_t *node_type, const char *name,
+					  const char *type_name, gpointer data);
+extern void designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name,
+					   const char *type_name, gpointer data);
 
 extern designer_design_t* designer_make_design (designer_design_type_t *type);
 
