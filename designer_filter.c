@@ -75,7 +75,10 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
 	else
 	    first = FALSE;
 
-	append_node_slot(string, node, slot_spec);
+	if (node->input_slots[i].partner == NULL)
+	    append_node_slot(string, node, slot_spec);
+	else
+	    append_node_result(string, node->input_slots[i].partner);
     }
 
     g_string_append(string, ");\n");
