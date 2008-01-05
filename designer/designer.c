@@ -206,6 +206,9 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
 
     design->nodes = g_slist_prepend(design->nodes, node);
 
+    /* FIXME: remove eventually */
+    designer_verify_design(design);
+
     return node;
 }
 
@@ -266,6 +269,9 @@ designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
 	return FALSE;
     }
 
+    /* FIXME: remove eventually */
+    designer_verify_design(source->design);
+
     return TRUE;
 }
 
@@ -294,4 +300,7 @@ designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name
 
     source->output_slots[output_slot_index].partner = NULL;
     dest->input_slots[input_slot_index].partner = NULL;
+
+    /* FIXME: remove eventually */
+    designer_verify_design(source->design);
 }
