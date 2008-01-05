@@ -24,8 +24,7 @@
 
 #include <stdlib.h>
 
-#include <gtk/gtkmain.h>
-#include <gtk/gtkwindow.h>
+#include <gtk/gtk.h>
 #include <libgnomecanvas/libgnomecanvas.h>
 
 #include "designer.h"
@@ -35,6 +34,7 @@
 #define SLOT_SPACING			3.0
 #define TITLE_PADDING			3.0
 #define SLOT_NAME_PADDING		10.0
+#define CANVAS_PADDING			20.0
 
 typedef struct
 {
@@ -108,6 +108,35 @@ slot_get_node (GnomeCanvasItem *slot)
     return group_get_node(group);
 }
 
+static void
+set_scroll_region (GnomeCanvas *canvas)
+{
+    double x_max = 0.0;
+    double y_max = 0.0;
+    GnomeCanvasGroup *root = gnome_canvas_root(canvas);
+    GList *list;
+
+    for (list = root->item_list; list != NULL; list = list->next)
+	if (g_object_get_data(G_OBJECT(list->data), "node") != NULL)
+	{
+	    GnomeCanvasGroup *group = list->data;
+	    GList *sublist;
+
+	    for (sublist = group->item_list; sublist != NULL; sublist = sublist->next)
+	    {
+		double x1, y1, x2, y2;
+
+		gnome_canvas_item_get_bounds(sublist->data, &x1, &y1, &x2, &y2);
+		gnome_canvas_item_i2w(sublist->data, &x2, &y2);
+
+		x_max = MAX(x_max, x2);
+		y_max = MAX(y_max, y2);
+	    }
+	}
+
+    gnome_canvas_set_scroll_region(GNOME_CANVAS(canvas), 0, 0, x_max + CANVAS_PADDING, y_max + CANVAS_PADDING);
+}
+
 static gint
 rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 {
@@ -141,6 +170,8 @@ rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 
 		gnome_canvas_item_move(GNOME_CANVAS_ITEM(group), new_x - data->x, new_y - data->y);
 		update_node_edges(group);
+
+		set_scroll_region(data->canvas);
 
 		data->x = new_x;
 		data->y = new_y;
@@ -330,8 +361,6 @@ remove_slot_edge (GnomeCanvasItem *slot, widget_data_t *data)
 static gint
 root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 {
-    //g_print("root event\n");
-
     switch (event->type)
     {
 	case GDK_BUTTON_PRESS :
@@ -533,6 +562,8 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				     NULL);
     }
 
+    set_scroll_region(data->canvas);
+
     return group;
 }
 
@@ -559,8 +590,7 @@ setup_design_type (void)
 int
 main(int argc, char** argv)
 {
-    GtkWidget *window;
-    GtkWidget *canvas;
+    GtkWidget *window, *canvas, *table, *w;
     widget_data_t *data;
     designer_design_type_t *design_type = setup_design_type();
     designer_design_t *design = designer_make_design(design_type);
@@ -577,6 +607,11 @@ main(int argc, char** argv)
 
     canvas = gnome_canvas_new();
 
+    gnome_canvas_set_center_scroll_region(GNOME_CANVAS(canvas), FALSE);
+    gnome_canvas_set_scroll_region(GNOME_CANVAS(canvas), 0, 0, CANVAS_PADDING, CANVAS_PADDING);
+
+    gtk_widget_show(canvas);
+
     data = g_new0(widget_data_t, 1);
     data->canvas = GNOME_CANVAS(canvas);
 
@@ -585,7 +620,34 @@ main(int argc, char** argv)
     make_node(GNOME_CANVAS(canvas), node1, 10, 10, data);
     make_node(GNOME_CANVAS(canvas), node2, 70, 70, data);
 
-    gtk_container_add(GTK_CONTAINER(window), canvas);
+    table = gtk_table_new (2, 2, FALSE);
+    gtk_table_set_row_spacings (GTK_TABLE (table), 4);
+    gtk_table_set_col_spacings (GTK_TABLE (table), 4);
+    gtk_widget_show (table);
+
+    gtk_table_attach (GTK_TABLE (table), canvas,
+		      0, 1, 0, 1,
+		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
+		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
+		      0, 0);
+
+    w = gtk_hscrollbar_new (GTK_LAYOUT (canvas)->hadjustment);
+    gtk_table_attach (GTK_TABLE (table), w,
+		      0, 1, 1, 2,
+		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
+		      GTK_FILL,
+		      0, 0);
+    gtk_widget_show (w);
+
+    w = gtk_vscrollbar_new (GTK_LAYOUT (canvas)->vadjustment);
+    gtk_table_attach (GTK_TABLE (table), w,
+		      1, 2, 0, 1,
+		      GTK_FILL,
+		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
+		      0, 0);
+    gtk_widget_show (w);
+
+    gtk_container_add(GTK_CONTAINER(window), table);
     gtk_widget_show_all(window);
     gtk_main();
 
