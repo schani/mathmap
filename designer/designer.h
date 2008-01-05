@@ -49,6 +49,7 @@ typedef struct
     char *name;
     GSList *input_slot_specs;
     GSList *output_slot_specs;
+    gpointer data;
 } designer_node_type_t;
 
 typedef struct
@@ -86,7 +87,7 @@ extern designer_design_type_t* designer_make_design_type (gboolean allow_cycles)
 
 extern void designer_add_type (designer_design_type_t *design_type, const char *name);
 
-extern designer_node_type_t* designer_add_node_type (designer_design_type_t *design_type, const char *name);
+extern designer_node_type_t* designer_add_node_type (designer_design_type_t *design_type, const char *name, gpointer data);
 extern void designer_add_input_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name);
 extern void designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name, const char *type_name);
 
@@ -98,8 +99,6 @@ extern gboolean designer_connect_nodes (designer_node_t *source, const char *out
 					designer_node_t *dest, const char *input_slot_name);
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
-
-extern char* make_filter_source_from_node (designer_node_t *root, const char *filter_name);
 
 extern GtkWidget* designer_widget_new (designer_design_t *design);
 extern void designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y);

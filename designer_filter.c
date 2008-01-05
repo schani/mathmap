@@ -1,7 +1,7 @@
 /* -*- c -*- */
 
 /*
- * filter.c
+ * designer_filter.c
  *
  * MathMap
  *
@@ -22,7 +22,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "designer.h"
+#include "designer/designer.h"
 
 static void
 append_node_slot (GString *string, designer_node_t *node, designer_slot_spec_t *slot_spec)
@@ -119,8 +119,29 @@ make_filter_source_from_node (designer_node_t *root, const char *filter_name)
 	    break;
     }
 
-    string = g_string_new("filter ");
-    g_string_append_printf(string, "%s (", filter_name);
+    string = g_string_new("");
+
+    /* include all the filter sources */
+    for (list = nodes; list != NULL; list = list->next)
+    {
+	designer_node_t *node = list->data;
+	const char *path = node->type->data;
+	char *source;
+
+	g_assert(path != NULL);
+
+	if (!g_file_get_contents(path, &source, NULL, NULL))
+	{
+	    /* FIXME: free string! */
+	    return NULL;
+	}
+
+	g_string_append_printf(string, "%s\n\n", source);
+
+	g_free(source);
+    }
+
+    g_string_append_printf(string, "filter %s (", filter_name);
 
     first = TRUE;
     for (list = nodes; list != NULL; list = list->next)

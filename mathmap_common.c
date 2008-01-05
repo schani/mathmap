@@ -1143,9 +1143,9 @@ make_mathmap_design_type (void)
 }
 
 static void
-add_filter_node_type (designer_design_type_t *design_type, const char *name, userval_info_t *args)
+add_filter_node_type (designer_design_type_t *design_type, const char *name, userval_info_t *args, char *path)
 {
-    designer_node_type_t *type = designer_add_node_type(design_type, name);
+    designer_node_type_t *type = designer_add_node_type(design_type, name, path);
 
     while (args != NULL)
     {
@@ -1168,7 +1168,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb)
 		    char *name = get_expression_name(edb);
 
 		    if (name != NULL)
-			add_filter_node_type(design_type, name, get_expression_args(edb));
+			add_filter_node_type(design_type, name, get_expression_args(edb), g_strdup(edb->v.expression.path));
 		}
 		break;
 

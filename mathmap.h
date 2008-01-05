@@ -273,6 +273,8 @@ thread_handle_t mathmap_thread_start (void (*func) (gpointer), gpointer data);
 void mathmap_thread_join (thread_handle_t thread);
 void mathmap_thread_kill (thread_handle_t thread);
 
+char* make_filter_source_from_designer_node (designer_node_t *root, const char *filter_name);
+
 #define CALLBACK_SYMBOL __attribute((visibility("default")))
 
 #endif

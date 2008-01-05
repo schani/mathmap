@@ -101,12 +101,13 @@ designer_add_type (designer_design_type_t *design_type, const char *name)
 }
 
 designer_node_type_t*
-designer_add_node_type (designer_design_type_t *design_type, const char *name)
+designer_add_node_type (designer_design_type_t *design_type, const char *name, gpointer data)
 {
     designer_node_type_t *node_type = g_new0(designer_node_type_t, 1);
 
     node_type->design_type = design_type;
     node_type->name = g_strdup(name);
+    node_type->data = data;
 
     design_type->node_types = g_slist_prepend(design_type->node_types, node_type);
 
