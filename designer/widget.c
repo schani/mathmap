@@ -587,23 +587,11 @@ setup_design_type (void)
     return design_type;
 }
 
-int
-main(int argc, char** argv)
+GtkWidget*
+designer_widget_new (designer_design_t *design)
 {
-    GtkWidget *window, *canvas, *table, *w;
+    GtkWidget *canvas, *table, *w;
     widget_data_t *data;
-    designer_design_type_t *design_type = setup_design_type();
-    designer_design_t *design = designer_make_design(design_type);
-    designer_node_t *node1 = designer_add_node(design, "desat", "desaturate");
-    designer_node_t *node2 = designer_add_node(design, "comb", "combine");
-
-    designer_verify_design(design);
-
-    gtk_init(&argc, &argv);
-
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    g_signal_connect(window, "destroy",
-		     G_CALLBACK(gtk_main_quit), NULL);
 
     canvas = gnome_canvas_new();
 
@@ -616,9 +604,6 @@ main(int argc, char** argv)
     data->canvas = GNOME_CANVAS(canvas);
 
     g_signal_connect(gnome_canvas_root(GNOME_CANVAS(canvas)), "event", G_CALLBACK(root_event), data);
-
-    make_node(GNOME_CANVAS(canvas), node1, 10, 10, data);
-    make_node(GNOME_CANVAS(canvas), node2, 70, 70, data);
 
     table = gtk_table_new (2, 2, FALSE);
     gtk_table_set_row_spacings (GTK_TABLE (table), 4);
@@ -647,9 +632,47 @@ main(int argc, char** argv)
 		      0, 0);
     gtk_widget_show (w);
 
-    gtk_container_add(GTK_CONTAINER(window), table);
+    g_object_set_data(G_OBJECT(table), "designer-data", data);
+
+    return table;
+}
+
+void
+designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+
+    g_assert(data != NULL);
+
+    make_node(data->canvas, node, x, y, data);
+}
+
+#ifdef DESIGNER_TEST
+int
+main(int argc, char** argv)
+{
+    GtkWidget *window, *designer;
+    designer_design_type_t *design_type = setup_design_type();
+    designer_design_t *design = designer_make_design(design_type);
+    designer_node_t *node1 = designer_add_node(design, "desat", "desaturate");
+    designer_node_t *node2 = designer_add_node(design, "comb", "combine");
+
+    gtk_init(&argc, &argv);
+
+    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    g_signal_connect(window, "destroy",
+		     G_CALLBACK(gtk_main_quit), NULL);
+
+
+    designer = designer_widget_new(design);
+
+    designer_widget_add_node(designer, node1, 10, 10);
+    designer_widget_add_node(designer, node2, 70, 170);
+
+    gtk_container_add(GTK_CONTAINER(window), designer);
     gtk_widget_show_all(window);
     gtk_main();
 
     return 0;
 }
+#endif

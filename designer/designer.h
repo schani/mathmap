@@ -26,6 +26,7 @@
 #define __DESIGNER_H__
 
 #include <glib.h>
+#include <gtk/gtk.h>
 
 typedef struct _designer_design_type_t designer_design_type_t;
 typedef struct _designer_design_t designer_design_t;
@@ -100,5 +101,7 @@ extern void designer_disconnect_nodes (designer_node_t *source, const char *outp
 
 extern char* make_filter_source_from_node (designer_node_t *root, const char *filter_name);
 
+extern GtkWidget* designer_widget_new (designer_design_t *design);
+extern void designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y);
 
 #endif
