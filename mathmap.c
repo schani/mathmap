@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -58,6 +58,7 @@
 #include "mathmap.h"
 #include "noise.h"
 #include "expression_db.h"
+#include "designer/designer.h"
 
 #define INIT_LOCALE(x)
 #define _(x)             (x)
@@ -194,7 +195,8 @@ GtkWidget *expression_entry = 0,
     *edge_color_y_well,
     *uservalues_scrolled_window,
     *uservalues_table,
-    *tree_scrolled_window;
+    *tree_scrolled_window,
+    *designer_widget;
 
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
@@ -223,7 +225,6 @@ expression_copy (gchar *dest, const gchar *src)
     assert(strlen(src) < MAX_EXPRESSION_LENGTH);
     strcpy(dest, src);
 }
-
 
 /*****/
 
@@ -691,6 +692,29 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
 /*****/
 
+static designer_design_t*
+get_current_design (void)
+{
+    static designer_design_type_t *the_design_type = NULL;
+    static designer_design_t *the_design = NULL;
+
+    if (the_design_type == NULL)
+    {
+	expression_db_t *edb = read_expressions();
+
+	the_design_type = design_type_from_expression_db(edb);
+
+	free_expression_db(edb);
+    }
+
+    if (the_design == NULL)
+	the_design = designer_make_design(the_design_type);
+
+    return the_design;
+}
+
+/*****/
+
 static gint32 
 mathmap_layer_copy(gint32 layerID)
 {
@@ -1107,7 +1131,11 @@ tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db
 	else if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter, 0, edb->name, 1, edb->v.expression.path, -1);
+	    gtk_tree_store_set(store, &iter,
+			       0, edb->name,
+			       1, edb->v.expression.path,
+			       2, get_expression_name(edb),
+			       -1);
 	}
 	else
 	    assert(0);
@@ -1125,7 +1153,7 @@ read_tree_from_rc (void)
     expression_db_t *edb;
 
     /* model */
-    store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+    store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
 
     edb = read_expressions();
     if (edb != 0)
@@ -1619,6 +1647,14 @@ mathmap_dialog (int mutable_expression)
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), tree_scrolled_window, label, label);
 	}
+
+	/* Designer */
+
+	designer_widget = designer_widget_new(get_current_design());
+
+	label = gtk_label_new(_("Composer"));
+	gtk_widget_show(label);
+	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), designer_widget, label, label);
 
     /* Done */
 
@@ -2311,7 +2347,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "artists", artists,
 			   "comments", "An image generation and manipulation language",
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
-			   "copyright", "Copyright © 1997-2007 Mark Probst",
+			   "copyright", "Copyright © 1997-2008 Mark Probst",
 			   "license", gpl,
 			   "logo", mathmap_logo,
 			   NULL);
@@ -2362,8 +2398,10 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
     {
 	GValue value = { 0, };
-	const gchar *path;
+	const gchar *path, *name;
 	char *expression;
+	designer_design_t *design;
+	designer_node_t *node;
 
 	gtk_tree_model_get_value(model, &iter, 1, &value);
 	path = g_value_get_string(&value);
@@ -2388,6 +2426,16 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 	expression_copy(mmvals.expression, expression);
 
 	free(expression);
+
+	/* HACK: add a filter node to the designer */
+
+	gtk_tree_model_get_value(model, &iter, 2, &value);
+	name = g_value_get_string(&value);
+	g_assert(name != NULL);
+
+	design = get_current_design();
+	node = designer_add_node(design, name, name);
+	designer_widget_add_node(designer_widget, node, 10, 10);
     }
 
     if (auto_preview)

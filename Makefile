@@ -35,7 +35,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.3.0
+VERSION = 1.3.1
 
 #OPT_CFLAGS := -O2
 OPT_CFLAGS := -g -DDEBUG_OUTPUT

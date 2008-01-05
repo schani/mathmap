@@ -60,56 +60,56 @@ image_flags_from_options (option_t *options)
     return flags;
 }
 
-void
-register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
+userval_info_t*
+arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
 {
+    userval_info_t *infos = NULL;
+
     while (arg_decls != 0)
     {
 	userval_info_t *result = 0;
-
-	//printf("registering %s  type %d\n", arg_decls->name, arg_decls->type);
 
 	switch (arg_decls->type)
 	{
 	    case ARG_TYPE_INT :
 		if (arg_decls->v.integer.have_limits)
-		    result = register_int_const(&filter->userval_infos, arg_decls->name,
+		    result = register_int_const(&infos, arg_decls->name,
 						arg_decls->v.integer.min, arg_decls->v.integer.max,
 						arg_decls->v.integer.default_value);
 		else
-		    result = register_int_const(&filter->userval_infos, arg_decls->name, -100000, 100000, 0);
+		    result = register_int_const(&infos, arg_decls->name, -100000, 100000, 0);
 		break;
 
 	    case ARG_TYPE_FLOAT :
 		if (arg_decls->v.floating.have_limits)
-		    result = register_float_const(&filter->userval_infos, arg_decls->name,
+		    result = register_float_const(&infos, arg_decls->name,
 						  arg_decls->v.floating.min, arg_decls->v.floating.max,
 						  arg_decls->v.floating.default_value);
 		else
-		    result = register_float_const(&filter->userval_infos, arg_decls->name, -1.0, 1.0, 0.0);
+		    result = register_float_const(&infos, arg_decls->name, -1.0, 1.0, 0.0);
 		break;
 
 	    case ARG_TYPE_BOOL :
-		result = register_bool(&filter->userval_infos, arg_decls->name, arg_decls->v.boolean.default_value);
+		result = register_bool(&infos, arg_decls->name, arg_decls->v.boolean.default_value);
 		break;
 
 	    case ARG_TYPE_COLOR :
-		result = register_color(&filter->userval_infos, arg_decls->name);
+		result = register_color(&infos, arg_decls->name);
 		break;
 
 	    case ARG_TYPE_GRADIENT :
-		result = register_gradient(&filter->userval_infos, arg_decls->name);
+		result = register_gradient(&infos, arg_decls->name);
 		break;
 
 	    case ARG_TYPE_CURVE :
-		result = register_curve(&filter->userval_infos, arg_decls->name);
+		result = register_curve(&infos, arg_decls->name);
 		break;
 
 	    case ARG_TYPE_FILTER :
 		assert(0);
 
 	    case ARG_TYPE_IMAGE :
-		result = register_image(&filter->userval_infos, arg_decls->name,
+		result = register_image(&infos, arg_decls->name,
 					image_flags_from_options(arg_decls->options));
 		break;
 
@@ -123,10 +123,23 @@ register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 	    JUMP(1);
 	}
 
-	++filter->num_uservals;
-
 	arg_decls = arg_decls->next;
     }
+
+    return infos;
+}
+
+void
+register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
+{
+    userval_info_t *info;
+
+    g_assert(filter->userval_infos == NULL && filter->num_uservals == 0);
+
+    filter->userval_infos = arg_decls_to_uservals(filter, arg_decls);
+
+    for (info = filter->userval_infos; info != NULL; info = info->next)
+	++filter->num_uservals;
 }
 
 static void
@@ -1095,4 +1108,88 @@ get_num_cpus (void)
 #endif
 
     return num_cpus;
+}
+
+static const char*
+userval_type_name (int type)
+{
+    switch (type)
+    {
+	case USERVAL_INT_CONST : return "int";
+	case USERVAL_FLOAT_CONST : return "float";
+	case USERVAL_BOOL_CONST : return "bool";
+	case USERVAL_COLOR : return "color";
+	case USERVAL_CURVE : return "curve";
+	case USERVAL_GRADIENT : return "gradient";
+	case USERVAL_IMAGE : return "image";
+	default : g_assert_not_reached();
+    }
+}
+
+static designer_design_type_t*
+make_mathmap_design_type (void)
+{
+    designer_design_type_t *type = designer_make_design_type(FALSE);
+
+    designer_add_type(type, userval_type_name(USERVAL_INT_CONST));
+    designer_add_type(type, userval_type_name(USERVAL_FLOAT_CONST));
+    designer_add_type(type, userval_type_name(USERVAL_BOOL_CONST));
+    designer_add_type(type, userval_type_name(USERVAL_COLOR));
+    designer_add_type(type, userval_type_name(USERVAL_CURVE));
+    designer_add_type(type, userval_type_name(USERVAL_GRADIENT));
+    designer_add_type(type, userval_type_name(USERVAL_IMAGE));
+
+    return type;
+}
+
+static void
+add_filter_node_type (designer_design_type_t *design_type, const char *name, userval_info_t *args)
+{
+    designer_node_type_t *type = designer_add_node_type(design_type, name);
+
+    while (args != NULL)
+    {
+	designer_add_input_slot_spec(type, args->name, userval_type_name(args->type));
+	args = args->next;
+    }
+
+    designer_add_output_slot_spec(type, "out", userval_type_name(USERVAL_IMAGE));
+}
+
+static void
+add_node_types (designer_design_type_t *design_type, expression_db_t *edb)
+{
+    while (edb != NULL)
+    {
+	switch (edb->kind)
+	{
+	    case EXPRESSION_DB_EXPRESSION :
+		{
+		    char *name = get_expression_name(edb);
+
+		    if (name != NULL)
+			add_filter_node_type(design_type, name, get_expression_args(edb));
+		}
+		break;
+
+	    case EXPRESSION_DB_GROUP :
+		add_node_types(design_type, edb->v.group.subs);
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	edb = edb->next;
+    }
+}
+
+designer_design_type_t*
+design_type_from_expression_db (expression_db_t *edb)
+{
+    designer_design_type_t *type = make_mathmap_design_type();
+
+    add_node_types(type, edb);
+
+    return type;
 }

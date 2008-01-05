@@ -34,6 +34,7 @@
 #include <glib.h>
 
 #include "expression_db.h"
+#include "mathmap.h"
 
 static expression_db_t*
 new_expression_db (int kind)
@@ -308,4 +309,41 @@ read_expression (const char *path)
     }
 
     return expr;
+}
+
+static void
+fetch_expression_mathmap (expression_db_t *expr)
+{
+    char *source;
+
+    g_assert(expr->kind == EXPRESSION_DB_EXPRESSION);
+
+    if (expr->v.expression.mathmap != NULL)
+	return;
+
+    source = read_expression(expr->v.expression.path);
+    if (source == NULL)
+	return;
+
+    expr->v.expression.mathmap = parse_mathmap(source);
+
+    g_free(source);
+}
+
+char*
+get_expression_name (expression_db_t *expr)
+{
+    fetch_expression_mathmap(expr);
+    if (expr->v.expression.mathmap == NULL)
+	return NULL;
+    return expr->v.expression.mathmap->main_filter->decl->name;
+}
+
+userval_info_t*
+get_expression_args (expression_db_t *expr)
+{
+    fetch_expression_mathmap(expr);
+    if (expr->v.expression.mathmap == NULL)
+	return NULL;
+    return expr->v.expression.mathmap->main_filter->userval_infos;
 }

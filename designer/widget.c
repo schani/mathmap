@@ -567,26 +567,6 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     return group;
 }
 
-designer_design_type_t*
-setup_design_type (void)
-{
-    designer_design_type_t *design_type = designer_make_design_type(FALSE);
-    designer_node_type_t *desaturate, *combine;
-
-    designer_add_type(design_type, "image");
-
-    desaturate = designer_add_node_type(design_type, "desaturate");
-    designer_add_input_slot_spec(desaturate, "in", "image");
-    designer_add_output_slot_spec(desaturate, "out", "image");
-
-    combine = designer_add_node_type(design_type, "combine");
-    designer_add_input_slot_spec(combine, "in1", "image");
-    designer_add_input_slot_spec(combine, "in2", "image");
-    designer_add_output_slot_spec(combine, "out", "image");
-
-    return design_type;
-}
-
 GtkWidget*
 designer_widget_new (designer_design_t *design)
 {
@@ -648,6 +628,26 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 }
 
 #ifdef DESIGNER_TEST
+static designer_design_type_t*
+setup_design_type (void)
+{
+    designer_design_type_t *design_type = designer_make_design_type(FALSE);
+    designer_node_type_t *desaturate, *combine;
+
+    designer_add_type(design_type, "image");
+
+    desaturate = designer_add_node_type(design_type, "desaturate");
+    designer_add_input_slot_spec(desaturate, "in", "image");
+    designer_add_output_slot_spec(desaturate, "out", "image");
+
+    combine = designer_add_node_type(design_type, "combine");
+    designer_add_input_slot_spec(combine, "in1", "image");
+    designer_add_input_slot_spec(combine, "in2", "image");
+    designer_add_output_slot_spec(combine, "out", "image");
+
+    return design_type;
+}
+
 int
 main(int argc, char** argv)
 {

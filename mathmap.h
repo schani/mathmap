@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,6 +35,8 @@
 #include "vars.h"
 #include "compiler.h"
 #include "color.h"
+#include "designer/designer.h"
+#include "expression_db.h"
 
 #include "lispreader/pools.h"
 
@@ -42,7 +44,7 @@
 #include <libgimp/gimp.h>
 #endif
 
-#define MATHMAP_DATE		"December 2007"
+#define MATHMAP_DATE		"January 2008"
 
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"
@@ -196,6 +198,7 @@ int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 #endif
 
+userval_info_t* arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls);
 void register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls);
 
 void unload_mathmap (mathmap_t *mathmap);
@@ -252,6 +255,8 @@ void delete_expression_marker (void);
 void set_expression_marker (int line, int column);
 
 int get_num_cpus (void);
+
+designer_design_type_t* design_type_from_expression_db (expression_db_t *edb);
 
 #ifndef OPENSTEP
 #define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)
