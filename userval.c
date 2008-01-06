@@ -496,6 +496,22 @@ assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawa
     calc_image_values(info, val);
 }
 
+const char*
+userval_type_name (int type)
+{
+    switch (type)
+    {
+	case USERVAL_INT_CONST : return "int";
+	case USERVAL_FLOAT_CONST : return "float";
+	case USERVAL_BOOL_CONST : return "bool";
+	case USERVAL_COLOR : return "color";
+	case USERVAL_CURVE : return "curve";
+	case USERVAL_GRADIENT : return "gradient";
+	case USERVAL_IMAGE : return "image";
+	default : g_assert_not_reached();
+    }
+}
+
 #ifndef OPENSTEP
 static void
 userval_int_update (GtkAdjustment *adjustment, userval_t *userval)

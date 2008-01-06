@@ -106,6 +106,8 @@ extern gboolean designer_connect_nodes (designer_node_t *source, const char *out
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
 
+extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, const char *name);
+
 extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_design_changed_callback_t design_changed_callback,
 				       designer_node_focussed_callback_t node_focussed_callback);

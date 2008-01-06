@@ -24,11 +24,12 @@
 
 #include "designer/designer.h"
 #include "userval.h"
+#include "expression_db.h"
 
 static void
-append_node_slot (GString *string, designer_node_t *node, designer_slot_spec_t *slot_spec)
+append_node_slot (GString *string, designer_node_t *node, userval_info_t *info)
 {
-    g_string_append_printf(string, "%s_%s", node->name, slot_spec->name);
+    g_string_append_printf(string, "%s_%s", node->name, info->name);
 }
 
 static void
@@ -40,12 +41,14 @@ append_node_result (GString *string, designer_node_t *node)
 
     slot_spec = node->type->output_slot_specs->data;
 
-    append_node_slot(string, node, slot_spec);
+    g_string_append_printf(string, "%s_%s", node->name, slot_spec->name);
 }
 
 static void
 compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
 {
+    expression_db_t *edb = node->type->data;
+    userval_info_t *args = get_expression_args(edb);
     int num_slots, i;
     gboolean first;
     GSList *list;
@@ -65,21 +68,21 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
     g_string_append_printf(string, " = %s(", node->type->name);
 
     first = TRUE;
-    for (i = 0, list = node->type->input_slot_specs;
-	 list != NULL;
-	 ++i, list = list->next)
+    while (args != NULL)
     {
-	designer_slot_spec_t *slot_spec = list->data;
+	designer_slot_t *slot = designer_node_get_input_slot(node, args->name);
 
 	if (!first)
 	    g_string_append(string, ", ");
 	else
 	    first = FALSE;
 
-	if (node->input_slots[i].partner == NULL)
-	    append_node_slot(string, node, slot_spec);
+	if (slot == NULL || slot->partner == NULL)
+	    append_node_slot(string, node, args);
 	else
-	    append_node_result(string, node->input_slots[i].partner);
+	    append_node_result(string, slot->partner);
+
+	args = args->next;
     }
 
     g_string_append(string, ");\n");
@@ -155,7 +158,8 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
     for (list = nodes; list != NULL; list = list->next)
     {
 	designer_node_t *node = list->data;
-	const char *path = node->type->data;
+	expression_db_t *edb = node->type->data;
+	const char *path = edb->v.expression.path;
 	char *source;
 
 	g_assert(path != NULL);
@@ -177,29 +181,28 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
     for (list = nodes; list != NULL; list = list->next)
     {
 	designer_node_t *node = list->data;
+	expression_db_t *edb = node->type->data;
+	userval_info_t *args = get_expression_args(edb);
 	GSList *slot_list;
 	int i;
 
-	for (i = 0, slot_list = node->type->input_slot_specs;
-	     slot_list != NULL;
-	     ++i, slot_list = slot_list->next)
+	while (args != NULL)
 	{
-	    if (node->input_slots[i].partner == NULL)
+	    designer_slot_t *slot = designer_node_get_input_slot(node, args->name);
+
+	    if (slot == NULL || slot->partner == NULL)
 	    {
-		designer_slot_spec_t *slot_spec = slot_list->data;
-		userval_info_t *info = slot_spec->data;
-
-		g_assert(info != NULL);
-
 		if (!first)
 		    g_string_append(string, ", ");
 		else
 		    first = FALSE;
 
-		g_string_append_printf(string, "%s ", slot_spec->type->name);
-		append_node_slot(string, node, slot_spec);
-		append_limits_and_defaults(string, info);
+		g_string_append_printf(string, "%s ", userval_type_name(args->type));
+		append_node_slot(string, node, args);
+		append_limits_and_defaults(string, args);
 	    }
+
+	    args = args->next;
 	}
     }
     g_string_append(string, ")\n");

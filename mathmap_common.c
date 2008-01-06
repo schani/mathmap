@@ -1110,22 +1110,6 @@ get_num_cpus (void)
     return num_cpus;
 }
 
-static const char*
-userval_type_name (int type)
-{
-    switch (type)
-    {
-	case USERVAL_INT_CONST : return "int";
-	case USERVAL_FLOAT_CONST : return "float";
-	case USERVAL_BOOL_CONST : return "bool";
-	case USERVAL_COLOR : return "color";
-	case USERVAL_CURVE : return "curve";
-	case USERVAL_GRADIENT : return "gradient";
-	case USERVAL_IMAGE : return "image";
-	default : g_assert_not_reached();
-    }
-}
-
 static designer_design_type_t*
 make_mathmap_design_type (void)
 {
@@ -1143,13 +1127,16 @@ make_mathmap_design_type (void)
 }
 
 static void
-add_filter_node_type (designer_design_type_t *design_type, const char *name, userval_info_t *args, char *path)
+add_filter_node_type (designer_design_type_t *design_type, const char *name, expression_db_t *edb)
 {
-    designer_node_type_t *type = designer_add_node_type(design_type, name, path);
+    userval_info_t *args = get_expression_args(edb);
+    char *path = edb->v.expression.path;
+    designer_node_type_t *type = designer_add_node_type(design_type, name, edb);
 
     while (args != NULL)
     {
-	designer_add_input_slot_spec(type, args->name, userval_type_name(args->type), args);
+	if (args->type == USERVAL_IMAGE)
+	    designer_add_input_slot_spec(type, args->name, userval_type_name(args->type), args);
 	args = args->next;
     }
 
@@ -1168,7 +1155,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb)
 		    char *name = get_expression_name(edb);
 
 		    if (name != NULL)
-			add_filter_node_type(design_type, name, get_expression_args(edb), g_strdup(edb->v.expression.path));
+			add_filter_node_type(design_type, name, edb);
 		}
 		break;
 

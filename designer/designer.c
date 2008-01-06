@@ -310,3 +310,22 @@ designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name
     /* FIXME: remove eventually */
     designer_verify_design(source->design);
 }
+
+designer_slot_t*
+designer_node_get_input_slot (designer_node_t *node, const char *name)
+{
+    int i;
+    GSList *list;
+
+    for (i = 0, list = node->type->input_slot_specs;
+	 list != NULL;
+	 ++i, list = list->next)
+    {
+	designer_slot_spec_t *spec = list->data;
+
+	if (strcmp(spec->name, name) == 0)
+	    return &node->input_slots[i];
+    }
+
+    return NULL;
+}
