@@ -147,6 +147,7 @@ static void dialog_ok_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
 static void dialog_tree_changed (GtkTreeSelection *tree, gpointer data);
+static void designer_tree_callback (GtkTreeSelection *tree, gpointer data);
 static void dialog_response (GtkWidget *widget, gint response_id, gpointer data);
 
 /***** Variables *****/
@@ -706,6 +707,17 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
 /*****/
 
+static expression_db_t*
+get_designer_edb (void)
+{
+    static expression_db_t *edb = NULL;
+
+    if (edb == NULL)
+	edb = read_expressions();
+
+    return edb;
+}
+
 static designer_design_t*
 get_current_design (void)
 {
@@ -713,14 +725,7 @@ get_current_design (void)
     static designer_design_t *the_design = NULL;
 
     if (the_design_type == NULL)
-    {
-	static expression_db_t *edb = NULL;
-
-	if (edb == NULL)
-	    edb = read_expressions();
-
-	the_design_type = design_type_from_expression_db(edb);
-    }
+	the_design_type = design_type_from_expression_db(get_designer_edb());
 
     if (the_design == NULL)
 	the_design = designer_make_design(the_design_type);
@@ -1178,31 +1183,26 @@ tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db
 }
 
 static GtkWidget*
-read_tree_from_rc (void)
+make_tree_from_edb (expression_db_t *edb, GCallback callback)
 {
     GtkTreeStore *store;
     GtkCellRenderer *renderer;
     GtkTreeViewColumn *column;
     GtkTreeSelection *selection;
     GtkWidget *tree;
-    expression_db_t *edb;
 
     /* model */
     store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
 
-    edb = read_expressions();
     if (edb != 0)
-    {
     	tree_from_expression_db(store, NULL, edb);
-	free_expression_db(edb);
-    }
 
     /* view */
     tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
     selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
     gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
     g_signal_connect(G_OBJECT(selection), "changed",
-		     G_CALLBACK(dialog_tree_changed),
+		     G_CALLBACK(callback),
 		     (gpointer)NULL);
 
     renderer = gtk_cell_renderer_text_new();
@@ -1237,18 +1237,28 @@ update_userval_table (void)
 }
 
 static void
-update_expression_tree (void)
+update_expression_tree_from_edb (GtkWidget *tree_scrolled_window, expression_db_t *edb, GCallback callback)
 {
     GtkWidget *tree;
 
     if (gtk_bin_get_child(GTK_BIN(tree_scrolled_window)) != 0)
 	gtk_container_remove(GTK_CONTAINER(tree_scrolled_window), gtk_bin_get_child(GTK_BIN(tree_scrolled_window)));
 
-    tree = read_tree_from_rc();
+    tree = make_tree_from_edb(edb, callback);
 
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(tree_scrolled_window), tree);
     gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)), GTK_SELECTION_BROWSE);
     gtk_widget_show(tree);
+}
+
+static void
+update_expression_tree (void)
+{
+    expression_db_t *edb = read_expressions();
+
+    update_expression_tree_from_edb(tree_scrolled_window, edb, G_CALLBACK(dialog_tree_changed));
+
+    free_expression_db(edb);
 }
 
 /*****/
@@ -1318,6 +1328,19 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     return frame;
 }
 
+static GtkWidget*
+make_tree_scrolled_window (void)
+{
+    GtkWidget *tree_scrolled_window;
+
+    tree_scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scrolled_window),
+				    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_show (tree_scrolled_window);
+
+    return tree_scrolled_window;
+}
+
 #define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
 
 static gint
@@ -1325,6 +1348,7 @@ mathmap_dialog (int mutable_expression)
 {
     GtkWidget *dialog;
     GtkWidget *top_table, *middle_table;
+    GtkWidget *hpaned;
     GtkWidget *vbox;
     GtkWidget *frame;
     GtkWidget *table;
@@ -1335,6 +1359,7 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *scale;
     GtkWidget *notebook;
     GtkWidget *t_table;
+    GtkWidget *designer_tree_scrolled_window;
     GtkObject *adjustment;
     GdkPixbuf *pixbuf;
 
@@ -1671,10 +1696,7 @@ mathmap_dialog (int mutable_expression)
 
 	if (mutable_expression)
 	{
-	    tree_scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scrolled_window),
-					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	    gtk_widget_show (tree_scrolled_window);
+	    tree_scrolled_window = make_tree_scrolled_window();
 
 	    update_expression_tree();
 
@@ -1685,11 +1707,21 @@ mathmap_dialog (int mutable_expression)
 
 	/* Designer */
 
+	hpaned = gtk_hpaned_new();
+
+	designer_tree_scrolled_window = make_tree_scrolled_window();
+	update_expression_tree_from_edb(designer_tree_scrolled_window, get_designer_edb(),
+					G_CALLBACK(designer_tree_callback));
+	gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
+
 	designer_widget = designer_widget_new(get_current_design(), design_changed_callback, node_focussed_callback);
+	gtk_paned_add2(GTK_PANED(hpaned), designer_widget);
+
+	gtk_widget_show(hpaned);
 
 	label = gtk_label_new(_("Composer"));
 	gtk_widget_show(label);
-	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), designer_widget, label, label);
+	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), hpaned, label, label);
 
     /* Done */
 
@@ -2433,10 +2465,8 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
     {
 	GValue value = { 0, };
-	const gchar *path, *name;
+	const gchar *path;
 	char *expression;
-	designer_design_t *design;
-	designer_node_t *node;
 
 	gtk_tree_model_get_value(model, &iter, 1, &value);
 	path = g_value_get_string(&value);
@@ -2457,18 +2487,35 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 	set_filter_source(expression, path);
 
 	free(expression);
+    }
 
-	/* HACK: add a filter node to the designer */
+    if (auto_preview)
+	dialog_update_preview();
+}
+
+static void
+designer_tree_callback (GtkTreeSelection *selection, gpointer data)
+{
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    if (selection == 0)
+	return;
+
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+    {
+	GValue value = { 0, };
+	const gchar *name;
+	designer_design_t *design;
+	designer_node_t *node;
 
 	gtk_tree_model_get_value(model, &iter, 2, &value);
 	name = g_value_get_string(&value);
-	g_assert(name != NULL);
+	if (name == NULL)
+	    return;
 
 	design = get_current_design();
 	node = designer_add_node(design, name, name);
 	designer_widget_add_node(designer_widget, node, 10, 10);
     }
-
-    if (auto_preview)
-	dialog_update_preview();
 }
