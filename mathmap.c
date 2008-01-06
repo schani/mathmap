@@ -226,6 +226,28 @@ expression_copy (gchar *dest, const gchar *src)
     strcpy(dest, src);
 }
 
+static void
+set_current_filename (const char *new_filename)
+{
+    if (current_filename != NULL)
+	g_free(current_filename);
+
+    if (new_filename == NULL)
+	current_filename = NULL;
+    else
+	current_filename = g_strdup(new_filename);
+}
+
+static void
+set_filter_source (const char *source, const char *path)
+{
+    set_current_filename(path);
+
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), source, strlen(source));
+
+    expression_copy(mmvals.expression, source);
+}
+
 /*****/
 
 static gint
@@ -453,18 +475,6 @@ expression_for_symbol (const char *symbol, expression_db_t *edb)
     }
 
     return 0;
-}
-
-static void
-set_current_filename (const char *new_filename)
-{
-    if (current_filename != NULL)
-	g_free(current_filename);
-
-    if (new_filename == NULL)
-	current_filename = NULL;
-    else
-	current_filename = g_strdup(new_filename);
 }
 
 static void
@@ -733,7 +743,7 @@ node_focussed_callback (GtkWidget *widget, designer_node_t *node)
 
     source = make_filter_source_from_designer_node(node, "bla");
 
-    g_print("\n%s\n", source);
+    set_filter_source(source, NULL);
 
     g_free(source);
 }
@@ -2444,11 +2454,7 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 	    return;
 	}
 
-	set_current_filename(path);
-
-	gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), expression, strlen(expression));
-
-	expression_copy(mmvals.expression, expression);
+	set_filter_source(expression, path);
 
 	free(expression);
 
