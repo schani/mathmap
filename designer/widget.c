@@ -85,9 +85,17 @@ update_node_edges (GnomeCanvasGroup *group)
     for (list = group->item_list; list != NULL; list = list->next)
     {
 	GnomeCanvasItem *bpath = g_object_get_data(G_OBJECT(list->data), "slot-bpath");
+	GSList *bpaths = g_object_get_data(G_OBJECT(list->data), "slot-bpaths");
 
 	if (bpath != NULL)
 	    set_bpath_path(bpath);
+
+	while (bpaths != NULL)
+	{
+	    set_bpath_path(bpaths->data);
+
+	    bpaths = bpaths->next;
+	}
     }
 }
 
@@ -229,12 +237,12 @@ rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 }
 
 static gboolean
-get_edge_data (GnomeCanvasItem *slot1, GnomeCanvasItem *slot2,
+get_edge_data (GnomeCanvasItem **slot1, GnomeCanvasItem **slot2,
 	       designer_node_t **output_node, char **output_slot_name,
 	       designer_node_t **input_node, char **input_slot_name)
 {
-    gboolean slot1_is_input = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(slot1), "slot-is-input"));
-    gboolean slot2_is_input = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(slot2), "slot-is-input"));
+    gboolean slot1_is_input = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(*slot1), "slot-is-input"));
+    gboolean slot2_is_input = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(*slot2), "slot-is-input"));
 
     if (slot1_is_input == slot2_is_input)
 	return FALSE;
@@ -242,17 +250,17 @@ get_edge_data (GnomeCanvasItem *slot1, GnomeCanvasItem *slot2,
     /* Make sure slot1 is the output slot */
     if (slot1_is_input)
     {
-	GnomeCanvasItem *tmp = slot1;
+	GnomeCanvasItem *tmp = *slot1;
 
-	slot1 = slot2;
-	slot2 = tmp;
+	*slot1 = *slot2;
+	*slot2 = tmp;
     }
 
-    *output_node = slot_get_node(slot1);
-    *output_slot_name = g_object_get_data(G_OBJECT(slot1), "slot-name");
+    *output_node = slot_get_node(*slot1);
+    *output_slot_name = g_object_get_data(G_OBJECT(*slot1), "slot-name");
 
-    *input_node = slot_get_node(slot2);
-    *input_slot_name = g_object_get_data(G_OBJECT(slot2), "slot-name");
+    *input_node = slot_get_node(*slot2);
+    *input_slot_name = g_object_get_data(G_OBJECT(*slot2), "slot-name");
 
     return TRUE;
 }
@@ -260,11 +268,14 @@ get_edge_data (GnomeCanvasItem *slot1, GnomeCanvasItem *slot2,
 static GnomeCanvasItem*
 make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, widget_data_t *data)
 {
+    GnomeCanvasItem *output_slot = slot1;
+    GnomeCanvasItem *input_slot = slot2;
     GnomeCanvasItem *bpath;
     designer_node_t *output_node, *input_node;
     char *output_node_name, *input_node_name;
+    GSList *bpaths;
 
-    if (!get_edge_data(slot1, slot2, &output_node, &output_node_name, &input_node, &input_node_name))
+    if (!get_edge_data(&output_slot, &input_slot, &output_node, &output_node_name, &input_node, &input_node_name))
 	return NULL;
 
     if (!designer_connect_nodes(output_node, output_node_name, input_node, input_node_name))
@@ -277,11 +288,13 @@ make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, 
 				  "cap_style", GDK_CAP_ROUND,
 				  NULL);
 
-    g_object_set_data(G_OBJECT(bpath), "slot1", slot1);
-    g_object_set_data(G_OBJECT(bpath), "slot2", slot2);
+    g_object_set_data(G_OBJECT(bpath), "slot1", output_slot);
+    g_object_set_data(G_OBJECT(bpath), "slot2", input_slot);
 
-    g_object_set_data(G_OBJECT(slot1), "slot-bpath", bpath);
-    g_object_set_data(G_OBJECT(slot2), "slot-bpath", bpath);
+    bpaths = g_object_get_data(G_OBJECT(output_slot), "slot-bpaths");
+    g_object_set_data(G_OBJECT(output_slot), "slot-bpaths", g_slist_prepend(bpaths, bpath));
+
+    g_object_set_data(G_OBJECT(input_slot), "slot-bpath", bpath);
 
     set_bpath_path(bpath);
 
@@ -312,21 +325,24 @@ do_destroy_object (widget_data_t *data)
 static void
 remove_edge (GnomeCanvasItem *bpath, widget_data_t *data)
 {
-    GnomeCanvasItem *slot1 = g_object_get_data(G_OBJECT(bpath), "slot1");
-    GnomeCanvasItem *slot2 = g_object_get_data(G_OBJECT(bpath), "slot2");
+    GnomeCanvasItem *output_slot = g_object_get_data(G_OBJECT(bpath), "slot1");
+    GnomeCanvasItem *input_slot = g_object_get_data(G_OBJECT(bpath), "slot2");
     designer_node_t *output_node, *input_node;
     char *output_slot_name, *input_slot_name;
     gboolean result;
+    GSList *bpaths;
 
-    g_assert(slot1 != NULL && slot2 != NULL);
+    g_assert(output_slot != NULL && input_slot != NULL);
 
-    result = get_edge_data(slot1, slot2, &output_node, &output_slot_name, &input_node, &input_slot_name);
+    result = get_edge_data(&output_slot, &input_slot, &output_node, &output_slot_name, &input_node, &input_slot_name);
     g_assert(result);
 
     designer_disconnect_nodes(output_node, output_slot_name, input_node, input_slot_name);
 
-    g_object_set_data(G_OBJECT(slot1), "slot-bpath", NULL);
-    g_object_set_data(G_OBJECT(slot2), "slot-bpath", NULL);
+    bpaths = g_object_get_data(G_OBJECT(output_slot), "slot-bpaths");
+    g_object_set_data(G_OBJECT(output_slot), "slot-bpaths", g_slist_remove(bpaths, bpath));
+
+    g_object_set_data(G_OBJECT(input_slot), "slot-bpath", NULL);
 
     gnome_canvas_item_hide(bpath);
 
@@ -401,7 +417,8 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 		if (slot == NULL)
 		    return FALSE;
 
-		remove_slot_edge(slot, data);
+		if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(slot), "slot-is-input")))
+		    remove_slot_edge(slot, data);
 
 		g_assert(data->slot == NULL);
 		data->slot = slot;
@@ -427,7 +444,8 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 
 		    if (other_slot != NULL && g_object_get_data(G_OBJECT(other_slot), "slot-name") != NULL)
 		    {
-			remove_slot_edge(other_slot, data);
+			if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(other_slot), "slot-is-input")))
+			    remove_slot_edge(other_slot, data);
 			do_destroy_object(data);
 			make_edge(data->canvas, data->slot, other_slot, data);
 		    }
