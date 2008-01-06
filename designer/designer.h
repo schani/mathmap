@@ -81,6 +81,9 @@ struct _designer_design_t
     GSList *nodes;
 };
 
+typedef void (*designer_design_changed_callback_t) (GtkWidget *widget, designer_design_t *design);
+typedef void (*designer_node_focussed_callback_t) (GtkWidget *widget, designer_node_t *node);
+
 extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
 
@@ -103,7 +106,9 @@ extern gboolean designer_connect_nodes (designer_node_t *source, const char *out
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
 
-extern GtkWidget* designer_widget_new (designer_design_t *design);
+extern GtkWidget* designer_widget_new (designer_design_t *design,
+				       designer_design_changed_callback_t design_changed_callback,
+				       designer_node_focussed_callback_t node_focussed_callback);
 extern void designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y);
 
 #endif

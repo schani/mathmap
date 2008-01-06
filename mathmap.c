@@ -458,9 +458,13 @@ expression_for_symbol (const char *symbol, expression_db_t *edb)
 static void
 set_current_filename (const char *new_filename)
 {
-    if (current_filename != 0)
+    if (current_filename != NULL)
 	g_free(current_filename);
-    current_filename = g_strdup(new_filename);
+
+    if (new_filename == NULL)
+	current_filename = NULL;
+    else
+	current_filename = g_strdup(new_filename);
 }
 
 static void
@@ -712,6 +716,26 @@ get_current_design (void)
 	the_design = designer_make_design(the_design_type);
 
     return the_design;
+}
+
+static void
+design_changed_callback (GtkWidget *widget, designer_design_t *design)
+{
+    g_print("design changed\n");
+}
+
+static void
+node_focussed_callback (GtkWidget *widget, designer_node_t *node)
+{
+    char *source;
+
+    g_print("node focussed\n");
+
+    source = make_filter_source_from_designer_node(node, "bla");
+
+    g_print("\n%s\n", source);
+
+    g_free(source);
 }
 
 /*****/
@@ -1651,7 +1675,7 @@ mathmap_dialog (int mutable_expression)
 
 	/* Designer */
 
-	designer_widget = designer_widget_new(get_current_design());
+	designer_widget = designer_widget_new(get_current_design(), design_changed_callback, node_focussed_callback);
 
 	label = gtk_label_new(_("Composer"));
 	gtk_widget_show(label);

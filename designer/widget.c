@@ -38,12 +38,16 @@
 
 typedef struct
 {
+    designer_design_t *design;
+    GtkWidget *widget;
     GnomeCanvas *canvas;
     gboolean dragging;
     double x;
     double y;
     GnomeCanvasItem *slot;
     GtkObject *destroy_object;
+    designer_design_changed_callback_t design_changed_callback;
+    designer_node_focussed_callback_t node_focussed_callback;
 } widget_data_t;
 
 static void
@@ -180,22 +184,17 @@ rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 	    break;
 
 	case GDK_BUTTON_RELEASE :
+	    if (data->node_focussed_callback != NULL)
 	    {
 		designer_node_t *node = group_get_node(group);
-		char *text;
 
 		g_assert(node != NULL);
 
-		text = make_filter_source_from_node(node, "bla");
-
-		g_print("%s\n", text);
-
-		g_free(text);
-
-		data->dragging = FALSE;
-		return TRUE;
+		data->node_focussed_callback(data->widget, node);
 	    }
-	    break;
+
+	    data->dragging = FALSE;
+	    return TRUE;
 
 	default :
 	    break;
@@ -234,7 +233,7 @@ get_edge_data (GnomeCanvasItem *slot1, GnomeCanvasItem *slot2,
 }
 
 static GnomeCanvasItem*
-make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2)
+make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, widget_data_t *data)
 {
     GnomeCanvasItem *bpath;
     designer_node_t *output_node, *input_node;
@@ -260,6 +259,9 @@ make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2)
     g_object_set_data(G_OBJECT(slot2), "slot-bpath", bpath);
 
     set_bpath_path(bpath);
+
+    if (data->design_changed_callback != NULL)
+	data->design_changed_callback(data->widget, data->design);
 
     return bpath;
 }
@@ -304,6 +306,9 @@ remove_edge (GnomeCanvasItem *bpath, widget_data_t *data)
     gnome_canvas_item_hide(bpath);
 
     set_destroy_object(data, GTK_OBJECT(bpath));
+
+    if (data->design_changed_callback != NULL)
+	data->design_changed_callback(data->widget, data->design);
 }
 
 static GnomeCanvasItem*
@@ -399,7 +404,7 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 		    {
 			remove_slot_edge(other_slot, data);
 			do_destroy_object(data);
-			make_edge(data->canvas, data->slot, other_slot);
+			make_edge(data->canvas, data->slot, other_slot, data);
 		    }
 
 		    data->slot = NULL;
@@ -568,7 +573,9 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 }
 
 GtkWidget*
-designer_widget_new (designer_design_t *design)
+designer_widget_new (designer_design_t *design,
+		     designer_design_changed_callback_t design_changed_callback,
+		     designer_node_focussed_callback_t node_focussed_callback)
 {
     GtkWidget *canvas, *table, *w;
     widget_data_t *data;
@@ -579,11 +586,6 @@ designer_widget_new (designer_design_t *design)
     gnome_canvas_set_scroll_region(GNOME_CANVAS(canvas), 0, 0, CANVAS_PADDING, CANVAS_PADDING);
 
     gtk_widget_show(canvas);
-
-    data = g_new0(widget_data_t, 1);
-    data->canvas = GNOME_CANVAS(canvas);
-
-    g_signal_connect(gnome_canvas_root(GNOME_CANVAS(canvas)), "event", G_CALLBACK(root_event), data);
 
     table = gtk_table_new (2, 2, FALSE);
     gtk_table_set_row_spacings (GTK_TABLE (table), 4);
@@ -612,7 +614,16 @@ designer_widget_new (designer_design_t *design)
 		      0, 0);
     gtk_widget_show (w);
 
+    data = g_new0(widget_data_t, 1);
+    data->design = design;
+    data->widget = table;
+    data->canvas = GNOME_CANVAS(canvas);
+    data->design_changed_callback = design_changed_callback;
+    data->node_focussed_callback = node_focussed_callback;
+
     g_object_set_data(G_OBJECT(table), "designer-data", data);
+
+    g_signal_connect(gnome_canvas_root(GNOME_CANVAS(canvas)), "event", G_CALLBACK(root_event), data);
 
     return table;
 }

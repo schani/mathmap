@@ -115,7 +115,7 @@ append_limits_and_defaults (GString *string, userval_info_t *info)
 }
 
 char*
-make_filter_source_from_node (designer_node_t *root, const char *filter_name)
+make_filter_source_from_designer_node (designer_node_t *root, const char *filter_name)
 {
     GSList *nodes = g_slist_prepend(NULL, root);
     GString *string;
