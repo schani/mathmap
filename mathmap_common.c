@@ -1130,7 +1130,6 @@ static void
 add_filter_node_type (designer_design_type_t *design_type, const char *name, expression_db_t *edb)
 {
     userval_info_t *args = get_expression_args(edb);
-    char *path = edb->v.expression.path;
     designer_node_type_t *type = designer_add_node_type(design_type, name, edb);
 
     while (args != NULL)

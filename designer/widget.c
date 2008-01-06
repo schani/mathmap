@@ -41,6 +41,7 @@ typedef struct
     designer_design_t *design;
     GtkWidget *widget;
     GnomeCanvas *canvas;
+    GnomeCanvasGroup *focussed;
     gboolean dragging;
     double x;
     double y;
@@ -141,6 +142,38 @@ set_scroll_region (GnomeCanvas *canvas)
     gnome_canvas_set_scroll_region(GNOME_CANVAS(canvas), 0, 0, x_max + CANVAS_PADDING, y_max + CANVAS_PADDING);
 }
 
+static void
+set_node_color (GnomeCanvasGroup *group, const char *name)
+{
+    GnomeCanvasItem *rectangle = g_object_get_data(G_OBJECT(group), "group-rectangle");
+
+    g_assert(rectangle != NULL);
+
+    g_object_set(G_OBJECT(rectangle), "fill-color", name, NULL);
+}
+
+static void
+focus_node (GnomeCanvasGroup *group, widget_data_t *data)
+{
+    if (data->focussed == group)
+	return;
+
+    if (data->focussed != NULL)
+	set_node_color(data->focussed, "lightblue");
+    set_node_color(group, "darkblue");
+
+    data->focussed = group;
+
+    if (data->node_focussed_callback != NULL)
+    {
+	designer_node_t *node = group_get_node(group);
+
+	g_assert(node != NULL);
+
+	data->node_focussed_callback(data->widget, node);
+    }
+}
+
 static gint
 rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 {
@@ -184,15 +217,7 @@ rectangle_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
 	    break;
 
 	case GDK_BUTTON_RELEASE :
-	    if (data->node_focussed_callback != NULL)
-	    {
-		designer_node_t *node = group_get_node(group);
-
-		g_assert(node != NULL);
-
-		data->node_focussed_callback(data->widget, node);
-	    }
-
+	    focus_node(group, data);
 	    data->dragging = FALSE;
 	    return TRUE;
 
@@ -500,6 +525,8 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				      "fill-color", "lightblue",
 				      NULL);
     g_signal_connect(rectangle, "event", G_CALLBACK(rectangle_event), data);
+
+    g_object_set_data(G_OBJECT(group), "group-rectangle", rectangle);
 
     title = gnome_canvas_item_new(group,
 				  gnome_canvas_text_get_type(),

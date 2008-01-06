@@ -744,9 +744,7 @@ node_focussed_callback (GtkWidget *widget, designer_node_t *node)
 {
     char *source;
 
-    g_print("node focussed\n");
-
-    source = make_filter_source_from_designer_node(node, "bla");
+    source = make_filter_source_from_designer_node(node, "__composer_filter__");
 
     set_filter_source(source, NULL);
 

@@ -51,7 +51,6 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
     userval_info_t *args = get_expression_args(edb);
     int num_slots, i;
     gboolean first;
-    GSList *list;
 
     if (g_slist_find(*computed_nodes, node) != NULL)
 	return;
@@ -183,8 +182,6 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
 	designer_node_t *node = list->data;
 	expression_db_t *edb = node->type->data;
 	userval_info_t *args = get_expression_args(edb);
-	GSList *slot_list;
-	int i;
 
 	while (args != NULL)
 	{
