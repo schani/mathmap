@@ -56,7 +56,7 @@ typedef struct
 typedef struct
 {
     designer_node_t *partner; /* NULL if not assigned */
-    int partner_slot_index;
+    designer_slot_spec_t *partner_slot_spec;
 } designer_slot_t;
 
 struct _designer_node_t
@@ -65,7 +65,6 @@ struct _designer_node_t
     designer_node_type_t *type;
     char *name;
     designer_slot_t *input_slots;
-    designer_slot_t *output_slots;
 };
 
 struct _designer_design_type_t

@@ -27,32 +27,20 @@
 #include "designer.h"
 
 static gboolean
-verify_slots (designer_node_t *node, gboolean input)
+verify_slots (designer_node_t *node)
 {
-    GSList *slot_specs = input ? node->type->input_slot_specs : node->type->output_slot_specs;
-    designer_slot_t *slots = input ? node->input_slots : node->output_slots;
     GSList *slot_list;
     int i;
 
-    for (i = 0, slot_list = slot_specs;
+    for (i = 0, slot_list = node->type->input_slot_specs;
 	 slot_list != NULL;
 	 ++i, slot_list = slot_list->next)
     {
 	designer_slot_spec_t *slot_spec = slot_list->data;
-	designer_slot_t *slot = &slots[i];
+	designer_slot_t *slot = &node->input_slots[i];
 
 	if (slot->partner != NULL)
-	{
-	    designer_slot_t *partner_slots = input ? slot->partner->output_slots : slot->partner->input_slots;
-	    GSList *partner_slot_specs = input ? slot->partner->type->output_slot_specs
-					       : slot->partner->type->input_slot_specs;
-	    designer_slot_t *partner_slot = &partner_slots[slot->partner_slot_index];
-	    designer_slot_spec_t *partner_slot_spec = g_slist_nth_data(partner_slot_specs, slot->partner_slot_index);
-
-	    g_assert(slot_spec->type == partner_slot_spec->type);
-	    g_assert(partner_slot->partner == node);
-	    g_assert(partner_slot->partner_slot_index == i);
-	}
+	    g_assert(slot_spec->type == slot->partner_slot_spec->type);
     }
 
     return TRUE;
@@ -70,8 +58,7 @@ designer_verify_design (designer_design_t *design)
 	/* design type contains node type */
 	g_assert(g_slist_find(design->type->node_types, node->type) != NULL);
 
-	g_assert(verify_slots(node, TRUE));
-	g_assert(verify_slots(node, FALSE));
+	g_assert(verify_slots(node));
     }
 
     if (!design->type->allow_cycles)
@@ -194,13 +181,11 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
 {
     designer_node_type_t *node_type = lookup_node_type(design->type, node_type_name);
     int num_input_slots;
-    int num_output_slots;
     designer_node_t *node;
 
     g_assert(node_type != NULL);
 
     num_input_slots = g_slist_length(node_type->input_slot_specs);
-    num_output_slots = g_slist_length(node_type->output_slot_specs);
 
     node = g_new0(designer_node_t, 1);
 
@@ -208,7 +193,6 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
     node->name = g_strdup(name);
     node->type = node_type;
     node->input_slots = g_new0(designer_slot_t, num_input_slots);
-    node->output_slots = g_new0(designer_slot_t, num_output_slots);
 
     design->nodes = g_slist_prepend(design->nodes, node);
 
@@ -259,18 +243,13 @@ designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
     if (source_type->design_type != dest_type->design_type)
 	return FALSE;
 
-    g_assert(source->output_slots[output_slot_index].partner == NULL);
     g_assert(dest->input_slots[input_slot_index].partner == NULL);
 
-    source->output_slots[output_slot_index].partner = dest;
-    source->output_slots[output_slot_index].partner_slot_index = input_slot_index;
-
     dest->input_slots[input_slot_index].partner = source;
-    dest->input_slots[input_slot_index].partner_slot_index = output_slot_index;
+    dest->input_slots[input_slot_index].partner_slot_spec = output_slot_spec;
 
     if (!design_type->allow_cycles && designer_design_contains_cycles(source->design))
     {
-	source->output_slots[output_slot_index].partner = NULL;
 	dest->input_slots[input_slot_index].partner = NULL;
 	return FALSE;
     }
@@ -298,13 +277,9 @@ designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name
     g_assert(output_slot_spec != NULL);
     g_assert(input_slot_spec != NULL);
 
-    g_assert(source->output_slots[output_slot_index].partner == dest);
-    g_assert(source->output_slots[output_slot_index].partner_slot_index == input_slot_index);
-
     g_assert(dest->input_slots[input_slot_index].partner == source);
-    g_assert(dest->input_slots[input_slot_index].partner_slot_index == output_slot_index);
+    g_assert(dest->input_slots[input_slot_index].partner_slot_spec == output_slot_spec);
 
-    source->output_slots[output_slot_index].partner = NULL;
     dest->input_slots[input_slot_index].partner = NULL;
 
     /* FIXME: remove eventually */
