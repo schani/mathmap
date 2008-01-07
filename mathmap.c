@@ -2515,5 +2515,6 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	design = get_current_design();
 	node = designer_add_node(design, name, name);
 	designer_widget_add_node(designer_widget, node, 10, 10);
+	design_changed_callback(designer_widget, design);
     }
 }

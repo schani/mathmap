@@ -1,5 +1,13 @@
 -*- outline -*-
 
+* 1.3.1
+
+** Designer
+edges visible as they're dragged
+source updated when edges are added or removed
+slot text better aligned
+new nodes renamed when same name already exists
+
 * 1.3
 
 ** GIMP Plug-In

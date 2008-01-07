@@ -202,6 +202,25 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
     return node;
 }
 
+void
+designer_delete_node (designer_node_t *node)
+{
+    designer_design_t *design = node->design;
+    int num_slots = g_slist_length(node->type->input_slot_specs);
+    int i;
+
+    for (i = 0; i < num_slots; ++i)
+	g_assert(node->input_slots[i].partner == NULL);
+
+    node->design->nodes = g_slist_remove(node->design->nodes, node);
+
+    g_free(node->input_slots);
+    g_free(node);
+
+    /* FIXME: remove this eventually, but assert on output slots */
+    designer_verify_design(design);
+}
+
 static designer_slot_spec_t*
 lookup_slot_spec (GSList *list, const char *name, int *index)
 {

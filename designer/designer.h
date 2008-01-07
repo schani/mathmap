@@ -99,6 +99,7 @@ extern void designer_add_output_slot_spec (designer_node_type_t *node_type, cons
 extern designer_design_t* designer_make_design (designer_design_type_t *type);
 
 extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
+extern void designer_delete_node (designer_node_t *node);
 
 extern gboolean designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
 					designer_node_t *dest, const char *input_slot_name);

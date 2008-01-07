@@ -35,6 +35,7 @@
 #define TITLE_PADDING			3.0
 #define SLOT_NAME_PADDING		10.0
 #define CANVAS_PADDING			20.0
+#define CLOSE_BUTTON_SIZE		12.0
 
 typedef struct
 {
@@ -50,6 +51,13 @@ typedef struct
     designer_design_changed_callback_t design_changed_callback;
     designer_node_focussed_callback_t node_focussed_callback;
 } widget_data_t;
+
+static void
+signal_design_change (widget_data_t *data)
+{
+    if (data->design_changed_callback != NULL)
+	data->design_changed_callback(data->widget, data->design);
+}
 
 static void
 set_bpath_path (GnomeCanvasItem *bpath)
@@ -298,9 +306,6 @@ make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, 
 
     set_bpath_path(bpath);
 
-    if (data->design_changed_callback != NULL)
-	data->design_changed_callback(data->widget, data->design);
-
     return bpath;
 }
 
@@ -347,9 +352,80 @@ remove_edge (GnomeCanvasItem *bpath, widget_data_t *data)
     gnome_canvas_item_hide(bpath);
 
     set_destroy_object(data, GTK_OBJECT(bpath));
+}
 
-    if (data->design_changed_callback != NULL)
-	data->design_changed_callback(data->widget, data->design);
+static void
+remove_node (GnomeCanvasGroup *group, widget_data_t *data)
+{
+    GList *list;
+    designer_node_t *node = g_object_get_data(G_OBJECT(group), "node");
+
+    g_assert(node != NULL);
+
+    /* First remove all the edges */
+ restart:
+    for (list = group->item_list; list != NULL; list = list->next)
+    {
+	GnomeCanvasItem *bpath = g_object_get_data(G_OBJECT(list->data), "slot-bpath");
+	GSList *bpaths = g_object_get_data(G_OBJECT(list->data), "slot-bpaths");
+	gboolean removed = FALSE;
+
+	if (bpath != NULL)
+	{
+	    remove_edge(bpath, data);
+	    do_destroy_object(data);
+	    removed = TRUE;
+	}
+
+	while (bpaths != NULL)
+	{
+	    remove_edge(bpaths->data, data);
+	    do_destroy_object(data);
+	    removed = TRUE;
+
+	    bpaths = bpaths->next;
+	}
+
+	if (removed)
+	    goto restart;	/* we must do this because the item list has changed */
+    }
+
+    if (data->focussed == group)
+	data->focussed = NULL;
+
+    designer_delete_node(node);
+    gtk_object_destroy(GTK_OBJECT(group));
+}
+
+static gint
+close_button_event (GnomeCanvasItem *item, GdkEvent *event, widget_data_t *data)
+{
+    GnomeCanvasGroup *group;
+
+    g_object_get(G_OBJECT(item), "parent", &group, NULL);
+    g_assert(group != NULL);
+
+    switch (event->type)
+    {
+	case GDK_BUTTON_PRESS :
+	    if (event->button.button == 1)
+		return TRUE;
+	    break;
+
+	case GDK_BUTTON_RELEASE :
+	    if (event->button.button == 1)
+	    {
+		remove_node(group, data);
+		signal_design_change(data);
+		return TRUE;
+	    }
+	    break;
+
+	default :
+	    break;
+    }
+
+    return FALSE;
 }
 
 static GnomeCanvasItem*
@@ -418,7 +494,10 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 		    return FALSE;
 
 		if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(slot), "slot-is-input")))
+		{
 		    remove_slot_edge(slot, data);
+		    signal_design_change(data);
+		}
 
 		g_assert(data->slot == NULL);
 		data->slot = slot;
@@ -448,6 +527,7 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 			    remove_slot_edge(other_slot, data);
 			do_destroy_object(data);
 			make_edge(data->canvas, data->slot, other_slot, data);
+			signal_design_change(data);
 		    }
 
 		    data->slot = NULL;
@@ -482,7 +562,7 @@ static GnomeCanvasGroup*
 make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widget_data_t *data)
 {
     GnomeCanvasGroup *group;
-    GnomeCanvasItem *rectangle, *ellipse, *title;
+    GnomeCanvasItem *rectangle, *ellipse, *title, *close_button;
     double width, height;
     int num_input_slots = g_slist_length(node->type->input_slot_specs);
     int num_output_slots = g_slist_length(node->type->output_slot_specs);
@@ -521,7 +601,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 	    widest_line = width;
     }
 
-    width = MAX(widest_line, title_width + TITLE_PADDING * 2);
+    width = MAX(widest_line, title_width + TITLE_PADDING * 2 + CLOSE_BUTTON_SIZE * 2);
     height = title_height + TITLE_PADDING * 2 + max_slots * (SLOT_DIAMETER + SLOT_SPACING) + SLOT_SPACING;
 
     slots_y1 = title_height + TITLE_PADDING * 2 + SLOT_SPACING;
@@ -555,6 +635,16 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				  "anchor", GTK_ANCHOR_N,
 				  "fill-color", "white",
 				  NULL);
+
+    close_button = gnome_canvas_item_new(group,
+					 gnome_canvas_rect_get_type(),
+					 "x1", width - CLOSE_BUTTON_SIZE,
+					 "y1", 0.0,
+					 "x2", width,
+					 "y1", CLOSE_BUTTON_SIZE,
+					 "fill-color", "red",
+					 NULL);
+    g_signal_connect(close_button, "event", G_CALLBACK(close_button_event), data);
 
     for (i = 0; i < num_input_slots; ++i)
     {
@@ -677,10 +767,14 @@ void
 designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y)
 {
     widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+    GnomeCanvasGroup *group;
 
     g_assert(data != NULL);
 
-    make_node(data->canvas, node, x, y, data);
+    group = make_node(data->canvas, node, x, y, data);
+
+    if (data->focussed == NULL)
+	focus_node(group, data);
 }
 
 #ifdef DESIGNER_TEST
