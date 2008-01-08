@@ -113,4 +113,6 @@ extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_node_focussed_callback_t node_focussed_callback);
 extern void designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y);
 
+extern designer_node_t* designer_widget_get_focussed_node (GtkWidget *widget);
+
 #endif

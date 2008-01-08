@@ -734,12 +734,6 @@ get_current_design (void)
 }
 
 static void
-design_changed_callback (GtkWidget *widget, designer_design_t *design)
-{
-    g_print("design changed\n");
-}
-
-static void
 node_focussed_callback (GtkWidget *widget, designer_node_t *node)
 {
     char *source;
@@ -749,6 +743,17 @@ node_focussed_callback (GtkWidget *widget, designer_node_t *node)
     set_filter_source(source, NULL);
 
     g_free(source);
+}
+
+static void
+design_changed_callback (GtkWidget *widget, designer_design_t *design)
+{
+    designer_node_t *node = designer_widget_get_focussed_node(widget);
+
+    g_print("design changed\n");
+
+    if (node != NULL)
+	node_focussed_callback(widget, node);
 }
 
 /*****/

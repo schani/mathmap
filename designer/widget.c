@@ -777,6 +777,19 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 	focus_node(group, data);
 }
 
+designer_node_t*
+designer_widget_get_focussed_node (GtkWidget *widget)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+
+    g_assert(data != NULL);
+
+    if (data->focussed == NULL)
+	return NULL;
+
+    return group_get_node(data->focussed);
+}
+
 #ifdef DESIGNER_TEST
 static designer_design_type_t*
 setup_design_type (void)

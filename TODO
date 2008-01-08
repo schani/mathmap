@@ -4,7 +4,6 @@
 
 ** Designer
 edges visible as they're dragged
-source updated when edges are added or removed
 slot text better aligned
 new nodes renamed when same name already exists
 
