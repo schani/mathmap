@@ -571,12 +571,17 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     /* FIXME: get some standard font from preferences here */
     PangoFontDescription *font_desc = pango_font_description_from_string("Sans 10");
     int title_width, title_height;
+    int dummy, line_text_height;
+    double line_height;
     double slots_y1;
     double widest_line;
 
     g_assert(font_desc != NULL);
 
     get_text_size(node->name, GTK_WIDGET(canvas), font_desc, &title_width, &title_height);
+    get_text_size("Akyg", GTK_WIDGET(canvas), font_desc, &dummy, &line_text_height);
+
+    line_height = MAX(SLOT_DIAMETER, line_text_height);
 
     widest_line = 0.0;
     for (i = 0; i < MAX(num_input_slots, num_output_slots); ++i)
@@ -602,7 +607,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     }
 
     width = MAX(widest_line, title_width + TITLE_PADDING * 2 + CLOSE_BUTTON_SIZE * 2);
-    height = title_height + TITLE_PADDING * 2 + max_slots * (SLOT_DIAMETER + SLOT_SPACING) + SLOT_SPACING;
+    height = title_height + TITLE_PADDING * 2 + max_slots * (line_height + SLOT_SPACING) + SLOT_SPACING;
 
     slots_y1 = title_height + TITLE_PADDING * 2 + SLOT_SPACING;
 
@@ -650,14 +655,15 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     {
 	designer_slot_spec_t *slot_spec = g_slist_nth_data(node->type->input_slot_specs, i);
 	GnomeCanvasItem *text;
-	double y1 = slots_y1 + i * (SLOT_SPACING + SLOT_DIAMETER);
+	double y1 = slots_y1 + i * (SLOT_SPACING + line_height);
+	double slot_y1 = y1 + (line_height - SLOT_DIAMETER) / 2;
 
 	ellipse = gnome_canvas_item_new(group,
 					gnome_canvas_ellipse_get_type(),
 					"x1", SLOT_SPACING,
-					"y1", y1,
+					"y1", slot_y1,
 					"x2", SLOT_SPACING + SLOT_DIAMETER,
-					"y2", y1 + SLOT_DIAMETER,
+					"y2", slot_y1 + SLOT_DIAMETER,
 					"fill_color", "yellow",
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
@@ -667,9 +673,9 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				     gnome_canvas_text_get_type(),
 				     "text", slot_spec->name,
 				     "x", SLOT_SPACING * 2 + SLOT_DIAMETER,
-				     "y", y1,
+				     "y", y1 + line_height / 2,
 				     "font-desc", font_desc,
-				     "anchor", GTK_ANCHOR_NW,
+				     "anchor", GTK_ANCHOR_W,
 				     "fill-color", "white",
 				     NULL);
     }
