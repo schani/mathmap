@@ -1,6 +1,6 @@
 # by Herbert Poetzl
 filter rmbe (image in,
-             float pixel_area: 0-1 (0.005),
+             float pixel_area: 0-0.1 (0.005),
              float aspect_ratio: 0.01-10 (1.0))
     A=pixel_area;
     asp=aspect_ratio;
