@@ -4,8 +4,10 @@
 
 ** Designer
 edges visible as they're dragged
-slot text better aligned
 new nodes renamed when same name already exists
+
+** Compiler
+mathmap crashes when using droste in designer
 
 * 1.3
 

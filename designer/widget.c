@@ -37,6 +37,16 @@
 #define CANVAS_PADDING			20.0
 #define CLOSE_BUTTON_SIZE		12.0
 
+#define UNFOCUSSED_NODE_COLOR		"darkblue"
+#define FOCUSSED_NODE_COLOR		"blue"
+#define TITLE_COLOR			"white"
+#define INPUT_SLOT_COLOR		"yellow"
+#define INPUT_SLOT_NAME_COLOR		"white"
+#define OUTPUT_SLOT_COLOR		"yellow"
+#define OUTPUT_SLOT_NAME_COLOR		"white"
+#define CLOSE_BUTTON_COLOR		"red"
+#define EDGE_COLOR			"blue"
+
 typedef struct
 {
     designer_design_t *design;
@@ -175,8 +185,8 @@ focus_node (GnomeCanvasGroup *group, widget_data_t *data)
 	return;
 
     if (data->focussed != NULL)
-	set_node_color(data->focussed, "lightblue");
-    set_node_color(group, "darkblue");
+	set_node_color(data->focussed, UNFOCUSSED_NODE_COLOR);
+    set_node_color(group, FOCUSSED_NODE_COLOR);
 
     data->focussed = group;
 
@@ -291,7 +301,7 @@ make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, 
 
     bpath = gnome_canvas_item_new(gnome_canvas_root(canvas),
 				  gnome_canvas_bpath_get_type(),
-				  "outline_color", "blue",
+				  "outline_color", EDGE_COLOR,
 				  "width_pixels", 5,
 				  "cap_style", GDK_CAP_ROUND,
 				  NULL);
@@ -625,7 +635,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				      "y1", 0.0,
 				      "x2", width,
 				      "y2", height,
-				      "fill-color", "lightblue",
+				      "fill-color", UNFOCUSSED_NODE_COLOR,
 				      NULL);
     g_signal_connect(rectangle, "event", G_CALLBACK(rectangle_event), data);
 
@@ -638,7 +648,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				  "y", TITLE_PADDING,
 				  "font-desc", font_desc,
 				  "anchor", GTK_ANCHOR_N,
-				  "fill-color", "white",
+				  "fill-color", TITLE_COLOR,
 				  NULL);
 
     close_button = gnome_canvas_item_new(group,
@@ -647,7 +657,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 					 "y1", 0.0,
 					 "x2", width,
 					 "y1", CLOSE_BUTTON_SIZE,
-					 "fill-color", "red",
+					 "fill-color", CLOSE_BUTTON_COLOR,
 					 NULL);
     g_signal_connect(close_button, "event", G_CALLBACK(close_button_event), data);
 
@@ -664,7 +674,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 					"y1", slot_y1,
 					"x2", SLOT_SPACING + SLOT_DIAMETER,
 					"y2", slot_y1 + SLOT_DIAMETER,
-					"fill_color", "yellow",
+					"fill_color", INPUT_SLOT_COLOR,
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
 	g_object_set_data(G_OBJECT(ellipse), "slot-is-input", GINT_TO_POINTER(1));
@@ -676,7 +686,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				     "y", y1 + line_height / 2,
 				     "font-desc", font_desc,
 				     "anchor", GTK_ANCHOR_W,
-				     "fill-color", "white",
+				     "fill-color", INPUT_SLOT_NAME_COLOR,
 				     NULL);
     }
 
@@ -692,7 +702,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 					"y1", y1,
 					"x2", width - SLOT_SPACING,
 					"y2", y1 + SLOT_DIAMETER,
-					"fill_color", "yellow",
+					"fill_color", OUTPUT_SLOT_COLOR,
 					NULL);
 	g_object_set_data(G_OBJECT(ellipse), "slot-name", slot_spec->name);
 	g_object_set_data(G_OBJECT(ellipse), "slot-is-input", GINT_TO_POINTER(0));
@@ -704,7 +714,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				     "y", y1,
 				     "font-desc", font_desc,
 				     "anchor", GTK_ANCHOR_NE,
-				     "fill-color", "white",
+				     "fill-color", OUTPUT_SLOT_NAME_COLOR,
 				     NULL);
     }
 
