@@ -5,6 +5,7 @@
 ** Designer
 edges visible as they're dragged
 new nodes renamed when same name already exists
+don't let user add nodes that have color, curve or gradient arguments
 
 ** Compiler
 mathmap crashes when using droste in designer
