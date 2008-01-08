@@ -2365,6 +2365,8 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     compvar_t *result[filter->decl->v.filter.body->result.length];
     rhs_t *rhs;
 
+    compiler_reset_variables(filter->variables);
+
     inlining_history = push_inlined_filter(filter, history);
 
     first_stmt = NULL;
@@ -4865,6 +4867,12 @@ set_value_defined_and_current_for_checking (value_t *value, GHashTable *current_
 }
 
 static void
+_check_phi_value (value_t *value, void *info)
+{
+    g_assert(value->index < 0 || (value->def->kind == STMT_ASSIGN || value->def->kind == STMT_PHI_ASSIGN));
+}
+
+static void
 check_phis (statement_t *stmts, statement_t *parent, statement_t *body1, statement_t *body2,
 	    GHashTable *current_value_hash, value_set_t *defined_set)
 {
@@ -4876,6 +4884,9 @@ check_phis (statement_t *stmts, statement_t *parent, statement_t *body1, stateme
 
 	if (stmts->kind == STMT_PHI_ASSIGN)
 	{
+	    FOR_EACH_VALUE_IN_RHS(stmts->v.assign.rhs, &_check_phi_value);
+	    FOR_EACH_VALUE_IN_RHS(stmts->v.assign.rhs2, &_check_phi_value);
+
 /*
 	    void check_value (value_t *value)
 		{
@@ -5732,6 +5743,12 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
 #define	CGEN_LD		"cc -bundle -flat_namespace -undefined suppress -o"
 #endif
 
+#ifdef PEDANTIC_CHECK_SSA
+#define CHECK_SSA	check_ssa(first_stmt)
+#else
+#define CHECK_SSA	do ; while (0)
+#endif
+
 static filter_code_t*
 generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 {
@@ -5742,8 +5759,6 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     next_temp_number = 1;
     next_value_global_index = 0;
     inlining_history = NULL;
-
-    compiler_reset_variables(filter->variables);
 
     tuple_tmp = make_temporary(TYPE_TUPLE);
     first_stmt = gen_filter_code(filter, tuple_tmp, NULL, NULL, inlining_history);
@@ -5758,31 +5773,48 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     do
     {
 #ifdef DEBUG_OUTPUT
-	printf("--------------------------------\n");
-	dump_code(first_stmt, 0);
 	check_ssa(first_stmt);
 #endif
 
+#ifdef DEBUG_OUTPUT
+	printf("--------------------------------\n");
+	dump_code(first_stmt, 0);
+#endif
+
 	optimize_closure_application(first_stmt);
+	CHECK_SSA;
 
 	changed = 0;
 
 	changed = do_inlining() || changed;
+	CHECK_SSA;
 	changed = copy_propagation() || changed;
+	CHECK_SSA;
 	changed = optimize_tuple_nth() || changed;
+	CHECK_SSA;
 	changed = optimize_make_tuple() || changed;
+	CHECK_SSA;
 	changed = common_subexpression_elimination() || changed;
+	CHECK_SSA;
 	changed = copy_propagation() || changed;
+	CHECK_SSA;
 	changed = constant_folding() || changed;
+	CHECK_SSA;
 	changed = simplify_ops() || changed;
+	CHECK_SSA;
 	changed = remove_dead_assignments() || changed;
+	CHECK_SSA;
 	changed = remove_dead_branches() || changed;
+	CHECK_SSA;
 	changed = remove_dead_controls() || changed;
     } while (changed);
 
+    CHECK_SSA;
     propagate_types();
 
+#ifdef DEBUG_OUTPUT
     check_ssa(first_stmt);
+#endif
 
 #ifndef NO_CONSTANTS_ANALYSIS
     if (constant_analysis)
