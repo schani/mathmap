@@ -108,6 +108,8 @@ extern void designer_disconnect_nodes (designer_node_t *source, const char *outp
 
 extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, const char *name);
 
+extern designer_node_t* designer_get_node_by_name (designer_design_t *design, const char *name);
+
 extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_design_changed_callback_t design_changed_callback,
 				       designer_node_focussed_callback_t node_focussed_callback);

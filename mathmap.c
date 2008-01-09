@@ -2511,6 +2511,7 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	const gchar *name;
 	designer_design_t *design;
 	designer_node_t *node;
+	int i;
 
 	gtk_tree_model_get_value(model, &iter, 2, &value);
 	name = g_value_get_string(&value);
@@ -2518,7 +2519,27 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	    return;
 
 	design = get_current_design();
-	node = designer_add_node(design, name, name);
+
+	i = 1;
+	node = NULL;
+	do
+	{
+	    const char *numbered_name;
+
+	    if (i == 1)
+		numbered_name = name;
+	    else
+		numbered_name = g_strdup_printf("%s_%d", name, i);
+
+	    if (designer_get_node_by_name(design, numbered_name) == NULL)
+		node = designer_add_node(design, numbered_name, name);
+
+	    if (numbered_name != name)
+		g_free((gpointer)numbered_name);
+
+	    ++i;
+	} while (node == NULL);
+
 	designer_widget_add_node(designer_widget, node, 10, 10);
 	design_changed_callback(designer_widget, design);
     }
