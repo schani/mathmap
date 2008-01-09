@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -58,6 +58,7 @@
 #include "mathmap.h"
 #include "noise.h"
 #include "expression_db.h"
+#include "designer/designer.h"
 
 #define INIT_LOCALE(x)
 #define _(x)             (x)
@@ -146,6 +147,7 @@ static void dialog_ok_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
 static void dialog_tree_changed (GtkTreeSelection *tree, gpointer data);
+static void designer_tree_callback (GtkTreeSelection *tree, gpointer data);
 static void dialog_response (GtkWidget *widget, gint response_id, gpointer data);
 
 /***** Variables *****/
@@ -194,7 +196,8 @@ GtkWidget *expression_entry = 0,
     *edge_color_y_well,
     *uservalues_scrolled_window,
     *uservalues_table,
-    *tree_scrolled_window;
+    *tree_scrolled_window,
+    *designer_widget;
 
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
@@ -224,6 +227,27 @@ expression_copy (gchar *dest, const gchar *src)
     strcpy(dest, src);
 }
 
+static void
+set_current_filename (const char *new_filename)
+{
+    if (current_filename != NULL)
+	g_free(current_filename);
+
+    if (new_filename == NULL)
+	current_filename = NULL;
+    else
+	current_filename = g_strdup(new_filename);
+}
+
+static void
+set_filter_source (const char *source, const char *path)
+{
+    set_current_filename(path);
+
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), source, strlen(source));
+
+    expression_copy(mmvals.expression, source);
+}
 
 /*****/
 
@@ -455,14 +479,6 @@ expression_for_symbol (const char *symbol, expression_db_t *edb)
 }
 
 static void
-set_current_filename (const char *new_filename)
-{
-    if (current_filename != 0)
-	g_free(current_filename);
-    current_filename = g_strdup(new_filename);
-}
-
-static void
 query(void)
 {
     static GimpParamDef args[] = {
@@ -688,6 +704,57 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     g_print("%ld pixels requested\n", num_pixels_requested);
 #endif
 } /* run */
+
+/*****/
+
+static expression_db_t*
+get_designer_edb (void)
+{
+    static expression_db_t *edb = NULL;
+
+    if (edb == NULL)
+	edb = read_expressions();
+
+    return edb;
+}
+
+static designer_design_t*
+get_current_design (void)
+{
+    static designer_design_type_t *the_design_type = NULL;
+    static designer_design_t *the_design = NULL;
+
+    if (the_design_type == NULL)
+	the_design_type = design_type_from_expression_db(get_designer_edb());
+
+    if (the_design == NULL)
+	the_design = designer_make_design(the_design_type);
+
+    return the_design;
+}
+
+static void
+node_focussed_callback (GtkWidget *widget, designer_node_t *node)
+{
+    char *source;
+
+    source = make_filter_source_from_designer_node(node, "__composer_filter__");
+
+    set_filter_source(source, NULL);
+
+    g_free(source);
+}
+
+static void
+design_changed_callback (GtkWidget *widget, designer_design_t *design)
+{
+    designer_node_t *node = designer_widget_get_focussed_node(widget);
+
+    g_print("design changed\n");
+
+    if (node != NULL)
+	node_focussed_callback(widget, node);
+}
 
 /*****/
 
@@ -1107,7 +1174,11 @@ tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db
 	else if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter, 0, edb->name, 1, edb->v.expression.path, -1);
+	    gtk_tree_store_set(store, &iter,
+			       0, edb->name,
+			       1, edb->v.expression.path,
+			       2, get_expression_name(edb),
+			       -1);
 	}
 	else
 	    assert(0);
@@ -1115,31 +1186,26 @@ tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db
 }
 
 static GtkWidget*
-read_tree_from_rc (void)
+make_tree_from_edb (expression_db_t *edb, GCallback callback)
 {
     GtkTreeStore *store;
     GtkCellRenderer *renderer;
     GtkTreeViewColumn *column;
     GtkTreeSelection *selection;
     GtkWidget *tree;
-    expression_db_t *edb;
 
     /* model */
-    store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+    store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
 
-    edb = read_expressions();
     if (edb != 0)
-    {
     	tree_from_expression_db(store, NULL, edb);
-	free_expression_db(edb);
-    }
 
     /* view */
     tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
     selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
     gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
     g_signal_connect(G_OBJECT(selection), "changed",
-		     G_CALLBACK(dialog_tree_changed),
+		     G_CALLBACK(callback),
 		     (gpointer)NULL);
 
     renderer = gtk_cell_renderer_text_new();
@@ -1174,18 +1240,28 @@ update_userval_table (void)
 }
 
 static void
-update_expression_tree (void)
+update_expression_tree_from_edb (GtkWidget *tree_scrolled_window, expression_db_t *edb, GCallback callback)
 {
     GtkWidget *tree;
 
     if (gtk_bin_get_child(GTK_BIN(tree_scrolled_window)) != 0)
 	gtk_container_remove(GTK_CONTAINER(tree_scrolled_window), gtk_bin_get_child(GTK_BIN(tree_scrolled_window)));
 
-    tree = read_tree_from_rc();
+    tree = make_tree_from_edb(edb, callback);
 
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(tree_scrolled_window), tree);
     gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)), GTK_SELECTION_BROWSE);
     gtk_widget_show(tree);
+}
+
+static void
+update_expression_tree (void)
+{
+    expression_db_t *edb = read_expressions();
+
+    update_expression_tree_from_edb(tree_scrolled_window, edb, G_CALLBACK(dialog_tree_changed));
+
+    free_expression_db(edb);
 }
 
 /*****/
@@ -1255,6 +1331,19 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     return frame;
 }
 
+static GtkWidget*
+make_tree_scrolled_window (void)
+{
+    GtkWidget *tree_scrolled_window;
+
+    tree_scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scrolled_window),
+				    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_widget_show (tree_scrolled_window);
+
+    return tree_scrolled_window;
+}
+
 #define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
 
 static gint
@@ -1262,6 +1351,7 @@ mathmap_dialog (int mutable_expression)
 {
     GtkWidget *dialog;
     GtkWidget *top_table, *middle_table;
+    GtkWidget *hpaned;
     GtkWidget *vbox;
     GtkWidget *frame;
     GtkWidget *table;
@@ -1272,6 +1362,7 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *scale;
     GtkWidget *notebook;
     GtkWidget *t_table;
+    GtkWidget *designer_tree_scrolled_window;
     GtkObject *adjustment;
     GdkPixbuf *pixbuf;
 
@@ -1608,10 +1699,7 @@ mathmap_dialog (int mutable_expression)
 
 	if (mutable_expression)
 	{
-	    tree_scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-	    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scrolled_window),
-					    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-	    gtk_widget_show (tree_scrolled_window);
+	    tree_scrolled_window = make_tree_scrolled_window();
 
 	    update_expression_tree();
 
@@ -1619,6 +1707,24 @@ mathmap_dialog (int mutable_expression)
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), tree_scrolled_window, label, label);
 	}
+
+	/* Designer */
+
+	hpaned = gtk_hpaned_new();
+
+	designer_tree_scrolled_window = make_tree_scrolled_window();
+	update_expression_tree_from_edb(designer_tree_scrolled_window, get_designer_edb(),
+					G_CALLBACK(designer_tree_callback));
+	gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
+
+	designer_widget = designer_widget_new(get_current_design(), design_changed_callback, node_focussed_callback);
+	gtk_paned_add2(GTK_PANED(hpaned), designer_widget);
+
+	gtk_widget_show(hpaned);
+
+	label = gtk_label_new(_("Composer"));
+	gtk_widget_show(label);
+	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), hpaned, label, label);
 
     /* Done */
 
@@ -2311,7 +2417,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "artists", artists,
 			   "comments", "An image generation and manipulation language",
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
-			   "copyright", "Copyright © 1997-2007 Mark Probst",
+			   "copyright", "Copyright © 1997-2008 Mark Probst",
 			   "license", gpl,
 			   "logo", mathmap_logo,
 			   NULL);
@@ -2381,15 +2487,39 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 	    return;
 	}
 
-	set_current_filename(path);
-
-	gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), expression, strlen(expression));
-
-	expression_copy(mmvals.expression, expression);
+	set_filter_source(expression, path);
 
 	free(expression);
     }
 
     if (auto_preview)
 	dialog_update_preview();
+}
+
+static void
+designer_tree_callback (GtkTreeSelection *selection, gpointer data)
+{
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    if (selection == 0)
+	return;
+
+    if (gtk_tree_selection_get_selected(selection, &model, &iter))
+    {
+	GValue value = { 0, };
+	const gchar *name;
+	designer_design_t *design;
+	designer_node_t *node;
+
+	gtk_tree_model_get_value(model, &iter, 2, &value);
+	name = g_value_get_string(&value);
+	if (name == NULL)
+	    return;
+
+	design = get_current_design();
+	node = designer_add_node(design, name, name);
+	designer_widget_add_node(designer_widget, node, 10, 10);
+	design_changed_callback(designer_widget, design);
+    }
 }

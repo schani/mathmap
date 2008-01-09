@@ -143,4 +143,6 @@ GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
 #endif
 void update_uservals (userval_info_t *infos, userval_t *uservals);
 
+const char* userval_type_name (int type);
+
 #endif

@@ -25,8 +25,12 @@
 #ifndef __EXPRESSION_DB_H__
 #define __EXPRESSION_DB_H__
 
+#include "userval.h"
+
 #define EXPRESSION_DB_EXPRESSION        1
 #define EXPRESSION_DB_GROUP             2
+
+struct _mathmap_t;
 
 typedef struct _expression_db_t
 {
@@ -37,6 +41,7 @@ typedef struct _expression_db_t
 	struct
 	{
 	    char *path;
+	    struct _mathmap_t *mathmap;
 	} expression;
 	struct
 	{
@@ -52,5 +57,8 @@ extern void free_expression_db (expression_db_t *edb);
 extern char* read_expression (const char *path);
 
 extern expression_db_t* merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2);
+
+extern char* get_expression_name (expression_db_t *expr);
+extern userval_info_t* get_expression_args (expression_db_t *expr);
 
 #endif

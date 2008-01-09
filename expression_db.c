@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <glib.h>
+
 #include "expression_db.h"
+#include "mathmap.h"
 
 static expression_db_t*
 new_expression_db (int kind)
@@ -198,7 +201,11 @@ free_expression_db (expression_db_t *edb)
 
 	free(edb->name);
 	if (edb->kind == EXPRESSION_DB_EXPRESSION)
+	{
 	    free(edb->v.expression.path);
+	    if (edb->v.expression.mathmap != NULL)
+		free_mathmap(edb->v.expression.mathmap);
+	}
 	else if (edb->kind == EXPRESSION_DB_GROUP)
 	    free_expression_db(edb->v.group.subs);
 	else
@@ -294,48 +301,53 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
     return edb1;
 }
 
-#define START_SIZE         1024
-
 char*
 read_expression (const char *path)
 {
-    FILE *file;
     char *expr;
-    size_t alloced, read;
-    size_t result;
 
-    file = fopen(path, "r");
-    if (file == 0)
+    if (!g_file_get_contents(path, &expr, NULL, NULL))
     {
 	fprintf(stderr, "Cannot read file `%s': %m\n", path);
-	return 0;
+	return NULL;
     }
 
-    expr = (char*)malloc(START_SIZE);
-    assert(expr != 0);
-    alloced = START_SIZE;
-    read = 0;
+    return expr;
+}
 
-    for (;;)
-    {
-	result = fread(expr + read, 1, alloced - read, file);
+static void
+fetch_expression_mathmap (expression_db_t *expr)
+{
+    char *source;
 
-	if (result == 0)
-	{
-	    fclose(file);
-	    expr[read] = '\0';
+    g_assert(expr->kind == EXPRESSION_DB_EXPRESSION);
 
-	    return expr;
-	}
+    if (expr->v.expression.mathmap != NULL)
+	return;
 
-	read += result;
-	assert(read <= alloced);
+    source = read_expression(expr->v.expression.path);
+    if (source == NULL)
+	return;
 
-	if (read == alloced)
-	{
-	    alloced *= 2;
-	    expr = realloc(expr, alloced);
-	    assert(expr != 0);
-	}
-    }
+    expr->v.expression.mathmap = parse_mathmap(source);
+
+    g_free(source);
+}
+
+char*
+get_expression_name (expression_db_t *expr)
+{
+    fetch_expression_mathmap(expr);
+    if (expr->v.expression.mathmap == NULL)
+	return NULL;
+    return expr->v.expression.mathmap->main_filter->decl->name;
+}
+
+userval_info_t*
+get_expression_args (expression_db_t *expr)
+{
+    fetch_expression_mathmap(expr);
+    if (expr->v.expression.mathmap == NULL)
+	return NULL;
+    return expr->v.expression.mathmap->main_filter->userval_infos;
 }

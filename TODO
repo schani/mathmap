@@ -1,11 +1,16 @@
 -*- outline -*-
 
-* 1.2.x
+* 1.3.1
 
-** Documentation/Homepage
-Update screenshots
+** Designer
+edges visible as they're dragged
+new nodes renamed when same name already exists
+don't let user add nodes that have color, curve or gradient arguments
 
-* later
+** Compiler
+mathmap crashes when using droste in designer
+
+* 1.3
 
 ** GIMP Plug-In
 auto-completion?
@@ -37,6 +42,7 @@ Real dependencies
 ** Examples
 
 ** Compiler
+catch duplicate filter names
 passing of colors, curves and gradients to filters
 filter call argument checking
 number*image must trigger an error!
