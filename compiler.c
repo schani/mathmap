@@ -71,6 +71,7 @@ typedef int type_t;
 
 typedef struct _compvar_t
 {
+    int index;
     variable_t *var;		/* 0 if compvar is a temporary */
     temporary_t *temp;		/* 0 if compvar is a variable */
     int n;			/* n/a if compvar is a temporary */
@@ -351,6 +352,7 @@ static pools_t compiler_pools;
 static operation_t ops[NUM_OPS];
 
 static int next_temp_number = 1;
+static int next_compvar_number = 1;
 
 static statement_t *first_stmt = NULL;
 static statement_t **emit_loc = &first_stmt;
@@ -478,6 +480,7 @@ make_temporary (type_t type)
     temp->number = next_temp_number++;
     temp->last_index = 0;
 
+    compvar->index = next_compvar_number++;
     compvar->var = 0;
     compvar->temp = temp;
     compvar->type = type;
@@ -493,6 +496,7 @@ make_variable (variable_t *var, int n)
     compvar_t *compvar = alloc_compvar();
     value_t *val = new_value(compvar);
 
+    compvar->index = next_compvar_number++;
     compvar->var = var;
     compvar->temp = 0;
     compvar->n = n;
@@ -5129,7 +5133,7 @@ output_value_name (FILE *out, value_t *value, int for_decl)
 #endif
 
 	if (value->compvar->var != 0)
-	    fprintf(out, "var_%s_%d_%d", value->compvar->var->name, value->compvar->n, value->index);
+	    fprintf(out, "var_%d_%d_%d", value->compvar->index, value->compvar->n, value->index);
 	else
 	    fprintf(out, "tmp_%d_%d", value->compvar->temp->number, value->index);
     }
@@ -5757,6 +5761,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     compvar_t *tuple_tmp, *dummy;
 
     next_temp_number = 1;
+    next_compvar_number = 1;
     next_value_global_index = 0;
     inlining_history = NULL;
 
