@@ -120,6 +120,7 @@ char*
 make_filter_source_from_designer_node (designer_node_t *root, const char *filter_name)
 {
     GSList *nodes = g_slist_prepend(NULL, root);
+    GSList *types = g_slist_prepend(NULL, root->type);
     GString *string;
     gboolean first;
     GSList *list;
@@ -143,6 +144,9 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
 		{
 		    nodes = g_slist_prepend(nodes, partner);
 		    finished = FALSE;
+
+		    if (g_slist_find(types, partner->type) == NULL)
+			types = g_slist_prepend(types, partner->type);
 		}
 	    }
 	}
@@ -154,10 +158,10 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
     string = g_string_new("");
 
     /* include all the filter sources */
-    for (list = nodes; list != NULL; list = list->next)
+    for (list = types; list != NULL; list = list->next)
     {
-	designer_node_t *node = list->data;
-	expression_db_t *edb = node->type->data;
+	designer_node_type_t *type = list->data;
+	expression_db_t *edb = type->data;
 	const char *path = edb->v.expression.path;
 	char *source;
 
@@ -165,7 +169,7 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
 
 	if (!g_file_get_contents(path, &source, NULL, NULL))
 	{
-	    /* FIXME: free string! */
+	    /* FIXME: free string and lists! */
 	    return NULL;
 	}
 
@@ -211,6 +215,7 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
     g_string_append(string, "(xy)\nend\n");
 
     g_slist_free(nodes);
+    g_slist_free(types);
     g_slist_free(computed_nodes);
 
     return g_string_free(string, FALSE);
