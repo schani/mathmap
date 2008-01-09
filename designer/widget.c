@@ -45,7 +45,7 @@
 #define OUTPUT_SLOT_COLOR		"yellow"
 #define OUTPUT_SLOT_NAME_COLOR		"white"
 #define CLOSE_BUTTON_COLOR		"red"
-#define EDGE_COLOR			"blue"
+#define EDGE_COLOR			"green"
 
 typedef struct
 {
@@ -57,6 +57,7 @@ typedef struct
     double x;
     double y;
     GnomeCanvasItem *slot;
+    GnomeCanvasItem *bpath;
     GtkObject *destroy_object;
     designer_design_changed_callback_t design_changed_callback;
     designer_node_focussed_callback_t node_focussed_callback;
@@ -70,29 +71,44 @@ signal_design_change (widget_data_t *data)
 }
 
 static void
-set_bpath_path (GnomeCanvasItem *bpath)
+set_bpath_path_from_to (GnomeCanvasItem *bpath, double x1, double y1, double x2, double y2)
 {
-    GnomeCanvasItem *slot1 = g_object_get_data(G_OBJECT(bpath), "slot1");
-    GnomeCanvasItem *slot2 = g_object_get_data(G_OBJECT(bpath), "slot2");
     GnomeCanvasPathDef *path_def;
-    double x1, x2, y1, y2;
-
-    g_assert(slot1 != NULL && slot2 != NULL);
-
-    g_object_get(slot1, "x1", &x1, "y1", &y1, NULL);
-    gnome_canvas_item_i2w(slot1, &x1, &y1);
-
-    g_object_get(slot2, "x1", &x2, "y1", &y2, NULL);
-    gnome_canvas_item_i2w(slot2, &x2, &y2);
 
     path_def = gnome_canvas_path_def_new ();
 
-    gnome_canvas_path_def_moveto(path_def, x1 + SLOT_RADIUS, y1 + SLOT_RADIUS);
-    gnome_canvas_path_def_lineto(path_def, x2 + SLOT_RADIUS, y2 + SLOT_RADIUS);
+    gnome_canvas_path_def_moveto(path_def, x1, y1);
+    gnome_canvas_path_def_lineto(path_def, x2, y2);
 
     g_object_set(bpath, "bpath", path_def, NULL);
 
     gnome_canvas_path_def_unref(path_def);
+}
+
+static void
+set_bpath_single_slot_path (GnomeCanvasItem *bpath, GnomeCanvasItem *slot1, double x2, double y2)
+{
+    double x1, y1;
+
+    g_object_get(slot1, "x1", &x1, "y1", &y1, NULL);
+    gnome_canvas_item_i2w(slot1, &x1, &y1);
+
+    set_bpath_path_from_to(bpath, x1 + SLOT_RADIUS, y1 + SLOT_RADIUS, x2, y2);
+}
+
+static void
+set_bpath_path (GnomeCanvasItem *bpath)
+{
+    GnomeCanvasItem *slot1 = g_object_get_data(G_OBJECT(bpath), "slot1");
+    GnomeCanvasItem *slot2 = g_object_get_data(G_OBJECT(bpath), "slot2");
+    double x2, y2;
+
+    g_assert(slot1 != NULL && slot2 != NULL);
+
+    g_object_get(slot2, "x1", &x2, "y1", &y2, NULL);
+    gnome_canvas_item_i2w(slot2, &x2, &y2);
+
+    set_bpath_single_slot_path(bpath, slot1, x2 + SLOT_RADIUS, y2 + SLOT_RADIUS);
 }
 
 static void
@@ -284,11 +300,27 @@ get_edge_data (GnomeCanvasItem **slot1, GnomeCanvasItem **slot2,
 }
 
 static GnomeCanvasItem*
-make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, widget_data_t *data)
+make_edge_bpath (GnomeCanvas *canvas)
+{
+    GnomeCanvasItem *bpath;
+
+    bpath = gnome_canvas_item_new(gnome_canvas_root(canvas),
+				  gnome_canvas_bpath_get_type(),
+				  "outline_color", EDGE_COLOR,
+				  "width_pixels", 5,
+				  "cap_style", GDK_CAP_ROUND,
+				  NULL);
+
+    return bpath;
+}
+
+static GnomeCanvasItem*
+make_edge (GnomeCanvas *canvas, GnomeCanvasItem *bpath,
+	   GnomeCanvasItem *slot1, GnomeCanvasItem *slot2,
+	   widget_data_t *data)
 {
     GnomeCanvasItem *output_slot = slot1;
     GnomeCanvasItem *input_slot = slot2;
-    GnomeCanvasItem *bpath;
     designer_node_t *output_node, *input_node;
     char *output_node_name, *input_node_name;
     GSList *bpaths;
@@ -298,13 +330,6 @@ make_edge (GnomeCanvas *canvas, GnomeCanvasItem *slot1, GnomeCanvasItem *slot2, 
 
     if (!designer_connect_nodes(output_node, output_node_name, input_node, input_node_name))
 	return NULL;
-
-    bpath = gnome_canvas_item_new(gnome_canvas_root(canvas),
-				  gnome_canvas_bpath_get_type(),
-				  "outline_color", EDGE_COLOR,
-				  "width_pixels", 5,
-				  "cap_style", GDK_CAP_ROUND,
-				  NULL);
 
     g_object_set_data(G_OBJECT(bpath), "slot1", output_slot);
     g_object_set_data(G_OBJECT(bpath), "slot2", input_slot);
@@ -511,6 +536,12 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 
 		g_assert(data->slot == NULL);
 		data->slot = slot;
+
+		g_assert(data->bpath == NULL);
+		data->bpath = make_edge_bpath(data->canvas);
+
+		set_bpath_single_slot_path(data->bpath, data->slot, event->button.x, event->button.y);
+
 		return TRUE;
 	    }
 	    break;
@@ -518,6 +549,10 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 	case GDK_MOTION_NOTIFY :
 	    if (data->slot != NULL)
 	    {
+		g_assert(data->bpath != NULL);
+
+		set_bpath_single_slot_path(data->bpath, data->slot, event->button.x, event->button.y);
+
 		return TRUE;
 	    }
 	    break;
@@ -536,11 +571,19 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 			if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(other_slot), "slot-is-input")))
 			    remove_slot_edge(other_slot, data);
 			do_destroy_object(data);
-			make_edge(data->canvas, data->slot, other_slot, data);
+			if (make_edge(data->canvas, data->bpath, data->slot, other_slot, data) != NULL)
+			    data->bpath = NULL;
 			signal_design_change(data);
 		    }
 
+		    if (data->bpath != NULL)
+		    {
+			gtk_object_destroy(GTK_OBJECT(data->bpath));
+			data->bpath = NULL;
+		    }
+
 		    data->slot = NULL;
+		    data->bpath = NULL;
 		    return TRUE;
 		}
 	    }
