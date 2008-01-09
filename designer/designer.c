@@ -324,6 +324,22 @@ designer_node_get_input_slot (designer_node_t *node, const char *name)
     return NULL;
 }
 
+designer_node_type_t*
+designer_get_node_type_by_name (designer_design_type_t *design_type, const char *name)
+{
+    GSList *list;
+
+    for (list = design_type->node_types; list != NULL; list = list->next)
+    {
+	designer_node_type_t *type = list->data;
+
+	if (strcmp(type->name, name) == 0)
+	    return type;
+    }
+
+    return NULL;
+}
+
 designer_node_t*
 designer_get_node_by_name (designer_design_t *design, const char *name)
 {

@@ -2511,7 +2511,9 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	const gchar *name;
 	designer_design_t *design;
 	designer_node_t *node;
+	designer_node_type_t *type;
 	int i;
+	userval_info_t *infos;
 
 	gtk_tree_model_get_value(model, &iter, 2, &value);
 	name = g_value_get_string(&value);
@@ -2519,6 +2521,26 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	    return;
 
 	design = get_current_design();
+
+	type = designer_get_node_type_by_name(design->type, name);
+	g_assert(type != NULL);
+
+	infos = get_expression_args(type->data);
+	while (infos != NULL)
+	{
+	    if (infos->type == USERVAL_COLOR || infos->type == USERVAL_CURVE || infos->type == USERVAL_GRADIENT)
+	    {
+		char *message = g_strdup_printf(_("The filter `%s' cannot be used in the composer in this unstable MathMap release because it takes color, curve or gradient arguments."), name);
+
+		gimp_message(message);
+
+		g_free(message);
+
+		return;
+	    }
+
+	    infos = infos->next;
+	}
 
 	i = 1;
 	node = NULL;
