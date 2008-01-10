@@ -125,10 +125,12 @@
 			      (if (null var)
 				  (lookup-arg name)
 				  (values (second var) (third var) (fourth var) (fifth var)))))
-			  (make-allocated (name allocatedp)
-			    (if allocatedp
-				""
-				(format nil "~A = make_temporary(TYPE_INT);~%" name)))
+			  (make-allocated (name allocatedp &key type)
+			    (let ((type (if (null type) (rt-type-with-name 'int) type)))
+			      (if allocatedp
+				  ""
+				  (format nil "~A = make_temporary(~A);~%" name
+					  (rt-type-c-define type)))))
 			  ;; returns type, length, c-type
 			  (expr-type (expr)
 			    (case-match expr
@@ -178,10 +180,10 @@
 				 (format nil "compvar_t *~A[~A];" name length))
 				(t
 				 (error "cannot declare expr ~A of type ~A" expr type)))))
-			  (gen-op (op-name args lval allocatedp gen-sub)
+			  (gen-op (op-name args type lval allocatedp gen-sub)
 			    (let ((arg-names (mapcar #'(lambda (x) (make-tmp-name)) args)))
 			      (format nil "~A{~%~@[compvar_t ~{*~A~^, ~};~%~]~{~A~}emit_assign(make_lhs(~A), make_op_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
-				      (make-allocated lval allocatedp)
+				      (make-allocated lval allocatedp :type type)
 				      arg-names
 				      (mapcar #'(lambda (arg name) (funcall gen-sub arg name nil)) args arg-names)
 				      lval op-name arg-names)))
@@ -220,7 +222,7 @@
 			      ((?op . ?args)
 			       (let ((op-entry (lookup-op op (length args) *primops*)))
 				 (if (not (null op-entry))
-				     (values (gen-op (third op-entry) args lval allocatedp #'gen-primary)
+				     (values (gen-op (third op-entry) args (fifth op-entry) lval allocatedp #'gen-primary)
 					     (fifth op-entry))
 				     (error "unknown primop ~A/~A" op (length args)))))
 			      (pi
@@ -274,7 +276,7 @@
 			       (let ((op-entry (lookup-op op (length args) *ops*)))
 				 (if (not (null op-entry))
 				     (gen-op (third op-entry)
-					     args lval allocatedp
+					     args (fifth op-entry) lval allocatedp
 					     #'(lambda (arg name allocatedp) (gen-expr-nth arg name allocatedp n)))
 				     (error "unknown op ~A" op))))
 			      (?var
@@ -315,7 +317,7 @@
 			      ((?op . ?args)
 			       (let ((op-entry (lookup-op op (length args) *condops*)))
 				 (if (not (null op-entry))
-				     (gen-op (third op-entry) args lval allocatedp #'gen-primary)
+				     (gen-op (third op-entry) args (fifth op-entry) lval allocatedp #'gen-primary)
 				     (error "unknown condition op ~A" op))))
 			      (t
 			       (error "unknown condition ~A"))))

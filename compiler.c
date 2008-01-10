@@ -490,6 +490,14 @@ make_temporary (type_t type)
     return compvar;
 }
 
+static int
+compiler_type_from_tuple_info (tuple_info_t *info)
+{
+    if (info->number == image_tag_number && info->length == 1)
+	return TYPE_IMAGE;
+    return TYPE_INT;
+}
+
 compvar_t*
 make_variable (variable_t *var, int n)
 {
@@ -500,7 +508,7 @@ make_variable (variable_t *var, int n)
     compvar->var = var;
     compvar->temp = 0;
     compvar->n = n;
-    compvar->type = TYPE_INT;
+    compvar->type = compiler_type_from_tuple_info(&var->type);
     compvar->current = val;
     compvar->values = val;
 
@@ -2056,7 +2064,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		if (!is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
-			dest[i] = make_temporary(TYPE_INT);
+			dest[i] = make_temporary(compiler_type_from_tuple_info(&tree->result));
 
 		tree->val.func.entry->v.builtin_generator(args, arglengths, argnumbers, dest);
 	    }
@@ -2080,7 +2088,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t **result = (compvar_t**)alloca(tree->result.length * sizeof(compvar_t*));
 
 		for (i = 0; i < tree->result.length; ++i)
-		    result[i] = make_temporary(TYPE_INT);
+		    result[i] = make_temporary(compiler_type_from_tuple_info(&tree->result));
 
 		gen_code(tree->val.ifExpr.condition, &condition, 0);
 
