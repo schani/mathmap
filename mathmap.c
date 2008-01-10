@@ -1713,11 +1713,13 @@ mathmap_dialog (int mutable_expression)
 	hpaned = gtk_hpaned_new();
 
 	designer_tree_scrolled_window = make_tree_scrolled_window();
+	gtk_widget_set_size_request(designer_tree_scrolled_window, 150, 200);
 	update_expression_tree_from_edb(designer_tree_scrolled_window, get_designer_edb(),
 					G_CALLBACK(designer_tree_callback));
 	gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
 
 	designer_widget = designer_widget_new(get_current_design(), design_changed_callback, node_focussed_callback);
+	gtk_widget_set_size_request(designer_widget, 400, 400);
 	gtk_paned_add2(GTK_PANED(hpaned), designer_widget);
 
 	gtk_widget_show(hpaned);
