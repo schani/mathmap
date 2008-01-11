@@ -9,13 +9,11 @@
 ** Compiler
 
 ** Filters
+ident
 compositing
 gimp layer modes
-set alpha layer
-gray
 tint
 brightness/contrast
-invert
 unit hue mandelbrot
 time (invert, scale)
 
