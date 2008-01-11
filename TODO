@@ -11,12 +11,13 @@
 ** Filters
 compositing
 gimp layer modes
-set alpha
+set alpha layer
+gray
 tint
 brightness/contrast
 invert
-size/translate/rotate
 unit hue mandelbrot
+time (invert, scale)
 
 * 1.3
 
@@ -39,6 +40,7 @@ filters as first class values
 Colors as definable user values
 
 ** General
+Logarithmic sliders
 Debug tuples
 Better source reference for error messages
 
