@@ -6185,6 +6185,8 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     unlink(log_filename);
     g_free(log_filename);
 
+    forget_ir_code(mathmap);
+
     return initfunc;
 }
 
