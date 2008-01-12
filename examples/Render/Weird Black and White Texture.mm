@@ -6,5 +6,5 @@ filter wbawt (float granularity: 0-50 (10),
     nxy = xy*granularity;
     n=noise([nxy[0]/2,    nxy[1],    z1]) +
       noise([nxy[0]/2*f2, nxy[1]*f2, z2]) * w2;
-    grayColor((n-threshold) * contrast)
+    grayColor(clamp((n-threshold) * contrast, 0, 1))
 end
