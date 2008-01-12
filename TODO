@@ -11,8 +11,6 @@
 ** Filters
 ident
 gimp layer modes
-tint
-brightness/contrast
 unit hue mandelbrot
 time (invert, scale)
 
