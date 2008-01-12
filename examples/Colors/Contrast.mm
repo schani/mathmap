@@ -1,4 +1,4 @@
-filter color_contrast (image in, float contrast: -1-1)
+filter color_contrast (image in, float contrast: -1-1 (0))
   p = in(xy);
   slant = tan((contrast + 0.9999) * (pi / 4));
   v = (p - 0.5) * slant + 0.5;
