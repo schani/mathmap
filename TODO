@@ -4,6 +4,9 @@
 
 ** General
 
+** Packaging
+document canvas dependency
+
 ** Designer
 
 ** Compiler
@@ -12,7 +15,6 @@
 ident
 gimp layer modes
 unit hue mandelbrot
-time (invert, scale)
 
 * 1.3.x
 
