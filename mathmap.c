@@ -750,8 +750,6 @@ design_changed_callback (GtkWidget *widget, designer_design_t *design)
 {
     designer_node_t *node = designer_widget_get_focussed_node(widget);
 
-    g_print("design changed\n");
-
     if (node != NULL)
 	node_focussed_callback(widget, node);
 }

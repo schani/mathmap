@@ -3,7 +3,7 @@
 %define _langdir %{_datadir}/gtksourceview-1.0/language-specs
 
 Name:           mathmap
-Version:        1.3.0
+Version:        1.3.1
 Release:        1
 License:        GPL
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -25,6 +25,7 @@ BuildRequires: gimp-devel
 BuildRequires: gimp
 BuildRequires: make
 BuildRequires: gtksourceview-devel
+BuildRequires: libgnomecanvas-devel
 %if %{?suse_version:1}0
 %if %suse_version > 1020
 BuildRequires: gtksourceview18-devel
@@ -74,6 +75,9 @@ rm -rf "$RPM_BUILD_ROOT"
 %{_mathmapdir}
 
 %changelog
+* Sun Jan 13 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.1
+- Update for version 1.3.1
+
 * Tue Jan 01 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.0
 - Update for version 1.3.0
 

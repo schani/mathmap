@@ -469,8 +469,6 @@ get_slot_at (GnomeCanvas *canvas, double x, double y)
     GList *node_list;
     GnomeCanvasGroup *root = gnome_canvas_root(canvas);
 
-    g_print("looking for slot at %g:%g\n", x, y);
-
     /* Walk through all the canvas items to find nodes */
     for (node_list = root->item_list; node_list != NULL; node_list = node_list->next)
     {
@@ -492,8 +490,6 @@ get_slot_at (GnomeCanvas *canvas, double x, double y)
 
 		    gnome_canvas_item_i2w(item, &x1, &y1);
 		    gnome_canvas_item_i2w(item, &x2, &y2);
-
-		    g_print("slot at %g:%g - %g:%g\n", x1, y1, x2, y2);
 
 		    if (x >= x1 && x <= x2 && y >= y1 && y <= y2)
 			return item;
@@ -561,7 +557,6 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 	    do_destroy_object(data);
 	    if (event->button.button == 1)
 	    {
-		printf("slot released\n");
 		if (data->slot != NULL)
 		{
 		    GnomeCanvasItem *other_slot = get_slot_at(data->canvas, event->button.x, event->button.y);

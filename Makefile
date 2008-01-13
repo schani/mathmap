@@ -37,8 +37,8 @@ LOCALEDIR = $(PREFIX)/share/locale
 
 VERSION = 1.3.1
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g -DDEBUG_OUTPUT
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -190,6 +190,8 @@ dist : new_builtins.c parser.c scanner.c clean
 	mkdir mathmap-$(VERSION)/generators
 	mkdir mathmap-$(VERSION)/generators/blender
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender
+	mkdir mathmap-$(VERSION)/designer
+	cp designer/*.[ch] mathmap-$(VERSION)/designer
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	mkdir mathmap-$(VERSION)/pixmaps
