@@ -111,6 +111,9 @@ extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, con
 extern designer_node_type_t* designer_get_node_type_by_name (designer_design_type_t *design_type, const char *name);
 extern designer_node_t* designer_get_node_by_name (designer_design_t *design, const char *name);
 
+extern designer_design_t* designer_load_design (designer_design_type_t *design_type, const char *filename);
+extern gboolean designer_save_design (designer_design_t *design, const char *filename);
+
 extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_design_changed_callback_t design_changed_callback,
 				       designer_node_focussed_callback_t node_focussed_callback);
