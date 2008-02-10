@@ -33,7 +33,8 @@ designer_load_design (designer_design_type_t *design_type, const char *filename)
 }
 
 gboolean
-designer_save_design (designer_design_t *design, const char *filename)
+designer_save_design (designer_design_t *design, const char *filename,
+		      designer_node_aux_print_func_t aux_print, gpointer user_data)
 {
     FILE *out = fopen(filename, "w");
     GSList *list;
@@ -78,7 +79,15 @@ designer_save_design (designer_design_t *design, const char *filename)
 	}
 	lisp_print_close_paren(out);
 
+	if (aux_print != NULL)
+	{
+	    lisp_print_symbol(":aux", out);
+	    aux_print(node, user_data, out);
+	}
+
 	lisp_print_close_paren(out);
+
+	fputc('\n', out);
     }
 
     lisp_print_close_paren(out);

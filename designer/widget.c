@@ -27,6 +27,8 @@
 #include <gtk/gtk.h>
 #include <libgnomecanvas/libgnomecanvas.h>
 
+#include "../lispreader/lispreader.h"
+
 #include "designer.h"
 
 #define SLOT_RADIUS			5.0
@@ -501,6 +503,20 @@ get_slot_at (GnomeCanvas *canvas, double x, double y)
     return NULL;
 }
 
+static GnomeCanvasGroup*
+get_group_for_node (GnomeCanvas *canvas, designer_node_t *node)
+{
+    GList *node_list;
+    GnomeCanvasGroup *root = gnome_canvas_root(canvas);
+
+    /* Walk through all the canvas items to find nodes */
+    for (node_list = root->item_list; node_list != NULL; node_list = node_list->next)
+	if (g_object_get_data(G_OBJECT(node_list->data), "node") == node)
+	    return GNOME_CANVAS_GROUP(node_list->data);
+
+    return NULL;
+}
+
 static void
 remove_slot_edge (GnomeCanvasItem *slot, widget_data_t *data)
 {
@@ -842,6 +858,28 @@ designer_widget_get_focussed_node (GtkWidget *widget)
 	return NULL;
 
     return group_get_node(data->focussed);
+}
+
+void
+designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out)
+{
+    GtkWidget *widget = user_data;
+    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+    GnomeCanvasGroup *group = get_group_for_node (data->canvas, node);
+    double x, y;
+
+    g_assert(group != NULL);
+
+    lisp_print_open_paren(out);
+
+    g_object_get(group, "x", &x, "y", &y, NULL);
+
+    lisp_print_symbol(":x", out);
+    lisp_print_real(x, out);
+    lisp_print_symbol(":y", out);
+    lisp_print_real(y, out);
+
+    lisp_print_close_paren(out);
 }
 
 #ifdef DESIGNER_TEST

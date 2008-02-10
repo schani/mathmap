@@ -753,7 +753,7 @@ design_changed_callback (GtkWidget *widget, designer_design_t *design)
     if (node != NULL)
 	node_focussed_callback(widget, node);
 
-    designer_save_design(design, "/tmp/design.mmc");
+    designer_save_design(design, "/tmp/design.mmc", &designer_widget_node_aux_print, designer_widget);
 }
 
 /*****/
