@@ -23,6 +23,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <gtk/gtk.h>
 #include <libgnomecanvas/libgnomecanvas.h>
@@ -54,6 +55,8 @@ typedef struct
     designer_design_t *design;
     GtkWidget *widget;
     GnomeCanvas *canvas;
+    GtkWidget *hscrollbar;
+    GtkWidget *vscrollbar;
     GnomeCanvasGroup *focussed;
     gboolean dragging;
     double x;
@@ -292,11 +295,15 @@ get_edge_data (GnomeCanvasItem **slot1, GnomeCanvasItem **slot2,
 	*slot2 = tmp;
     }
 
-    *output_node = slot_get_node(*slot1);
-    *output_slot_name = g_object_get_data(G_OBJECT(*slot1), "slot-name");
+    if (output_node != NULL)
+	*output_node = slot_get_node(*slot1);
+    if (output_slot_name != NULL)
+	*output_slot_name = g_object_get_data(G_OBJECT(*slot1), "slot-name");
 
-    *input_node = slot_get_node(*slot2);
-    *input_slot_name = g_object_get_data(G_OBJECT(*slot2), "slot-name");
+    if (input_node != NULL)
+	*input_node = slot_get_node(*slot2);
+    if (input_slot_name != NULL)
+	*input_slot_name = g_object_get_data(G_OBJECT(*slot2), "slot-name");
 
     return TRUE;
 }
@@ -316,6 +323,23 @@ make_edge_bpath (GnomeCanvas *canvas)
     return bpath;
 }
 
+static gboolean
+connect_edge (GnomeCanvasItem *slot1, GnomeCanvasItem *slot2)
+{
+    GnomeCanvasItem *output_slot = slot1;
+    GnomeCanvasItem *input_slot = slot2;
+    designer_node_t *output_node, *input_node;
+    char *output_node_name, *input_node_name;
+
+    if (!get_edge_data(&output_slot, &input_slot, &output_node, &output_node_name, &input_node, &input_node_name))
+	return FALSE;
+
+    if (!designer_connect_nodes(output_node, output_node_name, input_node, input_node_name))
+	return FALSE;
+
+    return TRUE;
+}
+
 static GnomeCanvasItem*
 make_edge (GnomeCanvas *canvas, GnomeCanvasItem *bpath,
 	   GnomeCanvasItem *slot1, GnomeCanvasItem *slot2,
@@ -323,14 +347,9 @@ make_edge (GnomeCanvas *canvas, GnomeCanvasItem *bpath,
 {
     GnomeCanvasItem *output_slot = slot1;
     GnomeCanvasItem *input_slot = slot2;
-    designer_node_t *output_node, *input_node;
-    char *output_node_name, *input_node_name;
     GSList *bpaths;
 
-    if (!get_edge_data(&output_slot, &input_slot, &output_node, &output_node_name, &input_node, &input_node_name))
-	return NULL;
-
-    if (!designer_connect_nodes(output_node, output_node_name, input_node, input_node_name))
+    if (!get_edge_data(&output_slot, &input_slot, NULL, NULL, NULL, NULL))
 	return NULL;
 
     g_object_set_data(G_OBJECT(bpath), "slot1", output_slot);
@@ -517,6 +536,22 @@ get_group_for_node (GnomeCanvas *canvas, designer_node_t *node)
     return NULL;
 }
 
+static GnomeCanvasItem*
+get_item_for_slot (GnomeCanvasGroup *group, designer_slot_spec_t *spec)
+{
+    GList *node_list;
+
+    for (node_list = group->item_list; node_list != NULL; node_list = node_list->next)
+    {
+	char *name = g_object_get_data(G_OBJECT(node_list->data), "slot-name");
+
+	if (name != NULL && strcmp(name, spec->name) == 0)
+	    return GNOME_CANVAS_ITEM(node_list->data);
+    }
+
+    return NULL;
+}
+
 static void
 remove_slot_edge (GnomeCanvasItem *slot, widget_data_t *data)
 {
@@ -582,8 +617,15 @@ root_event (GnomeCanvasGroup *root, GdkEvent *event, widget_data_t *data)
 			if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(other_slot), "slot-is-input")))
 			    remove_slot_edge(other_slot, data);
 			do_destroy_object(data);
-			if (make_edge(data->canvas, data->bpath, data->slot, other_slot, data) != NULL)
+			if (connect_edge(data->slot, other_slot))
+			{
+			    GnomeCanvasItem *edge;
+
+			    edge = make_edge(data->canvas, data->bpath, data->slot, other_slot, data);
+			    g_assert(edge != NULL);
+
 			    data->bpath = NULL;
+			}
 			signal_design_change(data);
 		    }
 
@@ -643,7 +685,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     g_assert(font_desc != NULL);
 
     get_text_size(node->name, GTK_WIDGET(canvas), font_desc, &title_width, &title_height);
-    get_text_size("Akyg", GTK_WIDGET(canvas), font_desc, &dummy, &line_text_height);
+    get_text_size("Akygl", GTK_WIDGET(canvas), font_desc, &dummy, &line_text_height);
 
     line_height = MAX(SLOT_DIAMETER, line_text_height);
 
@@ -777,13 +819,11 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
     return group;
 }
 
-GtkWidget*
-designer_widget_new (designer_design_t *design,
-		     designer_design_changed_callback_t design_changed_callback,
-		     designer_node_focussed_callback_t node_focussed_callback)
+static void
+populate_table (widget_data_t *data)
 {
-    GtkWidget *canvas, *table, *w;
-    widget_data_t *data;
+    GtkWidget *table = data->widget;
+    GtkWidget *canvas, *w;
 
     canvas = gnome_canvas_new();
 
@@ -791,11 +831,7 @@ designer_widget_new (designer_design_t *design,
     gnome_canvas_set_scroll_region(GNOME_CANVAS(canvas), 0, 0, CANVAS_PADDING, CANVAS_PADDING);
 
     gtk_widget_show(canvas);
-
-    table = gtk_table_new (2, 2, FALSE);
-    gtk_table_set_row_spacings (GTK_TABLE (table), 4);
-    gtk_table_set_col_spacings (GTK_TABLE (table), 4);
-    gtk_widget_show (table);
+    data->canvas = GNOME_CANVAS(canvas);
 
     gtk_table_attach (GTK_TABLE (table), canvas,
 		      0, 1, 0, 1,
@@ -810,6 +846,7 @@ designer_widget_new (designer_design_t *design,
 		      GTK_FILL,
 		      0, 0);
     gtk_widget_show (w);
+    data->hscrollbar = w;
 
     w = gtk_vscrollbar_new (GTK_LAYOUT (canvas)->vadjustment);
     gtk_table_attach (GTK_TABLE (table), w,
@@ -818,17 +855,86 @@ designer_widget_new (designer_design_t *design,
 		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
 		      0, 0);
     gtk_widget_show (w);
+    data->vscrollbar = w;
+}
+
+static void
+populate_canvas (widget_data_t *data)
+{
+    GSList *list;
+
+    /* create the nodes first */
+    for (list = data->design->nodes; list != NULL; list = list->next)
+    {
+	designer_node_t *node = list->data;
+
+#ifdef DEBUG_OUTPUT
+	g_print("adding node %s\n", node->name);
+#endif
+
+	make_node (data->canvas, node, 10.0, 10.0, data);
+    }
+
+    /* now connect the slots */
+    for (list = data->design->nodes; list != NULL; list = list->next)
+    {
+	designer_node_t *node = list->data;
+	GnomeCanvasGroup *node_group = get_group_for_node(data->canvas, node);
+	GSList *slot_list;
+	int i;
+
+	g_assert(node_group != NULL);
+
+	for (i = 0, slot_list = node->type->input_slot_specs;
+	     slot_list != NULL;
+	     ++i, slot_list = slot_list->next)
+	{
+	    if (node->input_slots[i].partner != NULL)
+	    {
+		GnomeCanvasGroup *partner_group = get_group_for_node(data->canvas, node->input_slots[i].partner);
+		GnomeCanvasItem *node_slot = get_item_for_slot(node_group, slot_list->data);
+		GnomeCanvasItem *partner_slot = get_item_for_slot(partner_group, node->input_slots[i].partner_slot_spec);
+		GnomeCanvasItem *bpath, *edge;
+
+		g_assert(partner_group != NULL);
+		g_assert(node_slot != NULL);
+		g_assert(partner_slot != NULL);
+
+		bpath = make_edge_bpath(data->canvas);
+		edge = make_edge(data->canvas, make_edge_bpath(data->canvas), node_slot, partner_slot, data);
+		g_assert(edge != NULL);
+	    }
+	}
+    }
+}
+
+GtkWidget*
+designer_widget_new (designer_design_t *design,
+		     designer_design_changed_callback_t design_changed_callback,
+		     designer_node_focussed_callback_t node_focussed_callback)
+{
+    GtkWidget *table;
+    widget_data_t *data;
 
     data = g_new0(widget_data_t, 1);
     data->design = design;
+
+    table = gtk_table_new (2, 2, FALSE);
+    gtk_table_set_row_spacings (GTK_TABLE (table), 4);
+    gtk_table_set_col_spacings (GTK_TABLE (table), 4);
+    gtk_widget_show (table);
+
     data->widget = table;
-    data->canvas = GNOME_CANVAS(canvas);
+
+    populate_table(data);
+    populate_canvas(data);
+
     data->design_changed_callback = design_changed_callback;
     data->node_focussed_callback = node_focussed_callback;
 
     g_object_set_data(G_OBJECT(table), "designer-data", data);
 
-    g_signal_connect(gnome_canvas_root(GNOME_CANVAS(canvas)), "event", G_CALLBACK(root_event), data);
+    g_signal_connect(gnome_canvas_root(data->canvas), "event", G_CALLBACK(root_event), data);
 
     return table;
 }
@@ -861,10 +967,58 @@ designer_widget_get_focussed_node (GtkWidget *widget)
 }
 
 void
+designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+
+    g_assert(data != NULL);
+
+    gtk_container_remove(GTK_CONTAINER(widget), GTK_WIDGET(data->canvas));
+    gtk_container_remove(GTK_CONTAINER(widget), data->hscrollbar);
+    gtk_container_remove(GTK_CONTAINER(widget), data->vscrollbar);
+
+    data->canvas = NULL;
+    data->hscrollbar = data->vscrollbar = NULL;
+
+    data->design = design;
+
+    populate_table(data);
+    populate_canvas(data);
+}
+
+void
+designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data)
+{
+    GtkWidget *widget = GTK_WIDGET(user_data);
+
+#ifdef DEBUG_OUTPUT
+    g_print("design loaded\n");
+#endif
+
+    designer_widget_set_design(widget, design);
+}
+
+void
+designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *obj, gpointer user_data)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
+    lisp_object_t *x = lisp_proplist_lookup_symbol(obj, ":x");
+    lisp_object_t *y = lisp_proplist_lookup_symbol(obj, ":y");
+    GnomeCanvasGroup *group;
+
+    g_assert(lisp_number_p(x) && lisp_number_p(y));
+
+    group = get_group_for_node(data->canvas, node);
+    g_assert(group != NULL);
+
+    gnome_canvas_item_move(GNOME_CANVAS_ITEM(group), lisp_real(x), lisp_real(y));
+    update_node_edges(group);
+}
+
+void
 designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out)
 {
-    GtkWidget *widget = user_data;
-    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+    widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
     GnomeCanvasGroup *group = get_group_for_node (data->canvas, node);
     double x, y;
 

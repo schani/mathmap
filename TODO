@@ -4,6 +4,11 @@
 
 ** General
 don't try interpreter as long as it doesn't work
+memory leak when animating:
+  http://groups.google.com/group/mathmap/msg/51152c5af32fb3d2
+
+** GIMP Plug-In
+rename "Examples" to "Filters"
 
 ** Language
 HSL color space

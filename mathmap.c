@@ -118,6 +118,8 @@ extern int yyparse (void);
 
 static void update_userval_table (void);
 
+static void load_design (const char *filename);
+
 static void update_gradient (void);
 static gint mathmap_dialog (int);
 static void dialog_update_preview (void);
@@ -718,19 +720,50 @@ get_designer_edb (void)
     return edb;
 }
 
+static designer_design_type_t *the_design_type = NULL;
+static designer_design_t *the_current_design = NULL;
+
+static designer_design_type_t*
+get_design_type (void)
+{
+    if (the_design_type == NULL)
+	the_design_type = design_type_from_expression_db(get_designer_edb());
+    return the_design_type;
+}
+
 static designer_design_t*
 get_current_design (void)
 {
-    static designer_design_type_t *the_design_type = NULL;
-    static designer_design_t *the_design = NULL;
+    designer_design_type_t *design_type = get_design_type();
 
-    if (the_design_type == NULL)
-	the_design_type = design_type_from_expression_db(get_designer_edb());
+    if (the_current_design == NULL)
+	the_current_design = designer_make_design(design_type);
+    return the_current_design;
+}
 
-    if (the_design == NULL)
-	the_design = designer_make_design(the_design_type);
+static void
+load_design (const char *filename)
+{
+    designer_design_t *design;
 
-    return the_design;
+    design = designer_load_design(get_design_type(), filename,
+				  &designer_widget_design_loaded_callback,
+				  &designer_widget_node_aux_load_callback,
+				  designer_widget);
+
+    if (design == NULL)
+    {
+	char *message = g_strdup_printf(_("Cannot read composer file `%s'"), filename);
+
+	gimp_message(message);
+	g_free(message);
+
+	return;
+    }
+
+    /* FIXME: free old design */
+
+    the_current_design = design;
 }
 
 static void
@@ -1732,6 +1765,8 @@ mathmap_dialog (int mutable_expression)
 
     if (!mutable_expression)
 	dialog_update_preview();
+
+    load_design("/tmp/design.mmc");
 
     gtk_widget_show(dialog);
 

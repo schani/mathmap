@@ -22,14 +22,144 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "../lispreader/lispreader.h"
-
 #include "designer.h"
 
 designer_design_t*
-designer_load_design (designer_design_type_t *design_type, const char *filename)
+designer_load_design (designer_design_type_t *design_type, const char *filename,
+		      designer_design_loaded_callback_t loaded_callback,
+		      designer_node_aux_load_callback_t aux_load,
+		      gpointer user_data)
 {
-    return NULL;
+    lisp_stream_t stream;
+    designer_design_t *design;
+    lisp_object_t *obj;
+    lisp_object_t *node_list, *iter;
+
+    if (lisp_stream_init_path(&stream, filename) == NULL)
+	return NULL;
+    obj = lisp_read(&stream);
+    lisp_stream_free_path(&stream);
+
+    if (!lisp_match_string("(design . #?(list))", obj, &node_list))
+    {
+	lisp_free(obj);
+	return NULL;
+    }
+
+    design = designer_make_design(design_type);
+    g_assert (design != NULL);
+
+    /* Add all the nodes first */
+    iter = node_list;
+    while (!lisp_nil_p(iter))
+    {
+	lisp_object_t *node_proplist;
+
+	g_assert(lisp_cons_p(iter));
+
+	if (lisp_match_string("(node . #?(list))", lisp_car(iter), &node_proplist))
+	{
+	    lisp_object_t *name = lisp_proplist_lookup_symbol(node_proplist, ":name");
+	    lisp_object_t *type = lisp_proplist_lookup_symbol(node_proplist, ":type");
+	    designer_node_t *node;
+
+	    g_assert(lisp_string_p(name));
+	    g_assert(lisp_string_p(type));
+
+	    node = designer_add_node(design, lisp_string(name), lisp_string(type));
+	    g_assert(node != NULL);
+
+#ifdef DEBUG_OUTPUT
+	    printf("added node %s of type %s\n", lisp_string(name), lisp_string(type));
+#endif
+	}
+
+	iter = lisp_cdr(iter);
+    }
+
+    /* Now connect the slots */
+    iter = node_list;
+    while (!lisp_nil_p(iter))
+    {
+	lisp_object_t *node_proplist;
+
+	g_assert(lisp_cons_p(iter));
+
+	if (lisp_match_string("(node . #?(list))", lisp_car(iter), &node_proplist))
+	{
+	    lisp_object_t *name = lisp_proplist_lookup_symbol(node_proplist, ":name");
+	    lisp_object_t *input_slots = lisp_proplist_lookup_symbol(node_proplist, ":input-slots");
+	    designer_node_t *node;
+
+	    g_assert(lisp_string_p(name));
+	    g_assert(lisp_nil_p(input_slots) || lisp_cons_p(input_slots));
+
+	    node = designer_get_node_by_name(design, lisp_string(name));
+	    g_assert(node != NULL);
+
+	    while (!lisp_nil_p(input_slots))
+	    {
+		lisp_object_t *vars[3];
+
+		g_assert(lisp_cons_p(input_slots));
+
+		if (lisp_match_string("(#?(string) #?(string) #?(string))", lisp_car(input_slots), vars))
+		{
+		    designer_node_t *source_node;
+		    gboolean result;
+
+		    g_assert(lisp_string_p(vars[0]));
+		    g_assert(lisp_string_p(vars[1]));
+		    g_assert(lisp_string_p(vars[2]));
+
+		    source_node = designer_get_node_by_name(design, lisp_string(vars[1]));
+		    g_assert(source_node != NULL);
+
+		    result = designer_connect_nodes(source_node, lisp_string(vars[2]),
+						    node, lisp_string(vars[0]));
+		    g_assert(result);
+		}
+
+		input_slots = lisp_cdr(input_slots);
+	    }
+	}
+
+	iter = lisp_cdr(iter);
+    }
+
+    /* The design is loaded now */
+    if (loaded_callback != NULL)
+	loaded_callback(design, user_data);
+
+    /* Go through all the nodes and call the aux callbacks */
+    iter = node_list;
+    while (!lisp_nil_p(iter))
+    {
+	lisp_object_t *node_proplist;
+
+	g_assert(lisp_cons_p(iter));
+
+	if (lisp_match_string("(node . #?(list))", lisp_car(iter), &node_proplist))
+	{
+	    lisp_object_t *name = lisp_proplist_lookup_symbol(node_proplist, ":name");
+	    lisp_object_t *aux = lisp_proplist_lookup_symbol(node_proplist, ":aux");
+	    designer_node_t *node;
+
+	    g_assert(lisp_string_p(name));
+
+	    node = designer_get_node_by_name(design, lisp_string(name));
+	    g_assert(node != NULL);
+
+	    if (!lisp_nil_p(aux) && aux_load != NULL)
+		aux_load(node, aux, user_data);
+	}
+
+	iter = lisp_cdr(iter);
+    }
+
+    lisp_free(obj);
+
+    return design;
 }
 
 gboolean
