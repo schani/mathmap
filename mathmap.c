@@ -783,6 +783,7 @@ load_design (const char *filename)
     /* FIXME: free old design */
 
     the_current_design = design;
+    set_current_design_filename(filename);
 }
 
 static void
@@ -2582,7 +2583,7 @@ dialog_response (GtkWidget *widget,
 static void
 dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 {
-    GtkTreeModel * model;
+    GtkTreeModel *model;
     GtkTreeIter iter;
 
     if (selection == 0)
@@ -2591,33 +2592,44 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
     {
 	GValue value = { 0, };
-	char *expression;
 	expression_db_t *edb;
-	char *path;
 
 	gtk_tree_model_get_value(model, &iter, TREE_VALUE_EDB, &value);
 	edb = g_value_get_pointer(&value);
 	if (edb == NULL)
 	    return;
 
-	g_assert(edb->kind == EXPRESSION_DB_EXPRESSION);
-
-	path = edb->v.expression.path;
-
-	expression = read_expression(path);
-	if (expression == NULL)
+	if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
-	    char *message = g_strdup_printf(_("Could not read expression from file `%s'"), path);
+	    char *path = edb->v.expression.path;
+	    char *expression = read_expression(path);
 
-	    gimp_message(message);
-	    g_free(message);
+	    if (expression == NULL)
+	    {
+		char *message = g_strdup_printf(_("Could not read expression from file `%s'"), path);
 
-	    return;
+		gimp_message(message);
+		g_free(message);
+
+		return;
+	    }
+
+	    set_filter_source(expression, path);
+
+	    set_current_design_filename(NULL);
+
+	    free(expression);
 	}
+	else if (edb->kind == EXPRESSION_DB_COMPOSITION)
+	{
+	    char *path = edb->v.composition.path;
 
-	set_filter_source(expression, path);
+	    load_design(path);
 
-	free(expression);
+	    set_current_filename(NULL);
+	}
+	else
+	    g_assert_not_reached();
     }
 
     if (auto_preview)
