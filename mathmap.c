@@ -222,6 +222,8 @@ mathmap_invocation_t *invocation = NULL;
 static char *current_filename = NULL;
 static char *current_design_filename = NULL;
 
+static expression_db_t *the_edb = NULL;
+
 /***** Functions *****/
 
 /*****/
@@ -1205,6 +1207,9 @@ drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *draw
 
 /*****/
 
+#define TREE_VALUE_NAME			0
+#define TREE_VALUE_EDB			1
+
 static void
 tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db_t *edb)
 {
@@ -1215,17 +1220,18 @@ tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db
 	if (edb->kind == EXPRESSION_DB_GROUP)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter, 0, edb->name, -1);
+	    gtk_tree_store_set(store, &iter,
+			       TREE_VALUE_NAME, edb->name,
+			       -1);
 
 	    tree_from_expression_db(store, &iter, edb->v.group.subs);
 	}
-	else if (edb->kind == EXPRESSION_DB_EXPRESSION)
+	else if (edb->kind == EXPRESSION_DB_EXPRESSION || edb->kind == EXPRESSION_DB_COMPOSITION)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
 	    gtk_tree_store_set(store, &iter,
-			       0, edb->name,
-			       1, edb->v.expression.path,
-			       2, get_expression_name(edb),
+			       TREE_VALUE_NAME, edb->name,
+			       TREE_VALUE_EDB, edb,
 			       -1);
 	}
 	else
@@ -1243,7 +1249,7 @@ make_tree_from_edb (expression_db_t *edb, GCallback callback)
     GtkWidget *tree;
 
     /* model */
-    store = gtk_tree_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_POINTER);
 
     if (edb != 0)
     	tree_from_expression_db(store, NULL, edb);
@@ -1305,11 +1311,12 @@ update_expression_tree_from_edb (GtkWidget *tree_scrolled_window, expression_db_
 static void
 update_expression_tree (void)
 {
-    expression_db_t *edb = read_expressions();
+    if (the_edb != NULL)
+	free_expression_db(the_edb);
 
-    update_expression_tree_from_edb(tree_scrolled_window, edb, G_CALLBACK(dialog_tree_changed));
+    the_edb = read_expressions();
 
-    free_expression_db(edb);
+    update_expression_tree_from_edb(tree_scrolled_window, the_edb, G_CALLBACK(dialog_tree_changed));
 }
 
 /*****/
@@ -2584,16 +2591,21 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
     if (gtk_tree_selection_get_selected(selection, &model, &iter))
     {
 	GValue value = { 0, };
-	const gchar *path;
 	char *expression;
+	expression_db_t *edb;
+	char *path;
 
-	gtk_tree_model_get_value(model, &iter, 1, &value);
-	path = g_value_get_string(&value);
-	if (path == 0)
+	gtk_tree_model_get_value(model, &iter, TREE_VALUE_EDB, &value);
+	edb = g_value_get_pointer(&value);
+	if (edb == NULL)
 	    return;
 
+	g_assert(edb->kind == EXPRESSION_DB_EXPRESSION);
+
+	path = edb->v.expression.path;
+
 	expression = read_expression(path);
-	if (expression == 0)
+	if (expression == NULL)
 	{
 	    char *message = g_strdup_printf(_("Could not read expression from file `%s'"), path);
 
@@ -2630,9 +2642,14 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	designer_node_type_t *type;
 	int i;
 	userval_info_t *infos;
+	expression_db_t *edb;
 
-	gtk_tree_model_get_value(model, &iter, 2, &value);
-	name = g_value_get_string(&value);
+	gtk_tree_model_get_value(model, &iter, TREE_VALUE_EDB, &value);
+	edb = g_value_get_pointer(&value);
+	if (edb == NULL)
+	    return;
+
+	name = get_expression_name(edb);
 	if (name == NULL)
 	    return;
 

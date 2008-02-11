@@ -68,18 +68,21 @@ read_expression_sub_db (char *path, char *name)
     if (S_ISREG(buf.st_mode))
     {
 	// does it have extension .mm?
-	if (name_len > 3 && strcmp(name + name_len - 3, ".mm") == 0)
+	if (g_str_has_suffix(name, ".mm"))
 	{
 	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_EXPRESSION);
 
-	    edb->name = (char*)malloc(name_len - 2);
-	    assert(edb->name != 0);
+	    edb->name = g_strndup(name, name_len - 3);
+	    edb->v.expression.path = g_strdup(filename);
 
-	    memcpy(edb->name, name, name_len - 3);
-	    edb->name[name_len - 3] = '\0';
+	    return edb;
+	}
+	else if (g_str_has_suffix(name, ".mmc"))
+	{
+	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_COMPOSITION);
 
-	    edb->v.expression.path = strdup(filename);
-	    assert(edb->v.expression.path != 0);
+	    edb->name = g_strndup(name, name_len - 4);
+	    edb->v.composition.path = g_strdup(filename);
 
 	    return edb;
 	}
@@ -200,16 +203,26 @@ free_expression_db (expression_db_t *edb)
 	expression_db_t *next = edb->next;
 
 	free(edb->name);
-	if (edb->kind == EXPRESSION_DB_EXPRESSION)
+
+	switch (edb->kind)
 	{
-	    free(edb->v.expression.path);
-	    if (edb->v.expression.mathmap != NULL)
-		free_mathmap(edb->v.expression.mathmap);
+	    case EXPRESSION_DB_EXPRESSION :
+		free(edb->v.expression.path);
+		if (edb->v.expression.mathmap != NULL)
+		    free_mathmap(edb->v.expression.mathmap);
+		break;
+
+	    case EXPRESSION_DB_COMPOSITION :
+		free(edb->v.composition.path);
+		break;
+
+	    case EXPRESSION_DB_GROUP :
+		free_expression_db(edb->v.group.subs);
+		break;
+
+	    default :
+		g_assert_not_reached();
 	}
-	else if (edb->kind == EXPRESSION_DB_GROUP)
-	    free_expression_db(edb->v.group.subs);
-	else
-	    assert(0);
 
 	edb = next;
     }
@@ -233,15 +246,23 @@ copy_expression (expression_db_t *edb)
 {
     expression_db_t *copy;
 
-    assert(edb->kind == EXPRESSION_DB_EXPRESSION);
-
     copy = new_expression_db(edb->kind);
 
-    copy->name = strdup(edb->name);
-    assert(copy->name != 0);
+    copy->name = g_strdup(edb->name);
 
-    copy->v.expression.path = strdup(edb->v.expression.path);
-    assert(copy->v.expression.path != 0);
+    switch (edb->kind)
+    {
+	case EXPRESSION_DB_EXPRESSION :
+	    copy->v.expression.path = g_strdup(edb->v.expression.path);
+	    break;
+
+	case EXPRESSION_DB_COMPOSITION :
+	    copy->v.composition.path = g_strdup(edb->v.composition.path);
+	    break;
+
+	default :
+	    g_assert_not_reached();
+    }
 
     return copy;
 }
@@ -258,6 +279,7 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
 	    switch (edb2->kind)
 	    {
 		case EXPRESSION_DB_EXPRESSION :
+		case EXPRESSION_DB_COMPOSITION :
 		    edb1 = remove_expression_db(edb1, e);
 		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
 		    break;
@@ -267,7 +289,7 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
 		    break;
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 		    break;
 	    }
 	}
@@ -276,6 +298,7 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
 	    switch (edb2->kind)
 	    {
 		case EXPRESSION_DB_EXPRESSION :
+		case EXPRESSION_DB_COMPOSITION :
 		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
 		    break;
 
@@ -290,7 +313,7 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
 		    break;
 
 		default :
-		    assert(0);
+		    g_assert_not_reached();
 		    break;
 	    }
 	}

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1158,6 +1158,10 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb)
 
 	    case EXPRESSION_DB_GROUP :
 		add_node_types(design_type, edb->v.group.subs);
+		break;
+
+	    case EXPRESSION_DB_COMPOSITION :
+		/* FIXME: implement */
 		break;
 
 	    default :

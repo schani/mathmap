@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,8 +27,9 @@
 
 #include "userval.h"
 
-#define EXPRESSION_DB_EXPRESSION        1
-#define EXPRESSION_DB_GROUP             2
+#define EXPRESSION_DB_EXPRESSION	1
+#define EXPRESSION_DB_COMPOSITION	2
+#define EXPRESSION_DB_GROUP		3
 
 struct _mathmap_t;
 
@@ -43,6 +44,10 @@ typedef struct _expression_db_t
 	    char *path;
 	    struct _mathmap_t *mathmap;
 	} expression;
+	struct
+	{
+	    char *path;
+	} composition;
 	struct
 	{
 	    struct _expression_db_t *subs;
