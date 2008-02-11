@@ -149,8 +149,11 @@ static void dialog_ok_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
 static void dialog_tree_changed (GtkTreeSelection *tree, gpointer data);
-static void designer_tree_callback (GtkTreeSelection *tree, gpointer data);
 static void dialog_response (GtkWidget *widget, gint response_id, gpointer data);
+
+static void designer_tree_callback (GtkTreeSelection *tree, gpointer data);
+static void design_save_callback (GtkWidget *widget, gpointer data);
+static void design_save_as_callback (GtkWidget *widget, gpointer data);
 
 /***** Variables *****/
 
@@ -213,10 +216,11 @@ int fast_image_source_scale;
 static GimpRGB edge_color_x = { 0.0, 0.0, 0.0, 0.0 };
 static GimpRGB edge_color_y = { 0.0, 0.0, 0.0, 0.0 };
 
-mathmap_t *mathmap = 0;
-mathmap_invocation_t *invocation = 0;
+mathmap_t *mathmap = NULL;
+mathmap_invocation_t *invocation = NULL;
 
-static char *current_filename = 0;
+static char *current_filename = NULL;
+static char *current_design_filename = NULL;
 
 /***** Functions *****/
 
@@ -239,6 +243,18 @@ set_current_filename (const char *new_filename)
 	current_filename = NULL;
     else
 	current_filename = g_strdup(new_filename);
+}
+
+static void
+set_current_design_filename (const char *new_filename)
+{
+    if (current_design_filename != NULL)
+	g_free(current_design_filename);
+
+    if (new_filename == NULL)
+	current_design_filename = NULL;
+    else
+	current_design_filename = g_strdup(new_filename);
 }
 
 static void
@@ -786,11 +802,6 @@ design_changed_callback (GtkWidget *widget, designer_design_t *design)
 
     if (node != NULL)
 	node_focussed_callback(widget, node);
-
-    designer_save_design(design, "/tmp/design.mmc",
-			 &designer_widget_node_aux_print,
-			 &designer_widget_design_aux_print,
-			 designer_widget);
 }
 
 /*****/
@@ -1381,6 +1392,32 @@ make_tree_scrolled_window (void)
     return tree_scrolled_window;
 }
 
+static GtkWidget*
+make_save_table (GtkWidget *content, GtkSignalFunc save_callback, GtkSignalFunc save_as_callback)
+{
+    GtkWidget *table, *button;
+
+    table = gtk_table_new(2, 2, FALSE);
+    gtk_container_border_width(GTK_CONTAINER(table), 0);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
+    gtk_widget_show(table);
+
+    gtk_table_attach(GTK_TABLE(table), content, 0, 2, 0, 1,
+		     GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
+
+    button = gtk_button_new_with_label(_("Save"));
+    gtk_signal_connect(GTK_OBJECT(button), "clicked", save_callback, 0);
+    gtk_table_attach(GTK_TABLE(table), button, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+    gtk_widget_show(button);
+
+    button = gtk_button_new_with_label(_("Save As..."));
+    gtk_signal_connect(GTK_OBJECT(button), "clicked", save_as_callback, 0);
+    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
+    gtk_widget_show(button);
+
+    return table;
+}
+
 #define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
 
 static gint
@@ -1470,11 +1507,6 @@ mathmap_dialog (int mutable_expression)
 	    GtkSourceLanguagesManager *manager;
 	    GtkSourceLanguage *language;
 
-	    table = gtk_table_new(2, 2, FALSE);
-	    gtk_container_border_width(GTK_CONTAINER(table), 0);
-	    gtk_table_set_col_spacings(GTK_TABLE(table), 4);
-	    gtk_widget_show(table);
-
 	    /* Language */
 	    manager = gtk_source_languages_manager_new();
 	    language = gtk_source_languages_manager_get_language_from_mime_type(manager, "application/x-mathmap");
@@ -1507,9 +1539,6 @@ mathmap_dialog (int mutable_expression)
 
 	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
-	    gtk_table_attach(GTK_TABLE(table), scrolled_window, 0, 2, 0, 1,
-			     GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
-
 	    g_signal_connect(G_OBJECT(source_buffer), "changed",
 			     G_CALLBACK(dialog_text_changed),
 			     (gpointer)NULL);
@@ -1524,15 +1553,9 @@ mathmap_dialog (int mutable_expression)
 		pango_font_description_free(font_desc);
 	    }
 
-	    button = gtk_button_new_with_label(_("Save"));
-	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_callback, 0);
-	    gtk_table_attach(GTK_TABLE(table), button, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
-	    gtk_widget_show(button);
-
-	    button = gtk_button_new_with_label(_("Save As..."));
-	    gtk_signal_connect(GTK_OBJECT(button), "clicked", (GtkSignalFunc)dialog_save_as_callback, 0);
-	    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
-	    gtk_widget_show(button);
+	    table = make_save_table(scrolled_window,
+				    (GtkSignalFunc)dialog_save_callback,
+				    (GtkSignalFunc)dialog_save_as_callback);
 
 	    label = gtk_label_new(_("Expression"));
 	    gtk_widget_show(label);
@@ -1761,16 +1784,18 @@ mathmap_dialog (int mutable_expression)
 
 	gtk_widget_show(hpaned);
 
+	table = make_save_table(hpaned,
+				(GtkSignalFunc)design_save_callback,
+				(GtkSignalFunc)design_save_as_callback);
+
 	label = gtk_label_new(_("Composer"));
 	gtk_widget_show(label);
-	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), hpaned, label, label);
+	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
 
     /* Done */
 
     if (!mutable_expression)
 	dialog_update_preview();
-
-    load_design("/tmp/design.mmc");
 
     gtk_widget_show(dialog);
 
@@ -2322,12 +2347,13 @@ save_expression (void)
     fclose(file);
 }
 
-static void
-dialog_save_as_callback (GtkWidget *widget, gpointer data)
+static char*
+save_dialog (const char *title, const char *filename, const char *default_filename)
 {
     GtkWidget *dialog;
+    char *result;
 
-    dialog = gtk_file_chooser_dialog_new ("Save Expression",
+    dialog = gtk_file_chooser_dialog_new (title,
 					  NULL,
 					  GTK_FILE_CHOOSER_ACTION_SAVE,
 					  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -2335,7 +2361,7 @@ dialog_save_as_callback (GtkWidget *widget, gpointer data)
 					  NULL);
     gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
 
-    if (current_filename == 0)
+    if (filename == NULL)
     {
 	char *mathmap_path = get_rc_file_name(0, 0);
 	char *default_path = get_rc_file_name(EXPRESSIONS_DIR, 0);
@@ -2346,19 +2372,31 @@ dialog_save_as_callback (GtkWidget *widget, gpointer data)
 	mkdir(default_path, 0777);
 
 	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), default_path);
-	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), "Untitled expression.mm");
+	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), default_filename);
 
 	g_free(mathmap_path);
 	g_free(default_path);
     }
     else
-	gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (dialog), current_filename);
+	gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (dialog), filename);
 
     if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
-    {
-	char *filename;
+	result = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    else
+	result = NULL;
 
-	filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+    gtk_widget_destroy (dialog);
+
+    return result;
+}
+
+static void
+dialog_save_as_callback (GtkWidget *widget, gpointer data)
+{
+    char *filename = save_dialog(_("Save Expression"), current_filename, _("Untitled expression.mm"));
+
+    if (filename != NULL)
+    {
 	set_current_filename(filename);
 	g_free(filename);
 
@@ -2366,8 +2404,6 @@ dialog_save_as_callback (GtkWidget *widget, gpointer data)
 
 	update_expression_tree();
     }
-
-    gtk_widget_destroy (dialog);
 }
 
 static void
@@ -2377,6 +2413,45 @@ dialog_save_callback (GtkWidget *widget, gpointer data)
 	dialog_save_as_callback(widget, data);
     else
 	save_expression();
+}
+
+/*****/
+
+static void
+save_design (void)
+{
+    g_assert(the_current_design != NULL);
+    g_assert(current_design_filename != NULL);
+
+    designer_save_design(the_current_design, current_design_filename,
+			 &designer_widget_node_aux_print,
+			 &designer_widget_design_aux_print,
+			 designer_widget);
+}
+
+static void
+design_save_as_callback (GtkWidget *widget, gpointer data)
+{
+    char *filename = save_dialog(_("Save Composition"), current_design_filename, _("Untitled composition.mmc"));
+
+    if (filename != NULL)
+    {
+	set_current_design_filename(filename);
+	g_free(filename);
+
+	save_design();
+
+	update_expression_tree();
+    }
+}
+
+static void
+design_save_callback (GtkWidget *widget, gpointer data)
+{
+    if (current_design_filename == NULL)
+	design_save_as_callback(widget, data);
+    else
+	save_design();
 }
 
 /*****/
