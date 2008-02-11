@@ -749,6 +749,7 @@ load_design (const char *filename)
     design = designer_load_design(get_design_type(), filename,
 				  &designer_widget_design_loaded_callback,
 				  &designer_widget_node_aux_load_callback,
+				  &designer_widget_design_aux_load_callback,
 				  designer_widget);
 
     if (design == NULL)
@@ -786,7 +787,10 @@ design_changed_callback (GtkWidget *widget, designer_design_t *design)
     if (node != NULL)
 	node_focussed_callback(widget, node);
 
-    designer_save_design(design, "/tmp/design.mmc", &designer_widget_node_aux_print, designer_widget);
+    designer_save_design(design, "/tmp/design.mmc",
+			 &designer_widget_node_aux_print,
+			 &designer_widget_design_aux_print,
+			 designer_widget);
 }
 
 /*****/

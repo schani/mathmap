@@ -856,6 +856,8 @@ populate_table (widget_data_t *data)
 		      0, 0);
     gtk_widget_show (w);
     data->vscrollbar = w;
+
+    g_signal_connect(gnome_canvas_root(data->canvas), "event", G_CALLBACK(root_event), data);
 }
 
 static void
@@ -934,8 +936,6 @@ designer_widget_new (designer_design_t *design,
 
     g_object_set_data(G_OBJECT(table), "designer-data", data);
 
-    g_signal_connect(gnome_canvas_root(data->canvas), "event", G_CALLBACK(root_event), data);
-
     return table;
 }
 
@@ -979,6 +979,11 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
 
     data->canvas = NULL;
     data->hscrollbar = data->vscrollbar = NULL;
+    data->focussed = NULL;
+    data->dragging = FALSE;
+    data->slot = NULL;
+    data->bpath = NULL;
+    data->destroy_object = NULL;
 
     data->design = design;
 
@@ -1016,6 +1021,21 @@ designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *ob
 }
 
 void
+designer_widget_design_aux_load_callback (designer_design_t *design, lisp_object_t *obj, gpointer user_data)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
+    lisp_object_t *focussed_node = lisp_proplist_lookup_symbol(obj, ":focussed-node");
+    designer_node_t *node;
+
+    g_assert(lisp_string_p(focussed_node));
+
+    node = designer_get_node_by_name(design, lisp_string(focussed_node));
+    g_assert(node != NULL);
+
+    focus_node(get_group_for_node(data->canvas, node), data);
+}
+
+void
 designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out)
 {
     widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
@@ -1032,6 +1052,22 @@ designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE 
     lisp_print_real(x, out);
     lisp_print_symbol(":y", out);
     lisp_print_real(y, out);
+
+    lisp_print_close_paren(out);
+}
+
+void
+designer_widget_design_aux_print (designer_design_t *design, gpointer user_data, FILE *out)
+{
+    designer_node_t *node = designer_widget_get_focussed_node(GTK_WIDGET(user_data));
+
+    lisp_print_open_paren(out);
+
+    if (node != NULL)
+    {
+	lisp_print_symbol(":focussed-node", out);
+	lisp_print_string(node->name, out);
+    }
 
     lisp_print_close_paren(out);
 }

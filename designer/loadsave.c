@@ -27,13 +27,14 @@
 designer_design_t*
 designer_load_design (designer_design_type_t *design_type, const char *filename,
 		      designer_design_loaded_callback_t loaded_callback,
-		      designer_node_aux_load_callback_t aux_load,
+		      designer_node_aux_load_callback_t node_aux_load,
+		      designer_design_aux_load_callback_t design_aux_load,
 		      gpointer user_data)
 {
     lisp_stream_t stream;
     designer_design_t *design;
-    lisp_object_t *obj;
-    lisp_object_t *node_list, *iter;
+    lisp_object_t *obj, *node_list, *iter, *design_aux;
+    lisp_object_t *design_proplist = lisp_nil();
 
     if (lisp_stream_init_path(&stream, filename) == NULL)
 	return NULL;
@@ -72,6 +73,11 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 #ifdef DEBUG_OUTPUT
 	    printf("added node %s of type %s\n", lisp_string(name), lisp_string(type));
 #endif
+	}
+	else
+	{
+	    design_proplist = iter;
+	    break;
 	}
 
 	iter = lisp_cdr(iter);
@@ -123,6 +129,8 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 		input_slots = lisp_cdr(input_slots);
 	    }
 	}
+	else
+	    break;
 
 	iter = lisp_cdr(iter);
     }
@@ -150,12 +158,18 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 	    node = designer_get_node_by_name(design, lisp_string(name));
 	    g_assert(node != NULL);
 
-	    if (!lisp_nil_p(aux) && aux_load != NULL)
-		aux_load(node, aux, user_data);
+	    if (!lisp_nil_p(aux) && node_aux_load != NULL)
+		node_aux_load(node, aux, user_data);
 	}
+	else
+	    break;
 
 	iter = lisp_cdr(iter);
     }
+
+    design_aux = lisp_proplist_lookup_symbol(design_proplist, ":aux");
+    if (design_aux != NULL && design_aux_load != NULL)
+	design_aux_load(design, design_aux, user_data);
 
     lisp_free(obj);
 
@@ -164,7 +178,9 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 
 gboolean
 designer_save_design (designer_design_t *design, const char *filename,
-		      designer_node_aux_print_func_t aux_print, gpointer user_data)
+		      designer_node_aux_print_func_t node_aux_print,
+		      designer_design_aux_print_func_t design_aux_print,
+		      gpointer user_data)
 {
     FILE *out = fopen(filename, "w");
     GSList *list;
@@ -209,15 +225,21 @@ designer_save_design (designer_design_t *design, const char *filename,
 	}
 	lisp_print_close_paren(out);
 
-	if (aux_print != NULL)
+	if (node_aux_print != NULL)
 	{
 	    lisp_print_symbol(":aux", out);
-	    aux_print(node, user_data, out);
+	    node_aux_print(node, user_data, out);
 	}
 
 	lisp_print_close_paren(out);
 
 	fputc('\n', out);
+    }
+
+    if (design_aux_print != NULL)
+    {
+	lisp_print_symbol(":aux", out);
+	design_aux_print(design, user_data, out);
     }
 
     lisp_print_close_paren(out);

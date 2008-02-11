@@ -17,25 +17,24 @@ HSL color space
 
 ** Designer
 sync filter library
-load/save designs
+save designs
 
 ** Compiler
 
 ** Filters
 ident
-gimp layer modes
+color gimp layer mode
 
 * 1.3.x
 
 ** Designer
-sync filter library
 
 ** GIMP Plug-In
 auto-completion?
 Histogram
 Different fast image source size per drawable
 Adapt fast image source size to preview size
-zoom via preview
+zoom via preview (?)
 Get preview background gray from GtkStyle
 
 ** Language

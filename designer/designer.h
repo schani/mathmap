@@ -87,8 +87,10 @@ typedef void (*designer_node_focussed_callback_t) (GtkWidget *widget, designer_n
 
 typedef void (*designer_design_loaded_callback_t) (designer_design_t *design, gpointer user_data);
 typedef void (*designer_node_aux_load_callback_t) (designer_node_t *node, lisp_object_t *obj, gpointer user_data);
+typedef void (*designer_design_aux_load_callback_t) (designer_design_t *design, lisp_object_t *obj, gpointer user_data);
 
 typedef void (*designer_node_aux_print_func_t) (designer_node_t *node, gpointer user_data, FILE *out);
+typedef void (*designer_design_aux_print_func_t) (designer_design_t *design, gpointer user_data, FILE *out);
 
 extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
@@ -120,10 +122,13 @@ extern designer_node_t* designer_get_node_by_name (designer_design_t *design, co
 
 extern designer_design_t* designer_load_design (designer_design_type_t *design_type, const char *filename,
 						designer_design_loaded_callback_t loaded_callback,
-						designer_node_aux_load_callback_t aux_load,
+						designer_node_aux_load_callback_t node_aux_load,
+						designer_design_aux_load_callback_t design_aux_load,
 						gpointer user_data);
 extern gboolean designer_save_design (designer_design_t *design, const char *filename,
-				      designer_node_aux_print_func_t aux_print, gpointer user_data);
+				      designer_node_aux_print_func_t node_aux_print,
+				      designer_design_aux_print_func_t design_aux_print,
+				      gpointer user_data);
 
 extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_design_changed_callback_t design_changed_callback,
@@ -137,7 +142,9 @@ extern designer_node_t* designer_widget_get_focussed_node (GtkWidget *widget);
 
 extern void designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data);
 extern void designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *obj, gpointer user_data);
+extern void designer_widget_design_aux_load_callback (designer_design_t *design, lisp_object_t *obj, gpointer user_data);
 
 extern void designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out);
+extern void designer_widget_design_aux_print (designer_design_t *design, gpointer user_data, FILE *out);
 
 #endif
