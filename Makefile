@@ -35,10 +35,10 @@ LOCALEDIR = $(PREFIX)/share/locale
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.3.1
+VERSION = 1.3.2
 
-OPT_CFLAGS := -O2
-#OPT_CFLAGS := -g -DDEBUG_OUTPUT
+#OPT_CFLAGS := -O2
+OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -103,7 +103,7 @@ librwimg :
 	$(MAKE) -C rwimg
 
 liblispreader :
-	$(MAKE) -C lispreader
+	$(MAKE) -C lispreader -f Makefile.dist
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(LDFLAGS) -lgsl -lgslcblas
