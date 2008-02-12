@@ -151,11 +151,12 @@ designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name
 }
 
 designer_design_t*
-designer_make_design (designer_design_type_t *type)
+designer_make_design (designer_design_type_t *type, const char *name)
 {
     designer_design_t *design = g_new0(designer_design_t, 1);
 
     design->type = type;
+    design->name = g_strdup(name);
 
     return design;
 }
@@ -303,6 +304,13 @@ designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name
 
     /* FIXME: remove eventually */
     designer_verify_design(source->design);
+}
+
+void
+designer_set_design_name (designer_design_t *design, const char *name)
+{
+    g_free(design->name);
+    design->name = g_strdup(name);
 }
 
 designer_slot_t*

@@ -755,7 +755,7 @@ get_current_design (void)
     designer_design_type_t *design_type = get_design_type();
 
     if (the_current_design == NULL)
-	the_current_design = designer_make_design(design_type);
+	the_current_design = designer_make_design(design_type, "__untitled_composition__");
     return the_current_design;
 }
 
@@ -2428,8 +2428,34 @@ dialog_save_callback (GtkWidget *widget, gpointer data)
 static void
 save_design (void)
 {
+    char *design_name, *p, *q;
+    char *basename;
+
     g_assert(the_current_design != NULL);
     g_assert(current_design_filename != NULL);
+
+    basename = g_path_get_basename(current_design_filename);
+    design_name = g_malloc(strlen(basename) + 1);
+    p = design_name;
+    q = basename;
+    while (*q != '\0')
+    {
+	if (g_ascii_isalpha(*q))
+	    *p = g_ascii_tolower(*q);
+	else if (g_ascii_isdigit(*q) || *q == '_')
+	    *p = *q;
+	else if (*q == '.')
+	    break;
+	else
+	    *p = '_';
+	++p;
+	++q;
+    }
+    *p = '\0';
+
+    designer_set_design_name(the_current_design, design_name);
+    g_free(design_name);
+    g_free(basename);
 
     designer_save_design(the_current_design, current_design_filename,
 			 &designer_widget_node_aux_print,

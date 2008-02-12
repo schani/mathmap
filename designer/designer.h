@@ -78,6 +78,7 @@ struct _designer_design_type_t
 
 struct _designer_design_t
 {
+    char *name;
     designer_design_type_t *type;
     GSList *nodes;
 };
@@ -92,8 +93,7 @@ typedef void (*designer_design_aux_load_callback_t) (designer_design_t *design, 
 typedef void (*designer_node_aux_print_func_t) (designer_node_t *node, gpointer user_data, FILE *out);
 typedef void (*designer_design_aux_print_func_t) (designer_design_t *design, gpointer user_data, FILE *out);
 
-extern gboolean designer_verify_design (designer_design_t *design);
-extern gboolean designer_design_contains_cycles (designer_design_t *design);
+/* design type */
 
 extern designer_design_type_t* designer_make_design_type (gboolean allow_cycles);
 
@@ -105,7 +105,11 @@ extern void designer_add_input_slot_spec (designer_node_type_t *node_type, const
 extern void designer_add_output_slot_spec (designer_node_type_t *node_type, const char *name,
 					   const char *type_name, gpointer data);
 
-extern designer_design_t* designer_make_design (designer_design_type_t *type);
+extern designer_node_type_t* designer_get_node_type_by_name (designer_design_type_t *design_type, const char *name);
+
+/* design */
+
+extern designer_design_t* designer_make_design (designer_design_type_t *type, const char *name);
 
 extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
 extern void designer_delete_node (designer_node_t *node);
@@ -115,10 +119,16 @@ extern gboolean designer_connect_nodes (designer_node_t *source, const char *out
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
 
+extern void designer_set_design_name (designer_design_t *design, const char *name);
+
 extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, const char *name);
 
-extern designer_node_type_t* designer_get_node_type_by_name (designer_design_type_t *design_type, const char *name);
 extern designer_node_t* designer_get_node_by_name (designer_design_t *design, const char *name);
+
+extern gboolean designer_verify_design (designer_design_t *design);
+extern gboolean designer_design_contains_cycles (designer_design_t *design);
+
+/* load/save */
 
 extern designer_design_t* designer_load_design (designer_design_type_t *design_type, const char *filename,
 						designer_design_loaded_callback_t loaded_callback,
@@ -129,6 +139,8 @@ extern gboolean designer_save_design (designer_design_t *design, const char *fil
 				      designer_node_aux_print_func_t node_aux_print,
 				      designer_design_aux_print_func_t design_aux_print,
 				      gpointer user_data);
+
+/* widget */
 
 extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_design_changed_callback_t design_changed_callback,

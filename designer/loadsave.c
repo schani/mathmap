@@ -33,7 +33,7 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 {
     lisp_stream_t stream;
     designer_design_t *design;
-    lisp_object_t *obj, *node_list, *iter, *design_aux;
+    lisp_object_t *obj, *node_list, *iter, *design_aux, *name;
     lisp_object_t *design_proplist = lisp_nil();
 
     if (lisp_stream_init_path(&stream, filename) == NULL)
@@ -47,7 +47,7 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 	return NULL;
     }
 
-    design = designer_make_design(design_type);
+    design = designer_make_design(design_type, "__untitled_design__");
     g_assert (design != NULL);
 
     /* Add all the nodes first */
@@ -167,8 +167,15 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 	iter = lisp_cdr(iter);
     }
 
+    name = lisp_proplist_lookup_symbol(design_proplist, ":name");
+    if (!lisp_nil_p(name))
+    {
+	g_assert(lisp_string_p(name));
+	designer_set_design_name(design, lisp_string(name));
+    }
+
     design_aux = lisp_proplist_lookup_symbol(design_proplist, ":aux");
-    if (design_aux != NULL && design_aux_load != NULL)
+    if (!lisp_nil_p(design_aux) && design_aux_load != NULL)
 	design_aux_load(design, design_aux, user_data);
 
     lisp_free(obj);
@@ -235,6 +242,9 @@ designer_save_design (designer_design_t *design, const char *filename,
 
 	fputc('\n', out);
     }
+
+    lisp_print_symbol(":name", out);
+    lisp_print_string(design->name, out);
 
     if (design_aux_print != NULL)
     {
