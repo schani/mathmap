@@ -111,6 +111,7 @@ extern designer_node_type_t* designer_get_node_type_by_name (designer_design_typ
 /* design */
 
 extern designer_design_t* designer_make_design (designer_design_type_t *type, const char *name);
+extern void designer_free_design (designer_design_t *design);
 
 extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
 extern void designer_delete_node (designer_node_t *node);

@@ -68,7 +68,11 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 	    g_assert(lisp_string_p(type));
 
 	    node = designer_add_node(design, lisp_string(name), lisp_string(type));
-	    g_assert(node != NULL);
+	    if (node == NULL)
+	    {
+		designer_free_design(design);
+		return NULL;
+	    }
 
 #ifdef DEBUG_OUTPUT
 	    printf("added node %s of type %s\n", lisp_string(name), lisp_string(type));
@@ -112,18 +116,20 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 		if (lisp_match_string("(#?(string) #?(string) #?(string))", lisp_car(input_slots), vars))
 		{
 		    designer_node_t *source_node;
-		    gboolean result;
 
 		    g_assert(lisp_string_p(vars[0]));
 		    g_assert(lisp_string_p(vars[1]));
 		    g_assert(lisp_string_p(vars[2]));
 
 		    source_node = designer_get_node_by_name(design, lisp_string(vars[1]));
-		    g_assert(source_node != NULL);
 
-		    result = designer_connect_nodes(source_node, lisp_string(vars[2]),
-						    node, lisp_string(vars[0]));
-		    g_assert(result);
+		    if (source_node == NULL
+			|| !designer_connect_nodes(source_node, lisp_string(vars[2]),
+						   node, lisp_string(vars[0])))
+		    {
+			designer_free_design(design);
+			return NULL;
+		    }
 		}
 
 		input_slots = lisp_cdr(input_slots);

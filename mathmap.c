@@ -764,7 +764,7 @@ node_focussed_callback (GtkWidget *widget, designer_node_t *node)
 {
     char *source;
 
-    source = make_filter_source_from_designer_node(node, "__composer_filter__");
+    source = make_filter_source_from_design(node->design, "__composer_filter__");
 
     set_filter_source(source, NULL);
 
@@ -1229,7 +1229,7 @@ tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db
 
 	    tree_from_expression_db(store, &iter, edb->v.group.subs);
 	}
-	else if (edb->kind == EXPRESSION_DB_EXPRESSION || edb->kind == EXPRESSION_DB_COMPOSITION)
+	else if (edb->kind == EXPRESSION_DB_EXPRESSION || edb->kind == EXPRESSION_DB_DESIGN)
 	{
 	    gtk_tree_store_append(store, &iter, parent);
 	    gtk_tree_store_set(store, &iter,
@@ -2648,9 +2648,9 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 
 	    free(expression);
 	}
-	else if (edb->kind == EXPRESSION_DB_COMPOSITION)
+	else if (edb->kind == EXPRESSION_DB_DESIGN)
 	{
-	    char *path = edb->v.composition.path;
+	    char *path = edb->v.design.path;
 
 	    load_design(path);
 
@@ -2689,7 +2689,7 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	if (edb == NULL)
 	    return;
 
-	name = get_expression_name(edb);
+	name = get_expression_name(edb, get_design_type());
 	if (name == NULL)
 	    return;
 
@@ -2698,7 +2698,7 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	type = designer_get_node_type_by_name(design->type, name);
 	g_assert(type != NULL);
 
-	infos = get_expression_args(type->data);
+	infos = get_expression_args(type->data, get_design_type());
 	while (infos != NULL)
 	{
 	    if (infos->type == USERVAL_COLOR || infos->type == USERVAL_CURVE || infos->type == USERVAL_GRADIENT)

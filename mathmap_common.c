@@ -1125,9 +1125,10 @@ make_mathmap_design_type (void)
 }
 
 static void
-add_filter_node_type (designer_design_type_t *design_type, const char *name, expression_db_t *edb)
+add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
 {
-    userval_info_t *args = get_expression_args(edb);
+    char *name = get_expression_name(edb, design_type);
+    userval_info_t *args = get_expression_args(edb, design_type);
     designer_node_type_t *type = designer_add_node_type(design_type, name, edb);
 
     while (args != NULL)
@@ -1141,27 +1142,47 @@ add_filter_node_type (designer_design_type_t *design_type, const char *name, exp
 }
 
 static void
-add_node_types (designer_design_type_t *design_type, expression_db_t *edb)
+add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gboolean compositions, gboolean *did_add)
 {
     while (edb != NULL)
     {
 	switch (edb->kind)
 	{
 	    case EXPRESSION_DB_EXPRESSION :
+		if (!compositions)
 		{
-		    char *name = get_expression_name(edb);
+		    char *name = get_expression_name(edb, design_type);
 
 		    if (name != NULL)
-			add_filter_node_type(design_type, name, edb);
+			add_filter_node_type(design_type, edb);
 		}
 		break;
 
 	    case EXPRESSION_DB_GROUP :
-		add_node_types(design_type, edb->v.group.subs);
+		add_node_types(design_type, edb->v.group.subs, compositions, did_add);
 		break;
 
-	    case EXPRESSION_DB_COMPOSITION :
-		/* FIXME: implement */
+	    case EXPRESSION_DB_DESIGN :
+		if (compositions)
+		{
+		    designer_design_t *design = designer_load_design(design_type, edb->v.design.path,
+								     NULL, NULL, NULL, NULL);
+
+		    if (design == NULL)
+			break;
+
+		    if (designer_get_node_type_by_name(design_type, design->name))
+		    {
+			designer_free_design(design);
+			break;
+		    }
+
+		    designer_free_design(design);
+
+		    add_filter_node_type(design_type, edb);
+
+		    *did_add = TRUE;
+		}
 		break;
 
 	    default :
@@ -1176,8 +1197,14 @@ designer_design_type_t*
 design_type_from_expression_db (expression_db_t *edb)
 {
     designer_design_type_t *type = make_mathmap_design_type();
+    gboolean did_add;
 
-    add_node_types(type, edb);
+    add_node_types(type, edb, FALSE, NULL);
+    do
+    {
+	did_add = FALSE;
+	add_node_types(type, edb, TRUE, &did_add);
+    } while (did_add);
 
     return type;
 }

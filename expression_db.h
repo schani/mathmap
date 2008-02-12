@@ -26,9 +26,10 @@
 #define __EXPRESSION_DB_H__
 
 #include "userval.h"
+#include "designer/designer.h"
 
 #define EXPRESSION_DB_EXPRESSION	1
-#define EXPRESSION_DB_COMPOSITION	2
+#define EXPRESSION_DB_DESIGN		2
 #define EXPRESSION_DB_GROUP		3
 
 struct _mathmap_t;
@@ -47,7 +48,8 @@ typedef struct _expression_db_t
 	struct
 	{
 	    char *path;
-	} composition;
+	    struct _mathmap_t *mathmap;
+	} design;
 	struct
 	{
 	    struct _expression_db_t *subs;
@@ -63,7 +65,7 @@ extern char* read_expression (const char *path);
 
 extern expression_db_t* merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2);
 
-extern char* get_expression_name (expression_db_t *expr);
-extern userval_info_t* get_expression_args (expression_db_t *expr);
+extern char* get_expression_name (expression_db_t *expr, designer_design_type_t *design_type);
+extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);
 
 #endif

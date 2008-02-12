@@ -161,6 +161,12 @@ designer_make_design (designer_design_type_t *type, const char *name)
     return design;
 }
 
+void
+designer_free_design (designer_design_t *design)
+{
+    /* FIXME: implement */
+}
+
 static designer_node_type_t*
 lookup_node_type (designer_design_type_t *design_type, const char *name)
 {
@@ -184,7 +190,8 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
     int num_input_slots;
     designer_node_t *node;
 
-    g_assert(node_type != NULL);
+    if (node_type == NULL)
+	return NULL;
 
     num_input_slots = g_slist_length(node_type->input_slot_specs);
 
@@ -260,8 +267,9 @@ designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
 							     &input_slot_index);
 
     g_assert(source->design == dest->design);
-    g_assert(output_slot_spec != NULL);
-    g_assert(input_slot_spec != NULL);
+
+    if (output_slot_spec == NULL || input_slot_spec == NULL)
+	return FALSE;
 
     if (source_type->design_type != dest_type->design_type)
 	return FALSE;

@@ -48,7 +48,7 @@ static void
 compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
 {
     expression_db_t *edb = node->type->data;
-    userval_info_t *args = get_expression_args(edb);
+    userval_info_t *args = get_expression_args(edb, node->design->type);
     int num_slots, i;
     gboolean first;
 
@@ -116,15 +116,21 @@ append_limits_and_defaults (GString *string, userval_info_t *info)
     }
 }
 
-char*
-make_filter_source_from_designer_node (designer_node_t *root, const char *filter_name)
+static gboolean
+make_filter_source (designer_design_t *design, const char *filter_name, GString *string, GSList **already_included)
 {
+    designer_node_t *root = design->root;
     GSList *nodes = g_slist_prepend(NULL, root);
     GSList *types = g_slist_prepend(NULL, root->type);
-    GString *string;
     gboolean first;
     GSList *list;
     GSList *computed_nodes = NULL;
+
+    if (root == NULL)
+	return FALSE;
+
+    if (filter_name == NULL)
+	filter_name = design->name;
 
     for (;;)
     {
@@ -145,7 +151,8 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
 		    nodes = g_slist_prepend(nodes, partner);
 		    finished = FALSE;
 
-		    if (g_slist_find(types, partner->type) == NULL)
+		    if (g_slist_find(types, partner->type) == NULL
+			&& g_slist_find(*already_included, partner->type) == NULL)
 			types = g_slist_prepend(types, partner->type);
 		}
 	    }
@@ -155,27 +162,55 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
 	    break;
     }
 
-    string = g_string_new("");
-
     /* include all the filter sources */
     for (list = types; list != NULL; list = list->next)
     {
 	designer_node_type_t *type = list->data;
 	expression_db_t *edb = type->data;
-	const char *path = edb->v.expression.path;
 	char *source;
 
-	g_assert(path != NULL);
-
-	if (!g_file_get_contents(path, &source, NULL, NULL))
+	if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
-	    /* FIXME: free string and lists! */
-	    return NULL;
+	    char *path = edb->v.expression.path;
+
+	    g_assert(path != NULL);
+
+	    if (!g_file_get_contents(path, &source, NULL, NULL))
+	    {
+		/* FIXME: free string and lists! */
+		return FALSE;
+	    }
+
+	    g_string_append_printf(string, "%s\n\n", source);
+
+	    g_free(source);
 	}
+	else if (edb->kind == EXPRESSION_DB_DESIGN)
+	{
+	    char *path = edb->v.design.path;
+	    designer_design_t *sub_design;
+	    gboolean result;
 
-	g_string_append_printf(string, "%s\n\n", source);
+	    g_assert(path != NULL);
 
-	g_free(source);
+	    sub_design = designer_load_design(root->design->type, path, NULL, NULL, NULL, NULL);
+
+	    if (sub_design == NULL)
+		return FALSE;
+
+	    result = make_filter_source(sub_design, NULL, string, already_included);
+
+	    designer_free_design(sub_design);
+
+	    if (!result)
+		return FALSE;
+
+	    g_string_append(string, "\n\n");
+	}
+	else
+	    g_assert_not_reached();
+
+	*already_included = g_slist_prepend(*already_included, type);
     }
 
     g_string_append_printf(string, "filter %s (", filter_name);
@@ -185,7 +220,7 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
     {
 	designer_node_t *node = list->data;
 	expression_db_t *edb = node->type->data;
-	userval_info_t *args = get_expression_args(edb);
+	userval_info_t *args = get_expression_args(edb, node->design->type);
 
 	while (args != NULL)
 	{
@@ -217,6 +252,29 @@ make_filter_source_from_designer_node (designer_node_t *root, const char *filter
     g_slist_free(nodes);
     g_slist_free(types);
     g_slist_free(computed_nodes);
+
+    return TRUE;
+}
+
+char*
+make_filter_source_from_design (designer_design_t *design, const char *filter_name)
+{
+    GString *string = g_string_new("");
+    GSList *already_included = NULL;
+    gboolean result;
+
+    if (filter_name == NULL)
+	filter_name = design->name;
+
+    result = make_filter_source(design, filter_name, string, &already_included);
+
+    g_slist_free(already_included);
+
+    if (!result)
+    {
+	g_string_free(string, TRUE);
+	return NULL;
+    }
 
     return g_string_free(string, FALSE);
 }

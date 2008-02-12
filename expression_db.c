@@ -79,10 +79,10 @@ read_expression_sub_db (char *path, char *name)
 	}
 	else if (g_str_has_suffix(name, ".mmc"))
 	{
-	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_COMPOSITION);
+	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_DESIGN);
 
 	    edb->name = g_strndup(name, name_len - 4);
-	    edb->v.composition.path = g_strdup(filename);
+	    edb->v.design.path = g_strdup(filename);
 
 	    return edb;
 	}
@@ -212,8 +212,8 @@ free_expression_db (expression_db_t *edb)
 		    free_mathmap(edb->v.expression.mathmap);
 		break;
 
-	    case EXPRESSION_DB_COMPOSITION :
-		free(edb->v.composition.path);
+	    case EXPRESSION_DB_DESIGN :
+		free(edb->v.design.path);
 		break;
 
 	    case EXPRESSION_DB_GROUP :
@@ -256,8 +256,8 @@ copy_expression (expression_db_t *edb)
 	    copy->v.expression.path = g_strdup(edb->v.expression.path);
 	    break;
 
-	case EXPRESSION_DB_COMPOSITION :
-	    copy->v.composition.path = g_strdup(edb->v.composition.path);
+	case EXPRESSION_DB_DESIGN :
+	    copy->v.design.path = g_strdup(edb->v.design.path);
 	    break;
 
 	default :
@@ -279,7 +279,7 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
 	    switch (edb2->kind)
 	    {
 		case EXPRESSION_DB_EXPRESSION :
-		case EXPRESSION_DB_COMPOSITION :
+		case EXPRESSION_DB_DESIGN :
 		    edb1 = remove_expression_db(edb1, e);
 		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
 		    break;
@@ -298,7 +298,7 @@ merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
 	    switch (edb2->kind)
 	    {
 		case EXPRESSION_DB_EXPRESSION :
-		case EXPRESSION_DB_COMPOSITION :
+		case EXPRESSION_DB_DESIGN :
 		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
 		    break;
 
@@ -338,39 +338,70 @@ read_expression (const char *path)
     return expr;
 }
 
-static void
-fetch_expression_mathmap (expression_db_t *expr)
+static mathmap_t*
+fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_type)
 {
-    char *source;
+    switch (expr->kind)
+    {
+	case EXPRESSION_DB_EXPRESSION :
+	    if (expr->v.expression.mathmap == NULL)
+	    {
+		char *source = read_expression(expr->v.expression.path);
 
-    g_assert(expr->kind == EXPRESSION_DB_EXPRESSION);
+		if (source == NULL)
+		    return NULL;
 
-    if (expr->v.expression.mathmap != NULL)
-	return;
+		expr->v.expression.mathmap = parse_mathmap(source);
 
-    source = read_expression(expr->v.expression.path);
-    if (source == NULL)
-	return;
+		g_free(source);
+	    }
+	    return expr->v.expression.mathmap;
 
-    expr->v.expression.mathmap = parse_mathmap(source);
+	case EXPRESSION_DB_DESIGN :
+	    if (expr->v.design.mathmap == NULL)
+	    {
+		designer_design_t *design = designer_load_design(design_type, expr->v.design.path,
+								 NULL, NULL, NULL, NULL);
+		char *source;
 
-    g_free(source);
+		g_assert(design != NULL);
+
+		if (design->root == NULL)
+		{
+		    designer_free_design(design);
+		    return NULL;
+		}
+
+		source = make_filter_source_from_design(design, NULL);
+
+		expr->v.design.mathmap = parse_mathmap(source);
+
+		g_free(source);
+		designer_free_design(design);
+	    }
+	    return expr->v.design.mathmap;
+
+	default :
+	    g_assert_not_reached();
+    }
 }
 
 char*
-get_expression_name (expression_db_t *expr)
+get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
 {
-    fetch_expression_mathmap(expr);
-    if (expr->v.expression.mathmap == NULL)
+    mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+
+    if (mathmap == NULL)
 	return NULL;
-    return expr->v.expression.mathmap->main_filter->decl->name;
+    return mathmap->main_filter->decl->name;
 }
 
 userval_info_t*
-get_expression_args (expression_db_t *expr)
+get_expression_args (expression_db_t *expr, designer_design_type_t *design_type)
 {
-    fetch_expression_mathmap(expr);
-    if (expr->v.expression.mathmap == NULL)
+    mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+
+    if (mathmap == NULL)
 	return NULL;
-    return expr->v.expression.mathmap->main_filter->userval_infos;
+    return mathmap->main_filter->userval_infos;
 }
