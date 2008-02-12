@@ -1237,7 +1237,7 @@ make_tree_from_edb (expression_db_t *edb, GCallback callback)
 		     (gpointer)NULL);
 
     renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Examples", renderer,
+    column = gtk_tree_view_column_new_with_attributes(_("Filters"), renderer,
 		    				      "text", 0,
 						      NULL);
     gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
@@ -1777,7 +1777,7 @@ mathmap_dialog (int mutable_expression)
 
 	    tree_scrolled_window = make_tree_scrolled_window();
 
-	    label = gtk_label_new(_("Examples"));
+	    label = gtk_label_new(_("Filters"));
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), tree_scrolled_window, label, label);
 
