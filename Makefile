@@ -168,7 +168,7 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *.o generators/blender/*.o mathmap compiler parser.output core
+	rm -f *.o designer/*.o generators/blender/*.o mathmap compiler parser.output core
 	find . -name '*~' | xargs -r -d '\n' rm
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
