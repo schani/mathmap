@@ -33,7 +33,7 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 {
     lisp_stream_t stream;
     designer_design_t *design;
-    lisp_object_t *obj, *node_list, *iter, *design_aux, *name;
+    lisp_object_t *obj, *node_list, *iter, *design_aux, *name, *root;
     lisp_object_t *design_proplist = lisp_nil();
 
     if (lisp_stream_init_path(&stream, filename) == NULL)
@@ -133,6 +133,19 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 	    break;
 
 	iter = lisp_cdr(iter);
+    }
+
+    root = lisp_proplist_lookup_symbol(design_proplist, ":root");
+    if (!lisp_nil_p(root))
+    {
+	designer_node_t *node;
+
+	g_assert(lisp_string_p(root));
+
+	node = designer_get_node_by_name(design, lisp_string(root));
+	g_assert(node != NULL);
+
+	design->root = node;
     }
 
     /* The design is loaded now */
@@ -245,6 +258,12 @@ designer_save_design (designer_design_t *design, const char *filename,
 
     lisp_print_symbol(":name", out);
     lisp_print_string(design->name, out);
+
+    if (design->root != NULL)
+    {
+	lisp_print_symbol(":root", out);
+	lisp_print_string(design->root->name, out);
+    }
 
     if (design_aux_print != NULL)
     {

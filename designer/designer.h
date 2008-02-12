@@ -80,6 +80,7 @@ struct _designer_design_t
 {
     char *name;
     designer_design_type_t *type;
+    designer_node_t *root;
     GSList *nodes;
 };
 
@@ -125,6 +126,8 @@ extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, con
 
 extern designer_node_t* designer_get_node_by_name (designer_design_t *design, const char *name);
 
+extern void designer_set_root (designer_design_t *design, designer_node_t *root);
+
 extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
 
@@ -154,9 +157,7 @@ extern designer_node_t* designer_widget_get_focussed_node (GtkWidget *widget);
 
 extern void designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data);
 extern void designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *obj, gpointer user_data);
-extern void designer_widget_design_aux_load_callback (designer_design_t *design, lisp_object_t *obj, gpointer user_data);
 
 extern void designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out);
-extern void designer_widget_design_aux_print (designer_design_t *design, gpointer user_data, FILE *out);
 
 #endif

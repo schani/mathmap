@@ -760,6 +760,27 @@ get_current_design (void)
 }
 
 static void
+node_focussed_callback (GtkWidget *widget, designer_node_t *node)
+{
+    char *source;
+
+    source = make_filter_source_from_designer_node(node, "__composer_filter__");
+
+    set_filter_source(source, NULL);
+
+    g_free(source);
+}
+
+static void
+design_changed_callback (GtkWidget *widget, designer_design_t *design)
+{
+    designer_node_t *node = design->root;
+
+    if (node != NULL)
+	node_focussed_callback(widget, node);
+}
+
+static void
 load_design (const char *filename)
 {
     designer_design_t *design;
@@ -767,7 +788,7 @@ load_design (const char *filename)
     design = designer_load_design(get_design_type(), filename,
 				  &designer_widget_design_loaded_callback,
 				  &designer_widget_node_aux_load_callback,
-				  &designer_widget_design_aux_load_callback,
+				  NULL,
 				  designer_widget);
 
     if (design == NULL)
@@ -784,27 +805,8 @@ load_design (const char *filename)
 
     the_current_design = design;
     set_current_design_filename(filename);
-}
 
-static void
-node_focussed_callback (GtkWidget *widget, designer_node_t *node)
-{
-    char *source;
-
-    source = make_filter_source_from_designer_node(node, "__composer_filter__");
-
-    set_filter_source(source, NULL);
-
-    g_free(source);
-}
-
-static void
-design_changed_callback (GtkWidget *widget, designer_design_t *design)
-{
-    designer_node_t *node = designer_widget_get_focussed_node(widget);
-
-    if (node != NULL)
-	node_focussed_callback(widget, node);
+    design_changed_callback(designer_widget, the_current_design);
 }
 
 /*****/
@@ -2459,7 +2461,7 @@ save_design (void)
 
     designer_save_design(the_current_design, current_design_filename,
 			 &designer_widget_node_aux_print,
-			 &designer_widget_design_aux_print,
+			 NULL,
 			 designer_widget);
 }
 

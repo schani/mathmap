@@ -57,7 +57,6 @@ typedef struct
     GnomeCanvas *canvas;
     GtkWidget *hscrollbar;
     GtkWidget *vscrollbar;
-    GnomeCanvasGroup *focussed;
     gboolean dragging;
     double x;
     double y;
@@ -199,26 +198,69 @@ set_node_color (GnomeCanvasGroup *group, const char *name)
     g_object_set(G_OBJECT(rectangle), "fill-color", name, NULL);
 }
 
+static GnomeCanvasGroup*
+get_group_for_node (GnomeCanvas *canvas, designer_node_t *node)
+{
+    GList *node_list;
+    GnomeCanvasGroup *root = gnome_canvas_root(canvas);
+
+    /* Walk through all the canvas items to find nodes */
+    for (node_list = root->item_list; node_list != NULL; node_list = node_list->next)
+	if (g_object_get_data(G_OBJECT(node_list->data), "node") == node)
+	    return GNOME_CANVAS_GROUP(node_list->data);
+
+    return NULL;
+}
+
+static GnomeCanvasItem*
+get_item_for_slot (GnomeCanvasGroup *group, designer_slot_spec_t *spec)
+{
+    GList *node_list;
+
+    for (node_list = group->item_list; node_list != NULL; node_list = node_list->next)
+    {
+	char *name = g_object_get_data(G_OBJECT(node_list->data), "slot-name");
+
+	if (name != NULL && strcmp(name, spec->name) == 0)
+	    return GNOME_CANVAS_ITEM(node_list->data);
+    }
+
+    return NULL;
+}
+
+static GnomeCanvasGroup*
+focussed_group (widget_data_t *data)
+{
+    GnomeCanvasGroup *focussed;
+
+    if (data->design->root == NULL)
+	return NULL;
+
+    focussed = get_group_for_node(data->canvas, data->design->root);
+    g_assert(focussed != NULL);
+
+    return focussed;
+}
+
 static void
 focus_node (GnomeCanvasGroup *group, widget_data_t *data)
 {
-    if (data->focussed == group)
+    GnomeCanvasGroup *focussed = focussed_group(data);
+    designer_node_t *node = group_get_node(group);
+
+    g_assert(node != NULL);
+
+    if (focussed == group)
 	return;
 
-    if (data->focussed != NULL)
-	set_node_color(data->focussed, UNFOCUSSED_NODE_COLOR);
+    if (focussed != NULL)
+	set_node_color(focussed, UNFOCUSSED_NODE_COLOR);
     set_node_color(group, FOCUSSED_NODE_COLOR);
 
-    data->focussed = group;
+    designer_set_root(data->design, node);
 
     if (data->node_focussed_callback != NULL)
-    {
-	designer_node_t *node = group_get_node(group);
-
-	g_assert(node != NULL);
-
 	data->node_focussed_callback(data->widget, node);
-    }
 }
 
 static gint
@@ -446,9 +488,6 @@ remove_node (GnomeCanvasGroup *group, widget_data_t *data)
 	    goto restart;	/* we must do this because the item list has changed */
     }
 
-    if (data->focussed == group)
-	data->focussed = NULL;
-
     designer_delete_node(node);
     gtk_object_destroy(GTK_OBJECT(group));
 }
@@ -517,36 +556,6 @@ get_slot_at (GnomeCanvas *canvas, double x, double y)
 		}
 	    }
 	}
-    }
-
-    return NULL;
-}
-
-static GnomeCanvasGroup*
-get_group_for_node (GnomeCanvas *canvas, designer_node_t *node)
-{
-    GList *node_list;
-    GnomeCanvasGroup *root = gnome_canvas_root(canvas);
-
-    /* Walk through all the canvas items to find nodes */
-    for (node_list = root->item_list; node_list != NULL; node_list = node_list->next)
-	if (g_object_get_data(G_OBJECT(node_list->data), "node") == node)
-	    return GNOME_CANVAS_GROUP(node_list->data);
-
-    return NULL;
-}
-
-static GnomeCanvasItem*
-get_item_for_slot (GnomeCanvasGroup *group, designer_slot_spec_t *spec)
-{
-    GList *node_list;
-
-    for (node_list = group->item_list; node_list != NULL; node_list = node_list->next)
-    {
-	char *name = g_object_get_data(G_OBJECT(node_list->data), "slot-name");
-
-	if (name != NULL && strcmp(name, spec->name) == 0)
-	    return GNOME_CANVAS_ITEM(node_list->data);
     }
 
     return NULL;
@@ -665,7 +674,7 @@ get_text_size (const char *text, GtkWidget *widget, PangoFontDescription *font_d
 }
 
 static GnomeCanvasGroup*
-make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widget_data_t *data)
+make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widget_data_t *data, gboolean focussed)
 {
     GnomeCanvasGroup *group;
     GnomeCanvasItem *rectangle, *ellipse, *title, *close_button;
@@ -731,7 +740,7 @@ make_node (GnomeCanvas *canvas, designer_node_t *node, float x1, float y1, widge
 				      "y1", 0.0,
 				      "x2", width,
 				      "y2", height,
-				      "fill-color", UNFOCUSSED_NODE_COLOR,
+				      "fill-color", focussed ? FOCUSSED_NODE_COLOR : UNFOCUSSED_NODE_COLOR,
 				      NULL);
     g_signal_connect(rectangle, "event", G_CALLBACK(rectangle_event), data);
 
@@ -874,7 +883,7 @@ populate_canvas (widget_data_t *data)
 	g_print("adding node %s\n", node->name);
 #endif
 
-	make_node (data->canvas, node, 10.0, 10.0, data);
+	make_node (data->canvas, node, 10.0, 10.0, data, node == data->design->root);
     }
 
     /* now connect the slots */
@@ -947,23 +956,10 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 
     g_assert(data != NULL);
 
-    group = make_node(data->canvas, node, x, y, data);
+    group = make_node(data->canvas, node, x, y, data, FALSE);
 
-    if (data->focussed == NULL)
+    if (data->design->root == NULL)
 	focus_node(group, data);
-}
-
-designer_node_t*
-designer_widget_get_focussed_node (GtkWidget *widget)
-{
-    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
-
-    g_assert(data != NULL);
-
-    if (data->focussed == NULL)
-	return NULL;
-
-    return group_get_node(data->focussed);
 }
 
 void
@@ -979,7 +975,6 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
 
     data->canvas = NULL;
     data->hscrollbar = data->vscrollbar = NULL;
-    data->focussed = NULL;
     data->dragging = FALSE;
     data->slot = NULL;
     data->bpath = NULL;
@@ -1021,21 +1016,6 @@ designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *ob
 }
 
 void
-designer_widget_design_aux_load_callback (designer_design_t *design, lisp_object_t *obj, gpointer user_data)
-{
-    widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
-    lisp_object_t *focussed_node = lisp_proplist_lookup_symbol(obj, ":focussed-node");
-    designer_node_t *node;
-
-    g_assert(lisp_string_p(focussed_node));
-
-    node = designer_get_node_by_name(design, lisp_string(focussed_node));
-    g_assert(node != NULL);
-
-    focus_node(get_group_for_node(data->canvas, node), data);
-}
-
-void
 designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out)
 {
     widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
@@ -1052,22 +1032,6 @@ designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE 
     lisp_print_real(x, out);
     lisp_print_symbol(":y", out);
     lisp_print_real(y, out);
-
-    lisp_print_close_paren(out);
-}
-
-void
-designer_widget_design_aux_print (designer_design_t *design, gpointer user_data, FILE *out)
-{
-    designer_node_t *node = designer_widget_get_focussed_node(GTK_WIDGET(user_data));
-
-    lisp_print_open_paren(out);
-
-    if (node != NULL)
-    {
-	lisp_print_symbol(":focussed-node", out);
-	lisp_print_string(node->name, out);
-    }
 
     lisp_print_close_paren(out);
 }

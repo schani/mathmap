@@ -213,6 +213,9 @@ designer_delete_node (designer_node_t *node)
     for (i = 0; i < num_slots; ++i)
 	g_assert(node->input_slots[i].partner == NULL);
 
+    if (design->root == node)
+	design->root = NULL;
+
     node->design->nodes = g_slist_remove(node->design->nodes, node);
 
     g_free(node->input_slots);
@@ -362,4 +365,13 @@ designer_get_node_by_name (designer_design_t *design, const char *name)
     }
 
     return NULL;
+}
+
+void
+designer_set_root (designer_design_t *design, designer_node_t *root)
+{
+    if (root != NULL)
+	g_assert(root->design == design);
+
+    design->root = root;
 }
