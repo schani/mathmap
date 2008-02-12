@@ -78,6 +78,12 @@ designer_make_design_type (gboolean allow_cycles)
 }
 
 void
+designer_free_design_type (designer_design_type_t *type)
+{
+    /* FIXME: implement */
+}
+
+void
 designer_add_type (designer_design_type_t *design_type, const char *name)
 {
     designer_type_t *type = g_new0(designer_type_t, 1);
@@ -382,4 +388,59 @@ designer_set_root (designer_design_t *design, designer_node_t *root)
 	g_assert(root->design == design);
 
     design->root = root;
+}
+
+designer_design_t*
+designer_migrate_design (designer_design_t *design, designer_design_type_t *new_type)
+{
+    designer_design_t *new_design = designer_make_design(new_type, design->name);
+    GSList *node_list;
+
+    /* create nodes */
+    for (node_list = design->nodes; node_list != NULL; node_list = node_list->next)
+    {
+	designer_node_t *node = node_list->data;
+	designer_node_type_t *new_node_type = designer_get_node_type_by_name(new_type, node->type->name);
+
+	if (new_node_type == NULL)
+	    continue;
+
+	designer_add_node(new_design, node->name, new_node_type->name);
+    }
+
+    /* make connections */
+    for (node_list = design->nodes; node_list != NULL; node_list = node_list->next)
+    {
+	designer_node_t *node = node_list->data;
+	designer_node_t *new_node = designer_get_node_by_name(new_design, node->name);
+	GSList *slot_list;
+	int i;
+
+	if (new_node == NULL)
+	    continue;
+
+	for (i = 0, slot_list = node->type->input_slot_specs;
+	     slot_list != NULL;
+	     ++i, slot_list = slot_list->next)
+	{
+	    designer_slot_spec_t *spec = slot_list->data;
+	    designer_node_t *new_partner;
+
+	    if (node->input_slots[i].partner == NULL)
+		continue;
+
+	    new_partner = designer_get_node_by_name(new_design, node->input_slots[i].partner->name);
+	    if (new_partner == NULL)
+		continue;
+
+	    designer_connect_nodes(new_partner, node->input_slots[i].partner_slot_spec->name,
+				   new_node, spec->name);
+	}
+    }
+
+    /* root */
+    if (design->root != NULL)
+	new_design->root = designer_get_node_by_name(new_design, design->root->name);
+
+    return new_design;
 }

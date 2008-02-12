@@ -874,6 +874,9 @@ populate_canvas (widget_data_t *data)
 {
     GSList *list;
 
+    if (data->design == NULL)
+	return;
+
     /* create the nodes first */
     for (list = data->design->nodes; list != NULL; list = list->next)
     {

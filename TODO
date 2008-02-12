@@ -9,6 +9,7 @@ memory leak when animating:
 
 ** GIMP Plug-In
 rename "Examples" to "Filters"
+when doing "Preview" in "Composer" tab force creating source
 
 ** Language
 HSL color space
@@ -16,8 +17,7 @@ HSL color space
 ** Packaging
 
 ** Designer
-sync filter library
-save designs
+migrate node positions
 
 ** Compiler
 

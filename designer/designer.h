@@ -97,6 +97,7 @@ typedef void (*designer_design_aux_print_func_t) (designer_design_t *design, gpo
 /* design type */
 
 extern designer_design_type_t* designer_make_design_type (gboolean allow_cycles);
+extern void designer_free_design_type (designer_design_type_t *type);
 
 extern void designer_add_type (designer_design_type_t *design_type, const char *name);
 
@@ -131,6 +132,8 @@ extern void designer_set_root (designer_design_t *design, designer_node_t *root)
 
 extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
+
+extern designer_design_t* designer_migrate_design (designer_design_t *design, designer_design_type_t *new_type);
 
 /* load/save */
 

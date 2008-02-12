@@ -202,7 +202,8 @@ GtkWidget *expression_entry = 0,
     *uservalues_scrolled_window,
     *uservalues_table,
     *tree_scrolled_window,
-    *designer_widget;
+    *designer_widget,
+    *designer_tree_scrolled_window;
 
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
@@ -223,6 +224,8 @@ static char *current_filename = NULL;
 static char *current_design_filename = NULL;
 
 static expression_db_t *the_edb = NULL;
+static designer_design_type_t *the_design_type = NULL;
+static designer_design_t *the_current_design = NULL;
 
 /***** Functions *****/
 
@@ -727,38 +730,6 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
 /*****/
 
-static expression_db_t*
-get_designer_edb (void)
-{
-    static expression_db_t *edb = NULL;
-
-    if (edb == NULL)
-	edb = read_expressions();
-
-    return edb;
-}
-
-static designer_design_type_t *the_design_type = NULL;
-static designer_design_t *the_current_design = NULL;
-
-static designer_design_type_t*
-get_design_type (void)
-{
-    if (the_design_type == NULL)
-	the_design_type = design_type_from_expression_db(get_designer_edb());
-    return the_design_type;
-}
-
-static designer_design_t*
-get_current_design (void)
-{
-    designer_design_type_t *design_type = get_design_type();
-
-    if (the_current_design == NULL)
-	the_current_design = designer_make_design(design_type, "__untitled_composition__");
-    return the_current_design;
-}
-
 static void
 node_focussed_callback (GtkWidget *widget, designer_node_t *node)
 {
@@ -785,7 +756,7 @@ load_design (const char *filename)
 {
     designer_design_t *design;
 
-    design = designer_load_design(get_design_type(), filename,
+    design = designer_load_design(the_design_type, filename,
 				  &designer_widget_design_loaded_callback,
 				  &designer_widget_node_aux_load_callback,
 				  NULL,
@@ -1314,12 +1285,47 @@ update_expression_tree_from_edb (GtkWidget *tree_scrolled_window, expression_db_
 static void
 update_expression_tree (void)
 {
+    designer_design_type_t *new_design_type;
+    designer_design_t *new_design = NULL;
+
     if (the_edb != NULL)
 	free_expression_db(the_edb);
 
     the_edb = read_expressions();
 
     update_expression_tree_from_edb(tree_scrolled_window, the_edb, G_CALLBACK(dialog_tree_changed));
+    update_expression_tree_from_edb(designer_tree_scrolled_window, the_edb, G_CALLBACK(designer_tree_callback));
+
+    new_design_type = design_type_from_expression_db(the_edb);
+
+    if (the_current_design != NULL)
+    {
+	new_design = designer_migrate_design(the_current_design, new_design_type);
+	g_assert(new_design != NULL);
+    }
+
+    if (the_current_design != NULL)
+    {
+	designer_free_design(the_current_design);
+	the_current_design = NULL;
+    }
+    if (the_design_type != NULL)
+    {
+	designer_free_design_type(the_design_type);
+	the_design_type = NULL;
+    }
+
+    the_design_type = new_design_type;
+    the_current_design = new_design;
+
+    if (the_current_design == NULL)
+    {
+	the_current_design = designer_make_design(the_design_type, "__untitled_composition__");
+	g_assert(the_current_design != NULL);
+    }
+
+    g_assert(designer_widget != NULL);
+    designer_widget_set_design(designer_widget, the_current_design);
 }
 
 /*****/
@@ -1446,7 +1452,6 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *scale;
     GtkWidget *notebook;
     GtkWidget *t_table;
-    GtkWidget *designer_tree_scrolled_window;
     GtkObject *adjustment;
     GdkPixbuf *pixbuf;
 
@@ -1765,42 +1770,41 @@ mathmap_dialog (int mutable_expression)
 	gtk_widget_show(label);
 	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), uservalues_scrolled_window, label, label);
 
-	/* Examples */
-
 	if (mutable_expression)
 	{
-	    tree_scrolled_window = make_tree_scrolled_window();
 
-	    update_expression_tree();
+	/* Examples */
+
+	    tree_scrolled_window = make_tree_scrolled_window();
 
 	    label = gtk_label_new(_("Examples"));
 	    gtk_widget_show(label);
 	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), tree_scrolled_window, label, label);
-	}
 
 	/* Designer */
 
-	hpaned = gtk_hpaned_new();
+	    hpaned = gtk_hpaned_new();
 
-	designer_tree_scrolled_window = make_tree_scrolled_window();
-	gtk_widget_set_size_request(designer_tree_scrolled_window, 150, 200);
-	update_expression_tree_from_edb(designer_tree_scrolled_window, get_designer_edb(),
-					G_CALLBACK(designer_tree_callback));
-	gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
+	    designer_tree_scrolled_window = make_tree_scrolled_window();
+	    gtk_widget_set_size_request(designer_tree_scrolled_window, 150, 200);
+	    gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
 
-	designer_widget = designer_widget_new(get_current_design(), design_changed_callback, node_focussed_callback);
-	gtk_widget_set_size_request(designer_widget, 400, 400);
-	gtk_paned_add2(GTK_PANED(hpaned), designer_widget);
+	    designer_widget = designer_widget_new(NULL, design_changed_callback, node_focussed_callback);
+	    gtk_widget_set_size_request(designer_widget, 400, 400);
+	    gtk_paned_add2(GTK_PANED(hpaned), designer_widget);
 
-	gtk_widget_show(hpaned);
+	    gtk_widget_show(hpaned);
 
-	table = make_save_table(hpaned,
-				(GtkSignalFunc)design_save_callback,
-				(GtkSignalFunc)design_save_as_callback);
+	    table = make_save_table(hpaned,
+				    (GtkSignalFunc)design_save_callback,
+				    (GtkSignalFunc)design_save_as_callback);
 
-	label = gtk_label_new(_("Composer"));
-	gtk_widget_show(label);
-	gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
+	    label = gtk_label_new(_("Composer"));
+	    gtk_widget_show(label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), table, label, label);
+
+	    update_expression_tree();
+	}
 
     /* Done */
 
@@ -2422,7 +2426,11 @@ dialog_save_callback (GtkWidget *widget, gpointer data)
     if (current_filename == 0)
 	dialog_save_as_callback(widget, data);
     else
+    {
 	save_expression();
+
+	update_expression_tree();
+    }
 }
 
 /*****/
@@ -2487,7 +2495,11 @@ design_save_callback (GtkWidget *widget, gpointer data)
     if (current_design_filename == NULL)
 	design_save_as_callback(widget, data);
     else
+    {
 	save_design();
+
+	update_expression_tree();
+    }
 }
 
 /*****/
@@ -2677,7 +2689,7 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
     {
 	GValue value = { 0, };
 	const gchar *name;
-	designer_design_t *design;
+	designer_design_t *design = the_current_design;
 	designer_node_t *node;
 	designer_node_type_t *type;
 	int i;
@@ -2689,16 +2701,14 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	if (edb == NULL)
 	    return;
 
-	name = get_expression_name(edb, get_design_type());
+	name = get_expression_name(edb, the_design_type);
 	if (name == NULL)
 	    return;
-
-	design = get_current_design();
 
 	type = designer_get_node_type_by_name(design->type, name);
 	g_assert(type != NULL);
 
-	infos = get_expression_args(type->data, get_design_type());
+	infos = get_expression_args(type->data, the_design_type);
 	while (infos != NULL)
 	{
 	    if (infos->type == USERVAL_COLOR || infos->type == USERVAL_CURVE || infos->type == USERVAL_GRADIENT)
