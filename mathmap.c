@@ -1282,11 +1282,20 @@ update_expression_tree_from_edb (GtkWidget *tree_scrolled_window, expression_db_
     gtk_widget_show(tree);
 }
 
+typedef struct
+{
+    designer_node_t *node;
+    double x;
+    double y;
+} node_and_position_t;
+
 static void
 update_expression_tree (void)
 {
     designer_design_type_t *new_design_type;
     designer_design_t *new_design = NULL;
+    int num_nodes = -1;
+    node_and_position_t *positions = NULL;
 
     if (the_edb != NULL)
 	free_expression_db(the_edb);
@@ -1300,8 +1309,27 @@ update_expression_tree (void)
 
     if (the_current_design != NULL)
     {
+	GSList *list;
+	int i;
+
 	new_design = designer_migrate_design(the_current_design, new_design_type);
 	g_assert(new_design != NULL);
+
+	num_nodes = g_slist_length(new_design->nodes);
+	positions = g_new(node_and_position_t, num_nodes);
+
+	for (i = 0, list = new_design->nodes;
+	     list != NULL;
+	     ++i, list = list->next)
+	{
+	    designer_node_t *old_node;
+
+	    positions[i].node = list->data;
+	    old_node = designer_get_node_by_name(the_current_design, positions[i].node->name);
+	    g_assert(old_node != NULL);
+
+	    designer_widget_get_node_position(designer_widget, old_node, &positions[i].x, &positions[i].y);
+	}
     }
 
     if (the_current_design != NULL)
@@ -1326,6 +1354,16 @@ update_expression_tree (void)
 
     g_assert(designer_widget != NULL);
     designer_widget_set_design(designer_widget, the_current_design);
+
+    if (positions != NULL)
+    {
+	int i;
+
+	for (i = 0; i < num_nodes; ++i)
+	    designer_widget_move_node(designer_widget, positions[i].node, positions[i].x, positions[i].y);
+
+	g_free(positions);
+    }
 }
 
 /*****/

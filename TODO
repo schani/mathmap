@@ -6,17 +6,18 @@
 don't try interpreter as long as it doesn't work
 memory leak when animating:
   http://groups.google.com/group/mathmap/msg/51152c5af32fb3d2
+check out tomr's patch
 
 ** GIMP Plug-In
 when doing "Preview" in "Composer" tab force creating source
 
 ** Language
-HSL color space
+HSL color space (for color gimp layer mode)
 
 ** Packaging
 
 ** Designer
-migrate node positions
+assert when trying to create nodes or node types with existing names
 
 ** Compiler
 

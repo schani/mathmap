@@ -990,6 +990,29 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
 }
 
 void
+designer_widget_get_node_position (GtkWidget *widget, designer_node_t *node, double *x, double *y)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+    GnomeCanvasGroup *group = get_group_for_node(data->canvas, node);
+
+    g_assert(group != NULL);
+
+    g_object_get(group, "x", x, "y", y, NULL);
+}
+
+void
+designer_widget_move_node (GtkWidget *widget, designer_node_t *node, double x, double y)
+{
+    widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
+    GnomeCanvasGroup *group = get_group_for_node(data->canvas, node);
+    
+    g_assert(group != NULL);
+
+    gnome_canvas_item_move(GNOME_CANVAS_ITEM(group), x, y);
+    update_node_edges(group);
+}
+
+void
 designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data)
 {
     GtkWidget *widget = GTK_WIDGET(user_data);
@@ -1004,32 +1027,22 @@ designer_widget_design_loaded_callback (designer_design_t *design, gpointer user
 void
 designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *obj, gpointer user_data)
 {
-    widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
     lisp_object_t *x = lisp_proplist_lookup_symbol(obj, ":x");
     lisp_object_t *y = lisp_proplist_lookup_symbol(obj, ":y");
-    GnomeCanvasGroup *group;
 
     g_assert(lisp_number_p(x) && lisp_number_p(y));
 
-    group = get_group_for_node(data->canvas, node);
-    g_assert(group != NULL);
-
-    gnome_canvas_item_move(GNOME_CANVAS_ITEM(group), lisp_real(x), lisp_real(y));
-    update_node_edges(group);
+    designer_widget_move_node(GTK_WIDGET(user_data), node, lisp_real(x), lisp_real(y));
 }
 
 void
 designer_widget_node_aux_print (designer_node_t *node, gpointer user_data, FILE *out)
 {
-    widget_data_t *data = g_object_get_data(G_OBJECT(user_data), "designer-data");
-    GnomeCanvasGroup *group = get_group_for_node (data->canvas, node);
     double x, y;
 
-    g_assert(group != NULL);
+    designer_widget_get_node_position(GTK_WIDGET(user_data), node, &x, &y);
 
     lisp_print_open_paren(out);
-
-    g_object_get(group, "x", &x, "y", &y, NULL);
 
     lisp_print_symbol(":x", out);
     lisp_print_real(x, out);

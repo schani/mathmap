@@ -157,7 +157,8 @@ extern void designer_widget_set_design (GtkWidget *widget, designer_design_t *de
 
 extern void designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, double y);
 
-extern designer_node_t* designer_widget_get_focussed_node (GtkWidget *widget);
+extern void designer_widget_get_node_position (GtkWidget *widget, designer_node_t *node, double *x, double *y);
+extern void designer_widget_move_node (GtkWidget *widget, designer_node_t *node, double x, double y);
 
 extern void designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data);
 extern void designer_widget_node_aux_load_callback (designer_node_t *node, lisp_object_t *obj, gpointer user_data);
