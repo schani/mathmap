@@ -11,18 +11,23 @@ memory leak when animating (cannot reproduce):
 when doing "Preview" in "Composer" tab force creating source
 
 ** Language
-HSL color space (for color gimp layer mode)
-figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
 
 ** Packaging
 
 ** Designer
-assert when trying to create nodes or node types with existing names
 
 ** Compiler
 
 ** Filters
 ident
+
+* 1.3.3
+
+** Language
+HSL color space (for color gimp layer mode)
+figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
+
+** Filters
 color gimp layer mode
 
 * 1.3.x

@@ -405,3 +405,19 @@ get_expression_args (expression_db_t *expr, designer_design_type_t *design_type)
 	return NULL;
     return mathmap->main_filter->userval_infos;
 }
+
+char*
+get_expression_path (expression_db_t *expr)
+{
+    switch (expr->kind)
+    {
+	case EXPRESSION_DB_EXPRESSION :
+	    return expr->v.expression.path;
+
+	case EXPRESSION_DB_DESIGN :
+	    return expr->v.design.path;
+
+	default :
+	    g_assert_not_reached();
+    }
+}

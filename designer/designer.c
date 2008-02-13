@@ -83,30 +83,6 @@ designer_free_design_type (designer_design_type_t *type)
     /* FIXME: implement */
 }
 
-void
-designer_add_type (designer_design_type_t *design_type, const char *name)
-{
-    designer_type_t *type = g_new0(designer_type_t, 1);
-
-    type->name = g_strdup(name);
-
-    design_type->types = g_slist_prepend(design_type->types, type);
-}
-
-designer_node_type_t*
-designer_add_node_type (designer_design_type_t *design_type, const char *name, gpointer data)
-{
-    designer_node_type_t *node_type = g_new0(designer_node_type_t, 1);
-
-    node_type->design_type = design_type;
-    node_type->name = g_strdup(name);
-    node_type->data = data;
-
-    design_type->node_types = g_slist_prepend(design_type->node_types, node_type);
-
-    return node_type;
-}
-
 static designer_type_t*
 lookup_type (designer_design_type_t *design_type, const char *name)
 {
@@ -121,6 +97,37 @@ lookup_type (designer_design_type_t *design_type, const char *name)
     }
 
     return NULL;
+}
+
+void
+designer_add_type (designer_design_type_t *design_type, const char *name)
+{
+    designer_type_t *type;
+
+    g_assert(lookup_type(design_type, name) == NULL);
+
+    type = g_new0(designer_type_t, 1);
+    type->name = g_strdup(name);
+
+    design_type->types = g_slist_prepend(design_type->types, type);
+}
+
+designer_node_type_t*
+designer_add_node_type (designer_design_type_t *design_type, const char *name, gpointer data)
+{
+    designer_node_type_t *node_type;
+
+    if (designer_get_node_type_by_name(design_type, name) != NULL)
+	return NULL;
+
+    node_type = g_new0(designer_node_type_t, 1);
+    node_type->design_type = design_type;
+    node_type->name = g_strdup(name);
+    node_type->data = data;
+
+    design_type->node_types = g_slist_prepend(design_type->node_types, node_type);
+
+    return node_type;
 }
 
 static void
@@ -197,6 +204,9 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
     designer_node_t *node;
 
     if (node_type == NULL)
+	return NULL;
+
+    if (designer_get_node_by_name(design, name) != NULL)
 	return NULL;
 
     num_input_slots = g_slist_length(node_type->input_slot_specs);

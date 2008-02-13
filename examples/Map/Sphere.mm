@@ -1,7 +1,7 @@
 # by Herbert Poetzl
-filter sphere (image in,
-               float alpha: 0-6.2831853 (3.4), float beta: 0-6.2831853 (4.2),
-               float gamma: 0-6.2831853 (5.2), color background)
+filter map_sphere (image in,
+                   float alpha: 0-6.2831853 (3.4), float beta: 0-6.2831853 (4.2),
+                   float gamma: 0-6.2831853 (5.2), color background)
     rd=0.9*min(X,Y);
     if r>rd then
         background

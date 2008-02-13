@@ -1131,6 +1131,28 @@ add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
     userval_info_t *args = get_expression_args(edb, design_type);
     designer_node_type_t *type = designer_add_node_type(design_type, name, edb);
 
+    if (type == NULL)
+    {
+	char *message;
+
+	type = designer_get_node_type_by_name(design_type, name);
+	g_assert(type != NULL);
+
+	message = g_strdup_printf("The filters in the files\n"
+				  "`%s'\n"
+				  "and\n"
+				  "`%s'\n"
+				  "have the same name `%s'.\n"
+				  "Only the former can be used from the composer.",
+				  get_expression_path(type->data),
+				  get_expression_path(edb),
+				  name);
+	gimp_message(message);
+	g_free(message);
+
+	return;
+    }
+
     while (args != NULL)
     {
 	if (args->type == USERVAL_IMAGE)
