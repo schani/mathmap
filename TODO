@@ -12,6 +12,7 @@ when doing "Preview" in "Composer" tab force creating source
 
 ** Language
 HSL color space (for color gimp layer mode)
+figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
 
 ** Packaging
 
@@ -19,7 +20,6 @@ HSL color space (for color gimp layer mode)
 assert when trying to create nodes or node types with existing names
 
 ** Compiler
-passing of gradients and curves
 
 ** Filters
 ident
@@ -61,6 +61,8 @@ Real dependencies
 ** Examples
 
 ** Compiler
+check why lots of ops (like RED_FLOAT) are not foldable
+pass colors as tuples
 more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2))
 catch duplicate filter names
 passing of colors, curves and gradients to filters

@@ -177,9 +177,11 @@
 (defop 'apply-curve 2 "APPLY_CURVE" :type 'float :arg-types '(curve float) :foldable nil)
 (defop 'apply-gradient 2 "APPLY_GRADIENT" :interpreter-c-name "APPLY_GRADIENT_INTERPRETER" :type 'tuple
        :arg-types '(gradient float) :foldable nil)
-
 (defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'tuple
        :arg-types '(float float image float) :foldable nil)
+
+(defop 'make-rgba-color 4 "MAKE_COLOR" :type 'color :arg-types '(float float float float) :foldable nil)
+
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)
 (defop 'green 1 "GREEN_FLOAT" :arg-type 'color :foldable nil)
 (defop 'blue 1 "BLUE_FLOAT" :arg-type 'color :foldable nil)

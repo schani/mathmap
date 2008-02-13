@@ -768,14 +768,21 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    case USERVAL_IMAGE :
 		if ((*argp)->result.length != 1)
 		{
-		    sprintf(error_string, "Can only pass tuples of length 1 as numbers or booleans.");
+		    sprintf(error_string, "Can only pass tuples of length 1 as numbers, booleans, curves, gradients, or images.");
+		    JUMP(1);
+		}
+		break;
+
+	    case USERVAL_COLOR :
+		if ((*argp)->result.number != rgba_tag_number || (*argp)->result.length != 4)
+		{
+		    sprintf(error_string, "Can only pass tuples of type rgba:4 as colors.");
 		    JUMP(1);
 		}
 		break;
 
 	    default :
-		sprintf(error_string, "Can not pass colors to filters yet.");
-		JUMP(1);
+		g_assert_not_reached();
 	}
     }
 

@@ -2746,7 +2746,6 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	designer_node_t *node;
 	designer_node_type_t *type;
 	int i;
-	userval_info_t *infos;
 	expression_db_t *edb;
 
 	gtk_tree_model_get_value(model, &iter, TREE_VALUE_EDB, &value);
@@ -2760,23 +2759,6 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 
 	type = designer_get_node_type_by_name(design->type, name);
 	g_assert(type != NULL);
-
-	infos = get_expression_args(type->data, the_design_type);
-	while (infos != NULL)
-	{
-	    if (infos->type == USERVAL_COLOR)
-	    {
-		char *message = g_strdup_printf(_("The filter `%s' cannot be used in the composer in this unstable MathMap release because it takes color arguments."), name);
-
-		gimp_message(message);
-
-		g_free(message);
-
-		return;
-	    }
-
-	    infos = infos->next;
-	}
 
 	i = 1;
 	node = NULL;

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2007 Mark Probst
+ * Copyright (C) 2002-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1463,7 +1463,7 @@ lookup_userval_representation (int userval_type)
 	    { USERVAL_INT_CONST, TYPE_INT, 1, OP_USERVAL_INT },
 	    { USERVAL_FLOAT_CONST, TYPE_FLOAT, 1, OP_USERVAL_FLOAT },
 	    { USERVAL_BOOL_CONST, TYPE_INT, 1, OP_USERVAL_BOOL },
-	    /* USERVAL_COLOR */
+	    { USERVAL_COLOR, TYPE_COLOR, 1, OP_USERVAL_COLOR },
 	    { USERVAL_CURVE, TYPE_CURVE, 1, OP_USERVAL_CURVE },
 	    { USERVAL_GRADIENT, TYPE_GRADIENT, 1, OP_USERVAL_GRADIENT },
 	    { USERVAL_IMAGE, TYPE_IMAGE, 1, OP_USERVAL_IMAGE },
@@ -2147,39 +2147,27 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    break;
 
 	case EXPR_USERVAL :
+	    if (tree->val.userval.info->type == USERVAL_COLOR)
+	    {
+		compvar_t *temp = make_temporary(TYPE_INT);
+
+		emit_assign(make_lhs(temp),
+			    make_op_rhs(OP_USERVAL_COLOR,
+					make_int_const_primary(tree->val.userval.info->index)));
+
+		gen_deconstruct_color(temp, dest, is_alloced);
+	    }
+	    else
 	    {
 		userval_representation_t *rep = lookup_userval_representation(tree->val.userval.info->type);
-		
-		if (rep != NULL)
-		{
-		    binding_values_t *bv = lookup_binding_values(BINDING_USERVAL, tree->val.userval.info);
+		binding_values_t *bv = lookup_binding_values(BINDING_USERVAL, tree->val.userval.info);
 
-		    g_assert(bv != NULL);
+		g_assert(rep != NULL);
+		g_assert(bv != NULL);
 
-		    if (!is_alloced)
-			dest[0] = make_temporary(rep->var_type);
-		    emit_assign(make_lhs(dest[0]), make_value_rhs(bv->values[0]));
-		}
-		else
-		{
-		    switch (tree->val.userval.info->type)
-		    {
-			case USERVAL_COLOR :
-			    {
-				compvar_t *temp = make_temporary(TYPE_INT);
-
-				emit_assign(make_lhs(temp),
-					    make_op_rhs(OP_USERVAL_COLOR,
-							make_int_const_primary(tree->val.userval.info->index)));
-
-				gen_deconstruct_color(temp, dest, is_alloced);
-			    }
-			    break;
-
-			default :
-			    g_assert_not_reached();
-		    }
-		}
+		if (!is_alloced)
+		    dest[0] = make_temporary(rep->var_type);
+		emit_assign(make_lhs(dest[0]), make_value_rhs(bv->values[0]));
 	    }
 	    break;
 
@@ -2189,16 +2177,38 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		int *arglengths, *argnumbers;
 		primary_t *arg_primaries;
 		int num_args = num_filter_args(tree->val.filter_closure.filter) - 3;
+		userval_info_t *infos = tree->val.filter_closure.filter->userval_infos;
+		userval_info_t *info;
 		int i;
 
 		args = gen_args(tree->val.filter_closure.args, &arglengths, &argnumbers);
 
 		arg_primaries = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
 
-		for (i = 0; i < num_args; ++i)
+		for (i = 0, info = infos;
+		     i < num_args;
+		     ++i, info = info->next)
 		{
-		    g_assert(arglengths[i] == 1);
-		    arg_primaries[i] = make_compvar_primary(args[i][0]);
+		    compvar_t *compvar;
+
+		    if (info->type == USERVAL_COLOR)
+		    {
+			g_assert(arglengths[i] == 4 && argnumbers[i] == rgba_tag_number);
+
+			compvar = make_temporary(TYPE_COLOR);
+			emit_assign(make_lhs(compvar), make_op_rhs(OP_MAKE_RGBA_COLOR,
+								   make_compvar_primary(args[i][0]),
+								   make_compvar_primary(args[i][1]),
+								   make_compvar_primary(args[i][2]),
+								   make_compvar_primary(args[i][3])));
+		    }
+		    else
+		    {
+			g_assert(arglengths[i] == 1);
+			compvar = args[i][0];
+		    }
+
+		    arg_primaries[i] = make_compvar_primary(compvar);
 		}
 
 		if (!is_alloced)
