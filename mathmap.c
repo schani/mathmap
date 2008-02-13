@@ -1739,7 +1739,7 @@ mathmap_dialog (int mutable_expression)
 		label = gtk_label_new(_("Frames"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		gtk_table_attach(GTK_TABLE(frame_table), label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
-		adjustment = gtk_adjustment_new(mmvals.frames, 2, 100, 1.0, 1.0, 0.0);
+		adjustment = gtk_adjustment_new(mmvals.frames, 2, 360, 1.0, 10.0, 0.0);
 		scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
 		gtk_widget_set_usize(scale, 100, 0);
 		gtk_table_attach (GTK_TABLE (frame_table), scale, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);

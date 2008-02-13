@@ -4,9 +4,8 @@
 
 ** General
 don't try interpreter as long as it doesn't work
-memory leak when animating:
+memory leak when animating (cannot reproduce):
   http://groups.google.com/group/mathmap/msg/51152c5af32fb3d2
-check out tomr's patch
 
 ** GIMP Plug-In
 when doing "Preview" in "Composer" tab force creating source
@@ -20,6 +19,7 @@ HSL color space (for color gimp layer mode)
 assert when trying to create nodes or node types with existing names
 
 ** Compiler
+passing of gradients and curves
 
 ** Filters
 ident
@@ -28,6 +28,7 @@ color gimp layer mode
 * 1.3.x
 
 ** Designer
+catch and forbid recursive compositions
 
 ** GIMP Plug-In
 auto-completion?
@@ -60,6 +61,7 @@ Real dependencies
 ** Examples
 
 ** Compiler
+more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2))
 catch duplicate filter names
 passing of colors, curves and gradients to filters
 filter call argument checking
