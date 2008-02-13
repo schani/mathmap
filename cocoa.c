@@ -87,3 +87,28 @@ mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable,
     return MAKE_RGBA_COLOR(pixel[0], pixel[1], pixel[2], pixel[3]);
 }
 
+gradient_t*
+get_default_gradient (void)
+{
+    static gradient_t gradient;
+    static color_t points[USER_GRADIENT_POINTS];
+    static gboolean inited = FALSE;
+
+    if (!inited)
+    {
+	int i;
+
+	for (i = 0; i < USER_GRADIENT_POINTS; ++i)
+	{
+	    unsigned char v = i * 255 / USER_GRADIENT_POINTS;
+
+	    points[i] = MAKE_RGBA_COLOR(v,v,v,255);
+	}
+
+	gradient.values = points;
+
+	inited = TRUE;
+    }
+
+    return &gradient;
+}

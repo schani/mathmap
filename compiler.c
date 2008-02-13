@@ -341,6 +341,8 @@ static type_t primary_type (primary_t *primary);
                                      		 c = get_orig_val_pixel(invocation, (x), (y), (i), (f)); \
                                  	     /*TUPLE_FROM_COLOR(c);*/ NULL; })
 
+#define APPLY_GRADIENT_INTERPRETER(g,p)	NULL
+
 #define OUTPUT_TUPLE_INTERPRETER(t)	0
 
 #define ARG(i)	(invocation->uservals[(i)])
@@ -1461,9 +1463,9 @@ lookup_userval_representation (int userval_type)
 	    { USERVAL_INT_CONST, TYPE_INT, 1, OP_USERVAL_INT },
 	    { USERVAL_FLOAT_CONST, TYPE_FLOAT, 1, OP_USERVAL_FLOAT },
 	    { USERVAL_BOOL_CONST, TYPE_INT, 1, OP_USERVAL_BOOL },
-	    /* USERVAL_CURVE */
 	    /* USERVAL_COLOR */
-	    /* USERVAL_GRADIENT */
+	    { USERVAL_CURVE, TYPE_CURVE, 1, OP_USERVAL_CURVE },
+	    { USERVAL_GRADIENT, TYPE_GRADIENT, 1, OP_USERVAL_GRADIENT },
 	    { USERVAL_IMAGE, TYPE_IMAGE, 1, OP_USERVAL_IMAGE },
 	    { -1, -1, -1 }
 	};
@@ -1505,6 +1507,18 @@ print_value (value_t *val)
 	printf("%s[%d]_%d", val->compvar->var->name, val->compvar->n, val->index);
     else
 	printf("$t%d_%d", val->compvar->temp->number, val->index);
+}
+
+static void
+print_curve (curve_t *curve)
+{
+    printf("CURVE");
+}
+
+static void
+print_gradient (gradient_t *gradient)
+{
+    printf("GRADIENT");
 }
 
 static void
@@ -2150,40 +2164,13 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		{
 		    switch (tree->val.userval.info->type)
 		    {
-			case USERVAL_CURVE :
-			    {
-				compvar_t *pos;
-
-				if (!is_alloced)
-				    dest[0] = make_temporary(TYPE_FLOAT);
-
-				gen_code(tree->val.userval.args, &pos, 0);
-
-				emit_assign(make_lhs(dest[0]),
-					    make_op_rhs(OP_USERVAL_CURVE,
-							make_int_const_primary(tree->val.userval.info->index),
-							make_compvar_primary(pos)));
-			    }
-			    break;
-
 			case USERVAL_COLOR :
-			case USERVAL_GRADIENT :
 			    {
-				compvar_t *pos;
 				compvar_t *temp = make_temporary(TYPE_INT);
 
-				if (tree->val.userval.info->type == USERVAL_COLOR)
-				    emit_assign(make_lhs(temp),
-						make_op_rhs(OP_USERVAL_COLOR,
-							    make_int_const_primary(tree->val.userval.info->index)));
-				else
-				{
-				    gen_code(tree->val.userval.args, &pos, 0);
-				    emit_assign(make_lhs(temp),
-						make_op_rhs(OP_USERVAL_GRADIENT,
-							    make_int_const_primary(tree->val.userval.info->index),
-							    make_compvar_primary(pos)));
-				}
+				emit_assign(make_lhs(temp),
+					    make_op_rhs(OP_USERVAL_COLOR,
+							make_int_const_primary(tree->val.userval.info->index)));
 
 				gen_deconstruct_color(temp, dest, is_alloced);
 			    }
@@ -3695,6 +3682,18 @@ static int
 tuples_equal (float *t1, float *t2)
 {
     g_assert_not_reached();
+}
+
+static int
+curves_equal (curve_t *c1, curve_t *c2)
+{
+    return c1 == c2;
+}
+
+static int
+gradients_equal (gradient_t *g1, gradient_t *g2)
+{
+    return g1 == g2;
 }
 
 static int

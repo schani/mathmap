@@ -81,6 +81,16 @@ typedef struct _userval_info_t
 struct _image_t;
 struct _input_drawable_t;
 
+typedef struct
+{
+    float *values;
+} curve_t;
+
+typedef struct
+{
+    color_t *values;
+} gradient_t;
+
 typedef struct _userval_t
 {
     int type;
@@ -91,6 +101,8 @@ typedef struct _userval_t
 	float float_const;
 	float bool_const;
 	struct _image_t *image;
+	curve_t *curve;
+	gradient_t *gradient;
 
 	struct
 	{
@@ -99,16 +111,6 @@ typedef struct _userval_t
 #endif
 	    color_t value;
 	} color;
-
-	struct
-	{
-	    float *values;
-	} curve;
-
-	struct
-	{
-	    color_t *values;
-	} gradient;
     } v;
 
 #ifndef OPENSTEP
@@ -144,5 +146,7 @@ GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
 void update_uservals (userval_info_t *infos, userval_t *uservals);
 
 const char* userval_type_name (int type);
+
+gradient_t* get_default_gradient (void);
 
 #endif

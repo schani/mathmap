@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,7 +34,9 @@ int nil_tag_number,
     ra_tag_number,
     rgba_tag_number,
     ri_tag_number,
-    image_tag_number;
+    image_tag_number,
+    curve_tag_number,
+    gradient_tag_number;
 
 typedef struct _tag_entry
 {
@@ -56,6 +58,8 @@ init_tags (void)
     rgba_tag_number = tag_number_for_name("rgba");
     ri_tag_number = tag_number_for_name("ri");
     image_tag_number = tag_number_for_name("image");
+    curve_tag_number = tag_number_for_name("curve");
+    gradient_tag_number = tag_number_for_name("gradient");
 }
 
 int

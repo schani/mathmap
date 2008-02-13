@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -277,6 +277,68 @@ calc_image_values (userval_info_t *info, userval_t *val)
 		       &val->v.image->v.drawable->middle_x, &val->v.image->v.drawable->middle_y);
 }
 
+static curve_t*
+get_default_curve (void)
+{
+    static curve_t curve;
+    static float points[USER_CURVE_POINTS];
+    static gboolean inited = FALSE;
+
+    if (!inited)
+    {
+	int i;
+
+	for (i = 0; i < USER_CURVE_POINTS; ++i)
+	    points[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
+
+	curve.values = points;
+
+	inited = TRUE;
+    }
+
+    return &curve;
+}
+
+static curve_t*
+copy_curve (curve_t *curve)
+{
+    curve_t *copy = g_new(curve_t, 1);
+
+    copy->values = g_new(float, USER_CURVE_POINTS);
+    memcpy(copy->values, curve->values, sizeof(float) * USER_CURVE_POINTS);
+
+    return copy;
+}
+
+static gradient_t*
+copy_gradient (gradient_t *gradient)
+{
+    gradient_t *copy = g_new(gradient_t, 1);
+
+    copy->values = g_new(color_t, USER_GRADIENT_POINTS);
+    memcpy(copy->values, gradient->values, sizeof(color_t) * USER_GRADIENT_POINTS);
+
+    return copy;
+}
+
+static void
+free_curve (curve_t *curve)
+{
+    g_assert(curve != get_default_curve());
+
+    g_free(curve->values);
+    g_free(curve);
+}
+
+static void
+free_gradient (gradient_t *gradient)
+{
+    g_assert(gradient != get_default_gradient());
+
+    g_free(gradient->values);
+    g_free(gradient);
+}
+
 void
 set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
@@ -295,29 +357,11 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 	    break;
 
 	case USERVAL_CURVE :
-	    {
-		int i;
-
-		for (i = 0; i < USER_CURVE_POINTS; ++i)
-		    val->v.curve.values[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
-	    }
+	    val->v.curve = copy_curve(get_default_curve());
 	    break;
 
 	case USERVAL_GRADIENT :
-	    {
-		int i;
-
-		for (i = 0; i < USER_GRADIENT_POINTS; ++i)
-		{
-#ifndef OPENSTEP
-		    val->v.gradient.values[i] = gradient_samples[i];
-#else
-		    unsigned char v = i * 255 / USER_GRADIENT_POINTS;
-
-		    val->v.gradient.values[i] = MAKE_RGBA_COLOR(v,v,v,255);
-#endif
-		}
-	    }
+	    val->v.gradient = copy_gradient(get_default_gradient());
 	    break;
 
 	case USERVAL_COLOR :
@@ -349,18 +393,6 @@ void
 instantiate_userval (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
     val->type = info->type;
-
-    switch (info->type)
-    {
-	case USERVAL_CURVE :
-	    val->v.curve.values = (float*)malloc(USER_CURVE_POINTS * sizeof(float));
-	    break;
-
-	case USERVAL_GRADIENT :
-	    val->v.gradient.values = (color_t*)malloc(USER_GRADIENT_POINTS * sizeof(color_t));
-	    break;
-    }
-
     set_userval_to_default(val, info, invocation);
 }
 
@@ -394,11 +426,11 @@ free_uservals (userval_t *uservals, userval_info_t *infos)
 	switch (info->type)
 	{
 	    case USERVAL_CURVE :
-		free(uservals[info->index].v.curve.values);
+		free_curve(uservals[info->index].v.curve);
 		break;
 
 	    case USERVAL_GRADIENT :
-		free(uservals[info->index].v.gradient.values);
+		free_gradient(uservals[info->index].v.gradient);
 		break;
 
 	    case USERVAL_IMAGE :
@@ -438,6 +470,14 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 	    dst->v = src->v;
 	    break;
 
+	case USERVAL_CURVE :
+	    dst->v.curve = copy_curve(src->v.curve);
+	    break;
+
+	case USERVAL_GRADIENT :
+	    dst->v.gradient = copy_gradient(src->v.gradient);
+	    break;
+
 	case USERVAL_IMAGE :
 	    {
 		input_drawable_t *dst_drawable;
@@ -462,14 +502,6 @@ copy_userval (userval_t *dst, userval_t *src, int type)
 		if (dst_drawable != 0)
 		    free_input_drawable(dst_drawable);
 	    }
-	    break;
-
-	case USERVAL_CURVE :
-	    memcpy(dst->v.curve.values, src->v.curve.values, USER_CURVE_POINTS * sizeof(float));
-	    break;
-
-	case USERVAL_GRADIENT :
-	    memcpy(dst->v.gradient.values, src->v.gradient.values, USER_GRADIENT_POINTS * sizeof(color_t));
 	    break;
 
 	default :
@@ -725,7 +757,7 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    int j;
 
 		    for (j = 0; j < USER_CURVE_POINTS; ++j)
-			vector[j] = uservals[info->index].v.curve.values[j] * (USER_CURVE_POINTS - 1);
+			vector[j] = uservals[info->index].v.curve->values[j] * (USER_CURVE_POINTS - 1);
 
 		    widget = gtk_gamma_curve_new();
 		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
@@ -800,6 +832,6 @@ update_uservals (userval_info_t *infos, userval_t *uservals)
 	if (uservals[info->index].widget != NULL && info->type == USERVAL_CURVE)
 	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(uservals[info->index].widget)->curve),
 				 USER_CURVE_POINTS,
-				 uservals[info->index].v.curve.values);
+				 uservals[info->index].v.curve->values);
 }
 #endif

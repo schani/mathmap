@@ -139,9 +139,9 @@ typedef struct
 #define USERVAL_INT_ACCESS(x)        (ARG((x)).v.int_const)
 #define USERVAL_FLOAT_ACCESS(x)      (ARG((x)).v.float_const)
 #define USERVAL_BOOL_ACCESS(x)       (ARG((x)).v.bool_const)
-#define USERVAL_CURVE_ACCESS(x,p)    (ARG((x)).v.curve.values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
 #define USERVAL_COLOR_ACCESS(x)      (ARG((x)).v.color.value)
-#define USERVAL_GRADIENT_ACCESS(x,p) (ARG((x)).v.gradient.values[(int)(CLAMP01((p)) * (USER_GRADIENT_POINTS - 1))])
+#define USERVAL_CURVE_ACCESS(x)	     (ARG((x)).v.curve)
+#define USERVAL_GRADIENT_ACCESS(x)   (ARG((x)).v.gradient)
 #define USERVAL_IMAGE_ACCESS(x)      (ARG((x)).v.image)
 
 #define UNINITED_IMAGE        (0)
@@ -185,6 +185,10 @@ typedef struct
 #define TUPLE_GREEN(t)		CLAMP01(TUPLE_NTH((t),1))
 #define TUPLE_BLUE(t)		CLAMP01(TUPLE_NTH((t),2))
 #define TUPLE_ALPHA(t)		CLAMP01(TUPLE_NTH((t),3))
+
+#define APPLY_CURVE(c,p)	((c)->values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
+#define APPLY_GRADIENT(g,p)	({ color_t color = (g)->values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))]; \
+	    			   TUPLE_FROM_COLOR(color); })
 
 #define ORIG_VAL(x,y,i,f)     ({ float *result; \
 	    			 if ((i)->type == IMAGE_CLOSURE) \

@@ -1142,6 +1142,15 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
       (set result (make (?T 1) 1))
       (set result (make (?T 1) 0))))
 
+;;; application
+
+(defbuiltin "__applyCurve" apply_curve (nil 1) ((c (curve 1)) (p (? 1)))
+  (set result (make (nil 1) (apply-curve (nth 0 c) (nth 0 p)))))
+
+(defbuiltin "__applyGradient" apply_gradient (rgba 4) ((g (gradient 1)) (p (? 1)))
+  (let ((t (apply-gradient (nth 0 g) (nth 0 p))))
+    (set result (make (rgba 4) (tuple-nth t 0) (tuple-nth t 1) (tuple-nth t 2) (tuple-nth t 3)))))
+
 (defbuiltin "__origVal" origValXY (rgba 4) ((p (xy 2)) (frame (nil 1)) (drawable (image 1)))
   (let ((t (orig-val (nth 0 p) (nth 1 p) (nth 0 drawable) (nth 0 frame))))
     (set result (make (rgba 4) (tuple-nth t 0) (tuple-nth t 1) (tuple-nth t 2) (tuple-nth t 3)))))

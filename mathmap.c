@@ -805,6 +805,21 @@ mathmap_layer_copy(gint32 layerID)
 
 /*****/
 
+gradient_t*
+get_default_gradient (void)
+{
+    static gradient_t gradient;
+    static gboolean inited = FALSE;
+
+    if (!inited)
+    {
+	gradient.values = gradient_samples;
+	inited = TRUE;
+    }
+
+    return &gradient;
+}
+
 static void
 update_gradient (void)
 {
@@ -2749,9 +2764,9 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 	infos = get_expression_args(type->data, the_design_type);
 	while (infos != NULL)
 	{
-	    if (infos->type == USERVAL_COLOR || infos->type == USERVAL_CURVE || infos->type == USERVAL_GRADIENT)
+	    if (infos->type == USERVAL_COLOR)
 	    {
-		char *message = g_strdup_printf(_("The filter `%s' cannot be used in the composer in this unstable MathMap release because it takes color, curve or gradient arguments."), name);
+		char *message = g_strdup_printf(_("The filter `%s' cannot be used in the composer in this unstable MathMap release because it takes color arguments."), name);
 
 		gimp_message(message);
 

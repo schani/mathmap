@@ -96,6 +96,16 @@ typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 float, float,
 				 pools_t*);
 
+typedef struct
+{
+    float *values;
+} curve_t;
+
+typedef struct
+{
+    color_t *values;
+} gradient_t;
+
 typedef struct _userval_t
 {
     int type;
@@ -106,6 +116,8 @@ typedef struct _userval_t
 	float float_const;
 	float bool_const;
 	struct _image_t *image;
+	curve_t *curve;
+	gradient_t *gradient;
 
 	struct
 	{
@@ -114,16 +126,6 @@ typedef struct _userval_t
 #endif
 	    color_t value;
 	} color;
-
-	struct
-	{
-	    float *values;
-	} curve;
-
-	struct
-	{
-	    color_t *values;
-	} gradient;
     } v;
 
 #ifndef OPENSTEP

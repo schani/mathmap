@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,5 +36,7 @@ extern int ra_tag_number;
 extern int rgba_tag_number;
 extern int ri_tag_number;
 extern int image_tag_number;
+extern int curve_tag_number;
+extern int gradient_tag_number;
 
 #endif

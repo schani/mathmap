@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2004-2007 Mark Probst
+;; Copyright (C) 2004-2008 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -49,6 +49,12 @@
    (make-rt-type 'color "color_t"
 		 :print-info '("(%d,%d,%d,%d)" "MAKE_RGBA_COLOR(%d,%d,%d,%d)"
 			       ("RED(~A)" "GREEN(~A)" "BLUE(~A)" "ALPHA(~A)")))
+   (make-rt-type 'curve "curve_t *"
+		 :printer "print_curve"
+		 :comparer "curves_equal")
+   (make-rt-type 'gradient "gradient_t *"
+		 :printer "print_gradient"
+		 :comparer "gradients_equal")
    (make-rt-type 'image "image_t *"
 		 :printer "print_image"
 		 :comparer "images_equal")
@@ -168,6 +174,10 @@
 (defop 'set-debug-tuple-data 2 "SET_DEBUG_TUPLE_DATA" :type 'int
        :arg-types '(int float) :pure nil)
 
+(defop 'apply-curve 2 "APPLY_CURVE" :type 'float :arg-types '(curve float) :foldable nil)
+(defop 'apply-gradient 2 "APPLY_GRADIENT" :interpreter-c-name "APPLY_GRADIENT_INTERPRETER" :type 'tuple
+       :arg-types '(gradient float) :foldable nil)
+
 (defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'tuple
        :arg-types '(float float image float) :foldable nil)
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)
@@ -235,9 +245,9 @@
 (defop 'userval-int 1 "USERVAL_INT_ACCESS" :type 'int :arg-type 'int :foldable nil)
 (defop 'userval-float 1 "USERVAL_FLOAT_ACCESS" :type 'float :arg-type 'int :foldable nil)
 (defop 'userval-bool 1 "USERVAL_BOOL_ACCESS" :type 'int :arg-type 'int :foldable nil)
-(defop 'userval-curve 2 "USERVAL_CURVE_ACCESS" :type 'float :arg-types '(int float) :foldable nil)
 (defop 'userval-color 1 "USERVAL_COLOR_ACCESS" :type 'color :arg-type 'int :foldable nil)
-(defop 'userval-gradient 2 "USERVAL_GRADIENT_ACCESS" :type 'color :arg-types '(int float) :foldable nil)
+(defop 'userval-curve 1 "USERVAL_CURVE_ACCESS" :type 'curve :arg-type 'int :foldable nil)
+(defop 'userval-gradient 1 "USERVAL_GRADIENT_ACCESS" :type 'gradient :arg-type 'int :foldable nil)
 (defop 'userval-image 1 "USERVAL_IMAGE_ACCESS" :type 'image :arg-type 'int :foldable nil)
 
 (defop 'output-tuple 1 "OUTPUT_TUPLE" :interpreter-c-name "OUTPUT_TUPLE_INTERPRETER"

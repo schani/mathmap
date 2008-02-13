@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -495,28 +495,13 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	case USERVAL_CURVE :
-	case USERVAL_GRADIENT :
-	    if (exprlist_length(args) != 1)
-	    {
-		sprintf(error_string, "A curve or gradient takes one argument.");
-		JUMP(1);
-	    }
-	    if (args->result.length != 1)
-	    {
-		sprintf(error_string, "The curve or gradient argument must have length 1.");
-		JUMP(1);
-	    }
+	    tree->result.number = curve_tag_number;
+	    tree->result.length = 1;
+	    break;
 
-	    if (info->type == USERVAL_CURVE)
-	    {
-		tree->result.number = nil_tag_number;
-		tree->result.length = 1;
-	    }
-	    else
-	    {
-		tree->result.number = rgba_tag_number;
-		tree->result.length = 4;
-	    }
+	case USERVAL_GRADIENT :
+	    tree->result.number = gradient_tag_number;
+	    tree->result.length = 1;
 	    break;
 
 	case USERVAL_IMAGE :
@@ -525,27 +510,57 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	default :
-	    assert(0);
+	    g_assert_not_reached();
     }
 
     tree->type = EXPR_USERVAL;
     tree->val.userval.info = info;
 
-    if (info->type == USERVAL_IMAGE)
+    switch (info->type)
     {
-	tree->val.userval.args = 0;
+	case USERVAL_CURVE :
+	    tree->val.userval.args = NULL;
 
-	if (exprlist_length(args) == 1 || exprlist_length(args) == 2)
-	    return make_function("__origVal", exprlist_append(args, tree));
+	    if (exprlist_length(args) == 1)
+		return make_function("__applyCurve", exprlist_append(tree, args));
 
-	if (exprlist_length(args) != 0)
-	{
-	    sprintf(error_string, "An image takes one or two arguments.");
-	    JUMP(1);
-	}
+	    if (exprlist_length(args) != 0)
+	    {
+		sprintf(error_string, "A curve takes one argument.");
+		JUMP(1);
+	    }
+	    break;
+
+	case USERVAL_GRADIENT :
+	    tree->val.userval.args = NULL;
+
+	    if (exprlist_length(args) == 1)
+		return make_function("__applyGradient", exprlist_append(tree, args));
+
+	    if (exprlist_length(args) != 0)
+	    {
+		sprintf(error_string, "A gradient takes one argument.");
+		JUMP(1);
+	    }
+	    break;
+
+	case USERVAL_IMAGE :
+	    tree->val.userval.args = NULL;
+
+	    if (exprlist_length(args) == 1 || exprlist_length(args) == 2)
+		return make_function("__origVal", exprlist_append(args, tree));
+
+	    if (exprlist_length(args) != 0)
+	    {
+		sprintf(error_string, "An image takes one or two arguments.");
+		JUMP(1);
+	    }
+	    break;
+
+	default :
+	    tree->val.userval.args = args;
+	    break;
     }
-    else
-	tree->val.userval.args = args;
 
     return tree;
 }
@@ -748,6 +763,8 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    case USERVAL_INT_CONST :
 	    case USERVAL_FLOAT_CONST :
 	    case USERVAL_BOOL_CONST :
+	    case USERVAL_CURVE :
+	    case USERVAL_GRADIENT :
 	    case USERVAL_IMAGE :
 		if ((*argp)->result.length != 1)
 		{
@@ -757,7 +774,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 		break;
 
 	    default :
-		sprintf(error_string, "Can only pass numbers and images to filters yet.");
+		sprintf(error_string, "Can not pass colors to filters yet.");
 		JUMP(1);
 	}
     }
