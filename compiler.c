@@ -5217,6 +5217,10 @@ userval_element_name (userval_info_t *info)
 	    return "bool_const";
 	case USERVAL_COLOR :
 	    return "color.value";
+	case USERVAL_CURVE :
+	    return "curve";
+	case USERVAL_GRADIENT :
+	    return "gradient";
 	case USERVAL_IMAGE :
 	    return "image";
 	default :
