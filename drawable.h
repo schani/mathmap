@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -51,7 +51,7 @@ struct _cache_entry_t;
 
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _userval_t*,
-				 float, float,
+				 float, float, float,
 				 pools_t*);
 
 struct _input_drawable_t;

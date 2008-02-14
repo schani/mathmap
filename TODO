@@ -4,8 +4,6 @@
 
 ** General
 don't try interpreter as long as it doesn't work
-memory leak when animating (cannot reproduce):
-  http://groups.google.com/group/mathmap/msg/51152c5af32fb3d2
 
 ** GIMP Plug-In
 when doing "Preview" in "Composer" tab force creating source
@@ -13,6 +11,7 @@ when doing "Preview" in "Composer" tab force creating source
 ** Language
 
 ** Packaging
+regression for recursive filter
 
 ** Designer
 

@@ -93,7 +93,7 @@ struct _image_t;
 
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _userval_t*,
-				 float, float,
+				 float, float, float,
 				 pools_t*);
 
 typedef struct
