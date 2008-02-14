@@ -48,6 +48,7 @@ struct _cache_entry_t;
 
 #define IMAGE_DRAWABLE		1
 #define IMAGE_CLOSURE		2
+#define IMAGE_FLOATMAP		3
 
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _userval_t*,
@@ -66,6 +67,15 @@ typedef struct _image_t
 	    filter_func_t func;
 	    userval_t args[];
 	} closure;
+	struct {
+	    int width;
+	    int height;
+	    float ax;
+	    float bx;
+	    float ay;
+	    float by;
+	    float *data;
+	} floatmap;
     } v;
 } image_t;
 

@@ -343,6 +343,8 @@ static type_t primary_type (primary_t *primary);
 
 #define APPLY_GRADIENT_INTERPRETER(g,p)	NULL
 
+#define RENDER_INTERPRETER(i,w,h)	NULL
+
 #define OUTPUT_TUPLE_INTERPRETER(t)	0
 
 #define ARG(i)	(invocation->uservals[(i)])

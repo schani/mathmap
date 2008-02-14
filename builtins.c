@@ -30,6 +30,8 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 
+#include "lispreader/pools.h"
+
 #include "builtins.h"
 #include "tags.h"
 #include "overload.h"
@@ -240,4 +242,74 @@ get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float
     result = FLOAT_COLOR_TO_COLOR(fresult);
 
     return result;
+}
+
+CALLBACK_SYMBOL
+float*
+get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, float y, float frame)
+{
+    static float black[] = { 0.0, 0.0, 0.0, 0.0 };
+
+    int ix, iy;
+
+    g_assert(image->type == IMAGE_FLOATMAP);
+
+    ix = (int)(image->v.floatmap.ax * x + image->v.floatmap.bx);
+    iy = (int)(image->v.floatmap.ay * y + image->v.floatmap.by);
+
+    if (ix < 0 || ix >= image->v.floatmap.width
+	|| iy < 0 || iy >= image->v.floatmap.height)
+	return black;
+
+    return image->v.floatmap.data + (iy * image->v.floatmap.width + ix) * 4;
+}
+
+CALLBACK_SYMBOL
+image_t*
+render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools)
+{
+    image_t *new_image;
+    int x, y;
+    float *p;
+    float ax, bx, ay, by;
+    pools_t filter_pools;
+
+    if (image->type == IMAGE_DRAWABLE || image->type == IMAGE_FLOATMAP)
+	return image;
+
+    g_assert(image->type == IMAGE_CLOSURE);
+
+    new_image = pools_alloc(pools, sizeof(image_t));
+
+    new_image->type = IMAGE_FLOATMAP;
+    new_image->v.floatmap.width = width;
+    new_image->v.floatmap.height = height;
+    new_image->v.floatmap.ax = new_image->v.floatmap.bx = ax = bx = (float)width / 2.0;
+    new_image->v.floatmap.ay = new_image->v.floatmap.by = ay = by = (float)height / 2.0;
+
+    p = new_image->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * 4);
+
+    init_pools(&filter_pools);
+
+    for (y = 0; y < height; ++y)
+    {
+	float fy = ((float)y - by) / ay;
+
+	for (x = 0; x < width; ++x)
+	{
+	    float fx = ((float)x - bx) / ax;
+	    float *tuple;
+
+	    reset_pools(&filter_pools);
+	    tuple = image->v.closure.func(invocation, image->v.closure.args, fx, fy, 0.0, &filter_pools);
+
+	    memcpy(p, tuple, sizeof(float) * 4);
+
+	    p += 4;
+	}
+    }
+
+    free_pools(&filter_pools);
+
+    return new_image;
 }
