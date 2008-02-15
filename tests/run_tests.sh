@@ -44,7 +44,7 @@ run_modify_test () {
 
 run_modify_test ../examples/Map/Droste.mm droste.png
 run_modify_test ../examples/Map/Mugl.mm mugl.png
-run_render_test ../examples/Render/Mandelbrot.mm mandelbrot.png
+run_render_test "../examples/Render/Fancy Mandelbrot.mm" mandelbrot.png
 run_render_test Apply.mm apply.png
 run_modify_test Circle.mm circle.png
 run_modify_test Closure.mm closure.png
