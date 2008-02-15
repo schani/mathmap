@@ -25,8 +25,6 @@ HSL color space (for color gimp layer mode)
 figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
 
 ** Compiler
-two inputs should not be allowed to have the same name
-internals should not be assignable
 
 ** Filters
 color gimp layer mode

@@ -980,10 +980,24 @@ make_assignment (const char *name, exprtree *value)
     exprtree *tree = alloc_exprtree();
     variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &tree->result);
 
-    // FIXME: check whether the variable name is an internal, var macro or user val
-
-    if (var == 0)
+    if (var == NULL)
     {
+	if (lookup_internal(the_mathmap->current_filter->internals, name, TRUE) != NULL)
+	{
+	    sprintf(error_string, "Cannot assign to internal `%s'.", name);
+	    JUMP(1);
+	}
+	if (lookup_variable_macro(name, NULL) != NULL)
+	{
+	    sprintf(error_string, "Cannot assign to `%s'.", name);
+	    JUMP(1);
+	}
+	if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != NULL)
+	{
+	    sprintf(error_string, "Cannot assign to filter argument `%s'.", name);
+	    JUMP(1);
+	}
+
 	var = register_variable(&the_mathmap->current_filter->variables, name, value->result);
 	tree->result = value->result;
     }

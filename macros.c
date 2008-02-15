@@ -57,7 +57,8 @@ lookup_variable_macro (const char *name, tuple_info_t *info)
     for (macro = first; macro != 0; macro = macro->next)
 	if (strcmp(macro->name, name) == 0)
 	{
-	    *info = macro->info;
+	    if (info != NULL)
+		*info = macro->info;
 	    return macro->function;
 	}
 
