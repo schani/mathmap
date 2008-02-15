@@ -1,4 +1,4 @@
-MathMap 1.3.1
+MathMap 1.3.2
 =============
 
 MathMap is a GIMP plug-in and a standalone command-line tool which
@@ -26,11 +26,22 @@ Binaries for several Linux distributions are available here:
 
 The source package can be downloaded here:
 
-    http://www.complang.tuwien.ac.at/schani/mathmap/files/mathmap-1.3.1.tar.gz
+    http://www.complang.tuwien.ac.at/schani/mathmap/files/mathmap-1.3.2.tar.gz
 
-For instructions on how to get the absolutely latest MathMap sources via Mercurial, read this:
+For instructions on how to get the absolutely latest MathMap sources
+via Mercurial, read this:
 
     http://www.complang.tuwien.ac.at/schani/mathmap/README.mercurial
+
+Changes in 1.3.2:
+
+  * Compositions can be saved and used as parts of other compositions.
+  * Colors, gradients and curves can be passed to filters, which now
+    makes all filters usable in the composer.
+  * More filters for use in the composer (including almost all GIMP
+    layer modes).
+  * Optional multi-threaded final rendering (compile-time option).
+  * Bugfixes.
 
 Changes in 1.3.1:
 
