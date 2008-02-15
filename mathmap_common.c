@@ -69,6 +69,12 @@ arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
     {
 	userval_info_t *result = 0;
 
+	if (lookup_userval(infos, arg_decls->name) != NULL)
+	{
+	    sprintf(error_string, "The argument `%s' is declared more than once.", arg_decls->name);
+	    JUMP(1);
+	}
+
 	switch (arg_decls->type)
 	{
 	    case ARG_TYPE_INT :
