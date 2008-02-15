@@ -24,6 +24,7 @@ regression for recursive filter
 ** Language
 HSL color space (for color gimp layer mode)
 figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
+statement for importing filters
 
 ** Rendering
 reasonable default size

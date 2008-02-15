@@ -583,12 +583,12 @@ make_var (const char *name)
     tuple_info_t info;
     exprtree *tree = 0;
 
-    if (lookup_internal(the_mathmap->current_filter->internals, name, 0) != 0)
+    if (lookup_internal(the_mathmap->current_filter->v.mathmap.internals, name, 0) != 0)
     {
 	tree = alloc_exprtree();
 
 	tree->type = EXPR_INTERNAL;
-	tree->val.internal = lookup_internal(the_mathmap->current_filter->internals, name, 0);
+	tree->val.internal = lookup_internal(the_mathmap->current_filter->v.mathmap.internals, name, 0);
 	tree->result = make_tuple_info(nil_tag_number, 1);
     }
     else if (lookup_variable_macro(name, &info) != 0)
@@ -603,9 +603,9 @@ make_var (const char *name)
 
 	tree = make_userval(info, 0);
     }
-    else if (lookup_variable(the_mathmap->current_filter->variables, name, &info) != 0)
+    else if (lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info) != 0)
     {
-	variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &info);
+	variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info);
 
 	return make_var_exprtree(var, info);
     }
@@ -728,7 +728,7 @@ lookup_filter (filter_t *filters, const char *name)
     filter_t *filter;
 
     for (filter = filters; filter != 0; filter = filter->next)
-	if (strcmp(filter->decl->name, name) == 0)
+	if (strcmp(filter->name, name) == 0)
 	    return filter;
 
     return 0;
@@ -748,7 +748,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	|| num_args >= filter->num_uservals + 3)
     {
 	sprintf(error_string, "Filter %s takes %d to %d arguments but is called with %d.",
-		filter->decl->name, filter->num_uservals, filter->num_uservals + 2, exprlist_length(args));
+		filter->name, filter->num_uservals, filter->num_uservals + 2, exprlist_length(args));
 	JUMP(1);
     }
 
@@ -941,9 +941,9 @@ make_function (const char *name, exprtree *args)
 	else
 	    assert(0);
     }
-    else if (lookup_variable(the_mathmap->current_filter->variables, name, &info))
+    else if (lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info))
     {
-	variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &info);
+	variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info);
 
 	if (info.number != image_tag_number
 	    || info.length != 1)
@@ -978,13 +978,13 @@ exprtree*
 make_assignment (const char *name, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
-    variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &tree->result);
+    variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &tree->result);
 
     // FIXME: check whether the variable name is an internal, var macro or user val
 
     if (var == 0)
     {
-	var = register_variable(&the_mathmap->current_filter->variables, name, value->result);
+	var = register_variable(&the_mathmap->current_filter->v.mathmap.variables, name, value->result);
 	tree->result = value->result;
     }
 
@@ -1006,7 +1006,7 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
 {
     exprtree *tree = alloc_exprtree();
     tuple_info_t info;
-    variable_t *var = lookup_variable(the_mathmap->current_filter->variables, name, &info);
+    variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info);
 
     if (var == 0)
     {

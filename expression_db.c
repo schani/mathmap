@@ -393,7 +393,7 @@ get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
 
     if (mathmap == NULL)
 	return NULL;
-    return mathmap->main_filter->decl->name;
+    return mathmap->main_filter->name;
 }
 
 userval_info_t*

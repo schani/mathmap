@@ -56,15 +56,32 @@
 
 typedef struct _interpreter_insn_t interpreter_insn_t;
 
+#define FILTER_MATHMAP		1
+#define FILTER_NATIVE		2
+
 typedef struct _filter_t
 {
+    int kind;
+
+    char *name;
+
     int num_uservals;
     userval_info_t *userval_infos;
 
-    internal_t *internals;
-    variable_t *variables;
+    union
+    {
+	struct
+	{
+	    internal_t *internals;
+	    variable_t *variables;
 
-    top_level_decl_t *decl;
+	    top_level_decl_t *decl;
+	} mathmap;
+	struct
+	{
+	    gboolean needs_rendered_images;
+	} native;
+    } v;
 
     struct _filter_t *next;
 } filter_t;

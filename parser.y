@@ -80,7 +80,7 @@ filter : options_opt T_FILTER T_IDENT '(' args_decl ')' docstring_opt
 				 free($<ident>3);
 				 if ($<ident>7 != NULL)
 				     free($<ident>7);
-				 the_mathmap->current_filter->decl->v.filter.body = $<exprtree>9;
+				 the_mathmap->current_filter->v.mathmap.decl->v.filter.body = $<exprtree>9;
 				 finish_parsing_filter(the_mathmap);
 			     }
        ;

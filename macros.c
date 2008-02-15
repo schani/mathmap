@@ -109,7 +109,7 @@ macro_var_e (exprtree *args)
 exprtree*
 macro_func_origValImage (exprtree *args)
 {
-    variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->variables, args->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->v.mathmap.variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("__origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
@@ -120,7 +120,7 @@ macro_func_origValImage (exprtree *args)
 exprtree*
 macro_func_origValImageFrame (exprtree *args)
 {
-    variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->variables, args->result);
+    variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->v.mathmap.variables, args->result);
 
     return make_sequence(make_assignment(tmpvar->name, args),
 			 make_function("__origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
