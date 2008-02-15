@@ -7,6 +7,7 @@ don't try interpreter as long as it doesn't work
 
 ** GIMP Plug-In
 when doing "Preview" in "Composer" tab force creating source
+turn off animation automatically when t not used in expression (switch is not accessible)
 
 ** Language
 
@@ -20,6 +21,8 @@ regression for recursive filter
 ** Filters
 
 * 1.3.3
+
+** GIMP Plug-In
 
 ** Language
 HSL color space (for color gimp layer mode)

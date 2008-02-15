@@ -37,6 +37,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <pthread.h>
 
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
@@ -204,6 +205,13 @@ GtkWidget *expression_entry = 0,
     *tree_scrolled_window,
     *designer_widget,
     *designer_tree_scrolled_window;
+
+#ifdef THREADED_FINAL_RENDER
+pthread_mutex_t get_gimp_pixel_mutex;
+#define NUM_FINAL_RENDER_CPUS		(get_num_cpus())
+#else
+#define NUM_FINAL_RENDER_CPUS		1
+#endif
 
 int previewing = 0, auto_preview = 1, fast_preview = 1;
 int expression_changed = 1;
@@ -608,6 +616,10 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     init_macros();
     init_noise();
     init_compiler();
+
+#ifdef THREADED_FINAL_RENDER
+    pthread_mutex_init(&get_gimp_pixel_mutex, NULL);
+#endif
 
     /* See how we will run */
 
@@ -1028,7 +1040,7 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->output_bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(output_drawable));
 
 	    call_invocation_parallel_and_join(invocation, region_x, region_y, region_width, region_height,
-					      dest_rgn.data, 1);
+					      dest_rgn.data, NUM_FINAL_RENDER_CPUS);
 
 	    /* Update progress */
 	    progress += region_width * region_height;
@@ -1071,6 +1083,10 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
     newrow = y / tile_height;
     newrowoff = y % tile_height;
 
+#ifdef THREADED_FINAL_RENDER
+    pthread_mutex_lock(&get_gimp_pixel_mutex);
+#endif
+
     if (drawable->v.gimp.col != newcol || drawable->v.gimp.row != newrow || drawable->v.gimp.tile == NULL)
     {
 	if (drawable->v.gimp.tile != NULL)
@@ -1103,6 +1119,10 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 	a = 255;
     else
 	a = p[bpp - 1];
+
+#ifdef THREADED_FINAL_RENDER
+    pthread_mutex_unlock(&get_gimp_pixel_mutex);
+#endif
 
     return MAKE_RGBA_COLOR(r, g, b, a);
 }
@@ -1939,7 +1959,7 @@ recalculate_preview (void)
 	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, get_num_cpus());
 	}
 	else
-	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, 1);
+	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
 
 	invocation->scale_x = old_scale_x;
 	invocation->scale_y = old_scale_y;
