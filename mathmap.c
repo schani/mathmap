@@ -204,7 +204,8 @@ GtkWidget *expression_entry = 0,
     *uservalues_table,
     *tree_scrolled_window,
     *designer_widget,
-    *designer_tree_scrolled_window;
+    *designer_tree_scrolled_window,
+    *notebook;
 
 #ifdef THREADED_FINAL_RENDER
 pthread_mutex_t get_gimp_pixel_mutex;
@@ -1509,6 +1510,12 @@ make_save_table (GtkWidget *content, GtkSignalFunc save_callback, GtkSignalFunc 
 
 #define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
 
+#define NOTEBOOK_PAGE_EXPRESSION	0
+#define NOTEBOOK_PAGE_SETTINGS		1
+#define NOTEBOOK_PAGE_USERVALS		2
+#define NOTEBOOK_PAGE_FILTERS		3
+#define NOTEBOOK_PAGE_DESIGNER		4
+
 static gint
 mathmap_dialog (int mutable_expression)
 {
@@ -1523,7 +1530,6 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *toggle;
     GtkWidget *alignment;
     GtkWidget *scale;
-    GtkWidget *notebook;
     GtkWidget *t_table;
     GtkObject *adjustment;
     GdkPixbuf *pixbuf;
@@ -2312,6 +2318,9 @@ dialog_preview_size_allocate (GtkWidget *widget, GtkAllocation *allocation, gpoi
 static void
 dialog_preview_callback (GtkWidget *widget, gpointer data)
 {
+    if (gtk_notebook_get_current_page(GTK_NOTEBOOK(notebook)) == NOTEBOOK_PAGE_DESIGNER)
+	design_changed_callback(designer_widget, the_current_design);
+
     update_gradient();
     dialog_update_preview();
 }
