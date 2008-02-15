@@ -365,17 +365,23 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 	    if (mathmap->initfunc == 0)
 	    {
-		char *message = g_strdup_printf("The MathMap compiler failed.  This is not a fatal error,\n"
-						"because MathMap has a fallback interpreter which can do\n"
-						"everything the compiler does, but it is much slower, so it\n"
-						"is recommended that you use the compiler.\n"
+		char *message = g_strdup_printf("The MathMap compiler failed.  Since this development\n"
+						"release does not provide a fallback interpreter that\n"
+						"means that MathMap won't work.\n"
 						"This is the reason why the compiler failed:\n%s", error_string);
 
+		/*
 		if (cmd_line_mode)
 		    fprintf(stderr, "%s\n", message);
 		else
 		    gimp_message(message);
+		*/
+
+		strcpy(error_string, message);
+
 		g_free(message);
+
+		JUMP(1);
 	    }
 	}
 
