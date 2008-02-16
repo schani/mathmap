@@ -646,8 +646,13 @@ cmdline_main (int argc, char *argv[])
 	}
 
 	for (filter = mathmap->filters; filter != NULL; filter = filter->next)
-	    if (!write_filter_html_doc(out, filter->decl))
+	{
+	    if (filter->kind != FILTER_MATHMAP)
+		continue;
+
+	    if (!write_filter_html_doc(out, filter->v.mathmap.decl))
 		return 1;
+	}
 
 	fclose(out);
     }

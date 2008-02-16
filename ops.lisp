@@ -180,6 +180,9 @@
 (defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'tuple
        :arg-types '(float float image float) :foldable nil)
 
+(defop 'render 3 "RENDER" :interpreter-c-name "RENDER_INTERPRETER" :type 'image
+       :arg-types '(image int int) :foldable nil)
+
 (defop 'make-rgba-color 4 "MAKE_COLOR" :type 'color :arg-types '(float float float float) :foldable nil)
 
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)

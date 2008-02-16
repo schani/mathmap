@@ -343,6 +343,8 @@ static type_t primary_type (primary_t *primary);
 
 #define APPLY_GRADIENT_INTERPRETER(g,p)	NULL
 
+#define RENDER_INTERPRETER(i,w,h)	NULL
+
 #define OUTPUT_TUPLE_INTERPRETER(t)	0
 
 #define ARG(i)	(invocation->uservals[(i)])
@@ -1598,7 +1600,7 @@ print_rhs (rhs_t *rhs)
 		int num_args = num_filter_args(rhs->v.filter.filter);
 		int i;
 
-		printf("filter_%s", rhs->v.filter.filter->decl->name);
+		printf("filter_%s", rhs->v.filter.filter->name);
 		for (i = 0; i < num_args; ++i)
 		{
 		    printf(" ");
@@ -1612,7 +1614,7 @@ print_rhs (rhs_t *rhs)
 		int num_args = num_filter_args(rhs->v.closure.filter);
 		int i;
 
-		printf("closure_%s", rhs->v.closure.filter->decl->name);
+		printf("closure_%s", rhs->v.closure.filter->name);
 		for (i = 0; i < num_args - 3; ++i)
 		{
 		    printf(" ");
@@ -2272,6 +2274,8 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     binding_values_t *bvs = NULL;
     internal_t *internal;
 
+    g_assert(filter->kind == FILTER_MATHMAP);
+
     for (i = 0, info = filter->userval_infos;
 	 i < num_args - 3;
 	 ++i, info = info->next)
@@ -2287,17 +2291,17 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     }
     g_assert(info == NULL);
 
-    internal = lookup_internal(filter->internals, "x", TRUE);
+    internal = lookup_internal(filter->v.mathmap.internals, "x", TRUE);
     g_assert(internal != NULL);
     bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
     emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 3]));
 
-    internal = lookup_internal(filter->internals, "y", TRUE);
+    internal = lookup_internal(filter->v.mathmap.internals, "y", TRUE);
     g_assert(internal != NULL);
     bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
     emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 2]));
 
-    internal = lookup_internal(filter->internals, "t", TRUE);
+    internal = lookup_internal(filter->v.mathmap.internals, "t", TRUE);
     g_assert(internal != NULL);
     bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
     emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 1]));
@@ -2311,7 +2315,9 @@ get_internal_value (filter_t *filter, const char *name)
     internal_t *internal;
     binding_values_t *bv;
 
-    internal = lookup_internal(filter->internals, name, TRUE);
+    g_assert(filter->kind == FILTER_MATHMAP);
+
+    internal = lookup_internal(filter->v.mathmap.internals, name, TRUE);
     g_assert(internal != NULL);
 
     bv = lookup_binding_values(BINDING_INTERNAL, internal);
@@ -2335,6 +2341,8 @@ gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
     value_t *y = get_internal_value(filter, "y");
     rhs_t *rhs;
 
+    g_assert(filter->kind == FILTER_MATHMAP);
+
     emit_assign(make_lhs(r), make_op_rhs(OP_HYPOT, make_value_primary(x), make_value_primary(y)));
 
     start_if_cond(make_op_rhs(OP_EQ, make_compvar_primary(r), make_float_const_primary(0.0)));
@@ -2356,10 +2364,10 @@ gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
     switch_if_branch();
     end_if_cond();
 
-    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->internals, "r", TRUE), bvs, 1, TYPE_FLOAT);
+    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->v.mathmap.internals, "r", TRUE), bvs, 1, TYPE_FLOAT);
     emit_assign(bvs->values[0], make_compvar_rhs(r));
 
-    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->internals, "a", TRUE), bvs, 1, TYPE_FLOAT);
+    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->v.mathmap.internals, "a", TRUE), bvs, 1, TYPE_FLOAT);
     emit_assign(bvs->values[0], make_compvar_rhs(a));
 
     return bvs;
@@ -2371,10 +2379,10 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     statement_t *first_stmt_save = first_stmt;
     inlining_history_t *history_save = inlining_history;
     statement_t *stmt;
-    compvar_t *result[filter->decl->v.filter.body->result.length];
+    compvar_t *result[filter->v.mathmap.decl->v.filter.body->result.length];
     rhs_t *rhs;
 
-    compiler_reset_variables(filter->variables);
+    compiler_reset_variables(filter->v.mathmap.variables);
 
     inlining_history = push_inlined_filter(filter, history);
 
@@ -2388,7 +2396,7 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     if (does_filter_use_ra(filter))
 	binding_values = gen_ra_binding_values(filter, binding_values);
 
-    gen_code(filter->decl->v.filter.body, result, FALSE);
+    gen_code(filter->v.mathmap.decl->v.filter.body, result, FALSE);
 
     rhs = make_tuple_rhs(4,
 			 make_compvar_primary(result[0]), make_compvar_primary(result[1]),
@@ -2640,6 +2648,11 @@ rhs_constant (rhs_t *rhs)
 		primary_t *primaries = get_rhs_primaries(rhs, &num_primaries);
 		int i;
 		int const_type_max = CONST_MAX;
+
+		if (rhs->kind == RHS_CLOSURE
+		    && (rhs->v.closure.filter->kind == FILTER_NATIVE
+			&& !rhs->v.closure.filter->v.native.is_pure))
+		    return CONST_NONE;
 
 		for (i = 0; i < num_primaries; ++i)
 		{
@@ -2985,7 +2998,8 @@ optimize_closure_application (statement_t *stmt)
 		    statement_t *def = stmt->v.assign.rhs->v.op.args[2].v.value->def;
 
 		    if (def->kind == STMT_ASSIGN
-			&& def->v.assign.rhs->kind == RHS_CLOSURE)
+			&& def->v.assign.rhs->kind == RHS_CLOSURE
+			&& def->v.assign.rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		    {
 			filter_t *filter = def->v.assign.rhs->v.filter.filter;
 			int num_args = num_filter_args(filter);
@@ -4085,12 +4099,15 @@ can_inline (filter_t *filter, inlining_history_t *history)
 {
     userval_info_t *info;
 
+    if (filter->kind != FILTER_MATHMAP)
+	return FALSE;
+
     while (history != NULL)
     {
 	if (history->filter == filter)
 	{
 #ifdef DEBUG_OUTPUT
-	    printf("cannot inline filter %s due to recursion\n", filter->decl->name);
+	    printf("cannot inline filter %s due to recursion\n", filter->name);
 #endif
 	    return FALSE;
 	}
@@ -4105,7 +4122,7 @@ can_inline (filter_t *filter, inlining_history_t *history)
 	{
 #ifdef DEBUG_OUTPUT
 	    printf("cannot inline filter %s because userval %s cannot be represented\n",
-		   filter->decl->name, info->name);
+		   filter->name, info->name);
 #endif
 	    return FALSE;
 	}
@@ -4154,7 +4171,7 @@ do_inlining_recursively (statement_t **stmt, gboolean *changed)
 							 (*stmt)->v.assign.rhs->v.filter.history);
 
 #ifdef DEBUG_OUTPUT
-		    printf("inlining filter %s\n", filter->decl->name);
+		    printf("inlining filter %s\n", filter->name);
 #endif
 
 		    replace_rhs(&(*stmt)->v.assign.rhs, make_color_rhs, *stmt);
@@ -5275,7 +5292,7 @@ output_rhs (FILE *out, rhs_t *rhs)
 		}
 		g_assert(i == num_args - 3);
 
-		fprintf(out, "filter_%s(invocation, args, ", rhs->v.filter.filter->decl->name);
+		fprintf(out, "filter_%s(invocation, args, ", rhs->v.filter.filter->name);
 		output_primary(out, &rhs->v.filter.args[num_args - 3]);
 		fprintf(out, ", ");
 		output_primary(out, &rhs->v.filter.args[num_args - 2]);
@@ -5288,22 +5305,43 @@ output_rhs (FILE *out, rhs_t *rhs)
 	case RHS_CLOSURE :
 	    {
 		int i;
-		int num_args = num_filter_args(rhs->v.filter.filter) - 3;
+		int num_args = num_filter_args(rhs->v.closure.filter) - 3;
 		userval_info_t *info;
 
-		fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.filter.filter->decl->name);
-
-		for (i = 0, info = rhs->v.closure.filter->userval_infos;
-		     info != 0;
-		     ++i, info = info->next)
+		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		{
-		    fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
-		    output_primary(out, &rhs->v.filter.args[i]);
-		    fprintf(out, "; ");
-		}
-		g_assert(i == num_args);
+		    fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.closure.filter->name);
 
-		fprintf(out, "image; })");
+		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
+			 info != 0;
+			 ++i, info = info->next)
+		    {
+			fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
+			output_primary(out, &rhs->v.closure.args[i]);
+			fprintf(out, "; ");
+		    }
+		    g_assert(i == num_args);
+
+		    fprintf(out, "image; })");
+		}
+		else if (rhs->v.closure.filter->kind == FILTER_NATIVE)
+		{
+		    fprintf(out, "({ userval_t args[%d]; ", num_args);
+
+		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
+			 info != 0;
+			 ++i, info = info->next)
+		    {
+			fprintf(out, "args[%d].v.%s = ", i, userval_element_name(info));
+			output_primary(out, &rhs->v.closure.args[i]);
+			fprintf(out, "; ");
+		    }
+		    g_assert(i == num_args);
+
+		    fprintf(out, "%s(invocation, args, pools); })", rhs->v.closure.filter->v.native.func_name);
+		}
+		else
+		    g_assert_not_reached();
 	    }
 	    break;
 
@@ -5621,7 +5659,7 @@ generate_interpreter_code_from_ir (mathmap_t *mathmap)
     GHashTable *value_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
     GHashTable *label_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
     /* the first few values are the internals */
-    int num_values = number_of_internals(mathmap->main_filter->internals);
+    int num_values = number_of_internals(mathmap->main_filter->v.mathmap.internals);
     int num_insns = 0;
     pre_native_insn_t *insn;
     int index;
@@ -5781,6 +5819,8 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
     filter_code_t *code;
     compvar_t *tuple_tmp, *dummy;
 
+    g_assert(filter->kind == FILTER_MATHMAP);
+
     next_temp_number = 1;
     next_compvar_number = 1;
     next_value_global_index = 0;
@@ -5906,7 +5946,7 @@ filter_template_processor (mathmap_t *mathmap, const char *directive, const char
 #endif
     }
     else if (strcmp(directive, "name") == 0)
-	fputs(code->filter->decl->name, out);
+	fputs(code->filter->name, out);
     else if (strcmp(directive, "m") == 0)
 	output_permanent_const_code(code, out, 0);
     else if (strcmp(directive, "uses_ra") == 0)
@@ -5919,8 +5959,8 @@ filter_template_processor (mathmap_t *mathmap, const char *directive, const char
 int
 compiler_template_processor (mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data)
 {
-    assert(mathmap->main_filter->decl != 0
-	   && mathmap->main_filter->decl->type == TOP_LEVEL_FILTER);
+    assert(mathmap->main_filter->v.mathmap.decl != NULL
+	   && mathmap->main_filter->v.mathmap.decl->type == TOP_LEVEL_FILTER);
 
     if (strcmp(directive, "g") == 0)
     {
@@ -5990,16 +6030,28 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
     }
     else if (strcmp(directive, "filter_name") == 0)
     {
-	fprintf(out, "%s", mathmap->main_filter->decl->name);
+	fprintf(out, "%s", mathmap->main_filter->name);
     }
     else if (strcmp(directive, "filter_docstring") == 0)
     {
-	if (mathmap->main_filter->decl->docstring != 0)
-	    fprintf(out, "%s", mathmap->main_filter->decl->docstring);
+	if (mathmap->main_filter->v.mathmap.decl->docstring != 0)
+	    fprintf(out, "%s", mathmap->main_filter->v.mathmap.decl->docstring);
     }
     else if (strcmp(directive, "num_uservals") == 0)
     {
 	fprintf(out, "%d", mathmap->main_filter->num_uservals);
+    }
+    else if (strcmp(directive, "native_filter_decls") == 0)
+    {
+	filter_t *filter;
+
+	for (filter = mathmap->filters; filter != NULL; filter = filter->next)
+	{
+	    if (filter->kind != FILTER_NATIVE)
+		continue;
+
+	    fprintf(out, "DECLARE_NATIVE_FILTER(%s);\n", filter->v.native.func_name);
+	}
     }
     else if (strcmp(directive, "filter_begin") == 0)
     {
@@ -6013,6 +6065,9 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
 	     ++i, filter = filter->next)
 	{
 	    filter_code_t *code = filter_codes[i];
+
+	    if (filter->kind != FILTER_MATHMAP)
+		continue;
 
 	    g_assert(code->filter == filter);
 
@@ -6084,8 +6139,11 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 	 filter != 0;
 	 ++i, filter = filter->next)
     {
+	if (filter->kind != FILTER_MATHMAP)
+	    continue;
+
 #ifdef DEBUG_OUTPUT
-	g_print("compiling filter %s\n", filter->decl->name);
+	g_print("compiling filter %s\n", filter->name);
 #endif
 	filter_codes[i] = generate_ir_code(filter, 0, 0);
     }

@@ -1155,6 +1155,9 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
   (let ((t (orig-val (nth 0 p) (nth 1 p) (nth 0 drawable) (nth 0 frame))))
     (set result (make (rgba 4) (tuple-nth t 0) (tuple-nth t 1) (tuple-nth t 2) (tuple-nth t 3)))))
 
+(defbuiltin "render" render (image 1) ((drawable (image 1)))
+  (set result (make (image 1) (render (nth 0 drawable) 512 512)))) ;FIXME: get width/height via internal
+
 ;;; colors
 
 (defbuiltin "red" red (nil 1) ((c (rgba 4)))

@@ -1,11 +1,11 @@
 /* -*- c -*- */
 
 /*
- * builtins.h
+ * native-filters.h
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,23 +22,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __BUILTINS_H__
-#define __BUILTINS_H__
+#ifndef __NATIVE_FILTERS_H__
+#define __NATIVE_FILTERS_H__
 
-#include <stdio.h>
+#include "../mathmap.h"
 
-#include "tuples.h"
-#include "color.h"
-
-struct _mathmap_invocation_t;
-struct _compvar_t;
-struct _image_t;
-
-typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
-
-color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
-color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
-
-void init_builtins (void);
+extern image_t* native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
 
 #endif

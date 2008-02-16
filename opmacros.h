@@ -193,10 +193,14 @@ typedef struct
 #define ORIG_VAL(x,y,i,f)     ({ float *result; \
 	    			 if ((i)->type == IMAGE_CLOSURE) \
 				     result = (i)->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(i), (x), (y), (f), pools); \
+				 else if ((i)->type == IMAGE_FLOATMAP) \
+				     result = get_floatmap_pixel(invocation, (i), (x), (y), (f)); \
 				 else { \
 				     color_t color = get_orig_val_pixel_func(invocation, (x), (y), (i), (f)); \
 				     result = TUPLE_FROM_COLOR(color); \
 				 } \
 				 result; })
+
+#define RENDER(i,w,h)	      (render_image(invocation, (i),(w),(h), pools))
 
 #endif
