@@ -90,7 +90,7 @@ CC = gcc
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o designer/designer.o designer/cycles.o designer/widget.o designer/loadsave.o designer_filter.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/widget.o designer/loadsave.o designer_filter.o native-filters/gauss.o
 
 GIMP_OBJECTS = mathmap.o
 
@@ -168,7 +168,7 @@ install-mos : $(MOS)
 	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
 
 clean :
-	rm -f *.o designer/*.o generators/blender/*.o mathmap compiler parser.output core
+	rm -f *.o designer/*.o native-filters/*.o generators/blender/*.o mathmap compiler parser.output core
 	find . -name '*~' | xargs -r -d '\n' rm
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
@@ -192,6 +192,8 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp generators/blender/blender.[ch] generators/blender/blender_template.c generators/blender/blender_opmacros.h generators/blender/make_some_plugins mathmap-$(VERSION)/generators/blender
 	mkdir mathmap-$(VERSION)/designer
 	cp designer/*.[ch] mathmap-$(VERSION)/designer
+	mkdir mathmap-$(VERSION)/native-filters
+	cp native-filters/*.[ch] mathmap-$(VERSION)/native-filters
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	mkdir mathmap-$(VERSION)/pixmaps

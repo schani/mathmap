@@ -2649,6 +2649,11 @@ rhs_constant (rhs_t *rhs)
 		int i;
 		int const_type_max = CONST_MAX;
 
+		if (rhs->kind == RHS_CLOSURE
+		    && (rhs->v.closure.filter->kind == FILTER_NATIVE
+			&& !rhs->v.closure.filter->v.native.is_pure))
+		    return CONST_NONE;
+
 		for (i = 0; i < num_primaries; ++i)
 		{
 		    int const_type = primary_constant(&primaries[i]);
@@ -2993,7 +2998,8 @@ optimize_closure_application (statement_t *stmt)
 		    statement_t *def = stmt->v.assign.rhs->v.op.args[2].v.value->def;
 
 		    if (def->kind == STMT_ASSIGN
-			&& def->v.assign.rhs->kind == RHS_CLOSURE)
+			&& def->v.assign.rhs->kind == RHS_CLOSURE
+			&& def->v.assign.rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		    {
 			filter_t *filter = def->v.assign.rhs->v.filter.filter;
 			int num_args = num_filter_args(filter);
@@ -5299,22 +5305,43 @@ output_rhs (FILE *out, rhs_t *rhs)
 	case RHS_CLOSURE :
 	    {
 		int i;
-		int num_args = num_filter_args(rhs->v.filter.filter) - 3;
+		int num_args = num_filter_args(rhs->v.closure.filter) - 3;
 		userval_info_t *info;
 
-		fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.filter.filter->name);
-
-		for (i = 0, info = rhs->v.closure.filter->userval_infos;
-		     info != 0;
-		     ++i, info = info->next)
+		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		{
-		    fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
-		    output_primary(out, &rhs->v.filter.args[i]);
-		    fprintf(out, "; ");
-		}
-		g_assert(i == num_args);
+		    fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.closure.filter->name);
 
-		fprintf(out, "image; })");
+		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
+			 info != 0;
+			 ++i, info = info->next)
+		    {
+			fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
+			output_primary(out, &rhs->v.closure.args[i]);
+			fprintf(out, "; ");
+		    }
+		    g_assert(i == num_args);
+
+		    fprintf(out, "image; })");
+		}
+		else if (rhs->v.closure.filter->kind == FILTER_NATIVE)
+		{
+		    fprintf(out, "({ userval_t args[%d]; ", num_args);
+
+		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
+			 info != 0;
+			 ++i, info = info->next)
+		    {
+			fprintf(out, "args[%d].v.%s = ", i, userval_element_name(info));
+			output_primary(out, &rhs->v.closure.args[i]);
+			fprintf(out, "; ");
+		    }
+		    g_assert(i == num_args);
+
+		    fprintf(out, "%s(invocation, args, pools); })", rhs->v.closure.filter->v.native.func_name);
+		}
+		else
+		    g_assert_not_reached();
 	    }
 	    break;
 
@@ -6014,6 +6041,18 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
     {
 	fprintf(out, "%d", mathmap->main_filter->num_uservals);
     }
+    else if (strcmp(directive, "native_filter_decls") == 0)
+    {
+	filter_t *filter;
+
+	for (filter = mathmap->filters; filter != NULL; filter = filter->next)
+	{
+	    if (filter->kind != FILTER_NATIVE)
+		continue;
+
+	    fprintf(out, "DECLARE_NATIVE_FILTER(%s);\n", filter->v.native.func_name);
+	}
+    }
     else if (strcmp(directive, "filter_begin") == 0)
     {
 	int i;
@@ -6026,6 +6065,9 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
 	     ++i, filter = filter->next)
 	{
 	    filter_code_t *code = filter_codes[i];
+
+	    if (filter->kind != FILTER_MATHMAP)
+		continue;
 
 	    g_assert(code->filter == filter);
 

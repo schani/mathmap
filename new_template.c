@@ -283,6 +283,9 @@ double gsl_sf_beta (double a, double b);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
+#define DECLARE_NATIVE_FILTER(name)	extern image_t* name (mathmap_invocation_t*, userval_t*, pools_t*)
+$native_filter_decls
+
 $filter_begin
 static float*
 filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, float t, pools_t *pools);

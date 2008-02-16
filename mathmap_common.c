@@ -129,17 +129,27 @@ arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
     return infos;
 }
 
+static int
+count_userval_infos (userval_info_t *info)
+{
+    int count = 0;
+
+    while (info != NULL)
+    {
+	++count;
+	info = info->next;
+    }
+
+    return count;
+}
+
 void
 register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 {
-    userval_info_t *info;
-
     g_assert(filter->userval_infos == NULL && filter->num_uservals == 0);
 
     filter->userval_infos = arg_decls_to_uservals(filter, arg_decls);
-
-    for (info = filter->userval_infos; info != NULL; info = info->next)
-	++filter->num_uservals;
+    filter->num_uservals = count_userval_infos(filter->userval_infos);
 }
 
 static void
@@ -206,6 +216,8 @@ free_filters (filter_t *filter)
 
 	if (filter->kind == FILTER_MATHMAP && filter->v.mathmap.variables != NULL)
 	    free_variables(filter->v.mathmap.variables);
+	else if (filter->kind == FILTER_NATIVE)
+	    g_free(filter->v.native.func_name);
 
 	g_free(filter);
 
@@ -250,6 +262,40 @@ free_invocation (mathmap_invocation_t *invocation)
     free(invocation);
 }
 
+static filter_t*
+register_native_filter (mathmap_t *mathmap, const char *name, userval_info_t *userval_infos,
+			gboolean needs_rendered_images, gboolean is_pure, const char *filter_func_name)
+{
+    filter_t *filter = g_new0(filter_t, 1);
+
+    filter->kind = FILTER_NATIVE;
+    filter->name = g_strdup(name);
+
+    filter->userval_infos = userval_infos;
+    filter->num_uservals = count_userval_infos(userval_infos);
+
+    filter->v.native.needs_rendered_images = needs_rendered_images;
+    filter->v.native.is_pure = is_pure;
+    filter->v.native.func_name = g_strdup(filter_func_name);
+
+    filter->next = mathmap->filters;
+    mathmap->filters = filter;
+
+    return NULL;
+}
+
+static void
+register_native_filters (mathmap_t *mathmap)
+{
+    userval_info_t *infos;
+
+    infos = NULL;
+    register_image(&infos, "in", 0);
+    register_float_const(&infos, "horizontal_std_dev", 0.0, 2.0, 0.01);
+    register_float_const(&infos, "vertical_std_dev", 0.0, 2.0, 0.01);
+    register_native_filter(mathmap, "gaussian_blur", infos, TRUE, TRUE, "native_filter_gaussian_blur");
+}
+
 #define X_INTERNAL_INDEX         0
 #define Y_INTERNAL_INDEX         1
 #define R_INTERNAL_INDEX         2
@@ -291,6 +337,8 @@ parse_mathmap (char *expression)
     mathmap = g_new0(mathmap_t, 1);
 
     the_mathmap = mathmap;
+
+    register_native_filters(mathmap);
 
     DO_JUMP_CODE {
 	scanner_line_num = 0;

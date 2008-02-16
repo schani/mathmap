@@ -57,6 +57,8 @@ typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 
 struct _input_drawable_t;
 
+#define NUM_FLOATMAP_CHANNELS	4
+
 typedef struct _image_t
 {
     int type;
@@ -78,6 +80,9 @@ typedef struct _image_t
 	} floatmap;
     } v;
 } image_t;
+
+#define FLOATMAP_VALUE_I(img,i,c)          ((img)->v.floatmap.data[(i)*NUM_FLOATMAP_CHANNELS + (c)])
+#define FLOATMAP_VALUE_XY(img,x,y,c)	   FLOATMAP_VALUE_I((img), ((y)*(img)->v.floatmap.width + (x)), (c))
 
 typedef struct _input_drawable_t {
     gboolean used;
@@ -154,5 +159,11 @@ input_drawable_t* alloc_cmdline_image_input_drawable (const char *filename);
 input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 #endif
 #endif
+
+image_t* floatmap_copy (image_t *floatmap, pools_t *pools);
+void floatmap_get_channel_column (float *dst, image_t *img, int col, int channel);
+void floatmap_get_channel_row (float *dst, image_t *img, int row, int channel);
+void floatmap_set_channel_column (image_t *img, int col, int channel, float *src);
+void floatmap_set_channel_row (image_t *img, int row, int channel, float *src);
 
 #endif

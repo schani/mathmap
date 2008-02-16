@@ -59,6 +59,10 @@ typedef struct _interpreter_insn_t interpreter_insn_t;
 #define FILTER_MATHMAP		1
 #define FILTER_NATIVE		2
 
+struct _mathmap_invocation_t;
+
+typedef image_t* (*native_filter_func_t) (struct _mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
+
 typedef struct _filter_t
 {
     int kind;
@@ -80,6 +84,8 @@ typedef struct _filter_t
 	struct
 	{
 	    gboolean needs_rendered_images;
+	    gboolean is_pure;
+	    char *func_name;
 	} native;
     } v;
 
