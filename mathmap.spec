@@ -3,7 +3,7 @@
 %define _langdir %{_datadir}/gtksourceview-1.0/language-specs
 
 Name:           mathmap
-Version:        1.3.1
+Version:        1.3.2
 Release:        1
 License:        GPL
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -75,6 +75,9 @@ rm -rf "$RPM_BUILD_ROOT"
 %{_mathmapdir}
 
 %changelog
+* Sat Feb 16 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.2
+- Update for version 1.3.2
+
 * Sun Jan 13 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.1
 - Update for version 1.3.1
 

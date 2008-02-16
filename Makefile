@@ -41,8 +41,8 @@ LOCALEDIR = $(PREFIX)/share/locale
 
 VERSION = 1.3.2
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g -DDEBUG_OUTPUT
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
@@ -187,7 +187,7 @@ TAGS : *.c *.h *.lisp
 dist : new_builtins.c parser.c scanner.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.mercurial BUGS ANNOUNCEMENT COPYING INSTALL mathmap.spec *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils
