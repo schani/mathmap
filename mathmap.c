@@ -985,8 +985,8 @@ alloc_gimp_input_drawable (GimpDrawable *gimp_drawable)
     drawable->v.gimp.fast_image_source = 0;
     drawable->v.gimp.has_selection = FALSE;
 
-    drawable->v.gimp.fast_image_source_width = drawable->width / fast_image_source_scale;
-    drawable->v.gimp.fast_image_source_height = drawable->height / fast_image_source_scale;
+    drawable->v.gimp.fast_image_source_width = (drawable->width + fast_image_source_scale - 1) / fast_image_source_scale;
+    drawable->v.gimp.fast_image_source_height = (drawable->height + fast_image_source_scale - 1) / fast_image_source_scale;
 
     return drawable;
 }
@@ -2661,7 +2661,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "version", MATHMAP_VERSION,
 			   "authors", authors,
 			   "artists", artists,
-			   "comments", "An image generation and manipulation language",
+			   "comments", "An image generation and manipulation system",
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
 			   "copyright", "Copyright © 1997-2008 Mark Probst",
 			   "license", gpl,

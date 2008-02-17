@@ -27,6 +27,7 @@ gaussian blur
 convolution
 
 ** Compiler
+don't allow uservals to have the same name as internals or macros
 
 ** Filters
 color gimp layer mode
