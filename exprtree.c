@@ -982,14 +982,10 @@ make_assignment (const char *name, exprtree *value)
 
     if (var == NULL)
     {
-	if (lookup_internal(the_mathmap->current_filter->v.mathmap.internals, name, TRUE) != NULL)
+	if (lookup_internal(the_mathmap->current_filter->v.mathmap.internals, name, TRUE) != NULL
+	    || lookup_variable_macro(name, NULL) != NULL)
 	{
-	    sprintf(error_string, "Cannot assign to internal `%s'.", name);
-	    JUMP(1);
-	}
-	if (lookup_variable_macro(name, NULL) != NULL)
-	{
-	    sprintf(error_string, "Cannot assign to `%s'.", name);
+	    sprintf(error_string, "Cannot assign to internal variable `%s'.", name);
 	    JUMP(1);
 	}
 	if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != NULL)

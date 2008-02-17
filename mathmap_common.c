@@ -152,6 +152,16 @@ count_userval_infos (userval_info_t *info)
 void
 register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 {
+    arg_decl_t *decl;
+
+    for (decl = arg_decls; decl != NULL; decl = decl->next)
+	if (lookup_internal(filter->v.mathmap.internals, decl->name, TRUE) != NULL
+	    || lookup_variable_macro(decl->name, NULL) != NULL)
+	{
+	    sprintf(error_string, "Argument `%s' has the same name as an internal variable.", decl->name);
+	    JUMP(1);
+	}
+
     g_assert(filter->userval_infos == NULL && filter->num_uservals == 0);
 
     filter->userval_infos = arg_decls_to_uservals(filter, arg_decls);
