@@ -301,6 +301,8 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
+    float __canvasPixelX = invocation->img_width / 2.0;
+    float __canvasPixelY = invocation->img_height / 2.0;
     float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
     float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
     float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
@@ -388,6 +390,8 @@ init_frame (mathmap_slice_t *slice)
     float t = invocation->current_t;
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
+    float __canvasPixelX = invocation->img_width / 2.0;
+    float __canvasPixelY = invocation->img_height / 2.0;
     float R = invocation->image_R;
     pools_t *pools = &slice->pools;
 
@@ -450,6 +454,8 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
     int frame = 0;
     float X = invocation->image_X, Y = invocation->image_Y;
     float W = invocation->image_W, H = invocation->image_H;
+    float __canvasPixelX = invocation->img_width / 2.0;
+    float __canvasPixelY = invocation->img_height / 2.0;
     float R = invocation->image_R;
     float *return_tuple;
 

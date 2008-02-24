@@ -2265,6 +2265,74 @@ gen_binding_values_from_userval_infos (userval_info_t *info)
     return bvs;
 }
 
+static value_t*
+get_internal_value (filter_t *filter, const char *name, gboolean allow_bindings)
+{
+    internal_t *internal;
+    binding_values_t *bv;
+
+    g_assert(filter->kind == FILTER_MATHMAP);
+
+    internal = lookup_internal(filter->v.mathmap.internals, name, TRUE);
+    g_assert(internal != NULL);
+
+    bv = lookup_binding_values(BINDING_INTERNAL, internal);
+    if (allow_bindings && bv != NULL)
+	return bv->values[0];
+    else
+    {
+	compvar_t *temp = make_temporary(TYPE_INT);
+	emit_assign(make_lhs(temp), make_internal_rhs(internal));
+	return current_value(temp);
+    }
+}
+
+static void
+emit_mul_with_internal (filter_t *filter, value_t *lhs, value_t *value, const char *internal_name)
+{
+    emit_assign(lhs,
+		make_op_rhs(OP_MUL, make_value_primary(value),
+			    make_value_primary(get_internal_value(filter, internal_name, FALSE))));
+}
+
+static binding_values_t*
+make_pixel_scaled_internal_binding (filter_t *filter, const char *internal_name, value_t *internal_value,
+				    const char *factor_internal_name, binding_values_t *bvs)
+{
+    internal_t *internal;
+
+    internal = lookup_internal(filter->v.mathmap.internals, internal_name, TRUE);
+    g_assert(internal != NULL);
+    bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
+    if (filter_flags(filter) & IMAGE_FLAG_UNIT)
+	emit_assign(bvs->values[0], make_value_rhs(internal_value));
+    else
+	emit_mul_with_internal(filter, bvs->values[0], internal_value, factor_internal_name);
+
+    return bvs;
+}
+
+static binding_values_t*
+gen_binding_values_for_xy (filter_t *filter, value_t *x, value_t *y, binding_values_t *bvs)
+{
+    bvs = make_pixel_scaled_internal_binding(filter, "x", x, "__canvasPixelX", bvs);
+    bvs = make_pixel_scaled_internal_binding(filter, "y", y, "__canvasPixelY", bvs);
+
+    return bvs;
+}
+
+static binding_values_t*
+gen_binding_values_for_limits (filter_t *filter, binding_values_t *bvs)
+{
+    bvs = make_pixel_scaled_internal_binding(filter, "X", get_internal_value(filter, "X", FALSE), "__canvasPixelX", bvs);
+    bvs = make_pixel_scaled_internal_binding(filter, "Y", get_internal_value(filter, "Y", FALSE), "__canvasPixelY", bvs);
+
+    bvs = make_pixel_scaled_internal_binding(filter, "W", get_internal_value(filter, "W", FALSE), "__canvasPixelX", bvs);
+    bvs = make_pixel_scaled_internal_binding(filter, "H", get_internal_value(filter, "H", FALSE), "__canvasPixelY", bvs);
+
+    return bvs;
+}
+
 static binding_values_t*
 gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
 {
@@ -2273,6 +2341,7 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     int i;
     binding_values_t *bvs = NULL;
     internal_t *internal;
+    compvar_t *x_tmp, *y_tmp;
 
     g_assert(filter->kind == FILTER_MATHMAP);
 
@@ -2291,15 +2360,13 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     }
     g_assert(info == NULL);
 
-    internal = lookup_internal(filter->v.mathmap.internals, "x", TRUE);
-    g_assert(internal != NULL);
-    bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
-    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 3]));
+    x_tmp = make_temporary(TYPE_INT);
+    emit_assign(make_lhs(x_tmp), make_primary_rhs(args[num_args - 3]));
 
-    internal = lookup_internal(filter->v.mathmap.internals, "y", TRUE);
-    g_assert(internal != NULL);
-    bvs = new_binding_values(BINDING_INTERNAL, internal, bvs, 1, TYPE_INT);
-    emit_assign(bvs->values[0], make_primary_rhs(args[num_args - 2]));
+    y_tmp = make_temporary(TYPE_INT);
+    emit_assign(make_lhs(y_tmp), make_primary_rhs(args[num_args - 2]));
+
+    bvs = gen_binding_values_for_xy(filter, current_value(x_tmp), current_value(y_tmp), bvs);
 
     internal = lookup_internal(filter->v.mathmap.internals, "t", TRUE);
     g_assert(internal != NULL);
@@ -2309,36 +2376,14 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args)
     return bvs;
 }
 
-static value_t*
-get_internal_value (filter_t *filter, const char *name)
-{
-    internal_t *internal;
-    binding_values_t *bv;
-
-    g_assert(filter->kind == FILTER_MATHMAP);
-
-    internal = lookup_internal(filter->v.mathmap.internals, name, TRUE);
-    g_assert(internal != NULL);
-
-    bv = lookup_binding_values(BINDING_INTERNAL, internal);
-    if (bv != NULL)
-	return bv->values[0];
-    else
-    {
-	compvar_t *temp = make_temporary(TYPE_INT);
-	emit_assign(make_lhs(temp), make_internal_rhs(internal));
-	return current_value(temp);
-    }
-}
-
 static binding_values_t*
 gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
 {
     compvar_t *r = make_temporary(TYPE_FLOAT);
     compvar_t *a = make_temporary(TYPE_FLOAT);
     compvar_t *x_over_r = make_temporary(TYPE_FLOAT);
-    value_t *x = get_internal_value(filter, "x");
-    value_t *y = get_internal_value(filter, "y");
+    value_t *x = get_internal_value(filter, "x", TRUE);
+    value_t *y = get_internal_value(filter, "y", TRUE);
     rhs_t *rhs;
 
     g_assert(filter->kind == FILTER_MATHMAP);
@@ -2391,7 +2436,15 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     if (args != NULL)
 	binding_values = gen_binding_values_from_filter_args(filter, args);
     else
+    {
 	binding_values = gen_binding_values_from_userval_infos(filter->userval_infos);
+	binding_values = gen_binding_values_for_xy(filter,
+						   get_internal_value(filter, "x", FALSE),
+						   get_internal_value(filter, "y", FALSE),
+						   binding_values);
+    }
+
+    binding_values = gen_binding_values_for_limits(filter, binding_values);
 
     if (does_filter_use_ra(filter))
 	binding_values = gen_ra_binding_values(filter, binding_values);

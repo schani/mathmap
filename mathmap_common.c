@@ -60,6 +60,12 @@ image_flags_from_options (option_t *options)
     return flags;
 }
 
+unsigned int
+filter_flags (filter_t *filter)
+{
+    return image_flags_from_options(filter->v.mathmap.decl->v.filter.options);
+}
+
 userval_info_t*
 arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
 {
@@ -183,6 +189,8 @@ init_internals (filter_t *filter)
     register_internal(&filter->v.mathmap.internals, "W", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "H", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "R", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "__canvasPixelX", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "__canvasPixelY", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "frame", CONST_X | CONST_Y);
 }
 
@@ -403,7 +411,7 @@ parse_mathmap (char *expression)
 
 	mathmap->main_filter = mathmap->filters;
 
-	mathmap->flags = image_flags_from_options(mathmap->main_filter->v.mathmap.decl->v.filter.options);
+	mathmap->flags = filter_flags(mathmap->main_filter) | IMAGE_FLAG_UNIT;
     } WITH_JUMP_HANDLER {
 	free_mathmap(mathmap);
 	mathmap = 0;
@@ -657,6 +665,8 @@ update_image_internals (mathmap_invocation_t *invocation)
     set_float_internal(invocation, internal->index, invocation->image_W);
     internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "H", 1);
     set_float_internal(invocation, internal->index, invocation->image_H);
+
+    /* FIXME: add __canvasPixelX/Y */
     
     internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "R", 1);
     set_float_internal(invocation, internal->index, invocation->image_R);
