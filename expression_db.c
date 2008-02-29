@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,7 +31,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <glib.h>
+
 #include "expression_db.h"
+#include "mathmap.h"
 
 static expression_db_t*
 new_expression_db (int kind)
@@ -198,7 +201,11 @@ free_expression_db (expression_db_t *edb)
 
 	free(edb->name);
 	if (edb->kind == EXPRESSION_DB_EXPRESSION)
+	{
 	    free(edb->v.expression.path);
+	    if (edb->v.expression.docstring != NULL)
+		free(edb->v.expression.docstring);
+	}
 	else if (edb->kind == EXPRESSION_DB_GROUP)
 	    free_expression_db(edb->v.group.subs);
 	else
@@ -235,6 +242,9 @@ copy_expression (expression_db_t *edb)
 
     copy->v.expression.path = strdup(edb->v.expression.path);
     assert(copy->v.expression.path != 0);
+
+    if (edb->v.expression.docstring != NULL)
+	copy->v.expression.docstring = g_strdup(edb->v.expression.docstring);
 
     return copy;
 }
@@ -338,4 +348,36 @@ read_expression (const char *path)
 	    assert(expr != 0);
 	}
     }
+}
+
+char*
+get_expression_docstring (expression_db_t *edb)
+{
+    mathmap_t *mathmap;
+    char *expression;
+
+    g_assert(edb->kind == EXPRESSION_DB_EXPRESSION);
+
+    if (edb->v.expression.docstring != NULL)
+	return edb->v.expression.docstring;
+
+    expression = read_expression(edb->v.expression.path);
+    if (expression == NULL)
+	return NULL;
+
+    mathmap = parse_mathmap(expression);
+    if (mathmap == NULL)
+	return NULL;
+
+    g_free(expression);
+
+    g_assert(mathmap->main_filter != NULL);
+    if (mathmap->main_filter->decl->docstring != NULL)
+	edb->v.expression.docstring = g_strdup(mathmap->main_filter->decl->docstring);
+    else
+	edb->v.expression.docstring = g_strdup("");
+
+    free_mathmap(mathmap);
+
+    return edb->v.expression.docstring;
 }
