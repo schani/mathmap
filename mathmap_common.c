@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -323,7 +323,11 @@ mathmap_t*
 compile_mathmap (char *expression, FILE *template, char *opmacros_filename)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
+#ifdef DONT_TRY_COMPILER
+    static int try_compiler = 0;
+#else
     static int try_compiler = 1;
+#endif
 
     DO_JUMP_CODE {
 	if (try_compiler)

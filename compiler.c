@@ -4959,8 +4959,10 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, FILE *template, cha
     }
 #endif
 
+#ifndef DONT_UNLINK_SO
     unlink(so_filename);
     g_free(so_filename);
+#endif
 
     unlink(o_filename);
     g_free(o_filename);
