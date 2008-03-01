@@ -3,6 +3,7 @@ unit filter wbawt (float granularity: 0-50 (10),
                    float w2: 0-1 (0.5), float f2: 1-10 (4),
                    float threshold: -1-1 (-0.3),
                    float contrast: 0-10 (1.5))
+"Just something I played around with when thinking about automatically creating levels for a Worms-like game."
     g = granularity;
     nxy = xy*g;
     thr = threshold;

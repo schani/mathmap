@@ -1,5 +1,6 @@
 # Edge Behaviour must be Wrap
 filter make_seamless (image in)
+"Make sure you set `Edge Behaviour' to `Wrap'."
     ax=abs(x)/X;ay=abs(y)/Y;
     x1=max(0,ax-ay);
     y1=max(0,ay-ax);

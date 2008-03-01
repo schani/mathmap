@@ -5,6 +5,7 @@ filter zoom_twist (unit image in, int samples: 4-64 (10),
                    curve twist_at_t, curve twist_at_r,
                    curve zoom_at_t, curve zoom_at_r,
                    curve sampling_shape)
+"This expression can do quite amazing effects, but you'll have to figure it out yourself."
     tfact = twist * (twist_at_t(t) - 0.5);
     zfact = (zoom_at_t(t)-0.5) * (zoom_at_r(r)-0.5) * zoom;
     total = rgba:[0,0,0,0];
