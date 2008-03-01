@@ -50,6 +50,8 @@ typedef struct _expression_db_t
 extern expression_db_t* read_expression_db (char *path);
 extern void free_expression_db (expression_db_t *edb);
 
+extern expression_db_t* make_expression_db_group (const char *name, expression_db_t *subs);
+
 extern char* read_expression (const char *path);
 
 extern char* get_expression_docstring (expression_db_t *edb);

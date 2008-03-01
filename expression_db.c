@@ -50,6 +50,17 @@ new_expression_db (int kind)
     return edb;
 }
 
+expression_db_t*
+make_expression_db_group (const char *name, expression_db_t *subs)
+{
+    expression_db_t *edb = new_expression_db(EXPRESSION_DB_GROUP);
+
+    edb->name = g_strdup(name);
+    edb->v.group.subs = subs;
+
+    return edb;
+}
+
 static expression_db_t*
 read_expression_sub_db (char *path, char *name)
 {
@@ -88,17 +99,8 @@ read_expression_sub_db (char *path, char *name)
     {
 	expression_db_t *subs = read_expression_db(filename);
 
-	if (subs != 0)
-	{
-	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_GROUP);
-
-	    edb->name = strdup(name);
-	    assert(edb->name != 0);
-
-	    edb->v.group.subs = subs;
-
-	    return edb;
-	}
+	if (subs != NULL)
+	    return make_expression_db_group(name, subs);
     }
 
     return 0;
@@ -317,7 +319,7 @@ read_expression (const char *path)
     file = fopen(path, "r");
     if (file == 0)
     {
-	fprintf(stderr, "Cannot read file `%s': %m\n", path);
+	fprintf(stderr, "Cannot read expression from file `%s': %m\n", path);
 	return 0;
     }
 
