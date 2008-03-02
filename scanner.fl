@@ -29,7 +29,11 @@
 #include "mathmap.h"
 #include "exprtree.h"
 #include "builtins.h"
+#ifndef OPENSTEP
 #include "parser.h"
+#else
+#include "parser.tab.h"
+#endif
 #include "jump.h"
 %}
 
