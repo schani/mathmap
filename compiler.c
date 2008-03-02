@@ -4990,7 +4990,12 @@ unload_c_code (void *module_info)
 
     assert(g_module_close(module));
 #else
-    /* FIXME */
+    NSModule module = module_info;
+    bool success;
+
+    success = NSUnLinkModule(module, NSUNLINKMODULE_OPTION_NONE);
+
+    //printf("unloading of module: %d\n", success);
 #endif
 }
 
