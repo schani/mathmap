@@ -69,6 +69,7 @@ Real dependencies
 ** Examples
 
 ** Compiler
+eliminate negative index values. then every value must have a valid def.
 check why lots of ops (like RED_FLOAT) are not foldable
 pass colors as tuples
 more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2))

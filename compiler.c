@@ -4688,6 +4688,44 @@ convert_while_stmt (statement_t *stmt)
     return new_stmt;
 }
 
+static value_t*
+is_value_rhs (rhs_t *rhs)
+{
+    if (rhs->kind != RHS_PRIMARY)
+	return NULL;
+
+    if (rhs->v.primary.kind != PRIMARY_VALUE)
+	return NULL;
+
+    return rhs->v.primary.v.value;
+}
+
+static value_t*
+can_eliminate_phi_copy (statement_t *stmt)
+{
+    statement_list_t *uses;
+
+    if (stmt->kind == STMT_PHI_ASSIGN)
+	return NULL;
+
+    g_assert(stmt->kind == STMT_ASSIGN);
+
+    uses = stmt->v.assign.lhs->uses;
+
+    if (uses == NULL || uses->next != NULL)
+	return NULL;
+
+    if (stmt->slice_flags != uses->stmt->slice_flags)
+	return NULL;
+
+    if (uses->stmt->kind == STMT_PHI_ASSIGN
+	&& (stmt->v.assign.lhs == is_value_rhs(uses->stmt->v.assign.rhs)
+	    || stmt->v.assign.lhs == is_value_rhs(uses->stmt->v.assign.rhs2)))
+	return uses->stmt->v.assign.lhs;
+
+    return NULL;
+}
+
 static void
 generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs, int convert_types)
 {
@@ -4695,15 +4733,17 @@ generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs, int convert_t
     {
 	if (stmt->kind == STMT_PHI_ASSIGN)
 	{
-	    if (convert_types)
-	    {
-		rhs_t *rhs = (phi_rhs == 1) ? stmt->v.assign.rhs : stmt->v.assign.rhs2;
+	    rhs_t *rhs = (phi_rhs == 1) ? stmt->v.assign.rhs : stmt->v.assign.rhs2;
+	    value_t *rhs_value = is_value_rhs(rhs);
 
-		if (rhs_type(rhs) != stmt->v.assign.lhs->compvar->type)
-		{
-		    generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
+	    if (rhs_value != NULL && rhs_value->def->kind != STMT_NIL
+		&& can_eliminate_phi_copy(rhs_value->def))
 		    goto next_stmt;
-		}
+
+	    if (convert_types && rhs_type(rhs) != stmt->v.assign.lhs->compvar->type)
+	    {
+		generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
+		goto next_stmt;
 	    }
 
 	    emit_pre_native_insn(new_pre_native_insn_phi_assign(stmt, phi_rhs));
@@ -4727,10 +4767,23 @@ generate_pre_native_code_recursively (statement_t *stmt, int convert_types)
 		break;
 
 	    case STMT_ASSIGN :
-		if (convert_types)
-		    emit_pre_native_assign_with_conversion(stmt->v.assign.lhs, stmt->v.assign.rhs, stmt);
-		else
-		    emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, stmt));
+		{
+		    value_t *lhs = can_eliminate_phi_copy(stmt);
+
+		    if (lhs == NULL)
+			lhs = stmt->v.assign.lhs;
+
+		    if (convert_types)
+			emit_pre_native_assign_with_conversion(lhs, stmt->v.assign.rhs, stmt);
+		    else
+		    {
+			statement_t *new_stmt = make_assign(lhs, stmt->v.assign.rhs);
+
+			new_stmt->slice_flags = stmt->slice_flags;
+
+			emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, new_stmt));
+		    }
+		}
 		break;
 
 	    case STMT_IF_COND :
@@ -5426,20 +5479,23 @@ output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
     while (phis != 0)
     {
 	rhs_t *rhs;
+	value_t *rhs_value;
 
 #ifndef NO_CONSTANTS_ANALYSIS
 	if ((phis->slice_flags & slice_flag) == 0)
 #else
         if (phis->kind == STMT_NIL)
 #endif
-	{
-	    phis = phis->next;
-	    continue;
-	}
+	    goto next_stmt;
 
-	assert(phis->kind == STMT_PHI_ASSIGN);
+	g_assert(phis->kind == STMT_PHI_ASSIGN);
 
 	rhs = ((branch == 0) ? phis->v.assign.rhs : phis->v.assign.rhs2);
+	rhs_value = is_value_rhs(rhs);
+
+	if (rhs_value != NULL && rhs_value->def->kind != STMT_NIL
+	    && can_eliminate_phi_copy(rhs_value->def))
+	    goto next_stmt;
 
 	if (rhs->kind != RHS_PRIMARY
 	    || rhs->v.primary.kind != PRIMARY_VALUE
@@ -5451,6 +5507,7 @@ output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
 	    fputs(";\n", out);
 	}
 
+    next_stmt:
 	phis = phis->next;
     }
 }
@@ -5472,10 +5529,17 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 		    break;
 
 		case STMT_ASSIGN :
-		    output_value_name(out, stmt->v.assign.lhs, 0);
-		    fputs(" = ", out);
-		    output_rhs(out, stmt->v.assign.rhs);
-		    fputs(";\n", out);
+		    {
+			value_t *lhs = can_eliminate_phi_copy(stmt);
+
+			if (lhs == NULL)
+			    lhs = stmt->v.assign.lhs;
+
+			output_value_name(out, lhs, 0);
+			fputs(" = ", out);
+			output_rhs(out, stmt->v.assign.rhs);
+			fputs(";\n", out);
+		    }
 		    break;
 
 		case STMT_PHI_ASSIGN :
