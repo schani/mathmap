@@ -4738,20 +4738,28 @@ generate_pre_native_code_for_phis (statement_t *stmt, int phi_rhs, int convert_t
 
 	    if (rhs_value != NULL && rhs_value->def->kind != STMT_NIL
 		&& can_eliminate_phi_copy(rhs_value->def))
-		    goto next_stmt;
-
-	    if (convert_types && rhs_type(rhs) != stmt->v.assign.lhs->compvar->type)
 	    {
-		generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
-		goto next_stmt;
-	    }
+		g_assert(rhs_value->def->kind == STMT_ASSIGN);
 
-	    emit_pre_native_insn(new_pre_native_insn_phi_assign(stmt, phi_rhs));
+		if (convert_types)
+		    emit_pre_native_assign_with_conversion(stmt->v.assign.lhs, rhs_value->def->v.assign.rhs, NULL);
+		else
+		{
+		    statement_t *new_stmt = make_assign(stmt->v.assign.lhs, rhs_value->def->v.assign.rhs);
+
+		    new_stmt->slice_flags = stmt->slice_flags;
+
+		    emit_pre_native_insn(new_pre_native_insn(PRE_NATIVE_INSN_ASSIGN, new_stmt));
+		}
+	    }
+	    else if (convert_types && rhs_type(rhs) != stmt->v.assign.lhs->compvar->type)
+		generate_pre_native_assigns(convert_rhs(rhs, stmt->v.assign.lhs));
+	    else
+		emit_pre_native_insn(new_pre_native_insn_phi_assign(stmt, phi_rhs));
 	}
 	else
 	    assert(stmt->kind == STMT_NIL);
 
-    next_stmt:
 	stmt = stmt->next;
     }
 }
@@ -4767,17 +4775,13 @@ generate_pre_native_code_recursively (statement_t *stmt, int convert_types)
 		break;
 
 	    case STMT_ASSIGN :
+		if (!can_eliminate_phi_copy(stmt))
 		{
-		    value_t *lhs = can_eliminate_phi_copy(stmt);
-
-		    if (lhs == NULL)
-			lhs = stmt->v.assign.lhs;
-
 		    if (convert_types)
-			emit_pre_native_assign_with_conversion(lhs, stmt->v.assign.rhs, stmt);
+			emit_pre_native_assign_with_conversion(stmt->v.assign.lhs, stmt->v.assign.rhs, stmt);
 		    else
 		    {
-			statement_t *new_stmt = make_assign(lhs, stmt->v.assign.rhs);
+			statement_t *new_stmt = make_assign(stmt->v.assign.lhs, stmt->v.assign.rhs);
 
 			new_stmt->slice_flags = stmt->slice_flags;
 
@@ -5495,7 +5499,16 @@ output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
 
 	if (rhs_value != NULL && rhs_value->def->kind != STMT_NIL
 	    && can_eliminate_phi_copy(rhs_value->def))
+	{
+	    g_assert(rhs_value->def->kind == STMT_ASSIGN);
+
+	    output_value_name(out, phis->v.assign.lhs, 0);
+	    fputs(" = ", out);
+	    output_rhs(out, rhs_value->def->v.assign.rhs);
+	    fputs(";\n", out);
+
 	    goto next_stmt;
+	}
 
 	if (rhs->kind != RHS_PRIMARY
 	    || rhs->v.primary.kind != PRIMARY_VALUE
@@ -5529,13 +5542,9 @@ output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 		    break;
 
 		case STMT_ASSIGN :
+		    if (!can_eliminate_phi_copy(stmt))
 		    {
-			value_t *lhs = can_eliminate_phi_copy(stmt);
-
-			if (lhs == NULL)
-			    lhs = stmt->v.assign.lhs;
-
-			output_value_name(out, lhs, 0);
+			output_value_name(out, stmt->v.assign.lhs, 0);
 			fputs(" = ", out);
 			output_rhs(out, stmt->v.assign.rhs);
 			fputs(";\n", out);
