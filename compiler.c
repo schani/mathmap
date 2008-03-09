@@ -36,8 +36,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-#include "mathmap.h"
-#include "vars.h"
 #include "internals.h"
 #include "tags.h"
 #include "exprtree.h"
@@ -45,262 +43,16 @@
 #include "internals.h"
 #include "jump.h"
 #include "scanner.h"
-#include "bitvector.h"
 #include "lispreader/pools.h"
-#include "compiler.h"
 #include "opmacros.h"
 
-#define CLOSURE_GET(n,t)		(t)(((void**)info)[(n)])
-#define CLOSURE_VAR(t,name,n)		t name = CLOSURE_GET((n),t)
+#include "compiler-internals.h"
 
 //#define NO_CONSTANTS_ANALYSIS
-
-struct _value_t;
-
-typedef struct
-{
-    int number;
-    int last_index;
-} temporary_t;
-
-#define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
-
-#define CONST_MAX            (CONST_Y | CONST_X | CONST_T)
-
-typedef int type_t;
-
-typedef struct _compvar_t
-{
-    int index;
-    variable_t *var;		/* 0 if compvar is a temporary */
-    temporary_t *temp;		/* 0 if compvar is a variable */
-    int n;			/* n/a if compvar is a temporary */
-    type_t type;
-    struct _value_t *current;
-    struct _value_t *values;
-} compvar_t;
-
-struct _statement_list_t;
-struct _statement_t;
-struct _native_register_t;
-struct _pre_native_insn_t;
-
-typedef struct _value_t
-{
-    compvar_t *compvar;
-    int global_index;
-    int index;			/* SSA index */
-    struct _statement_t *def;
-    struct _statement_list_t *uses;
-    struct _pre_native_insn_t *live_start;
-    struct _pre_native_insn_t *live_end;
-    struct _native_register_t *allocated_register;
-    unsigned int const_type : 3; /* defined in internals.h */
-    unsigned int least_const_type_directly_used_in : 3;
-    unsigned int least_const_type_multiply_used_in : 3;
-    unsigned int have_defined : 1; /* used in c code output */
-    struct _value_t *next;	/* next value for same compvar */
-} value_t;
-
-typedef struct _value_list_t
-{
-    value_t *value;
-    struct _value_list_t *next;
-} value_list_t;
-
-/* is_rhs_const_primary() assumes that PRIMARY_VALUE is the only non-const
- * primary type.  */
-#define PRIMARY_VALUE          1
-#define PRIMARY_CONST	       2
-
-typedef struct
-{
-    int kind;
-    int const_type;		/* different meanings for PRIMARY_VALUE vs PRIMARY_CONST! */
-    union
-    {
-	value_t *value;
-	runtime_value_t constant;
-    } v;
-} primary_t;
-
-#define MAKE_CONST_PRIMARY(name, c_type, type_name)	\
-	runtime_value_t \
-	make_ ## name ## _runtime_value (c_type name ## _value) \
-	{ \
-	    runtime_value_t value; \
-	    value.name ## _value = name ## _value; \
-	    return value; \
-	} \
-	primary_t \
-	make_ ## name ## _const_primary (c_type name ## _const) \
-	{ \
-	    primary_t primary; \
-	    primary.kind = PRIMARY_CONST; \
-	    primary.const_type = type_name; \
-	    primary.v.constant.name ## _value = name ## _const; \
-	    return primary; \
-	}
 
 // defined in compiler_types.h
 MAKE_CONST_PRIMARY_FUNCS
 MAKE_TYPE_C_TYPE_NAME
-
-#define TYPE_PROP_CONST      1
-#define TYPE_PROP_MAX        2
-#define TYPE_PROP_MAX_FLOAT  3
-
-typedef int type_prop_t;
-
-typedef struct _operation_t
-{
-    int index;
-    char *name;
-    int num_args;
-    type_prop_t type_prop;
-    int is_pure;
-    int is_foldable;
-    type_t const_type;		/* used only if type_prop == TYPE_PROP_CONST */
-    type_t arg_types[MAX_OP_ARGS]; /* used only if type_prop == TYPE_PROP_CONST */
-} operation_t;
-
-typedef struct _inlining_history_t
-{
-    filter_t *filter;
-    struct _inlining_history_t *next;
-} inlining_history_t;
-
-#define RHS_PRIMARY          1
-#define RHS_INTERNAL         2
-#define RHS_OP               3
-#define RHS_FILTER	     4
-#define RHS_CLOSURE	     5
-#define RHS_TUPLE	     6
-
-typedef struct
-{
-    int kind;
-    union
-    {
-	primary_t primary;
-	internal_t *internal;
-	struct
-	{
-	    operation_t *op;
-	    primary_t args[MAX_OP_ARGS];
-	} op;
-	struct
-	{
-	    filter_t *filter;
-	    primary_t *args;
-	    inlining_history_t *history;
-	} filter;
-	struct
-	{
-	    filter_t *filter;
-	    primary_t *args;
-	    inlining_history_t *history;
-	} closure;
-	struct
-	{
-	    int length;
-	    primary_t *args;
-	} tuple;
-    } v;
-} rhs_t;
-
-#define STMT_NIL             0
-#define STMT_ASSIGN          1
-#define STMT_PHI_ASSIGN      2
-#define STMT_IF_COND         3
-#define STMT_WHILE_LOOP      4
-
-#define SLICE_XY_CONST       1
-#define SLICE_X_CONST        2
-#define SLICE_Y_CONST        4
-#define SLICE_NO_CONST       8
-
-typedef struct _statement_t
-{
-    int kind;
-    union
-    {
-	struct
-	{
-	    value_t *lhs;
-	    rhs_t *rhs;
-	    rhs_t *rhs2;	/* only valid for STMT_PHI_ASSIGN */
-	    value_t *old_value;	/* only valid for STMT_PHI_ASSIGN */
-	} assign;
-	struct
-	{
-	    rhs_t *condition;
-	    struct _statement_t *consequent;
-	    struct _statement_t *alternative;
-	    struct _statement_t *exit;
-	} if_cond;
-	struct
-	{
-	    struct _statement_t *entry;
-	    rhs_t *invariant;
-	    struct _statement_t *body;
-	} while_loop;
-    } v;
-    struct _statement_t *parent;
-    unsigned int slice_flags;
-    struct _statement_t *next;
-} statement_t;
-
-typedef struct _statement_list_t
-{
-    statement_t *stmt;
-    struct _statement_list_t *next;
-} statement_list_t;
-
-#define PRE_NATIVE_INSN_LABEL                  0
-#define PRE_NATIVE_INSN_GOTO                   1
-#define PRE_NATIVE_INSN_ASSIGN                 2
-#define PRE_NATIVE_INSN_PHI_ASSIGN             3
-#define PRE_NATIVE_INSN_IF_COND_FALSE_GOTO     4
-
-typedef struct _pre_native_insn_t
-{
-    int kind;
-    int index;
-    statement_t *stmt;
-    union
-    {
-	struct _pre_native_insn_t *target;
-	int phi_rhs;
-    } v;
-    struct _pre_native_insn_t *next;
-} pre_native_insn_t;
-
-typedef struct
-{
-    filter_t *filter;
-    statement_t *first_stmt;
-    pre_native_insn_t *first_pre_native_insn;
-} filter_code_t;
-
-typedef struct
-{
-    int userval_type;
-    int var_type;
-    int num_vars;
-    int getter_op;
-} userval_representation_t;
-
-#define BINDING_USERVAL		1
-#define BINDING_INTERNAL	2
-
-typedef struct _binding_values_t
-{
-    int kind;
-    gpointer key;
-    struct _binding_values_t *next;
-    value_t *values[];
-} binding_values_t;
 
 static void init_op (int index, char *name, int num_args, type_prop_t type_prop,
 		     type_t const_type, int is_pure, int is_foldable, ...);
@@ -405,26 +157,24 @@ direct_hash_table_copy (GHashTable *table)
 
 /*** value sets ***/
 
-typedef bit_vector_t value_set_t;
-
 /* This is updated by new_value.  We assume that no new values are generated
  * at the time value sets are used.  */
 static int next_value_global_index = 0;
 
-static value_set_t*
-new_value_set (void)
+value_set_t*
+compiler_new_value_set (void)
 {
     return new_bit_vector(next_value_global_index, 0);
 }
 
-static void
-value_set_add (value_set_t *set, value_t *val)
+void
+compiler_value_set_add (value_set_t *set, value_t *val)
 {
     bit_vector_set(set, val->global_index);
 }
 
-static int
-value_set_contains (value_set_t *set, value_t *val)
+gboolean
+compiler_value_set_contains (value_set_t *set, value_t *val)
 {
     return bit_vector_bit(set, val->global_index);
 }
@@ -435,8 +185,8 @@ value_set_copy (value_set_t *set)
     return copy_bit_vector(set);
 }
 
-static void
-free_value_set (value_set_t *set)
+void
+compiler_free_value_set (value_set_t *set)
 {
     free_bit_vector(set);
 }
@@ -769,6 +519,21 @@ make_closure_rhs (filter_t *filter, primary_t *args)
     return rhs;
 }
 
+gboolean
+compiler_rhs_is_pure (rhs_t *rhs)
+{
+    switch (rhs->kind)
+    {
+	case RHS_OP:
+	    return rhs->v.op.op->is_pure;
+	case RHS_FILTER :
+	    /* FIXME: We can figure this out. */
+	    return FALSE;
+	default :
+	    return TRUE;
+    }
+}
+
 statement_t*
 find_phi_assign (statement_t *stmts, compvar_t *compvar)
 {
@@ -835,8 +600,8 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
     return NULL;
 }
 
-static void
-for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), void *info)
+void
+compiler_for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), void *info)
 {
     int num_primaries;
     primary_t *primaries = get_rhs_primaries(rhs, &num_primaries);
@@ -846,8 +611,6 @@ for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info), vo
 	if (primaries[i].kind == PRIMARY_VALUE)
 	    func(primaries[i].v.value, info);
 }
-
-#define FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; for_each_value_in_rhs((rhs),(func),__clos); } while (0)
 
 /*
 static int
@@ -921,21 +684,21 @@ for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, s
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_call_func, func, stmt, info);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_call_func, func, stmt, info);
 	    case STMT_ASSIGN :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_call_func, func, stmt, info);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_call_func, func, stmt, info);
 		func(stmt->v.assign.lhs, stmt, info);
 		break;
 
 	    case STMT_IF_COND :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_call_func, func, stmt, info);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_call_func, func, stmt, info);
 		for_each_value_in_statements(stmt->v.if_cond.consequent, func, info);
 		for_each_value_in_statements(stmt->v.if_cond.alternative, func, info);
 		for_each_value_in_statements(stmt->v.if_cond.exit, func, info);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_call_func, func, stmt, info);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_call_func, func, stmt, info);
 		for_each_value_in_statements(stmt->v.while_loop.entry, func, info);
 		for_each_value_in_statements(stmt->v.while_loop.body, func, info);
 		break;
@@ -1223,22 +986,22 @@ emit_stmt (statement_t *stmt)
 	    break;
 
 	case STMT_ASSIGN :
-	    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_add_use_in_stmt, stmt);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_add_use_in_stmt, stmt);
 	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_PHI_ASSIGN :
-	    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_add_use_in_stmt, stmt);
-	    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_add_use_in_stmt, stmt);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_add_use_in_stmt, stmt);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_add_use_in_stmt, stmt);
 	    stmt->v.assign.lhs->def = stmt;
 	    break;
 
 	case STMT_IF_COND :
-	    FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_add_use_in_stmt, stmt);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_add_use_in_stmt, stmt);
 	    break;
 
 	case STMT_WHILE_LOOP :
-	    FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_add_use_in_stmt, stmt);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_add_use_in_stmt, stmt);
 	    break;
 
 	default :
@@ -2833,9 +2596,9 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_clear_const_bits_from_assignment, stmt);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_clear_const_bits_from_assignment, stmt);
 	    case STMT_ASSIGN :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_clear_const_bits_from_assignment, stmt);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_clear_const_bits_from_assignment, stmt);
 		least_const_type &= LEAST_CONST_TYPE(stmt->v.assign.lhs);
 		break;
 
@@ -2847,7 +2610,7 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.alternative);
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.if_cond.exit);
 
-		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_clear_const_bits, (void*)sub_least_const_type);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_clear_const_bits, (void*)sub_least_const_type);
 
 		least_const_type &= sub_least_const_type;
 
@@ -2861,7 +2624,7 @@ analyze_least_const_type_directly_used_in (statement_t *stmt)
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.while_loop.entry);
 		sub_least_const_type &= analyze_least_const_type_directly_used_in(stmt->v.while_loop.body);
 
-		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_clear_const_bits, (void*)sub_least_const_type);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_clear_const_bits, (void*)sub_least_const_type);
 
 		least_const_type &= sub_least_const_type;
 
@@ -2887,7 +2650,7 @@ _update_const (value_t *val, void *info)
     CLOSURE_VAR(int, update_const_mask, 1);
     CLOSURE_VAR(int*, changed, 2);
 
-    if (value_set_contains(update_const_set, val)
+    if (compiler_value_set_contains(update_const_set, val)
 	&& ((val->least_const_type_multiply_used_in & update_const_mask)
 	    != val->least_const_type_multiply_used_in))
     {
@@ -2912,14 +2675,14 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 
 	    case STMT_PHI_ASSIGN :
 		update_const_mask = stmt->v.assign.lhs->least_const_type_multiply_used_in;
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_update_const,
-				      update_const_set, (void*)update_const_mask, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_update_const,
+					       update_const_set, (void*)update_const_mask, changed);
 	    case STMT_ASSIGN :
 		update_const_mask = stmt->v.assign.lhs->least_const_type_multiply_used_in;
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_update_const,
-				      update_const_set, (void*)update_const_mask, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_update_const,
+					       update_const_set, (void*)update_const_mask, changed);
 		if (in_loop)
-		    value_set_add(multiply_assigned_set, stmt->v.assign.lhs);
+		    compiler_value_set_add(multiply_assigned_set, stmt->v.assign.lhs);
 		least_const &= stmt->v.assign.lhs->least_const_type_multiply_used_in;
 		break;
 
@@ -2935,8 +2698,8 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 									     in_loop, multiply_assigned_set, changed);
 
 		update_const_mask = sub_least_const;
-		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_update_const,
-				      update_const_set, (void*)update_const_mask, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_update_const,
+					       update_const_set, (void*)update_const_mask, changed);
 
 		least_const &= sub_least_const;
 
@@ -2968,11 +2731,11 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 
 		update_const_set = copy;
 		update_const_mask = sub_least_const;
-		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_update_const,
-				      update_const_set, (void*)update_const_mask, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_update_const,
+					       update_const_set, (void*)update_const_mask, changed);
 		update_const_set = multiply_assigned_set;
 
-		free_value_set(copy);
+		compiler_free_value_set(copy);
 
 		least_const &= sub_least_const;
 
@@ -3019,12 +2782,12 @@ analyze_constants (void)
 
     do
     {
-	value_set_t *set = new_value_set();
+	value_set_t *set = compiler_new_value_set();
 
 	changed = 0;
 	analyze_least_const_type_multiply_used_in(first_stmt, 0, set, &changed);
 
-	free_value_set(set);
+	compiler_free_value_set(set);
     } while (changed);
 
     analyze_least_const_type_directly_used_in(first_stmt);
@@ -3125,12 +2888,12 @@ copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *chang
 		break;
 
 	    case STMT_PHI_ASSIGN :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_rewrite_if_possible, stmt, copy_hash, changed);
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_rewrite_if_possible, stmt, copy_hash, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_rewrite_if_possible, stmt, copy_hash, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_rewrite_if_possible, stmt, copy_hash, changed);
 		break;
 
 	    case STMT_ASSIGN :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_rewrite_if_possible, stmt, copy_hash, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_rewrite_if_possible, stmt, copy_hash, changed);
 
 		if (stmt->v.assign.rhs->kind == RHS_PRIMARY)
 		{
@@ -3144,14 +2907,14 @@ copy_propagate_recursively (statement_t *stmt, GHashTable *copy_hash, int *chang
 		break;
 
 	    case STMT_IF_COND :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_rewrite_if_possible, stmt, copy_hash, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_rewrite_if_possible, stmt, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.if_cond.consequent, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.if_cond.alternative, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.if_cond.exit, copy_hash, changed);
 		break;
 
 	    case STMT_WHILE_LOOP :
-		FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_rewrite_if_possible, stmt, copy_hash, changed);
+		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_rewrite_if_possible, stmt, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.while_loop.entry, copy_hash, changed);
 		copy_propagate_recursively(stmt->v.while_loop.body, copy_hash, changed);
 		break;
@@ -3378,147 +3141,6 @@ simplify_ops (void)
     return changed;
 }
 
-/*** dead assignment removal ***/
-
-static gboolean
-rhs_is_pure (rhs_t *rhs)
-{
-    switch (rhs->kind)
-    {
-	case RHS_OP:
-	    return rhs->v.op.op->is_pure;
-	case RHS_FILTER :
-	    /* FIXME: We can figure this out. */
-	    return FALSE;
-	default :
-	    return TRUE;
-    }
-}
-
-static value_list_t*
-add_value_if_new (value_list_t *list, value_t *value)
-{
-    value_list_t *l;
-
-    for (l = list; l != 0; l = l->next)
-	if (l->value == value)
-	    return list;
-
-    l = (value_list_t*)pools_alloc(&compiler_pools, sizeof(value_list_t));
-    l->value = value;
-    l->next = list;
-
-    return l;
-}
-
-static void
-_remove_value (value_t *value, void *info)
-{
-    CLOSURE_VAR(statement_t*, stmt, 0);
-    CLOSURE_VAR(value_list_t**, worklist, 1);
-    CLOSURE_VAR(int*, changed, 2);
-
-    assert(value->index < 0 || value->def->kind != STMT_NIL);
-    remove_use(value, stmt);
-    if (value->uses == 0)
-	*worklist = add_value_if_new(*worklist, value);
-
-    *changed = 1;
-}
-
-static void
-remove_assign_stmt_if_pure (statement_t *stmt, value_list_t **worklist, int *changed)
-{
-    assert(stmt->v.assign.lhs->uses == 0);
-
-    if (!rhs_is_pure(stmt->v.assign.rhs))
-	return;
-    if (stmt->kind == STMT_PHI_ASSIGN
-	&& !rhs_is_pure(stmt->v.assign.rhs2))
-	return;
-
-    FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_remove_value, stmt, worklist, changed);
-    if (stmt->kind == STMT_PHI_ASSIGN)
-	FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_remove_value, stmt, worklist, changed);
-
-    stmt->kind = STMT_NIL;
-}
-
-static void
-remove_dead_code_initially (statement_t *stmt, value_list_t **worklist)
-{
-    while (stmt != 0)
-    {
-	switch (stmt->kind)
-	{
-	    case STMT_NIL :
-		break;
-
-	    case STMT_ASSIGN :
-	    case STMT_PHI_ASSIGN :
-		if (stmt->v.assign.lhs->uses == 0)
-		    *worklist = add_value_if_new(*worklist, stmt->v.assign.lhs);
-		break;
-
-	    case STMT_IF_COND :
-		remove_dead_code_initially(stmt->v.if_cond.consequent, worklist);
-		remove_dead_code_initially(stmt->v.if_cond.alternative, worklist);
-		remove_dead_code_initially(stmt->v.if_cond.exit, worklist);
-		break;
-
-	    case STMT_WHILE_LOOP :
-		remove_dead_code_initially(stmt->v.while_loop.entry, worklist);
-		remove_dead_code_initially(stmt->v.while_loop.body, worklist);
-		break;
-
-	    default :
-		g_assert_not_reached();
-	}
-
-	stmt = stmt->next;
-    }
-}
-
-static void
-remove_dead_code_from_worklist (value_list_t *worklist, value_list_t **new_worklist, int *changed)
-{
-    while (worklist != 0)
-    {
-	assert(worklist->value->uses == 0);
-
-	if (worklist->value->def->kind == STMT_NIL)
-	    assert(worklist->value->def == &dummy_stmt);
-	else
-	{
-	    assert(worklist->value->def->kind == STMT_ASSIGN
-		   || worklist->value->def->kind == STMT_PHI_ASSIGN);
-
-	    remove_assign_stmt_if_pure(worklist->value->def, new_worklist, changed);
-	}
-
-	worklist = worklist->next;
-    }
-}
-
-static int
-remove_dead_assignments (void)
-{
-    int changed = 0;
-    value_list_t *worklist = 0;
-
-    remove_dead_code_initially(first_stmt, &worklist);
-
-    do
-    {
-	value_list_t *new_worklist = 0;
-
-	remove_dead_code_from_worklist(worklist, &new_worklist, &changed);
-	worklist = new_worklist;
-    } while (worklist != 0);
-
-    return changed;
-}
-
 /*** dead branch removal ***/
 
 static int
@@ -3568,10 +3190,10 @@ _remove_value_use (value_t *value, void *info)
     remove_use(value, CLOSURE_GET(0,statement_t*));
 }
 
-static void
-remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt)
+void
+compiler_remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt)
 {
-    FOR_EACH_VALUE_IN_RHS(rhs, &_remove_value_use, stmt);
+    COMPILER_FOR_EACH_VALUE_IN_RHS(rhs, &_remove_value_use, stmt);
 }
 
 static void
@@ -3625,9 +3247,9 @@ remove_dead_branches_recursively (statement_t *stmt, int *changed)
 			if (phi->kind == STMT_PHI_ASSIGN)
 			{
 			    if (condition_true)
-				remove_uses_in_rhs(phi->v.assign.rhs2, phi);
+				compiler_remove_uses_in_rhs(phi->v.assign.rhs2, phi);
 			    else
-				remove_uses_in_rhs(phi->v.assign.rhs, phi);
+				compiler_remove_uses_in_rhs(phi->v.assign.rhs, phi);
 
 			    phi->kind = STMT_ASSIGN;
 			    if (!condition_true)
@@ -3708,9 +3330,9 @@ remove_dead_controls_recursively (statement_t *stmt, int *changed)
 		if (stmts_are_empty(stmt->v.if_cond.consequent)
 		    && stmts_are_empty(stmt->v.if_cond.alternative)
 		    && stmts_are_empty(stmt->v.if_cond.exit)
-		    && rhs_is_pure(stmt->v.if_cond.condition))
+		    && compiler_rhs_is_pure(stmt->v.if_cond.condition))
 		{
-		    remove_uses_in_rhs(stmt->v.if_cond.condition, stmt);
+		    compiler_remove_uses_in_rhs(stmt->v.if_cond.condition, stmt);
 		    stmt->kind = STMT_NIL;
 		    *changed = 1;
 		}
@@ -3882,11 +3504,11 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 static void
 replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt)
 {
-    remove_uses_in_rhs(*rhs, stmt);
+    compiler_remove_uses_in_rhs(*rhs, stmt);
 
     *rhs = new;
 
-    FOR_EACH_VALUE_IN_RHS(*rhs, &_add_use_in_stmt, stmt);
+    COMPILER_FOR_EACH_VALUE_IN_RHS(*rhs, &_add_use_in_stmt, stmt);
 }
 
 static void
@@ -4891,7 +4513,7 @@ typecheck_pre_native_code (void)
 static void
 _check_value (value_t *value, void *info)
 {
-    assert(value_set_contains(CLOSURE_GET(0,value_set_t*), value));
+    g_assert(compiler_value_set_contains(CLOSURE_GET(0,value_set_t*), value));
 }
 
 static void
@@ -4899,7 +4521,7 @@ check_rhs_defined (rhs_t *rhs, value_set_t *defined_set)
 {
     void *closure[1] = { defined_set };
 
-    for_each_value_in_rhs(rhs, &_check_value, closure);
+    compiler_for_each_value_in_rhs(rhs, &_check_value, closure);
 }
 
 static value_t*
@@ -4953,7 +4575,7 @@ last_assignment_to_compvar (statement_t *stmts, compvar_t *compvar)
 static void
 set_value_defined_and_current_for_checking (value_t *value, GHashTable *current_value_hash, value_set_t *defined_set)
 {
-    value_set_add(defined_set, value);
+    compiler_value_set_add(defined_set, value);
     g_hash_table_insert(current_value_hash, value->compvar, value);
 }
 
@@ -4975,8 +4597,8 @@ check_phis (statement_t *stmts, statement_t *parent, statement_t *body1, stateme
 
 	if (stmts->kind == STMT_PHI_ASSIGN)
 	{
-	    FOR_EACH_VALUE_IN_RHS(stmts->v.assign.rhs, &_check_phi_value);
-	    FOR_EACH_VALUE_IN_RHS(stmts->v.assign.rhs2, &_check_phi_value);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmts->v.assign.rhs, &_check_phi_value);
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmts->v.assign.rhs2, &_check_phi_value);
 
 /*
 	    void check_value (value_t *value)
@@ -5031,7 +4653,7 @@ check_ssa_with_undo (statement_t *stmts, statement_t *parent, GHashTable *curren
 
     check_ssa_recursively(stmts, parent, current_value_hash_copy, defined_set_copy);
 
-    free_value_set(defined_set_copy);
+    compiler_free_value_set(defined_set_copy);
     g_hash_table_destroy(current_value_hash_copy);
 }
 
@@ -5049,7 +4671,7 @@ check_ssa_recursively (statement_t *stmts, statement_t *parent, GHashTable *curr
 
 	    case STMT_ASSIGN :
 		check_rhs_defined(stmts->v.assign.rhs, defined_set);
-		assert(!value_set_contains(defined_set, stmts->v.assign.lhs));
+		g_assert(!compiler_value_set_contains(defined_set, stmts->v.assign.lhs));
 		set_value_defined_and_current_for_checking(stmts->v.assign.lhs, current_value_hash, defined_set);
 		break;
 
@@ -5091,11 +4713,11 @@ check_ssa (statement_t *stmts)
     value_set_t *defined_set;
 
     current_value_hash = g_hash_table_new(&g_direct_hash, &g_direct_equal);
-    defined_set = new_value_set();
+    defined_set = compiler_new_value_set();
 
     check_ssa_recursively(stmts, 0, current_value_hash, defined_set);
 
-    free_value_set(defined_set);
+    compiler_free_value_set(defined_set);
     g_hash_table_destroy(current_value_hash);
 }
 
@@ -5921,7 +5543,7 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 	CHECK_SSA;
 	changed = simplify_ops() || changed;
 	CHECK_SSA;
-	changed = remove_dead_assignments() || changed;
+	changed = compiler_opt_remove_dead_assignments(first_stmt) || changed;
 	CHECK_SSA;
 	changed = remove_dead_branches() || changed;
 	CHECK_SSA;
