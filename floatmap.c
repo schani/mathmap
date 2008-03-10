@@ -100,3 +100,51 @@ floatmap_set_channel_row (image_t *img, int row, int channel, float *src)
     for (i = 0; i < img->v.floatmap.width; ++i)
 	FLOATMAP_VALUE_XY(img, i, row, channel) = src[i];
 }
+
+void
+floatmap_get_column (float *dst, image_t *img, int col)
+{
+    int i;
+
+    g_assert(img->type == IMAGE_FLOATMAP);
+    g_assert(col >= 0 && col < img->v.floatmap.width);
+
+    for (i = 0; i < img->v.floatmap.height; ++i)
+	memcpy(dst + i * NUM_FLOATMAP_CHANNELS,
+	       &FLOATMAP_VALUE_XY(img, col, i, 0),
+	       sizeof(float) * NUM_FLOATMAP_CHANNELS);
+}
+
+void
+floatmap_get_row (float *dst, image_t *img, int row)
+{
+    g_assert(img->type == IMAGE_FLOATMAP);
+    g_assert(row >= 0 && row < img->v.floatmap.height);
+
+    memcpy(dst, &FLOATMAP_VALUE_XY(img, 0, row, 0),
+	   sizeof(float) * img->v.floatmap.width * NUM_FLOATMAP_CHANNELS);
+}
+
+void
+floatmap_set_column (image_t *img, int col, float *src)
+{
+    int i;
+
+    g_assert(img->type == IMAGE_FLOATMAP);
+    g_assert(col >= 0 && col < img->v.floatmap.width);
+
+    for (i = 0; i < img->v.floatmap.height; ++i)
+	memcpy(&FLOATMAP_VALUE_XY(img, col, i, 0),
+	       src + i * NUM_FLOATMAP_CHANNELS,
+	       sizeof(float) * NUM_FLOATMAP_CHANNELS);
+}
+
+void
+floatmap_set_row (image_t *img, int row, float *src)
+{
+    g_assert(img->type == IMAGE_FLOATMAP);
+    g_assert(row >= 0 && row < img->v.floatmap.height);
+
+    memcpy(&FLOATMAP_VALUE_XY(img, 0, row, 0), src,
+	   sizeof(float) * img->v.floatmap.width * NUM_FLOATMAP_CHANNELS);
+}

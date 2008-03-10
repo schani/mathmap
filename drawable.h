@@ -161,9 +161,15 @@ input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 #endif
 
 image_t* floatmap_copy (image_t *floatmap, pools_t *pools);
+
 void floatmap_get_channel_column (float *dst, image_t *img, int col, int channel);
 void floatmap_get_channel_row (float *dst, image_t *img, int row, int channel);
 void floatmap_set_channel_column (image_t *img, int col, int channel, float *src);
 void floatmap_set_channel_row (image_t *img, int row, int channel, float *src);
+
+void floatmap_get_column (float *dst, image_t *img, int col);
+void floatmap_get_row (float *dst, image_t *img, int row);
+void floatmap_set_column (image_t *img, int col, float *src);
+void floatmap_set_row (image_t *img, int row, float *src);
 
 #endif
