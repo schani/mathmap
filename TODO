@@ -12,6 +12,8 @@ figure out how to do calling between pixel/non-pixel filters (eg mugl in compose
 statement for importing filters
 
 ** Packaging
+install pools.h
+why doesn't about dialog show mathmap (see hans's bug report)?
 
 ** Rendering
 reasonable default size
@@ -19,11 +21,11 @@ specifiable size
 antialiasing from rendered images
 lazy rendering
 use image/row/column const stuff for rendering
+why is gaussian so slow in final rendering?
 
 ** Designer
 
 ** Native filters
-gaussian blur
 convolution
 
 ** Compiler

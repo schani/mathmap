@@ -20,18 +20,23 @@ development packages, to compile and to run:
   * GSL (GNU Scientific Library), including GSL CBLAS
   * libgtksourceview
   * libgnomecanvas2
+  * libgtksourceview
 
 If you want MathMap to have a command-line interface as well (which is
 optional), you'll also need the following libraries:
 
-  * libjpeg, libpng, giflib
+  * libjpeg, libpng, giflib or libungif
 
 Configuration
 -------------
 
-Edit the Makefile if necessary.  Usually you shouldn't have to do
-this, unless you have more than one version of GIMP installed or want
-to build the command-line interface as well.
+Edit the Makefile if necessary.  The reasons you might want to do this
+are:
+
+  * You have libungif instead of libgif installed
+  * You don't want to build the command-line interface
+  * You're building on MacOS X
+  * You have more than one version of GIMP installed
 
 Compiling
 ---------

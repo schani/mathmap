@@ -9,9 +9,9 @@ CMDLINE = YES
 # for.
 #GIMP_BIN = /usr/bin/
 
-# If want to have movie (Quicktime) support in the command line,
-# uncomment the following line.
-#MOVIES = YES
+# Choose which gif library you have.
+GIFLIB = -lgif
+#GIFLIB = -lungif
 
 # If you are building on MacOS X, uncomment the following line
 #MACOSX = YES
@@ -19,6 +19,10 @@ CMDLINE = YES
 # If you want the final GIMP rendering to be multi-threaded then
 # uncomment the following line
 #THREADED = -DTHREADED_FINAL_RENDER
+
+# If want to have movie (Quicktime) support in the command line,
+# uncomment the following line.
+#MOVIES = YES
 
 # If you do not want localization (relevant for plug-in version only),
 # comment the following line
@@ -29,9 +33,6 @@ ENABLE_NLS = YES
 
 # Prefix for the software installation
 PREFIX = /usr/local
-
-# Directory where the binary should be installed in
-BINDIR = $(PREFIX)/bin
 
 # Directory where the localization files should be installed in
 LOCALEDIR = $(PREFIX)/share/locale
@@ -80,7 +81,7 @@ CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 CFLAGS += -DMATHMAP_CMDLINE -DGIMPDATADIR=\"$(GIMPDATADIR)\"
-LDFLAGS += -ljpeg -lpng -lgif
+LDFLAGS += -ljpeg -lpng $(GIFLIB)
 endif
 
 ifeq ($(ENABLE_NLS),YES)
@@ -147,14 +148,12 @@ install : mathmap
 	cp pixmaps/*.png $(PIXMAP_DIR)
 
 install-local : mathmap
-#	cp mathmap $(BINDIR)
 #	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
 #	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)
 
 	if [ ! -d $(HOME)/$(GIMPDIR) ] ; then mkdir $(HOME)/$(GIMPDIR) ; fi
 	if [ ! -d $(HOME)/$(GIMPDIR)/plug-ins ] ; then mkdir $(HOME)/$(GIMPDIR)/plug-ins ; fi
 	cp mathmap $(HOME)/$(GIMPDIR)/plug-ins/
-#	ln -s $(BINDIR)/mathmap $(HOME)/$(GIMPDIR)/plug-ins/
 
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap ] ; then mkdir $(HOME)/$(GIMPDIR)/mathmap ; fi
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
