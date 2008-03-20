@@ -5919,8 +5919,10 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     }
 #endif
 
+#ifndef DONT_UNLINK_SO
     unlink(so_filename);
     g_free(so_filename);
+#endif
 
     unlink(o_filename);
     g_free(o_filename);
@@ -5948,7 +5950,12 @@ unload_c_code (void *module_info)
 
     assert(g_module_close(module));
 #else
-    /* FIXME */
+    NSModule module = module_info;
+    bool success;
+
+    success = NSUnLinkModule(module, NSUNLINKMODULE_OPTION_NONE);
+
+    //printf("unloading of module: %d\n", success);
 #endif
 }
 

@@ -1,5 +1,6 @@
 filter darts (image in, int subdivisions: 1-30 (10),
               float distance: 0-1 (0.2), float width: 0-1 (0.2))
+"This inverts the input image in a dart-board like style.  `Width' should not be greater than `distance'."
     ang=2*pi/subdivisions;
     w=scale(width,0,1,0,distance);
     p=in(xy);

@@ -50,6 +50,17 @@ new_expression_db (int kind)
     return edb;
 }
 
+expression_db_t*
+make_expression_db_group (const char *name, expression_db_t *subs)
+{
+    expression_db_t *edb = new_expression_db(EXPRESSION_DB_GROUP);
+
+    edb->name = g_strdup(name);
+    edb->v.group.subs = subs;
+
+    return edb;
+}
+
 static expression_db_t*
 read_expression_sub_db (char *path, char *name)
 {
@@ -91,17 +102,8 @@ read_expression_sub_db (char *path, char *name)
     {
 	expression_db_t *subs = read_expression_db(filename);
 
-	if (subs != 0)
-	{
-	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_GROUP);
-
-	    edb->name = strdup(name);
-	    assert(edb->name != 0);
-
-	    edb->v.group.subs = subs;
-
-	    return edb;
-	}
+	if (subs != NULL)
+	    return make_expression_db_group(name, subs);
     }
 
     return 0;
@@ -208,6 +210,8 @@ free_expression_db (expression_db_t *edb)
 	{
 	    case EXPRESSION_DB_EXPRESSION :
 		free(edb->v.expression.path);
+		if (edb->v.expression.docstring != NULL)
+		    free(edb->v.expression.docstring);
 		if (edb->v.expression.mathmap != NULL)
 		    free_mathmap(edb->v.expression.mathmap);
 		break;
@@ -263,6 +267,9 @@ copy_expression (expression_db_t *edb)
 	default :
 	    g_assert_not_reached();
     }
+
+    if (edb->v.expression.docstring != NULL)
+	copy->v.expression.docstring = g_strdup(edb->v.expression.docstring);
 
     return copy;
 }
@@ -331,7 +338,7 @@ read_expression (const char *path)
 
     if (!g_file_get_contents(path, &expr, NULL, NULL))
     {
-	fprintf(stderr, "Cannot read file `%s': %m\n", path);
+	fprintf(stderr, "Cannot read expression from file `%s': %m\n", path);
 	return NULL;
     }
 
@@ -420,4 +427,36 @@ get_expression_path (expression_db_t *expr)
 	default :
 	    g_assert_not_reached();
     }
+}
+
+char*
+get_expression_docstring (expression_db_t *edb)
+{
+    mathmap_t *mathmap;
+    char *expression;
+
+    g_assert(edb->kind == EXPRESSION_DB_EXPRESSION);
+
+    if (edb->v.expression.docstring != NULL)
+	return edb->v.expression.docstring;
+
+    expression = read_expression(edb->v.expression.path);
+    if (expression == NULL)
+	return NULL;
+
+    mathmap = parse_mathmap(expression);
+    if (mathmap == NULL)
+	return NULL;
+
+    g_free(expression);
+
+    g_assert(mathmap->main_filter != NULL);
+    if (mathmap->main_filter->v.mathmap.decl->docstring != NULL)
+	edb->v.expression.docstring = g_strdup(mathmap->main_filter->v.mathmap.decl->docstring);
+    else
+	edb->v.expression.docstring = g_strdup("");
+
+    free_mathmap(mathmap);
+
+    return edb->v.expression.docstring;
 }

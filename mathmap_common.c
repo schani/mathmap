@@ -440,7 +440,11 @@ mathmap_t*
 compile_mathmap (char *expression, char *template_filename, char *include_path)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
+#ifdef DONT_TRY_COMPILER
+    static int try_compiler = 0;
+#else
     static int try_compiler = 1;
+#endif
 
     DO_JUMP_CODE {
 	if (try_compiler)

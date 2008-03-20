@@ -5,6 +5,7 @@
 
 stretched filter domain_coloring (stretched image in, int coloring_scheme: 1-7,
                                   gradient coloring)
+"Visualization of complex-valued functions by a technique called `domain coloring'.  See Hans Lundmark's page http://www.mai.liu.se/~halun/complex/complex.html"
 
     i=ri:[0,1];
 
