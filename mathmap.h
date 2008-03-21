@@ -159,13 +159,11 @@ typedef struct _mathmap_invocation_t
 
     /* These are in pixel coordinates: */
     int img_width, img_height;
+    int render_width, render_height;
 
     /* These are in virtual coordinates: */
-    float middle_x, middle_y;
-    float image_R, image_X, image_Y, image_W, image_H;
-
-    /* The factors for converting between the two: */
-    float scale_x, scale_y;
+    float image_R;		/* FIXME: remove and calculate in
+				   filter code */
 
     float current_x, current_y, current_r, current_a, current_t;
 
@@ -212,9 +210,6 @@ typedef struct
 #ifndef M_PI
 #define M_PI     3.14159265358979323846
 #endif
-
-void calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y);
-void calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y);
 
 #ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);

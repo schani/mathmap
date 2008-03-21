@@ -1930,7 +1930,7 @@ recalculate_preview (void)
 	guchar *p_ul, *p;
 	gint check, check_0, check_1; 
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
-	float old_scale_x, old_scale_y;
+	int old_render_width, old_render_height;
 
 	assert(buf != 0);
 
@@ -1954,11 +1954,11 @@ recalculate_preview (void)
 	*/
 	    disable_debugging(invocation);
 
-	old_scale_x = invocation->scale_x;
-	old_scale_y = invocation->scale_y;
+	old_render_width = invocation->render_width;
+	old_render_height = invocation->render_height;
 
-	invocation->scale_x *= (float)sel_width / (float)preview_width;
-	invocation->scale_y *= (float)sel_height / (float)preview_height;
+	invocation->render_width = preview_width;
+	invocation->render_height = preview_height;
 
 	if (previewing) {
 	    for_each_input_drawable(build_fast_image_source);
@@ -1967,8 +1967,8 @@ recalculate_preview (void)
 	else
 	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
 
-	invocation->scale_x = old_scale_x;
-	invocation->scale_y = old_scale_y;
+	invocation->render_width = old_render_width;
+	invocation->render_height = old_render_height;
 
 	p = buf;
 	p_ul = wint.wimage;
@@ -1981,7 +1981,7 @@ recalculate_preview (void)
 	    } else {
 		check_0 = CHECK_LIGHT;
 		check_1 = CHECK_DARK;
-	    }                        
+	    }
 
 	    for (x = 0; x < preview_width; x++)
 	    {

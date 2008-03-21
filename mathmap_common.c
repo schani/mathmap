@@ -37,7 +37,7 @@
 #include "compiler.h"
 #include "mathmap.h"
 
-int cmd_line_mode = 0; 
+int cmd_line_mode = 0;
 
 mathmap_t *the_mathmap = 0;
 int scanner_line_num;
@@ -189,8 +189,8 @@ init_internals (filter_t *filter)
     register_internal(&filter->v.mathmap.internals, "W", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "H", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "R", CONST_X | CONST_Y | CONST_T);
-    register_internal(&filter->v.mathmap.internals, "__canvasPixelX", CONST_X | CONST_Y | CONST_T);
-    register_internal(&filter->v.mathmap.internals, "__canvasPixelY", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "__canvasPixelW", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "__canvasPixelH", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "frame", CONST_X | CONST_Y);
 }
 
@@ -411,7 +411,7 @@ parse_mathmap (char *expression)
 
 	mathmap->main_filter = mathmap->filters;
 
-	mathmap->flags = filter_flags(mathmap->main_filter) | IMAGE_FLAG_UNIT;
+	mathmap->flags = 0;
     } WITH_JUMP_HANDLER {
 	free_mathmap(mathmap);
 	mathmap = 0;
@@ -528,52 +528,6 @@ init_invocation (mathmap_invocation_t *invocation)
     }
 }
 
-/* The scale factors computed by this function are to get from virtual
-   coordinates to pixel coordinates. */
-void
-calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y)
-{
-    float virt_width, virt_height;
-
-    switch (flags & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE))
-    {
-	case 0 :
-	    virt_width = pixel_width;
-	    virt_height = pixel_height;
-	    break;
-
-	case IMAGE_FLAG_UNIT :
-	    virt_width = virt_height = 2.0;
-	    break;
-
-	case IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE :
-	    if (pixel_width > pixel_height)
-	    {
-		virt_width = 2.0;
-		virt_height = 2.0 * pixel_height / pixel_width;
-	    }
-	    else
-	    {
-		virt_height = 2.0;
-		virt_width = 2.0 * pixel_width / pixel_height;
-	    }
-	    break;
-
-	default :
-	    assert(0);
-    }
-
-    *scale_x = pixel_width / virt_width;
-    *scale_y = pixel_height / virt_height;
-}
-
-void
-calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y)
-{
-    *middle_x = (img_width - 1) / 2.0 * scale_x;
-    *middle_y = (img_height - 1) / 2.0 * scale_y;
-}
-
 mathmap_invocation_t*
 invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height)
 {
@@ -593,24 +547,10 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->edge_behaviour_x = invocation->edge_behaviour_y = EDGE_BEHAVIOUR_COLOR;
 
-    invocation->img_width = img_width;
-    invocation->img_height = img_height;
+    invocation->img_width = invocation->render_width = img_width;
+    invocation->img_height = invocation->render_height = img_height;
 
-    calc_scale_factors(mathmap->flags, img_width, img_height, &invocation->scale_x, &invocation->scale_y);
-    invocation->scale_x = 1.0 / invocation->scale_x;
-    invocation->scale_y = 1.0 / invocation->scale_y;
-
-    invocation->image_W = img_width * invocation->scale_x;
-    invocation->image_H = img_height * invocation->scale_y;
-
-    calc_middle_values(img_width, img_height,
-		       invocation->scale_x, invocation->scale_y,
-		       &invocation->middle_x, &invocation->middle_y);
-
-    invocation->image_X = invocation->middle_x;
-    invocation->image_Y = invocation->middle_y;
-    
-    invocation->image_R = hypot(invocation->image_X, invocation->image_Y);
+    invocation->image_R = sqrt(2.0); //hypot(invocation->image_X, invocation->image_Y);
 
     invocation->current_r = invocation->current_a = 0.0;
 
@@ -660,18 +600,8 @@ update_image_internals (mathmap_invocation_t *invocation)
     internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "t", 1);
     set_float_internal(invocation, internal->index, invocation->current_t);
 
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "X", 1);
-    set_float_internal(invocation, internal->index, invocation->image_X);
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "Y", 1);
-    set_float_internal(invocation, internal->index, invocation->image_Y);
-    
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "W", 1);
-    set_float_internal(invocation, internal->index, invocation->image_W);
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "H", 1);
-    set_float_internal(invocation, internal->index, invocation->image_H);
+    /* FIXME: add __canvasPixelW/H */
 
-    /* FIXME: add __canvasPixelX/Y */
-    
     internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "R", 1);
     set_float_internal(invocation, internal->index, invocation->image_R);
 
@@ -741,19 +671,18 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	int row, col;
 	int output_bpp = invocation->output_bpp;
 	int origin_x = slice->region_x, origin_y = slice->region_y;
-	float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
 	float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
-	float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
 	int uses_ra = does_filter_use_ra(invocation->mathmap->main_filter);
+	int img_width = invocation->img_width, img_height = invocation->img_height;
 
 	for (row = first_row; row < last_row; ++row)
 	{
-	    float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
+	    float y = CALC_VIRTUAL_Y(row, img_height, sampling_offset_y);
 	    unsigned char *p = q;
 
 	    for (col = 0; col < slice->region_width; ++col)
 	    {
-		float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
+		float x = CALC_VIRTUAL_X(col, img_width, sampling_offset_x);
 		float r, a;
 
 		if (uses_ra)
@@ -956,7 +885,7 @@ join_invocation_call (gpointer *_call)
     for (i = 0; i < call->num_threads; ++i)
 	mathmap_thread_join(call->datas[i].thread_handle);
 
-    g_free(call);    
+    g_free(call);
 }
 
 void
@@ -968,7 +897,7 @@ kill_invocation_call (gpointer *_call)
     for (i = 0; i < call->num_threads; ++i)
 	mathmap_thread_kill(call->datas[i].thread_handle);
 
-    g_free(call);    
+    g_free(call);
 }
 
 gboolean

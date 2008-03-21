@@ -162,8 +162,8 @@ typedef struct
 
 #define MAKE_COLOR(r,g,b,a)   (MAKE_RGBA_COLOR(CLAMP01((r))*255,CLAMP01((g))*255,CLAMP01((b))*255,CLAMP01((a))*255))
 
-#define CALC_VIRTUAL_X(pxl,origin,scale,middle,sampl_off)	(((float)((pxl)+(origin)) + (sampl_off)) * (scale) - (middle))
-#define CALC_VIRTUAL_Y(pxl,origin,scale,middle,sampl_off)	((-(float)((pxl)+(origin)) - (sampl_off)) * (scale) + (middle))
+#define CALC_VIRTUAL_X(pxl,size,sampl_off)	(((pxl) - ((size)-1)/2.0 + (sampl_off)) / (((size)-1)/2.0))
+#define CALC_VIRTUAL_Y(pxl,size,sampl_off)	((-(pxl) + ((size)-1)/2.0 - (sampl_off)) / (((size)-1)/2.0))
 
 #define POOLS_ALLOC(s)			(pools_alloc(pools, (s)))
 #define ALLOC_CLOSURE_IMAGE(n)		((image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))))

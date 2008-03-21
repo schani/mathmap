@@ -202,9 +202,8 @@ typedef struct _mathmap_invocation_t
 
     int current_frame;
     int img_width, img_height;
-    float middle_x, middle_y;
-    float image_R, image_X, image_Y, image_W, image_H;
-    float scale_x, scale_y;
+    int render_width, render_height;
+    float image_R;
 
     float current_x, current_y, current_r, current_a, current_t;
 
@@ -298,14 +297,10 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int row, col;
     float t = invocation->current_t;
-    float X = invocation->image_X, Y = invocation->image_Y;
-    float W = invocation->image_W, H = invocation->image_H;
     float R = invocation->image_R;
-    float __canvasPixelX = invocation->img_width / 2.0;
-    float __canvasPixelY = invocation->img_height / 2.0;
-    float middle_x = invocation->middle_x, middle_y = invocation->middle_y;
+    int __canvasPixelW = invocation->img_width;
+    int __canvasPixelH = invocation->img_height;
     float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
-    float scale_x = invocation->scale_x, scale_y = invocation->scale_y;
     int origin_x = slice->region_x, origin_y = slice->region_y;
     int frame = invocation->current_frame;
     int output_bpp = invocation->output_bpp;
@@ -315,6 +310,8 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     xy_const_vars_t *xy_vars = slice->xy_vars;
     pools_t pixel_pools;
     pools_t *pools;
+    int region_x = slice->region_x;
+    int render_width = invocation->render_width, render_height = invocation->render_height;
 
     init_pools(&pixel_pools);
 
@@ -328,7 +325,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 
     for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
-	float y = CALC_VIRTUAL_Y(row, origin_y, scale_y, middle_y, sampling_offset_y);
+	float y = CALC_VIRTUAL_Y(row + slice->region_y, render_height, sampling_offset_y);
 	unsigned char *p = q;
 
 	pools = &slice->pools;
@@ -342,7 +339,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	for (col = 0; col < slice->region_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &slice->y_vars[col];
-	    float x = CALC_VIRTUAL_X(col, origin_x, scale_x, middle_x, sampling_offset_x);
+	    float x = CALC_VIRTUAL_X(col + region_x, render_width, sampling_offset_x);
 	    float *return_tuple;
 
 	    if (invocation->do_debug)
@@ -388,10 +385,8 @@ init_frame (mathmap_slice_t *slice)
     mathmap_invocation_t *invocation = slice->invocation;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     float t = invocation->current_t;
-    float X = invocation->image_X, Y = invocation->image_Y;
-    float W = invocation->image_W, H = invocation->image_H;
-    float __canvasPixelX = invocation->img_width / 2.0;
-    float __canvasPixelY = invocation->img_height / 2.0;
+    int __canvasPixelW = invocation->img_width;
+    int __canvasPixelH = invocation->img_height;
     float R = invocation->image_R;
     pools_t *pools = &slice->pools;
 
@@ -422,8 +417,7 @@ init_frame (mathmap_slice_t *slice)
 	for (col = 0; col < slice->region_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &slice->y_vars[col];
-	    float x = CALC_VIRTUAL_X(col, slice->region_x, invocation->scale_x,
-				     invocation->middle_x, slice->sampling_offset_x);
+	    float x = CALC_VIRTUAL_X(col + slice->region_x, invocation->render_width, slice->sampling_offset_x);
 
 	    {
 		$y_code
@@ -452,10 +446,8 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int frame = 0;
-    float X = invocation->image_X, Y = invocation->image_Y;
-    float W = invocation->image_W, H = invocation->image_H;
-    float __canvasPixelX = invocation->img_width / 2.0;
-    float __canvasPixelY = invocation->img_height / 2.0;
+    int __canvasPixelW = invocation->img_width;
+    int __canvasPixelH = invocation->img_height;
     float R = invocation->image_R;
     float *return_tuple;
 

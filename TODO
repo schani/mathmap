@@ -5,6 +5,7 @@
 ** General
 
 ** GIMP Plug-In
+ident filter creates one pixel border around image in preview
 
 ** Language
 figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
@@ -23,6 +24,7 @@ why is gaussian so slow in final rendering?
 ** Native filters
 
 ** Compiler
+calculate R in the filter code
 
 ** Filters
 

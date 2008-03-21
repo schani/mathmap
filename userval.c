@@ -258,6 +258,52 @@ register_image (userval_info_t **infos, const char *name, unsigned int flags)
     return info;
 }
 
+/* The scale factors computed by this function are to get from virtual
+   coordinates to pixel coordinates. */
+static void
+calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y)
+{
+    float virt_width, virt_height;
+
+    switch (flags & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE))
+    {
+	case 0 :
+	    virt_width = pixel_width;
+	    virt_height = pixel_height;
+	    break;
+
+	case IMAGE_FLAG_UNIT :
+	    virt_width = virt_height = 2.0;
+	    break;
+
+	case IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE :
+	    if (pixel_width > pixel_height)
+	    {
+		virt_width = 2.0;
+		virt_height = 2.0 * pixel_height / pixel_width;
+	    }
+	    else
+	    {
+		virt_height = 2.0;
+		virt_width = 2.0 * pixel_width / pixel_height;
+	    }
+	    break;
+
+	default :
+	    assert(0);
+    }
+
+    *scale_x = pixel_width / virt_width;
+    *scale_y = pixel_height / virt_height;
+}
+
+static void
+calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y)
+{
+    *middle_x = (img_width - 1) / 2.0 * scale_x;
+    *middle_y = (img_height - 1) / 2.0 * scale_y;
+}
+
 static void
 calc_image_values (userval_info_t *info, userval_t *val)
 {
