@@ -2168,6 +2168,12 @@ gen_binding_values_for_xy (filter_t *filter, value_t *x, value_t *y, binding_val
     return bvs;
 }
 
+static gboolean
+filter_needs_xy_scaling (filter_t *filter)
+{
+    return (filter_flags(filter) & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE)) != IMAGE_FLAG_UNIT;
+}
+
 static binding_values_t*
 gen_binding_values_from_filter_args (filter_t *filter, primary_t *args, binding_values_t *bvs)
 {
@@ -2200,7 +2206,8 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args, binding_
     y_tmp = make_temporary(TYPE_INT);
     emit_assign(make_lhs(y_tmp), make_primary_rhs(args[num_args - 2]));
 
-    bvs = gen_binding_values_for_xy(filter, current_value(x_tmp), current_value(y_tmp), bvs);
+    if (filter_needs_xy_scaling(filter))
+	bvs = gen_binding_values_for_xy(filter, current_value(x_tmp), current_value(y_tmp), bvs);
 
     internal = lookup_internal(filter->v.mathmap.internals, "t", TRUE);
     g_assert(internal != NULL);
@@ -2243,10 +2250,14 @@ gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
     switch_if_branch();
     end_if_cond();
 
-    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->v.mathmap.internals, "r", TRUE), bvs, 1, TYPE_FLOAT);
+    bvs = new_binding_values(BINDING_INTERNAL,
+			     lookup_internal(filter->v.mathmap.internals, "r", TRUE),
+			     bvs, 1, TYPE_FLOAT);
     emit_assign(bvs->values[0], make_compvar_rhs(r));
 
-    bvs = new_binding_values(BINDING_INTERNAL, lookup_internal(filter->v.mathmap.internals, "a", TRUE), bvs, 1, TYPE_FLOAT);
+    bvs = new_binding_values(BINDING_INTERNAL,
+			     lookup_internal(filter->v.mathmap.internals, "a", TRUE),
+			     bvs, 1, TYPE_FLOAT);
     emit_assign(bvs->values[0], make_compvar_rhs(a));
 
     return bvs;
@@ -2274,10 +2285,11 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     else
     {
 	binding_values = gen_binding_values_from_userval_infos(filter->userval_infos, binding_values);
-	binding_values = gen_binding_values_for_xy(filter,
-						   get_internal_value(filter, "x", FALSE),
-						   get_internal_value(filter, "y", FALSE),
-						   binding_values);
+	if (filter_needs_xy_scaling(filter))
+	    binding_values = gen_binding_values_for_xy(filter,
+						       get_internal_value(filter, "x", FALSE),
+						       get_internal_value(filter, "y", FALSE),
+						       binding_values);
     }
 
     if (does_filter_use_ra(filter))
