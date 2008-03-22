@@ -1848,7 +1848,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		tree->val.func.entry->v.builtin_generator(args, arglengths, argnumbers, dest);
 	    }
 	    break;
- 
+
 	case EXPR_SEQUENCE :
 	    {
 		compvar_t **left_result;
@@ -2156,12 +2156,12 @@ gen_binding_values_for_xy (filter_t *filter, value_t *x, value_t *y, binding_val
 {
     bvs = make_internal_binding_from_rhs(lookup_internal(filter->v.mathmap.internals, "x", TRUE),
 					 make_op_rhs(OP_MUL,
-						     make_value_primary(get_internal_value(filter, "x", FALSE)),
+						     make_value_primary(x),
 						     make_value_primary(get_internal_value(filter, "X", TRUE))),
 					 bvs);
     bvs = make_internal_binding_from_rhs(lookup_internal(filter->v.mathmap.internals, "y", TRUE),
 					 make_op_rhs(OP_MUL,
-						     make_value_primary(get_internal_value(filter, "y", FALSE)),
+						     make_value_primary(y),
 						     make_value_primary(get_internal_value(filter, "Y", TRUE))),
 					 bvs);
 
@@ -2206,8 +2206,7 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args, binding_
     y_tmp = make_temporary(TYPE_INT);
     emit_assign(make_lhs(y_tmp), make_primary_rhs(args[num_args - 2]));
 
-    if (filter_needs_xy_scaling(filter))
-	bvs = gen_binding_values_for_xy(filter, current_value(x_tmp), current_value(y_tmp), bvs);
+    bvs = gen_binding_values_for_xy(filter, current_value(x_tmp), current_value(y_tmp), bvs);
 
     internal = lookup_internal(filter->v.mathmap.internals, "t", TRUE);
     g_assert(internal != NULL);
