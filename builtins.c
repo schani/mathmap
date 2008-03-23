@@ -124,7 +124,7 @@ get_pixel (mathmap_invocation_t *invocation, int x, int y, input_drawable_t *dra
     if (drawable == NULL)
 	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 
-    apply_edge_behaviour(invocation, &x, &y, drawable->width, drawable->height);
+    apply_edge_behaviour(invocation, &x, &y, drawable->image.pixel_width, drawable->image.pixel_height);
 
     return mathmap_get_pixel(invocation, drawable, frame, x, y);
 }
@@ -257,11 +257,11 @@ get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, f
     ix = (int)(image->v.floatmap.ax * x + image->v.floatmap.bx);
     iy = (int)(image->v.floatmap.ay * y + image->v.floatmap.by);
 
-    if (ix < 0 || ix >= image->v.floatmap.width
-	|| iy < 0 || iy >= image->v.floatmap.height)
+    if (ix < 0 || ix >= image->pixel_width
+	|| iy < 0 || iy >= image->pixel_height)
 	return black;
 
-    return image->v.floatmap.data + (iy * image->v.floatmap.width + ix) * 4;
+    return image->v.floatmap.data + (iy * image->pixel_width + ix) * 4;
 }
 
 CALLBACK_SYMBOL
@@ -282,8 +282,8 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
     new_image = pools_alloc(pools, sizeof(image_t));
 
     new_image->type = IMAGE_FLOATMAP;
-    new_image->v.floatmap.width = width;
-    new_image->v.floatmap.height = height;
+    new_image->pixel_width = width;
+    new_image->pixel_height = height;
     new_image->v.floatmap.ax = new_image->v.floatmap.bx = ax = bx = (float)width / 2.0;
     new_image->v.floatmap.ay = new_image->v.floatmap.by = ay = by = (float)height / 2.0;
 

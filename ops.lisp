@@ -183,6 +183,9 @@
 (defop 'render 3 "RENDER" :interpreter-c-name "RENDER_INTERPRETER" :type 'image
        :arg-types '(image int int) :foldable nil)
 
+(defop 'image-pixel-width 1 "IMAGE_PIXEL_WIDTH" :type 'int :arg-type 'image :foldable nil)
+(defop 'image-pixel-height 1 "IMAGE_PIXEL_HEIGHT" :type 'int :arg-type 'image :foldable nil)
+
 (defop 'make-rgba-color 4 "MAKE_COLOR" :type 'color :arg-types '(float float float float) :foldable nil)
 
 (defop 'red 1 "RED_FLOAT" :arg-type 'color :foldable nil)

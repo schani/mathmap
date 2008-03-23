@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2004-2007 Mark Probst
+ * Copyright (C) 2004-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -168,6 +168,9 @@ typedef struct
 #define POOLS_ALLOC(s)			(pools_alloc(pools, (s)))
 #define ALLOC_CLOSURE_IMAGE(n)		((image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))))
 #define CLOSURE_IMAGE_ARGS(i)		((userval_t*)(i)->v.closure.args)
+
+#define IMAGE_PIXEL_WIDTH(i)		((i)->pixel_width)
+#define IMAGE_PIXEL_HEIGHT(i)		((i)->pixel_height)
 
 #define ALLOC_TUPLE(n)			(POOLS_ALLOC(sizeof(float) * (n)))
 #define TUPLE_SET(t,n,x)		((t)[(n)] = (x))

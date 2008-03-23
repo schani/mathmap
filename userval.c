@@ -313,8 +313,8 @@ calc_image_values (userval_info_t *info, userval_t *val)
     g_assert(val->v.image->type == IMAGE_DRAWABLE);
     g_assert(val->v.image->v.drawable != NULL);
 
-    width = val->v.image->v.drawable->width;
-    height = val->v.image->v.drawable->height;
+    width = val->v.image->pixel_width;
+    height = val->v.image->pixel_height;
 
     calc_scale_factors(info->v.image.flags, width, height,
 		       &val->v.image->v.drawable->scale_x, &val->v.image->v.drawable->scale_y);

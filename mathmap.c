@@ -985,8 +985,10 @@ alloc_gimp_input_drawable (GimpDrawable *gimp_drawable)
     drawable->v.gimp.fast_image_source = 0;
     drawable->v.gimp.has_selection = FALSE;
 
-    drawable->v.gimp.fast_image_source_width = (drawable->width + fast_image_source_scale - 1) / fast_image_source_scale;
-    drawable->v.gimp.fast_image_source_height = (drawable->height + fast_image_source_scale - 1) / fast_image_source_scale;
+    drawable->v.gimp.fast_image_source_width =
+	(drawable->image.pixel_width + fast_image_source_scale - 1) / fast_image_source_scale;
+    drawable->v.gimp.fast_image_source_height =
+	(drawable->image.pixel_height + fast_image_source_scale - 1) / fast_image_source_scale;
 
     return drawable;
 }
@@ -1069,9 +1071,9 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 
     ++num_pixels_requested;
 
-    if (x < 0 || x >= drawable->width)
+    if (x < 0 || x >= drawable->image.pixel_width)
 	return invocation->edge_color_x;
-    if (y < 0 || y >= drawable->height)
+    if (y < 0 || y >= drawable->image.pixel_height)
 	return invocation->edge_color_y;
 
 #ifdef MATHMAP_CMDLINE
@@ -1154,8 +1156,8 @@ build_fast_image_source (input_drawable_t *drawable)
     else
     {
 	img_x1 = img_y1 = 0;
-	img_width = drawable->width;
-	img_height = drawable->height;
+	img_width = drawable->image.pixel_width;
+	img_height = drawable->image.pixel_height;
     }
 
     for (y = 0; y < height; ++y)

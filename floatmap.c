@@ -35,14 +35,14 @@ floatmap_copy (image_t *floatmap, pools_t *pools)
     g_assert(floatmap->type == IMAGE_FLOATMAP);
 
     copy->type = IMAGE_FLOATMAP;
-    copy->v.floatmap.width = floatmap->v.floatmap.width;
-    copy->v.floatmap.height = floatmap->v.floatmap.height;
+    copy->pixel_width = floatmap->pixel_width;
+    copy->pixel_height = floatmap->pixel_height;
     copy->v.floatmap.ax = floatmap->v.floatmap.ax;
     copy->v.floatmap.bx = floatmap->v.floatmap.bx;
     copy->v.floatmap.ay = floatmap->v.floatmap.ay;
     copy->v.floatmap.by = floatmap->v.floatmap.by;
 
-    size = sizeof(float) * floatmap->v.floatmap.width * floatmap->v.floatmap.height * NUM_FLOATMAP_CHANNELS;
+    size = sizeof(float) * floatmap->pixel_width * floatmap->pixel_height * NUM_FLOATMAP_CHANNELS;
     copy->v.floatmap.data = pools_alloc(pools, size);
     memcpy(copy->v.floatmap.data, floatmap->v.floatmap.data, size);
 
@@ -55,10 +55,10 @@ floatmap_get_channel_column (float *dst, image_t *img, int col, int channel)
     int i;
 
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(col >= 0 && col < img->v.floatmap.width);
+    g_assert(col >= 0 && col < img->pixel_width);
     g_assert(channel >= 0 && channel < NUM_FLOATMAP_CHANNELS);
 
-    for (i = 0; i < img->v.floatmap.height; ++i)
+    for (i = 0; i < img->pixel_height; ++i)
 	dst[i] = FLOATMAP_VALUE_XY(img, col, i, channel);
 }
 
@@ -68,10 +68,10 @@ floatmap_get_channel_row (float *dst, image_t *img, int row, int channel)
     int i;
 
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(row >= 0 && row < img->v.floatmap.height);
+    g_assert(row >= 0 && row < img->pixel_height);
     g_assert(channel >= 0 && channel < NUM_FLOATMAP_CHANNELS);
 
-    for (i = 0; i < img->v.floatmap.width; ++i)
+    for (i = 0; i < img->pixel_width; ++i)
 	dst[i] = FLOATMAP_VALUE_XY(img, i, row, channel);
 }
 
@@ -81,10 +81,10 @@ floatmap_set_channel_column (image_t *img, int col, int channel, float *src)
     int i;
 
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(col >= 0 && col < img->v.floatmap.width);
+    g_assert(col >= 0 && col < img->pixel_width);
     g_assert(channel >= 0 && channel < NUM_FLOATMAP_CHANNELS);
 
-    for (i = 0; i < img->v.floatmap.height; ++i)
+    for (i = 0; i < img->pixel_height; ++i)
 	FLOATMAP_VALUE_XY(img, col, i, channel) = src[i];
 }
 
@@ -94,10 +94,10 @@ floatmap_set_channel_row (image_t *img, int row, int channel, float *src)
     int i;
 
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(row >= 0 && row < img->v.floatmap.height);
+    g_assert(row >= 0 && row < img->pixel_height);
     g_assert(channel >= 0 && channel < NUM_FLOATMAP_CHANNELS);
 
-    for (i = 0; i < img->v.floatmap.width; ++i)
+    for (i = 0; i < img->pixel_width; ++i)
 	FLOATMAP_VALUE_XY(img, i, row, channel) = src[i];
 }
 
@@ -107,9 +107,9 @@ floatmap_get_column (float *dst, image_t *img, int col)
     int i;
 
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(col >= 0 && col < img->v.floatmap.width);
+    g_assert(col >= 0 && col < img->pixel_width);
 
-    for (i = 0; i < img->v.floatmap.height; ++i)
+    for (i = 0; i < img->pixel_height; ++i)
 	memcpy(dst + i * NUM_FLOATMAP_CHANNELS,
 	       &FLOATMAP_VALUE_XY(img, col, i, 0),
 	       sizeof(float) * NUM_FLOATMAP_CHANNELS);
@@ -119,10 +119,10 @@ void
 floatmap_get_row (float *dst, image_t *img, int row)
 {
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(row >= 0 && row < img->v.floatmap.height);
+    g_assert(row >= 0 && row < img->pixel_height);
 
     memcpy(dst, &FLOATMAP_VALUE_XY(img, 0, row, 0),
-	   sizeof(float) * img->v.floatmap.width * NUM_FLOATMAP_CHANNELS);
+	   sizeof(float) * img->pixel_width * NUM_FLOATMAP_CHANNELS);
 }
 
 void
@@ -131,9 +131,9 @@ floatmap_set_column (image_t *img, int col, float *src)
     int i;
 
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(col >= 0 && col < img->v.floatmap.width);
+    g_assert(col >= 0 && col < img->pixel_width);
 
-    for (i = 0; i < img->v.floatmap.height; ++i)
+    for (i = 0; i < img->pixel_height; ++i)
 	memcpy(&FLOATMAP_VALUE_XY(img, col, i, 0),
 	       src + i * NUM_FLOATMAP_CHANNELS,
 	       sizeof(float) * NUM_FLOATMAP_CHANNELS);
@@ -143,8 +143,8 @@ void
 floatmap_set_row (image_t *img, int row, float *src)
 {
     g_assert(img->type == IMAGE_FLOATMAP);
-    g_assert(row >= 0 && row < img->v.floatmap.height);
+    g_assert(row >= 0 && row < img->pixel_height);
 
     memcpy(&FLOATMAP_VALUE_XY(img, 0, row, 0), src,
-	   sizeof(float) * img->v.floatmap.width * NUM_FLOATMAP_CHANNELS);
+	   sizeof(float) * img->pixel_width * NUM_FLOATMAP_CHANNELS);
 }

@@ -154,7 +154,7 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *d
 
 	    cache_entry = get_cache_entry_for_image(drawable->v.cmdline.image_filename, &width, &height);
 
-	    g_assert(width == drawable->width && height == drawable->height);
+	    g_assert(width == drawable->image.pixel_width && height == drawable->image.pixel_height);
 	}
 #ifdef MOVIES
 	else
@@ -179,7 +179,7 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *d
     else
 	cache_entries[frame]->timestamp = current_time;
 
-    p = cache_entries[frame]->data + 3 * (drawable->width * y + x);
+    p = cache_entries[frame]->data + 3 * (drawable->image.pixel_width * y + x);
 
     return MAKE_RGBA_COLOR(p[0], p[1], p[2], 255);
 }

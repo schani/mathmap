@@ -137,12 +137,21 @@ typedef struct _userval_t
 typedef struct _image_t
 {
     int type;
+    int pixel_width;
+    int pixel_height;
     union {
 	void *drawable;
 	struct {
 	    filter_func_t func;
 	    userval_t args[];
 	} closure;
+	struct {
+	    float ax;
+	    float bx;
+	    float ay;
+	    float by;
+	    float *data;
+	} floatmap;
     } v;
 } image_t;
 

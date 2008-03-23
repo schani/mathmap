@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2002-2007 Mark Probst
+;; Copyright (C) 2002-2008 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -1156,7 +1156,14 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
     (set result (make (rgba 4) (tuple-nth t 0) (tuple-nth t 1) (tuple-nth t 2) (tuple-nth t 3)))))
 
 (defbuiltin "render" render (image 1) ((drawable (image 1)))
+  ;FIXME: docstring
   (set result (make (image 1) (render (nth 0 drawable) 512 512)))) ;FIXME: get width/height via internal
+
+;;; images
+
+(defbuiltin "pixelSize" pixelSize (xy 2) ((drawable (image 1)))
+  ;FIXME: docstring
+  (set result (make (xy 2) (image-pixel-width (nth 0 drawable)) (image-pixel-height (nth 0 drawable)))))
 
 ;;; colors
 

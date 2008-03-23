@@ -62,6 +62,8 @@ struct _input_drawable_t;
 typedef struct _image_t
 {
     int type;
+    int pixel_width;
+    int pixel_height;
     union
     {
 	struct _input_drawable_t *drawable;
@@ -70,8 +72,6 @@ typedef struct _image_t
 	    userval_t args[];
 	} closure;
 	struct {
-	    int width;
-	    int height;
 	    float ax;
 	    float bx;
 	    float ay;
@@ -82,7 +82,7 @@ typedef struct _image_t
 } image_t;
 
 #define FLOATMAP_VALUE_I(img,i,c)          ((img)->v.floatmap.data[(i)*NUM_FLOATMAP_CHANNELS + (c)])
-#define FLOATMAP_VALUE_XY(img,x,y,c)	   FLOATMAP_VALUE_I((img), ((y)*(img)->v.floatmap.width + (x)), (c))
+#define FLOATMAP_VALUE_XY(img,x,y,c)	   FLOATMAP_VALUE_I((img), ((y)*(img)->pixel_width + (x)), (c))
 
 typedef struct _input_drawable_t {
     gboolean used;
@@ -90,9 +90,6 @@ typedef struct _input_drawable_t {
     image_t image;
 
     int kind;
-
-    int width;
-    int height;
 
     float scale_x;
     float scale_y;

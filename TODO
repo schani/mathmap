@@ -34,6 +34,9 @@ calculate R in the filter code
 HSL color space (for color gimp layer mode)
 statement for importing filters
 
+** Packaging
+Generate keyword list in sourceview spec file from builtins.lisp
+
 ** Rendering
 antialiasing from rendered images
 lazy rendering

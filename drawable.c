@@ -49,10 +49,9 @@ alloc_input_drawable (int kind, int width, int height)
     drawable->kind = kind;
 
     drawable->image.type = IMAGE_DRAWABLE;
+    drawable->image.pixel_width = width;
+    drawable->image.pixel_height = height;
     drawable->image.v.drawable = drawable;
-
-    drawable->width = width;
-    drawable->height = height;
 
     return drawable;
 }
@@ -121,7 +120,8 @@ copy_input_drawable (input_drawable_t *drawable)
 	    break;
 #else
         case INPUT_DRAWABLE_OPENSTEP:
-	    copy = alloc_input_drawable(INPUT_DRAWABLE_OPENSTEP, drawable->width, drawable->height);
+	    copy = alloc_input_drawable(INPUT_DRAWABLE_OPENSTEP,
+					drawable->image.pixel_width, drawable->image.pixel_height);
 	    copy->v.openstep.row_stride = drawable->v.openstep.row_stride;
 	    copy->v.openstep.data = drawable->v.openstep.data;
 	    break;

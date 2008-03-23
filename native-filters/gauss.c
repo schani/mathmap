@@ -127,8 +127,8 @@ static image_t*
 gauss_iir (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, pools_t *pools)
 {
     image_t *out;
-    int width = floatmap->v.floatmap.width;
-    int height = floatmap->v.floatmap.height;
+    int width = floatmap->pixel_width;
+    int height = floatmap->pixel_height;
     float *dest;
     float *src, *sp_p, *sp_m;
     double n_p[5], n_m[5];
@@ -500,8 +500,8 @@ do_full_lre (const float *src, float *dest, int width, int length, int dist, con
 static image_t*
 gauss_rle (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, pools_t *pools)
 {
-    int width = floatmap->v.floatmap.width;
-    int height = floatmap->v.floatmap.height;
+    int width = floatmap->pixel_width;
+    int height = floatmap->pixel_height;
     image_t *out;
     float *dest;
     float *src;

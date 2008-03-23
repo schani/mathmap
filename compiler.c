@@ -5064,6 +5064,7 @@ output_rhs (FILE *out, rhs_t *rhs)
 		int i;
 		int num_args = num_filter_args(rhs->v.closure.filter) - 3;
 		userval_info_t *info;
+		gboolean have_size = FALSE;
 
 		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		{
@@ -5076,8 +5077,17 @@ output_rhs (FILE *out, rhs_t *rhs)
 			fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
 			output_primary(out, &rhs->v.closure.args[i]);
 			fprintf(out, "; ");
+			if (info->type == USERVAL_IMAGE && !have_size)
+			{
+			    fprintf(out, "image->pixel_width = IMAGE_PIXEL_WIDTH(CLOSURE_IMAGE_ARGS(image)[%d].v.image); image->pixel_height = IMAGE_PIXEL_HEIGHT(CLOSURE_IMAGE_ARGS(image)[%d].v.image);\n",
+				    i, i);
+			    have_size = TRUE;
+			}
 		    }
 		    g_assert(i == num_args);
+
+		    if (!have_size)
+			fprintf(out, "image->pixel_width = __canvasPixelW; image->pixel_height = __canvasPixelH;\n");
 
 		    fprintf(out, "image; })");
 		}
