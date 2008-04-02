@@ -1208,6 +1208,17 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 
 		    if (name != NULL)
 			add_filter_node_type(design_type, edb);
+		    else
+		    {
+			char *message;
+
+			message = g_strdup_printf("The filter in the file\n"
+						  "`%s'\n"
+						  "cannot be parsed.",
+						  get_expression_path(edb));
+			gimp_message(message);
+			g_free(message);
+		    }
 		}
 		break;
 
