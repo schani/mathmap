@@ -95,7 +95,9 @@ CC = gcc
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/widget.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o
+#COMMON_OBJECTS += designer/widget.o
+COMMON_OBJECTS += designer/cairo_widget.o
 
 GIMP_OBJECTS = mathmap.o
 
