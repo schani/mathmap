@@ -53,12 +53,14 @@ typedef struct
     GSList *input_slot_specs;
     GSList *output_slot_specs;
     gpointer data;
+    gpointer widget_data;
 } designer_node_type_t;
 
 typedef struct
 {
     designer_node_t *partner; /* NULL if not assigned */
     designer_slot_spec_t *partner_slot_spec;
+    gpointer widget_data;
 } designer_slot_t;
 
 struct _designer_node_t
@@ -67,6 +69,7 @@ struct _designer_node_t
     designer_node_type_t *type;
     char *name;
     designer_slot_t *input_slots;
+    gpointer widget_data;
 };
 
 struct _designer_design_type_t
@@ -146,6 +149,17 @@ extern gboolean designer_save_design (designer_design_t *design, const char *fil
 				      designer_node_aux_print_func_t node_aux_print,
 				      designer_design_aux_print_func_t design_aux_print,
 				      gpointer user_data);
+
+/* widget_data */
+
+#define designer_node_type_set_widget_data(nt,d)	((nt)->widget_data = (d))
+#define designer_node_type_get_widget_data(nt)		((nt)->widget_data)
+
+#define designer_slot_spec_set_widget_data(ss,d)	((ss)->widget_data = (d))
+#define designer_slot_spec_get_widget_data(ss)		((ss)->widget_data)
+
+#define designer_node_set_widget_data(n,d)		((n)->widget_data = (d))
+#define designer_node_get_widget_data(n)		((n)->widget_data)
 
 /* widget */
 
