@@ -58,6 +58,7 @@ typedef struct
 
 typedef struct
 {
+    designer_node_t *node;
     designer_node_t *partner; /* NULL if not assigned */
     designer_slot_spec_t *partner_slot_spec;
     gpointer widget_data;
@@ -137,6 +138,8 @@ extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
 
 extern designer_design_t* designer_migrate_design (designer_design_t *design, designer_design_type_t *new_type);
+
+#define designer_slot_get_node(sl)	((sl)->node)
 
 /* load/save */
 
