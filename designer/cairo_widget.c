@@ -32,6 +32,96 @@
 #include "../lispreader/lispreader.h"
 
 #include "designer.h"
+#include "bertl.h"
+
+
+
+static void
+rect_path(cairo_t *cr, _rect_t r)
+{
+    cairo_rectangle(cr, r.o.x, r.o.y, r.s.w, r.s.h);
+}
+
+static void
+cross_path(cairo_t *cr, _rect_t r, double d)
+{
+    _corn_t c = _corners(r);
+
+    cairo_move_to(cr, c.ll.x + d, c.ll.y + d);
+    cairo_line_to(cr, c.ur.x - d, c.ur.y - d);
+    cairo_move_to(cr, c.lr.x - d, c.lr.y + d);
+    cairo_line_to(cr, c.ul.x + d, c.ul.y - d);
+}
+
+static const double round_s[4] = { 10, 10, 10, 10 };
+static const double upper_s[4] = { 10, 10, 0, 0 };
+static const double lower_s[4] = { 0, 0, 10, 10 };
+
+static void
+round_path(cairo_t *cr, _rect_t r, const double s[4])
+{
+    _corn_t c = _corners(r);
+
+    cairo_move_to(cr, c.lr.x - s[1], c.lr.y);
+    if (s[1])
+	cairo_curve_to(cr, c.lr.x, c.lr.y, c.lr.x, c.lr.y,
+		c.lr.x, c.lr.y + s[1]);
+    cairo_line_to(cr, c.ur.x, c.ur.y - s[2]);
+    if (s[2])
+	cairo_curve_to(cr, c.ur.x, c.ur.y, c.ur.x, c.ur.y,
+		c.ur.x - s[2], c.ur.y);
+    cairo_line_to(cr, c.ul.x + s[3], c.ul.y);
+    if (s[3])
+	cairo_curve_to(cr, c.ul.x, c.ul.y, c.ul.x, c.ul.y,
+		c.ul.x, c.ur.y - s[3]);
+    cairo_line_to(cr, c.ll.x, c.ll.y + s[0]);
+    if (s[0])
+	cairo_curve_to(cr, c.ll.x, c.ll.y, c.ll.x, c.ll.y,
+		c.ll.x + s[0], c.ll.y);
+    cairo_close_path(cr);
+}
+
+
+static void
+set_title_font(cairo_t *cr)
+{
+    cairo_select_font_face(cr, "Sans",
+	    CAIRO_FONT_SLANT_NORMAL,
+	    CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size (cr, 12.0);
+}
+
+static void
+set_slot_font(cairo_t *cr)
+{
+    cairo_select_font_face(cr, "Sans",
+	    CAIRO_FONT_SLANT_NORMAL,
+	    CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size (cr, 11.0);
+}
+
+static _rect_t
+text_rect(cairo_t *cr, const char *t)
+{
+    cairo_text_extents_t extents;
+
+    cairo_text_extents(cr, t, &extents);
+    return _rect(
+	extents.x_bearing, extents.y_bearing,
+	extents.width, extents.height);
+}
+
+
+typedef enum
+{
+    STATE_IDLE = 0,
+    STATE_MOVING,
+    STATE_CONOUT,
+    STATE_CONIN,
+} _state_t;
+
+
+
 
 typedef struct
 {
@@ -42,10 +132,396 @@ typedef struct
     GtkWidget *drawing_area;
     GtkWidget *hscrollbar;
     GtkWidget *vscrollbar;
+
     gboolean dragging;
-    double x;
-    double y;
+    _point_t mouse, mouse_down, mouse_up;
+    _state_t state;
+
+    designer_node_t *active_node;
+    int active_slot;
+    _point_t origin;
 } widget_data_t;
+
+
+typedef struct
+{
+
+    /* calculated */
+    _rect_t br, ir, or, sr;
+    int is, os;
+} node_type_data_t;
+
+
+typedef struct
+{
+    _point_t origin;
+    _point_t to;
+
+    /* calculated */
+    _rect_t nr, tr, br, ir, or, xr;
+} node_data_t;
+
+
+typedef enum
+{
+    HIT_NOTHING = 0,
+    HIT_TITLE,
+    HIT_BODY,
+    HIT_CLOSE,
+    HIT_INPUT,
+    HIT_OUTPUT,
+} _hit_t;
+
+
+
+static node_type_data_t *
+node_type_data(designer_node_type_t *nt)
+{
+    node_type_data_t *ntd;
+
+    if (!(ntd = designer_node_type_get_widget_data(nt))) {
+	ntd = calloc(sizeof(node_type_data_t), 1);
+	g_assert(ntd != NULL);
+	designer_node_type_set_widget_data(nt, ntd);
+    }
+    return ntd;
+}
+
+static node_data_t *
+node_data(designer_node_t *n)
+{
+    node_data_t *nd;
+
+    if (!(nd = designer_node_get_widget_data(n))) {
+	nd = calloc(sizeof(node_data_t), 1);
+	g_assert(nd != NULL);
+	designer_node_set_widget_data(n, nd);
+    }
+    return nd;
+}
+
+
+
+
+static void
+calc_node_type(cairo_t *cr, designer_node_type_t *nt)
+{
+    node_type_data_t *ntd = node_type_data(nt);
+    _rect_t br, ir, or, sr;
+
+    ntd->is = g_slist_length(nt->input_slot_specs);
+    ntd->os = g_slist_length(nt->output_slot_specs);
+
+    set_slot_font(cr);
+    sr = text_rect(cr, "Mg");
+    /* add sep space */
+    sr.s.h += 3;
+
+    ir = _rect(0, 0, 10, 0);
+    for (int i=0; i<ntd->is; i++) {
+	designer_slot_spec_t *slot =
+	    g_slist_nth_data(nt->input_slot_specs, i);
+	ir = _union(ir, text_rect(cr, slot->name));
+    }
+    /* offset left */
+    ir = _offset(ir, _size(0, 5));
+    /* add slot and sep space */
+    ir.s.w += 5+5;
+    /* height including sep space */
+    ir.s.h = ntd->is * sr.s.h - 3;
+
+    or = _rect(0, 0, 10, 0);
+    for (int i=0; i<ntd->os; i++) {
+	designer_slot_spec_t *slot =
+	    g_slist_nth_data(nt->output_slot_specs, i);
+	or = _union(or, text_rect(cr, slot->name));
+    }
+    /* move right, including sep space */
+    or = _offset(or, _size(ir.s.w + 5, 5));
+    /* add slot and sep space */
+    or.s.w += 5+5;
+    /* height including sep space */
+    or.s.h = ntd->os * sr.s.h - 3;
+
+    br = _union(ir, or);
+    /* reserve space around area */
+    br = _inset(br, _size(-5, -5));
+
+    ntd->br = br;
+    ntd->ir = _splith(&ir, 6);
+    _splith(&or, or.s.w - 6);
+    ntd->or = or;
+    ntd->sr = sr;
+}
+
+
+static void
+calc_node(cairo_t *cr, designer_node_t *n)
+{
+    node_data_t *nd = node_data(n);
+    node_type_data_t *ntd = node_type_data(n->type);
+    _rect_t nr, tr, ir, or, br, xr;
+
+    set_title_font(cr);
+    tr = text_rect(cr, n->name);
+    nd->to = _move(tr.o, _size(-1, tr.s.h - 1));
+
+    tr = _inset(tr, _size(-5, -5));
+    tr.s.w += 20; /* button space */
+
+    br = ntd->br;
+
+    /* move into place */
+    br.o.y = tr.o.y + tr.s.h;
+    nr = _union(tr, br);
+
+    /* break down areas once again */
+    br = nr; tr = _splitv(&br, tr.s.h);
+
+    /* split off close button */
+    xr = tr; _splith(&xr, tr.s.w - 16);
+    xr = _splitv(&xr, 16);
+    xr = _inset(xr, _size(4, 4));
+
+    ir = ntd->ir;
+    /* align inputs to the left */
+    ir.o = _move(br.o, _size(5, 5));
+
+    or = ntd->or;
+    /* align outputs to the right */
+    or.o = _move(br.o, _size(br.s.w - or.s.w - 5, 5));
+
+    nd->nr = nr;
+    nd->tr = tr;
+    nd->br = br;
+    nd->ir = ir;
+    nd->or = or;
+    nd->xr = xr;
+}
+
+
+static void 
+draw_node(cairo_t *cr, designer_node_t *n, _point_t m)
+{
+    designer_node_type_t *nt = n->type;
+    node_type_data_t *ntd = node_type_data(nt);
+    node_data_t *nd = node_data(n);
+
+    _point_t pos = nd->origin;
+    _point_t mr = _point(m.x - pos.x, m.y - pos.y);
+
+    calc_node_type(cr, n->type);
+    calc_node(cr, n);
+
+    cairo_save(cr);
+    cairo_translate(cr, pos.x, pos.y);
+
+    /* drop shadow */
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.1);
+    round_path(cr, _offset(nd->nr, _size(3, 3)), round_s);
+    cairo_fill(cr);
+
+    /* title area color */
+    cairo_set_source_rgba(cr, 0.3, 1.0, 0.8, 0.8);
+    round_path(cr, nd->tr, upper_s);
+    cairo_fill(cr);
+
+    /* title text */
+    set_title_font(cr);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);
+    cairo_move_to(cr, nd->to.x, nd->to.y);
+    cairo_show_text(cr, n->name);
+
+    /* close button */
+    cairo_set_line_width(cr, 1.0);
+    rect_path(cr, nd->xr);
+    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.8);
+    cairo_fill_preserve(cr);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.5);
+    cairo_stroke(cr);
+    cross_path(cr, nd->xr, 2);
+    cairo_stroke(cr);
+
+    /* body area color */
+    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.8);
+    round_path(cr, nd->br, lower_s);
+    cairo_fill(cr);
+
+    /* slot border 
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.3);
+    cairo_set_line_width(cr, 1.0);
+    rect_path(cr, nd->ir);
+    cairo_stroke(cr);
+    rect_path(cr, nd->or);
+    cairo_stroke(cr); */
+
+    /* prepare for slots */
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.6);
+    cairo_set_line_width(cr, 1.0);
+    set_slot_font(cr);
+
+    /* input slots */
+    for (int i=0; i<ntd->is; i++) {
+	designer_slot_spec_t *slot =
+	    g_slist_nth_data(nt->input_slot_specs, i);
+	// _rect_t sr = text_rect(cr, slot->name);
+	_point_t sl = _move(nd->ir.o,
+	    _size(3, 5 + ntd->sr.s.h * i));
+	
+	cairo_move_to(cr, sl.x + 6, sl.y + 3);
+	cairo_show_text(cr, slot->name);
+	cairo_stroke(cr);
+	cairo_arc(cr, sl.x, sl.y, 3.0, 0, 2 * M_PI);
+	cairo_stroke(cr);
+    }
+
+    for (int i=0; i<ntd->os; i++) {
+	designer_slot_spec_t *slot =
+	    g_slist_nth_data(nt->output_slot_specs, i);
+	_rect_t sr = text_rect(cr, slot->name);
+	_point_t sl = _move(nd->or.o,
+	    _size(nd->or.s.w - 3, 5 + ntd->sr.s.h * i));
+
+	cairo_move_to(cr, sl.x - sr.s.w - 8, sl.y + 3);
+	cairo_show_text(cr, slot->name);
+	cairo_stroke(cr);
+	cairo_arc(cr, sl.x, sl.y, 3.0, 0, 2 * M_PI);
+	cairo_stroke(cr);
+    }
+
+    /* highlight */
+    if (_inrect(mr, nd->nr)) {
+    	cairo_set_line_width(cr, 4.0);
+    	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+    	round_path(cr, _inset(nd->nr, _size(-1, -1)), round_s);
+    	cairo_stroke(cr);
+    }
+
+    /* filter border */
+    cairo_set_line_width(cr, 1.0);
+    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);
+    round_path(cr, nd->nr, round_s);
+    cairo_stroke(cr);
+    cairo_move_to(cr, nd->br.o.x, nd->br.o.y);
+    cairo_line_to(cr, nd->br.o.x + nd->br.s.w, nd->br.o.y);
+    cairo_stroke(cr);
+
+/*
+    rect_path(cr, nd->ir);
+    cairo_stroke(cr);
+    rect_path(cr, nd->or);
+    cairo_stroke(cr); */
+
+    cairo_restore(cr);
+}
+
+
+static void 
+draw_connect(cairo_t *cr, _point_t p1, _point_t p2, int type)
+{
+    _point_t cp1, cp2;
+    _size_t d = _delta(p1, p2);
+    float f = 0.5;
+
+    if (d.w*d.w > d.h*d.h) {
+    	cp1 = _move(p1, _size(d.w*f, 0));
+    	cp2 = _move(p2, _size(-d.w*f, 0));
+    } else {
+    	cp1 = _move(p1, _size(0, d.h*f));
+    	cp2 = _move(p2, _size(0, -d.h*f));
+    }
+
+    cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+
+    cairo_new_path(cr);
+    cairo_move_to(cr, p1.x, p1.y);
+    cairo_curve_to(cr, cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
+
+    cairo_set_source_rgba(cr, 0.4, 0.0, 0.0, 0.6);
+    cairo_set_line_width(cr, 4.0);
+    cairo_stroke_preserve(cr);
+
+    cairo_set_source_rgba(cr, 1.0, 0.6, 0.6, 0.6);
+    cairo_set_line_width(cr, 3.0);
+    cairo_stroke(cr);
+}
+
+
+static _hit_t 
+hit_node(designer_node_t *n, _point_t m)
+{
+    // designer_node_type_t *nt = n->type;
+    // node_type_data_t *ntd = node_type_data(nt);
+    node_data_t *nd = node_data(n);
+
+    _point_t pos = nd->origin;
+    _point_t mr = _point(m.x - pos.x, m.y - pos.y);
+
+    if (!_inrect(mr, nd->nr))
+	return HIT_NOTHING;
+
+    /* check for title rect */
+    if (_inrect(mr, nd->tr)) {
+	if (_inrect(mr, nd->xr))
+	    return HIT_CLOSE;
+	else
+	    return HIT_TITLE;
+    } else {
+	if (_inrect(mr, nd->ir))
+	    return HIT_INPUT;
+	if (_inrect(mr, nd->or))
+	    return HIT_OUTPUT;
+	return HIT_BODY;
+    }
+}
+
+static int
+hit_input_slot(designer_node_t *n, _point_t m)
+{
+    designer_node_type_t *nt = n->type;
+    node_type_data_t *ntd = node_type_data(nt);
+    node_data_t *nd = node_data(n);
+    _size_t d = _delta(_move(nd->ir.o, _ptos(nd->origin)), m);
+
+    return d.h / ntd->sr.s.h;
+}
+
+static int
+hit_output_slot(designer_node_t *n, _point_t m)
+{
+    designer_node_type_t *nt = n->type;
+    node_type_data_t *ntd = node_type_data(nt);
+    node_data_t *nd = node_data(n);
+    _size_t d = _delta(_move(nd->or.o, _ptos(nd->origin)), m);
+
+    return d.h / ntd->sr.s.h;
+}
+
+static _point_t
+input_slot_origin(designer_node_t *n, int i)
+{
+    designer_node_type_t *nt = n->type;
+    node_type_data_t *ntd = node_type_data(nt);
+    node_data_t *nd = node_data(n);
+
+    return _move(_move(nd->ir.o,
+	_size(3, 5 + ntd->sr.s.h * i)),
+	_ptos(nd->origin));
+}
+
+static _point_t
+output_slot_origin(designer_node_t *n, int i)
+{
+    designer_node_type_t *nt = n->type;
+    node_type_data_t *ntd = node_type_data(nt);
+    node_data_t *nd = node_data(n);
+
+    return _move(_move(nd->or.o,
+	_size(nd->or.s.w - 3, 5 + ntd->sr.s.h * i)),
+	_ptos(nd->origin));
+}
+
+
 
 static void
 signal_design_change (widget_data_t *data)
@@ -54,13 +530,12 @@ signal_design_change (widget_data_t *data)
 	data->design_changed_callback(data->widget, data->design);
 }
 
-static widget_data_t*
+static widget_data_t *
 get_widget_data (GtkWidget *widget)
 {
     widget_data_t *data = g_object_get_data(G_OBJECT(widget), "designer-data");
 
     g_assert(data != NULL);
-
     return data;
 }
 
@@ -69,103 +544,89 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 {
     widget_data_t *data = get_widget_data(widget);
 
-    cairo_t *cairo = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
-    double width = widget->allocation.width;
-    double height = widget->allocation.height;
+    cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
+    // _size_t ws = _size(widget->allocation.width, widget->allocation.height);
+    
+    cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
+    cairo_paint(cr);
 
-    double x1, y1, x2, y2, dx, dy, f, fx, fy;
-    double cp_x1, cp_y1, cp_x2, cp_y2;
-    int hor = 1;
+    cairo_translate(cr, 0.5, 0.5);
 
-    g_assert(cairo != NULL);
+    /* draw the nodes first */
+    for (GSList *list = data->design->nodes;
+	list != NULL; list = list->next) {
+	designer_node_t *node = list->data;
 
-    x1 = 100 + 0.5; y1 = 100 + 0.5;
-    x2 = data->x + 0.5; y2 = data->y + 0.5;
-
-    dx = x2 - x1; dy = y2 - y1;
-    f = 0.5;
-
-#if 1
-    if (dx*dx > dy*dy) {
-    	cp_x1 = x1 + dx*f; cp_y1 = y1;
-    	cp_x2 = x2 - dx*f; cp_y2 = y2;
-    } else {
-    	cp_x1 = x1; cp_y1 = y1 + dy*f;
-    	cp_x2 = x2; cp_y2 = y2 - dy*f;
+	draw_node(cr, node, data->mouse);
     }
-#else
-    if (dx*dx < dy*dy) {
-	fx = (dx*dx)/(dy*dy)*f;
-	fy = 1-fx;
-    } else {
-	fy = (dy*dy)/(dx*dx)*f;
-	fx = 1-fy;
+
+    if (data->state == STATE_CONIN) {
+	draw_connect(cr, data->origin, data->mouse, 0);
     }
-    cp_x1 = x1 + dx*fx; cp_y1 = y1 + dy*fy;
-    cp_x2 = x2 - dx*fx; cp_y2 = y2 - dy*fy;
-#endif
-
-    cairo_set_source_rgba(cairo, 0.0, 0.0, 0.0, 0.6);
-    cairo_set_line_width(cairo, 1.0);
-    cairo_arc (cairo, x1, y1, 4.0, 0, 2 * M_PI);
-    cairo_stroke(cairo);
-
-    cairo_set_source_rgba(cairo, 0.0, 0.0, 1.0, 0.6);
-    cairo_arc (cairo, cp_x1, cp_y1, 2.0, 0, 2 * M_PI);
-    cairo_stroke(cairo);
-    cairo_set_source_rgba(cairo, 0.0, 1.0, 0.0, 0.6);
-    cairo_arc (cairo, cp_x2, cp_y2, 2.0, 0, 2 * M_PI);
-    cairo_stroke(cairo);
-
-    cairo_set_source_rgba(cairo, 1.0, 0.0, 0.0, 0.4);
-    cairo_set_line_width(cairo, 4.0);
-    cairo_set_line_cap(cairo, CAIRO_LINE_CAP_ROUND);
-
-    cairo_new_path(cairo);
-    cairo_move_to(cairo, x1, y1);
-    cairo_curve_to(cairo, cp_x1, cp_y1, cp_x2, cp_y2, data->x, data->y);
-    cairo_stroke(cairo);
-
-    if (data->dragging)
-    {
-	cairo_text_extents_t extents;
-	const char *utf8 = "hyva bertlomi";
-	double x,y;
-
-	cairo_set_source_rgba(cairo, 0.0, 0.0, 0.0, 0.7);
-
-	cairo_translate(cairo, data->x, data->y);
-
-	x = data->x - width / 2;
-	y = data->y - height / 2;
-
-	cairo_rotate(cairo, atan2(y, x) + M_PI / 2);
-
-	cairo_select_font_face (cairo, "Sans",
-				CAIRO_FONT_SLANT_NORMAL,
-				CAIRO_FONT_WEIGHT_NORMAL);
-
-	cairo_set_font_size (cairo, (width + height) / 15.0);
-	cairo_text_extents (cairo, utf8, &extents);
-	x = -(extents.width/2 + extents.x_bearing);
-	y = -(extents.height/2 + extents.y_bearing);
-
-	cairo_move_to (cairo, x, y);
-	cairo_show_text (cairo, utf8);
+    if (data->state == STATE_CONOUT) {
+	draw_connect(cr, data->origin, data->mouse, 0);
     }
+
+    cairo_destroy(cr);
+
 
     return FALSE;
 }
+
+
 
 static gboolean
 button_press_event (GtkWidget *widget, GdkEventButton *event)
 {
     widget_data_t *data = get_widget_data(widget);
 
+    data->mouse_down = _point(event->x, event->y);
+    
+    designer_node_t *hn = NULL;
+    _hit_t ht = HIT_NOTHING; 
+
+     /* check for best node hit */
+    for (GSList *list = data->design->nodes;
+	list != NULL; list = list->next) {
+	designer_node_t *node = list->data;
+
+	_hit_t nht = hit_node(node, data->mouse_down);
+	if (nht) {
+	    hn = node;
+	    ht = nht;
+	}
+    }
+
+    switch(ht) {
+    case HIT_TITLE:
+	data->active_node = hn;
+	data->state = STATE_MOVING;
+	data->origin = node_data(hn)->origin;
+	break;
+    case HIT_CLOSE:
+	/* what do we do now? */
+	break;
+    case HIT_INPUT:
+	data->active_node = hn;
+	data->active_slot = hit_input_slot(hn, data->mouse_down);
+	data->origin = input_slot_origin(hn, data->active_slot);
+	// g_print("hit %lf,%lf -> %d\n", event->x, event->y, data->active_slot);
+	data->state = STATE_CONIN;
+	break;
+    case HIT_OUTPUT:
+	data->active_node = hn;
+	data->active_slot = hit_output_slot(hn, data->mouse_down);
+	data->origin = output_slot_origin(hn, data->active_slot);
+	// g_print("hit %lf,%lf -> %d\n", event->x, event->y, data->active_slot);
+	data->state = STATE_CONOUT;
+	break;
+    default:
+	break;
+    }
+
     data->dragging = TRUE;
 
     gtk_widget_queue_draw(widget);
-
     return TRUE;
 }
 
@@ -174,10 +635,20 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 {
     widget_data_t *data = get_widget_data(widget);
 
+    data->mouse_up = _point(event->x, event->y);
+
+    switch(data->state) {
+    case STATE_MOVING:
+	data->active_node = NULL;
+	data->state = STATE_IDLE;
+	break;
+    default:
+	break;
+    }
+
     data->dragging = FALSE;
 
     gtk_widget_queue_draw(widget);
-
     return TRUE;
 }
 
@@ -197,13 +668,26 @@ motion_notify_event (GtkWidget *widget, GdkEventMotion *event)
 	state = event->state;
     }
 
-    data->x = x;
-    data->y = y;
+    data->mouse = _point(x, y);
+
+    switch(data->state) {
+    case STATE_MOVING:
+	if (data->active_node) {
+	    node_data(data->active_node)->origin =
+		_move(data->origin,
+		_delta(data->mouse_down, data->mouse));
+	}
+	break;
+    default:
+	break;
+    }
+
 
     gtk_widget_queue_draw(widget);
-
     return TRUE;
 }
+
+
 
 static void
 populate_table (widget_data_t *data)
@@ -256,7 +740,7 @@ populate_table (widget_data_t *data)
 			  | GDK_POINTER_MOTION_HINT_MASK);
 }
 
-GtkWidget*
+GtkWidget *
 designer_widget_new (designer_design_t *design,
 		     designer_design_changed_callback_t design_changed_callback,
 		     designer_node_focussed_callback_t node_focussed_callback)
@@ -290,6 +774,9 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
     widget_data_t *data = get_widget_data(widget);
 
     g_print("widget %p adds node %s at %gx%g\n", data, node->name, x, y);
+
+    // designer_node_type_set_widget_data(node->type, NULL);
+    // designer_node_set_widget_data(node, NULL);
 }
 
 void
