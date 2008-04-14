@@ -164,6 +164,9 @@ extern gboolean designer_save_design (designer_design_t *design, const char *fil
 #define designer_node_set_widget_data(n,d)		((n)->widget_data = (d))
 #define designer_node_get_widget_data(n)		((n)->widget_data)
 
+#define designer_slot_set_widget_data(sl,d)		((sl)->widget_data = (d))
+#define designer_slot_get_widget_data(sl)		((sl)->widget_data)
+
 /* widget */
 
 extern GtkWidget* designer_widget_new (designer_design_t *design,
