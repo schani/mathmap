@@ -58,9 +58,10 @@ typedef struct
 
 typedef struct
 {
-    designer_node_t *node;
-    designer_node_t *partner; /* NULL if not assigned */
-    designer_slot_spec_t *partner_slot_spec;
+    designer_node_t *source;
+    designer_slot_spec_t *output_slot_spec;
+    designer_node_t *dest;
+    designer_slot_spec_t *input_slot_spec;
     gpointer widget_data;
 } designer_slot_t;
 
@@ -69,7 +70,8 @@ struct _designer_node_t
     designer_design_t *design;
     designer_node_type_t *type;
     char *name;
-    designer_slot_t *input_slots;
+    GSList *input_slots;
+    GSList *output_slots;
     gpointer widget_data;
 };
 
@@ -120,11 +122,13 @@ extern void designer_free_design (designer_design_t *design);
 
 extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
 extern void designer_delete_node (designer_node_t *node);
+extern void designer_disconnect_and_delete_node (designer_node_t *node);
 
 extern gboolean designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
 					designer_node_t *dest, const char *input_slot_name);
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
+extern void designer_disconnect_slot (designer_slot_t *slot);
 
 extern void designer_set_design_name (designer_design_t *design, const char *name);
 
@@ -139,7 +143,8 @@ extern gboolean designer_design_contains_cycles (designer_design_t *design);
 
 extern designer_design_t* designer_migrate_design (designer_design_t *design, designer_design_type_t *new_type);
 
-#define designer_slot_get_node(sl)	((sl)->node)
+#define designer_slot_get_source_node(sl)	((sl)->source_node)
+#define designer_slot_get_dest_node(sl)		((sl)->dest_node)
 
 /* load/save */
 

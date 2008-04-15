@@ -221,7 +221,6 @@ designer_save_design (designer_design_t *design, const char *filename,
     {
 	designer_node_t *node = list->data;
 	GSList *slot_list;
-	int i;
 
 	lisp_print_open_paren(out);
 	lisp_print_symbol("node", out);
@@ -234,20 +233,15 @@ designer_save_design (designer_design_t *design, const char *filename,
 
 	lisp_print_symbol(":input-slots", out);
 	lisp_print_open_paren(out);
-	for (i = 0, slot_list = node->type->input_slot_specs;
-	     slot_list != NULL;
-	     ++i, slot_list = slot_list->next)
+	for (slot_list = node->input_slots; slot_list != NULL; slot_list = slot_list->next)
 	{
-	    if (node->input_slots[i].partner != NULL)
-	    {
-		designer_slot_spec_t *spec = slot_list->data;
+	    designer_slot_t *slot = slot_list->data;
 
-		lisp_print_open_paren(out);
-		lisp_print_string(spec->name, out);
-		lisp_print_string(node->input_slots[i].partner->name, out);
-		lisp_print_string(node->input_slots[i].partner_slot_spec->name, out);
-		lisp_print_close_paren(out);
-	    }
+	    lisp_print_open_paren(out);
+	    lisp_print_string(slot->input_slot_spec->name, out);
+	    lisp_print_string(slot->source->name, out);
+	    lisp_print_string(slot->output_slot_spec->name, out);
+	    lisp_print_close_paren(out);
 	}
 	lisp_print_close_paren(out);
 
