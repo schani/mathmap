@@ -1,9 +1,31 @@
+/* -*- c -*- */
 
+/*
+ * cairo_widget.h
+ *
+ * MathMap
+ *
+ * Copyright (C) 2008 Herbert Poetzl
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
+#ifndef __CAIRO_WIDGET_H__
+#define __CAIRO_WIDGET_H__
 
-#define	min(a,b)	(((a) < (b)) ? (a) : (b))
-#define	max(a,b)	(((a) > (b)) ? (a) : (b))
-
+#include <glib.h>
 
 typedef struct _point
 {
@@ -60,7 +82,7 @@ _size_t _size(double w, double h)
 }
 
 static inline
-_rect_t _rect(double x, double y, double w, double h) 
+_rect_t _rect(double x, double y, double w, double h)
 {
 	_rect_t r = { .o = _point(x, y), .s = _size(w, h) };
 	return r;
@@ -92,7 +114,7 @@ static inline
 _corn_t _corners(_rect_t r)
 {
 	_corn_t c;
-	
+
 	c.ll = r.o;
 	c.ur = _move(c.ll, r.s);
 	c.lr = _point(c.ur.x, c.ll.y);
@@ -107,21 +129,21 @@ _corn_t _corners(_rect_t r)
 static inline
 _point_t _pmin(_point_t p1, _point_t p2)
 {
-	return _point(min(p1.x, p2.x), min(p1.y, p2.y));
+	return _point(MIN(p1.x, p2.x), MIN(p1.y, p2.y));
 }
 
 static inline
 _point_t _pmax(_point_t p1, _point_t p2)
 {
-	return _point(max(p1.x, p2.x), max(p1.y, p2.y));
+	return _point(MAX(p1.x, p2.x), MAX(p1.y, p2.y));
 }
 
 
 static inline
-_rect_t _prect(_point_t p1, _point_t p2) 
+_rect_t _prect(_point_t p1, _point_t p2)
 {
 	_rect_t r;
-	
+
 	r.o = _pmin(p1, p2);
 	r.s = _delta(r.o, _pmax(p1, p2));
 	return r;
@@ -132,13 +154,13 @@ _rect_t _prect(_point_t p1, _point_t p2)
 static inline
 _size_t _smin(_size_t s1, _size_t s2)
 {
-	return _size(min(s1.w, s2.w), min(s1.h, s2.h));
+	return _size(MIN(s1.w, s2.w), MIN(s1.h, s2.h));
 }
 
 static inline
 _size_t _smax(_size_t s1, _size_t s2)
 {
-	return _size(max(s1.w, s2.w), max(s1.h, s2.h));
+	return _size(MAX(s1.w, s2.w), MAX(s1.h, s2.h));
 }
 
 
@@ -222,7 +244,7 @@ _rect_t _offset(_rect_t r, _size_t s)
 static inline
 _rect_t _splith(_rect_t *r, double w)
 {
-	double mw = min(w, r->s.w);
+	double mw = MIN(w, r->s.w);
 	_rect_t s = _rect(r->o.x, r->o.y, mw, r->s.h);
 
 	r->o.x += mw; r->s.w -= mw;
@@ -232,11 +254,11 @@ _rect_t _splith(_rect_t *r, double w)
 static inline
 _rect_t _splitv(_rect_t *r, double h)
 {
-	double mh = min(h, r->s.h);
+	double mh = MIN(h, r->s.h);
 	_rect_t s = _rect(r->o.x, r->o.y, r->s.w, mh);
 
 	r->o.y += mh; r->s.h -= mh;
 	return s;
 }
 
-
+#endif

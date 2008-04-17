@@ -43,7 +43,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 VERSION = 1.3.3
 
 #OPT_CFLAGS := -O2
-OPT_CFLAGS := -std=gnu99 -fgnu89-inline -g -DDEBUG_OUTPUT
+OPT_CFLAGS := -std=gnu99 -g -DDEBUG_OUTPUT #-fgnu89-inline 
 
 ifeq ($(MACOSX),YES)
 CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""

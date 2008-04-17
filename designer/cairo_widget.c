@@ -32,7 +32,7 @@
 #include "../lispreader/lispreader.h"
 
 #include "designer.h"
-#include "bertl.h"
+#include "cairo_widget.h"
 
 
 
