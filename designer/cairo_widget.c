@@ -539,6 +539,12 @@ get_widget_data (GtkWidget *widget)
     return data;
 }
 
+static void
+set_scrollable_size (widget_data_t *data, unsigned int width, unsigned int height)
+{
+    gtk_layout_set_size (GTK_LAYOUT(data->drawing_area), width, height);
+}
+
 static gboolean
 expose_event (GtkWidget *widget, GdkEventExpose *event)
 {
