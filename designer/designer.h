@@ -44,6 +44,7 @@ typedef struct
     char *name;
     designer_type_t *type;
     gpointer data;
+    gpointer widget_data;
 } designer_slot_spec_t;
 
 typedef struct
