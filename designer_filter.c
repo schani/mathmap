@@ -103,9 +103,17 @@ append_limits_and_defaults (GString *string, userval_info_t *info)
 	    break;
 
 	case USERVAL_FLOAT_CONST :
-	    g_string_append_printf(string, " : %g - %g (%g)",
-				   info->v.float_const.min, info->v.float_const.max,
-				   info->v.float_const.default_value);
+	    {
+		char min_buf [G_ASCII_DTOSTR_BUF_SIZE];
+		char max_buf [G_ASCII_DTOSTR_BUF_SIZE];
+		char default_buf [G_ASCII_DTOSTR_BUF_SIZE];
+
+		g_ascii_dtostr (min_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.min);
+		g_ascii_dtostr (max_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.max);
+		g_ascii_dtostr (default_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.default_value);
+
+		g_string_append_printf(string, " : %s - %s (%s)", min_buf, max_buf, default_buf);
+	    }
 	    break;
 
 	case USERVAL_BOOL_CONST :
