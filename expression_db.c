@@ -371,7 +371,8 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 								 NULL, NULL, NULL, NULL);
 		char *source;
 
-		g_assert(design != NULL);
+		if (design == NULL)
+		    return NULL;
 
 		if (design->root == NULL)
 		{

@@ -1231,9 +1231,19 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 		{
 		    designer_design_t *design = designer_load_design(design_type, edb->v.design.path,
 								     NULL, NULL, NULL, NULL);
+		    char *name = get_expression_name (edb, design_type);
 
 		    if (design == NULL)
+		    {
+			char *message;
+
+			message = g_strdup_printf("Could not load composition from file\n"
+						  "`%s'.\n",
+						  get_expression_path(edb));
+			gimp_message(message);
+			g_free(message);
 			break;
+		    }
 
 		    if (designer_get_node_type_by_name(design_type, design->name))
 		    {
@@ -1242,6 +1252,21 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 		    }
 
 		    designer_free_design(design);
+
+		    if (name == NULL)
+		    {
+			char *message;
+
+			message = g_strdup_printf("The composition in the file\n"
+						  "`%s'\n"
+						  "does not produce a valid MathMap\n"
+						  "filter.  Please check that all filters\n"
+						  "used by that composition work properly.",
+						  get_expression_path(edb));
+			gimp_message(message);
+			g_free(message);
+			break;
+		    }
 
 		    add_filter_node_type(design_type, edb);
 
