@@ -35,6 +35,11 @@
 #include "cairo_widget.h"
 
 
+static void
+circle_path(cairo_t *cr, _point_t p, double r)
+{
+    cairo_arc(cr, p.x, p.y, r, 0, 2 * M_PI);
+}
 
 static void
 rect_path(cairo_t *cr, _rect_t r)
@@ -147,6 +152,13 @@ typedef struct
 {
 
     /* calculated */
+    _size_t offset;
+} slot_spec_data_t;
+
+typedef struct
+{
+
+    /* calculated */
     _rect_t br, ir, or, sr;
     int is, os;
 } node_type_data_t;
@@ -155,10 +167,9 @@ typedef struct
 typedef struct
 {
     _point_t origin;
-    _point_t to;
 
     /* calculated */
-    _rect_t nr, tr, br, ir, or, xr;
+    _rect_t nr, lr, tr, br, ir, or, xr;
 } node_data_t;
 
 
@@ -166,13 +177,28 @@ typedef enum
 {
     HIT_NOTHING = 0,
     HIT_TITLE,
-    HIT_BODY,
+    HIT_LABEL,
     HIT_CLOSE,
+    HIT_BODY,
     HIT_INPUT,
     HIT_OUTPUT,
 } _hit_t;
 
 
+
+
+static slot_spec_data_t *
+slot_spec_data(designer_slot_spec_t *ss)
+{
+    slot_spec_data_t *ssd;
+
+    if (!(ssd = designer_slot_spec_get_widget_data(ss))) {
+	ssd = calloc(sizeof(slot_spec_data_t), 1);
+	g_assert(ssd != NULL);
+	designer_slot_spec_set_widget_data(ss, ssd);
+    }
+    return ssd;
+}
 
 static node_type_data_t *
 node_type_data(designer_node_type_t *nt)
@@ -221,6 +247,9 @@ calc_node_type(cairo_t *cr, designer_node_type_t *nt)
     for (int i=0; i<ntd->is; i++) {
 	designer_slot_spec_t *slot =
 	    g_slist_nth_data(nt->input_slot_specs, i);
+	slot_spec_data_t *ssd = slot_spec_data(slot);
+	
+	ssd->offset = _size(3, 5 + sr.s.h * i);
 	ir = _union(ir, text_rect(cr, slot->name));
     }
     /* offset left */
@@ -234,6 +263,9 @@ calc_node_type(cairo_t *cr, designer_node_type_t *nt)
     for (int i=0; i<ntd->os; i++) {
 	designer_slot_spec_t *slot =
 	    g_slist_nth_data(nt->output_slot_specs, i);
+	slot_spec_data_t *ssd = slot_spec_data(slot);
+	
+	ssd->offset = _size(3, 5 + sr.s.h * i);
 	or = _union(or, text_rect(cr, slot->name));
     }
     /* move right, including sep space */
@@ -260,13 +292,12 @@ calc_node(cairo_t *cr, designer_node_t *n)
 {
     node_data_t *nd = node_data(n);
     node_type_data_t *ntd = node_type_data(n->type);
-    _rect_t nr, tr, ir, or, br, xr;
+    _rect_t nr, lr, tr, ir, or, br, xr;
 
     set_title_font(cr);
-    tr = text_rect(cr, n->name);
-    nd->to = _move(tr.o, _size(-1, tr.s.h - 1));
+    lr = text_rect(cr, n->name);
 
-    tr = _inset(tr, _size(-5, -5));
+    tr = _inset(lr, _size(-5, -5));
     tr.s.w += 20; /* button space */
 
     br = ntd->br;
@@ -292,6 +323,7 @@ calc_node(cairo_t *cr, designer_node_t *n)
     or.o = _move(br.o, _size(br.s.w - or.s.w - 5, 5));
 
     nd->nr = nr;
+    nd->lr = lr;
     nd->tr = tr;
     nd->br = br;
     nd->ir = ir;
@@ -301,17 +333,13 @@ calc_node(cairo_t *cr, designer_node_t *n)
 
 
 static void 
-draw_node(cairo_t *cr, designer_node_t *n, _point_t m)
+draw_node(cairo_t *cr, designer_node_t *n)
 {
     designer_node_type_t *nt = n->type;
     node_type_data_t *ntd = node_type_data(nt);
     node_data_t *nd = node_data(n);
 
     _point_t pos = nd->origin;
-    _point_t mr = _point(m.x - pos.x, m.y - pos.y);
-
-    calc_node_type(cr, n->type);
-    calc_node(cr, n);
 
     cairo_save(cr);
     cairo_translate(cr, pos.x, pos.y);
@@ -329,7 +357,8 @@ draw_node(cairo_t *cr, designer_node_t *n, _point_t m)
     /* title text */
     set_title_font(cr);
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);
-    cairo_move_to(cr, nd->to.x, nd->to.y);
+    cairo_move_to(cr, nd->lr.o.x - 1, 
+	nd->lr.o.y + nd->lr.s.h - 1);
     cairo_show_text(cr, n->name);
 
     /* close button */
@@ -347,13 +376,15 @@ draw_node(cairo_t *cr, designer_node_t *n, _point_t m)
     round_path(cr, nd->br, lower_s);
     cairo_fill(cr);
 
-    /* slot border 
+#if 1
+    /* slot border */
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.3);
     cairo_set_line_width(cr, 1.0);
     rect_path(cr, nd->ir);
     cairo_stroke(cr);
     rect_path(cr, nd->or);
-    cairo_stroke(cr); */
+    cairo_stroke(cr);
+#endif
 
     /* prepare for slots */
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.6);
@@ -364,39 +395,29 @@ draw_node(cairo_t *cr, designer_node_t *n, _point_t m)
     for (int i=0; i<ntd->is; i++) {
 	designer_slot_spec_t *slot =
 	    g_slist_nth_data(nt->input_slot_specs, i);
-	// _rect_t sr = text_rect(cr, slot->name);
-	_point_t sl = _move(nd->ir.o,
-	    _size(3, 5 + ntd->sr.s.h * i));
+	slot_spec_data_t *ssd = slot_spec_data(slot);
+	_point_t sl = _move(nd->ir.o, ssd->offset);
 	
 	cairo_move_to(cr, sl.x + 6, sl.y + 3);
 	cairo_show_text(cr, slot->name);
 	cairo_stroke(cr);
-	cairo_arc(cr, sl.x, sl.y, 3.0, 0, 2 * M_PI);
+	circle_path(cr, sl, 3.0);
 	cairo_stroke(cr);
     }
 
     for (int i=0; i<ntd->os; i++) {
 	designer_slot_spec_t *slot =
 	    g_slist_nth_data(nt->output_slot_specs, i);
+	slot_spec_data_t *ssd = slot_spec_data(slot);
 	_rect_t sr = text_rect(cr, slot->name);
-	_point_t sl = _move(nd->or.o,
-	    _size(nd->or.s.w - 3, 5 + ntd->sr.s.h * i));
+	_point_t sl = _move(nd->or.o, ssd->offset);
 
 	cairo_move_to(cr, sl.x - sr.s.w - 8, sl.y + 3);
 	cairo_show_text(cr, slot->name);
 	cairo_stroke(cr);
-	cairo_arc(cr, sl.x, sl.y, 3.0, 0, 2 * M_PI);
+	circle_path(cr, sl, 3.0);
 	cairo_stroke(cr);
     }
-
-    /* highlight */
-    if (_inrect(mr, nd->nr)) {
-    	cairo_set_line_width(cr, 4.0);
-    	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
-    	round_path(cr, _inset(nd->nr, _size(-1, -1)), round_s);
-    	cairo_stroke(cr);
-    }
-
     /* filter border */
     cairo_set_line_width(cr, 1.0);
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);
@@ -414,6 +435,7 @@ draw_node(cairo_t *cr, designer_node_t *n, _point_t m)
 
     cairo_restore(cr);
 }
+
 
 
 static void 
@@ -460,12 +482,13 @@ hit_node(designer_node_t *n, _point_t m)
     if (!_inrect(mr, nd->nr))
 	return HIT_NOTHING;
 
-    /* check for title rect */
+    /* check for head rect */
     if (_inrect(mr, nd->tr)) {
 	if (_inrect(mr, nd->xr))
 	    return HIT_CLOSE;
-	else
-	    return HIT_TITLE;
+	if (_inrect(mr, nd->lr))
+	    return HIT_LABEL;
+	return HIT_TITLE;
     } else {
 	if (_inrect(mr, nd->ir))
 	    return HIT_INPUT;
@@ -522,6 +545,55 @@ output_slot_origin(designer_node_t *n, int i)
 }
 
 
+static void 
+draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit)
+{
+    node_data_t *nd = node_data(n);
+
+    _point_t pos = nd->origin;
+    _point_t mr = _point(m.x - pos.x, m.y - pos.y);
+
+    cairo_save(cr);
+
+    switch (hit) {
+    case HIT_LABEL:
+    case HIT_TITLE:
+    case HIT_CLOSE:
+    case HIT_BODY:
+	cairo_translate(cr, pos.x, pos.y);
+	cairo_set_line_width(cr, 4.0);
+	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+	round_path(cr, _inset(nd->nr, _size(-1, -1)), round_s);
+	cairo_stroke(cr);
+	break;
+
+	break;
+    case HIT_INPUT: {
+	int si = hit_input_slot(n, m);
+	_point_t sl = input_slot_origin(n, si);
+
+	// _point_t sl = nd->ir.o;
+	cairo_set_line_width(cr, 3.0);
+	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+	circle_path(cr, sl, 5.0);
+	cairo_stroke(cr);
+	break;
+	}
+    case HIT_OUTPUT: {
+	int si = hit_output_slot(n, m);
+	_point_t sl = output_slot_origin(n, si);
+
+	// _point_t sl = nd->ir.o; 
+	cairo_set_line_width(cr, 3.0);
+	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+	circle_path(cr, sl, 5.0);
+	cairo_stroke(cr);
+	break;
+	}
+    }
+    cairo_restore(cr);
+}
+
 
 static void
 signal_design_change (widget_data_t *data)
@@ -549,6 +621,8 @@ static gboolean
 expose_event (GtkWidget *widget, GdkEventExpose *event)
 {
     widget_data_t *data = get_widget_data(widget);
+    designer_node_t *hnode;
+    _hit_t hit;
 
     cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
     // _size_t ws = _size(widget->allocation.width, widget->allocation.height);
@@ -558,12 +632,49 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 
     cairo_translate(cr, 0.5, 0.5);
 
-    /* draw the nodes first */
+
+    /* draw the slot conenctions */
+    for (GSList *list = data->design->nodes;
+	list != NULL; list = list->next) {
+	designer_node_t *dst = list->data;
+	node_data_t *ndd = node_data(dst);
+
+	calc_node_type(cr, dst->type);
+	calc_node(cr, dst);
+
+	for (GSList *slot_list = dst->input_slots; 
+	    slot_list != NULL; slot_list = slot_list->next) {
+	    designer_slot_t *slot = slot_list->data;
+	    designer_node_t *src = slot->source;
+	    node_data_t *nsd = node_data(src);
+
+	    designer_slot_spec_t *src_spec = slot->input_slot_spec;
+	    designer_slot_spec_t *dst_spec = slot->output_slot_spec;
+	    slot_spec_data_t *ssd = slot_spec_data(src_spec);
+	    slot_spec_data_t *dsd = slot_spec_data(dst_spec);
+
+	    _point_t sp = _move(_move(nsd->or.o, _ptos(nsd->origin)), ssd->offset);
+	    _point_t dp = _move(_move(ndd->ir.o, _ptos(ndd->origin)), dsd->offset);
+
+	    draw_connect(cr, sp, dp, 0);
+	}
+
+	/* check for 'highest' node hit */
+	_hit_t nht = hit_node(dst, data->mouse);
+	if (nht) {
+	    hnode = dst;
+	    hit = nht;
+	}
+    }
+
+    /* draw the nodes */
     for (GSList *list = data->design->nodes;
 	list != NULL; list = list->next) {
 	designer_node_t *node = list->data;
 
-	draw_node(cr, node, data->mouse);
+	draw_node(cr, node);
+	if (node == hnode)
+	    draw_highlight(cr, node, data->mouse, hit);
     }
 
     if (data->state == STATE_CONIN) {
@@ -604,6 +715,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
     }
 
     switch(ht) {
+    case HIT_LABEL:
     case HIT_TITLE:
 	data->active_node = hn;
 	data->state = STATE_MOVING;
@@ -687,7 +799,6 @@ motion_notify_event (GtkWidget *widget, GdkEventMotion *event)
     default:
 	break;
     }
-
 
     gtk_widget_queue_draw(widget);
     return TRUE;
