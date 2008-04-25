@@ -494,3 +494,12 @@ designer_migrate_design (designer_design_t *design, designer_design_type_t *new_
 
     return new_design;
 }
+
+void
+designer_node_push_back (designer_node_t *node)
+{
+    designer_design_t *design = node->design;
+
+    design->nodes = g_slist_remove (design->nodes, node);
+    design->nodes = g_slist_append (design->nodes, node);
+}

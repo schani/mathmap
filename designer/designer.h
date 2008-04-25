@@ -149,6 +149,8 @@ extern designer_design_t* designer_migrate_design (designer_design_t *design, de
 #define designer_slot_get_source_node(sl)	((sl)->source_node)
 #define designer_slot_get_dest_node(sl)		((sl)->dest_node)
 
+extern void designer_node_push_back (designer_node_t *node);
+
 /* load/save */
 
 extern designer_design_t* designer_load_design (designer_design_type_t *design_type, const char *filename,
