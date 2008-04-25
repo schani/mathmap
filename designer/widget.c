@@ -376,7 +376,7 @@ connect_edge (GnomeCanvasItem *slot1, GnomeCanvasItem *slot2)
     if (!get_edge_data(&output_slot, &input_slot, &output_node, &output_node_name, &input_node, &input_node_name))
 	return FALSE;
 
-    if (!designer_connect_nodes(output_node, output_node_name, input_node, input_node_name))
+    if (!designer_connect_nodes_by_slot_name(output_node, output_node_name, input_node, input_node_name))
 	return FALSE;
 
     return TRUE;

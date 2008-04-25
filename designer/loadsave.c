@@ -124,8 +124,8 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 		    source_node = designer_get_node_by_name(design, lisp_string(vars[1]));
 
 		    if (source_node == NULL
-			|| !designer_connect_nodes(source_node, lisp_string(vars[2]),
-						   node, lisp_string(vars[0])))
+			|| !designer_connect_nodes_by_slot_name(source_node, lisp_string(vars[2]),
+								node, lisp_string(vars[0])))
 		    {
 			designer_free_design(design);
 			return NULL;

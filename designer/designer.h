@@ -125,8 +125,10 @@ extern designer_node_t* designer_add_node (designer_design_t *design, const char
 extern void designer_delete_node (designer_node_t *node);
 extern void designer_disconnect_and_delete_node (designer_node_t *node);
 
-extern gboolean designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
-					designer_node_t *dest, const char *input_slot_name);
+extern gboolean designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
+					designer_node_t *dest, designer_slot_spec_t *input_slot_spec);
+extern gboolean designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output_slot_name,
+						     designer_node_t *dest, const char *input_slot_name);
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
 extern void designer_disconnect_slot (designer_slot_t *slot);

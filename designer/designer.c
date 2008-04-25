@@ -265,7 +265,7 @@ designer_disconnect_and_delete_node (designer_node_t *node)
 }
 
 static designer_slot_spec_t*
-lookup_slot_spec (GSList *list, const char *name, int *index)
+lookup_slot_spec (GSList *list, const char *name)
 {
     int i;
 
@@ -276,27 +276,19 @@ lookup_slot_spec (GSList *list, const char *name, int *index)
 	designer_slot_spec_t *spec = list->data;
 
 	if (strcmp(spec->name, name) == 0)
-	{
-	    *index = i;
 	    return spec;
-	}
     }
 
     return NULL;
 }
 
 gboolean
-designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
-			designer_node_t *dest, const char *input_slot_name)
+designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
+			designer_node_t *dest, designer_slot_spec_t *input_slot_spec)
 {
     designer_node_type_t *source_type = source->type;
     designer_node_type_t *dest_type = dest->type;
     designer_design_type_t *design_type = source_type->design_type;
-    int output_slot_index, input_slot_index;
-    designer_slot_spec_t *output_slot_spec = lookup_slot_spec(source_type->output_slot_specs, output_slot_name,
-							      &output_slot_index);
-    designer_slot_spec_t *input_slot_spec = lookup_slot_spec(dest_type->input_slot_specs, input_slot_name,
-							     &input_slot_index);
     GSList *list;
     designer_slot_t *slot;
 
@@ -336,6 +328,16 @@ designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
     return TRUE;
 }
 
+gboolean
+designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output_slot_name,
+				     designer_node_t *dest, const char *input_slot_name)
+{
+    designer_slot_spec_t *output_slot_spec = lookup_slot_spec(source->type->output_slot_specs, output_slot_name);
+    designer_slot_spec_t *input_slot_spec = lookup_slot_spec(dest->type->input_slot_specs, input_slot_name);
+
+    return designer_connect_nodes(source, output_slot_spec, dest, input_slot_spec);
+}
+
 void
 designer_disconnect_slot (designer_slot_t *slot)
 {
@@ -356,11 +358,8 @@ designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name
 {
     designer_node_type_t *source_type = source->type;
     designer_node_type_t *dest_type = dest->type;
-    int output_slot_index, input_slot_index;
-    designer_slot_spec_t *output_slot_spec = lookup_slot_spec(source_type->output_slot_specs, output_slot_name,
-							      &output_slot_index);
-    designer_slot_spec_t *input_slot_spec = lookup_slot_spec(dest_type->input_slot_specs, input_slot_name,
-							     &input_slot_index);
+    designer_slot_spec_t *output_slot_spec = lookup_slot_spec(source_type->output_slot_specs, output_slot_name);
+    designer_slot_spec_t *input_slot_spec = lookup_slot_spec(dest_type->input_slot_specs, input_slot_name);
     GSList *list;
     designer_slot_t *slot;
 
@@ -484,8 +483,8 @@ designer_migrate_design (designer_design_t *design, designer_design_type_t *new_
 	    if (new_partner == NULL)
 		continue;
 
-	    designer_connect_nodes(new_partner, slot->output_slot_spec->name,
-				   new_node, slot->input_slot_spec->name);
+	    designer_connect_nodes(new_partner, slot->output_slot_spec,
+				   new_node, slot->input_slot_spec);
 	}
     }
 
