@@ -282,14 +282,29 @@ lookup_slot_spec (GSList *list, const char *name)
     return NULL;
 }
 
-gboolean
+static designer_slot_t*
+node_get_input_slot (designer_node_t *node, designer_slot_spec_t *spec)
+{
+    GSList *list;
+
+    for (list = node->input_slots; list != NULL; list = list->next)
+    {
+	designer_slot_t *slot = list->data;
+
+	if (slot->input_slot_spec == spec)
+	    return slot;
+    }
+
+    return NULL;
+}
+
+designer_slot_t*
 designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
 			designer_node_t *dest, designer_slot_spec_t *input_slot_spec)
 {
     designer_node_type_t *source_type = source->type;
     designer_node_type_t *dest_type = dest->type;
     designer_design_type_t *design_type = source_type->design_type;
-    GSList *list;
     designer_slot_t *slot;
 
     g_assert(source->design == dest->design);
@@ -298,12 +313,7 @@ designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_sl
     if (output_slot_spec == NULL || input_slot_spec == NULL)
 	return FALSE;
 
-    for (list = dest->input_slots; list != NULL; list = list->next)
-    {
-	designer_slot_t *slot = list->data;
-
-	g_assert(slot->input_slot_spec != input_slot_spec);
-    }
+    g_assert (node_get_input_slot (dest, input_slot_spec) == NULL);
 
     slot = g_new0(designer_slot_t, 1);
     slot->source = source;
@@ -319,16 +329,16 @@ designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_sl
 	source->output_slots = source->output_slots->next;
 	dest->input_slots = dest->input_slots->next;
 	g_free(slot);
-	return FALSE;
+	return NULL;
     }
 
     /* FIXME: remove eventually */
     designer_verify_design(source->design);
 
-    return TRUE;
+    return slot;
 }
 
-gboolean
+designer_slot_t*
 designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output_slot_name,
 				     designer_node_t *dest, const char *input_slot_name)
 {
@@ -336,6 +346,58 @@ designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output
     designer_slot_spec_t *input_slot_spec = lookup_slot_spec(dest->type->input_slot_specs, input_slot_name);
 
     return designer_connect_nodes(source, output_slot_spec, dest, input_slot_spec);
+}
+
+designer_slot_t*
+designer_connect_nodes_with_override (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
+				      designer_node_t *dest, designer_slot_spec_t *input_slot_spec,
+				      gboolean *check_only)
+{
+    designer_slot_t *obsolete_slot = node_get_input_slot (dest, input_slot_spec);
+    designer_slot_t obsolete_slot_struct;
+    designer_slot_t *new_slot;
+
+    if (obsolete_slot != NULL)
+    {
+	obsolete_slot_struct = *obsolete_slot;
+	designer_disconnect_slot(obsolete_slot);
+    }
+
+    new_slot = designer_connect_nodes(source, output_slot_spec, dest, input_slot_spec);
+
+    if (new_slot == NULL)
+    {
+	if (obsolete_slot != NULL)
+	{
+	    obsolete_slot = designer_connect_nodes(obsolete_slot_struct.source, obsolete_slot_struct.output_slot_spec,
+						   obsolete_slot_struct.dest, obsolete_slot_struct.input_slot_spec);
+	    g_assert(obsolete_slot != NULL);
+	    designer_slot_set_widget_data(obsolete_slot, obsolete_slot_struct.widget_data);
+	}
+
+	if (check_only != NULL)
+	    *check_only = FALSE;
+
+	return NULL;
+    }
+
+    if (check_only != NULL)
+    {
+	*check_only = TRUE;
+
+	designer_disconnect_slot(new_slot);
+	if (obsolete_slot != NULL)
+	{
+	    obsolete_slot = designer_connect_nodes(obsolete_slot_struct.source, obsolete_slot_struct.output_slot_spec,
+						   obsolete_slot_struct.dest, obsolete_slot_struct.input_slot_spec);
+	    g_assert(obsolete_slot != NULL);
+	    designer_slot_set_widget_data(obsolete_slot, obsolete_slot_struct.widget_data);
+	}
+
+	return NULL;
+    }
+
+    return new_slot;
 }
 
 void
