@@ -351,7 +351,7 @@ designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output
 designer_slot_t*
 designer_connect_nodes_with_override (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
 				      designer_node_t *dest, designer_slot_spec_t *input_slot_spec,
-				      gboolean *check_only)
+				      int *check_only)
 {
     designer_slot_t *obsolete_slot = node_get_input_slot (dest, input_slot_spec);
     designer_slot_t obsolete_slot_struct;
@@ -376,23 +376,24 @@ designer_connect_nodes_with_override (designer_node_t *source, designer_slot_spe
 	}
 
 	if (check_only != NULL)
-	    *check_only = FALSE;
+	    *check_only = DESIGNER_CONNECTION_UNCONNECTABLE;
 
 	return NULL;
     }
 
     if (check_only != NULL)
     {
-	*check_only = TRUE;
-
 	designer_disconnect_slot(new_slot);
 	if (obsolete_slot != NULL)
 	{
+	    *check_only = DESIGNER_CONNECTION_CONNECTABLE;
 	    obsolete_slot = designer_connect_nodes(obsolete_slot_struct.source, obsolete_slot_struct.output_slot_spec,
 						   obsolete_slot_struct.dest, obsolete_slot_struct.input_slot_spec);
 	    g_assert(obsolete_slot != NULL);
 	    designer_slot_set_widget_data(obsolete_slot, obsolete_slot_struct.widget_data);
 	}
+	else
+	    *check_only = DESIGNER_CONNECTION_FREE;
 
 	return NULL;
     }

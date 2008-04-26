@@ -129,14 +129,21 @@ extern designer_slot_t* designer_connect_nodes (designer_node_t *source, designe
 						designer_node_t *dest, designer_slot_spec_t *input_slot_spec);
 extern designer_slot_t* designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output_slot_name,
 							     designer_node_t *dest, const char *input_slot_name);
+extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
+				       designer_node_t *dest, const char *input_slot_name);
+extern void designer_disconnect_slot (designer_slot_t *slot);
+
+enum {
+    DESIGNER_CONNECTION_UNCONNECTABLE = 0,
+    DESIGNER_CONNECTION_FREE,
+    DESIGNER_CONNECTION_CONNECTABLE
+};
+
 extern designer_slot_t* designer_connect_nodes_with_override (designer_node_t *source,
 							      designer_slot_spec_t *output_slot_spec,
 							      designer_node_t *dest,
 							      designer_slot_spec_t *input_slot_spec,
-							      gboolean *check_only);
-extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
-				       designer_node_t *dest, const char *input_slot_name);
-extern void designer_disconnect_slot (designer_slot_t *slot);
+							      int *check_only);
 
 extern void designer_set_design_name (designer_design_t *design, const char *name);
 
