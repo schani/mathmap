@@ -326,8 +326,8 @@ designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_sl
 
     if (!design_type->allow_cycles && designer_design_contains_cycles(source->design))
     {
-	source->output_slots = source->output_slots->next;
-	dest->input_slots = dest->input_slots->next;
+	source->output_slots = g_slist_remove(source->output_slots, slot);
+	dest->input_slots = g_slist_remove(dest->input_slots, slot);
 	g_free(slot);
 	return NULL;
     }
