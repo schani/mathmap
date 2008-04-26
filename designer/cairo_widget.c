@@ -152,7 +152,7 @@ typedef struct
     designer_node_t *target_node;
     int target_slot_id;
     _point_t target;
-    gboolean check;
+    int target_check;
 } widget_data_t;
 
 
@@ -565,6 +565,30 @@ output_slot_spec(designer_node_t *n, int i)
 }
 
 
+
+static void
+draw_slot_highlight(cairo_t *cr, _point_t sl, int check)
+{
+    switch (check) {
+    case DESIGNER_CONNECTION_UNCONNECTABLE:
+    	cairo_set_source_rgba(cr, 0.6, 0.6, 0.7, 0.5);
+    	cairo_set_line_width(cr, 2.0);
+    	break;
+    case DESIGNER_CONNECTION_CONNECTABLE:
+    	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+    	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+    	cairo_set_line_width(cr, 3.0);
+    	cairo_set_dash(cr, circ4_d, 2, 0);
+    	break;
+    case DESIGNER_CONNECTION_FREE:
+    	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+    	cairo_set_line_width(cr, 2.0);
+    	break;
+    }
+    circle_path(cr, sl, 4.0);
+    cairo_stroke(cr);
+}
+
 static void 
 draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int check)
 {
@@ -593,17 +617,7 @@ draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int chec
 	int si = hit_input_slot(n, m);
 	_point_t sl = input_slot_origin(n, si);
 
-	// _point_t sl = nd->ir.o;
-	if (!check) {
-	    cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-	    cairo_set_line_width(cr, 3.0);
-	    cairo_set_dash(cr, circ4_d, 2, 0);
-	} else {
-	    cairo_set_line_width(cr, 2.0);
-	}
-	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
-	circle_path(cr, sl, 4.0);
-	cairo_stroke(cr);
+	draw_slot_highlight(cr, sl, check);
 	break;
 	}
     case HIT_OUTPUT: {
@@ -611,18 +625,7 @@ draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int chec
 	int si = hit_output_slot(n, m);
 	_point_t sl = output_slot_origin(n, si);
 
-	// _point_t sl = nd->ir.o; 
-	cairo_set_line_cap(cr, CAIRO_LINE_CAP_SQUARE);
-	if (!check) {
-	    cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
-	    cairo_set_line_width(cr, 3.0);
-	    cairo_set_dash(cr, circ4_d, 2, 0);
-	} else {
-	    cairo_set_line_width(cr, 2.0);
-	}
-	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
-	circle_path(cr, sl, 4.0);
-	cairo_stroke(cr);
+	draw_slot_highlight(cr, sl, check);
 	break;
 	}
     }
@@ -684,8 +687,8 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 	    designer_node_t *src = slot->source;
 	    node_data_t *nsd = node_data(src);
 
-	    designer_slot_spec_t *src_spec = slot->input_slot_spec;
-	    designer_slot_spec_t *dst_spec = slot->output_slot_spec;
+	    designer_slot_spec_t *src_spec = slot->output_slot_spec;
+	    designer_slot_spec_t *dst_spec = slot->input_slot_spec;
 	    slot_spec_data_t *ssd = slot_spec_data(src_spec);
 	    slot_spec_data_t *dsd = slot_spec_data(dst_spec);
 
@@ -709,26 +712,26 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 	hs = hit_input_slot(hn, data->mouse);
 	data->target = input_slot_origin(hn, hs);
 	if (data->state == STATE_CONIN)
-	    data->check = 0;
+	    data->target_check = 0;
 	else if (data->state == STATE_CONOUT &&
 	    ((hn != data->target_node) || (hs != data->target_slot_id))) {
 	    designer_connect_nodes_with_override(data->active_node,
 		output_slot_spec(data->active_node, data->active_slot_id),
 		hn, input_slot_spec(hn, hs),
-		&data->check);
+		&data->target_check);
 	}
 	break;
     case HIT_OUTPUT:
 	hs = hit_output_slot(hn, data->mouse);
 	data->target = output_slot_origin(hn, hs);
 	if (data->state == STATE_CONOUT)
-	    data->check = 0;
+	    data->target_check = 0;
 	else if (data->state == STATE_CONIN &&
 	    ((hn != data->target_node) || (hs != data->target_slot_id))) {
 	    designer_connect_nodes_with_override(hn,
 		output_slot_spec(hn, hs), data->active_node,
 		input_slot_spec(data->active_node, data->active_slot_id),
-		&data->check);
+		&data->target_check);
 	}
 	break;
     default:
@@ -745,7 +748,8 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 
 	draw_node(cr, node);
 	if (node == hn)
-	    draw_highlight(cr, node, data->mouse, hit, data->check);
+	    draw_highlight(cr, node, data->mouse, hit,
+		data->target_check);
     }
 
     if (data->state == STATE_CONIN) {
@@ -833,7 +837,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONIN:
-	if (data->check) {
+	if (data->target_check) {
 	    designer_connect_nodes_with_override(
 		data->target_node,
 		output_slot_spec(data->target_node, data->target_slot_id),
@@ -844,7 +848,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONOUT:
-	if (data->check) {
+	if (data->target_check) {
 	    designer_connect_nodes_with_override(
 		data->active_node,
 		output_slot_spec(data->active_node, data->active_slot_id),
@@ -864,6 +868,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 	data->target_node = NULL;
 	data->active_slot_id = -1;
 	data->target_slot_id = -1;
+	data->target_check = 0;
     }
     data->dragging = FALSE;
 
