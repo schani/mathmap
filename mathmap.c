@@ -2652,7 +2652,9 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 	"You should have received a copy of the GNU General Public License\n"\
 	"along with MathMap; if not, write to the Free Software Foundation,\n"\
 	"Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.";
-    char *authors[] = { "Mark Probst <schani@complang.tuwien.ac.at>", 0 };
+    char *authors[] = { "Mark Probst <schani@complang.tuwien.ac.at>",
+			"Herbert Poetzl <herbert@13thfloor.at>",
+			NULL };
     char *artists[] = { "Herbert Poetzl <herbert@13thfloor.at>", 0 };
 
     if (mathmap_logo == NULL)
@@ -2665,7 +2667,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "artists", artists,
 			   "comments", "An image generation and manipulation system",
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
-			   "copyright", "Copyright © 1997-2008 Mark Probst",
+			   "copyright", "Copyright © 1997-2008 Mark Probst, Herbert Poetzl",
 			   "license", gpl,
 			   "logo", mathmap_logo,
 			   NULL);

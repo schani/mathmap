@@ -22,6 +22,7 @@ why is gaussian so slow in final rendering?
 
 ** Designer
 filter not in subdir get added automatically (says bertl)
+do migration with save/load
 
 ** Native filters
 
