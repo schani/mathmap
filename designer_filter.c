@@ -70,7 +70,7 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
     first = TRUE;
     while (args != NULL)
     {
-	designer_slot_t *slot = designer_node_get_input_slot(node, args->name);
+	designer_slot_t *slot = designer_node_get_input_slot_by_name(node, args->name);
 
 	if (!first)
 	    g_string_append(string, ", ");
@@ -233,7 +233,7 @@ make_filter_source (designer_design_t *design, const char *filter_name, GString 
 
 	while (args != NULL)
 	{
-	    designer_slot_t *slot = designer_node_get_input_slot(node, args->name);
+	    designer_slot_t *slot = designer_node_get_input_slot_by_name(node, args->name);
 
 	    if (slot == NULL)
 	    {

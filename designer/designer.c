@@ -282,22 +282,6 @@ lookup_slot_spec (GSList *list, const char *name)
     return NULL;
 }
 
-static designer_slot_t*
-node_get_input_slot (designer_node_t *node, designer_slot_spec_t *spec)
-{
-    GSList *list;
-
-    for (list = node->input_slots; list != NULL; list = list->next)
-    {
-	designer_slot_t *slot = list->data;
-
-	if (slot->input_slot_spec == spec)
-	    return slot;
-    }
-
-    return NULL;
-}
-
 designer_slot_t*
 designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
 			designer_node_t *dest, designer_slot_spec_t *input_slot_spec)
@@ -313,7 +297,7 @@ designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_sl
     if (output_slot_spec == NULL || input_slot_spec == NULL)
 	return FALSE;
 
-    g_assert (node_get_input_slot (dest, input_slot_spec) == NULL);
+    g_assert (designer_node_get_input_slot (dest, input_slot_spec) == NULL);
 
     slot = g_new0(designer_slot_t, 1);
     slot->source = source;
@@ -353,7 +337,7 @@ designer_connect_nodes_with_override (designer_node_t *source, designer_slot_spe
 				      designer_node_t *dest, designer_slot_spec_t *input_slot_spec,
 				      int *check_only)
 {
-    designer_slot_t *obsolete_slot = node_get_input_slot (dest, input_slot_spec);
+    designer_slot_t *obsolete_slot = designer_node_get_input_slot (dest, input_slot_spec);
     designer_slot_t obsolete_slot_struct;
     designer_slot_t *new_slot;
 
@@ -453,7 +437,7 @@ designer_set_design_name (designer_design_t *design, const char *name)
 }
 
 designer_slot_t*
-designer_node_get_input_slot (designer_node_t *node, const char *name)
+designer_node_get_input_slot (designer_node_t *node, designer_slot_spec_t *spec)
 {
     GSList *list;
 
@@ -461,8 +445,24 @@ designer_node_get_input_slot (designer_node_t *node, const char *name)
     {
 	designer_slot_t *slot = list->data;
 
-	if (strcmp(slot->input_slot_spec->name, name) == 0)
+	if (slot->input_slot_spec == spec)
 	    return slot;
+    }
+
+    return NULL;
+}
+
+designer_slot_t*
+designer_node_get_input_slot_by_name (designer_node_t *node, const char *name)
+{
+    GSList *list;
+
+    for (list = node->type->input_slot_specs; list != NULL; list = list->next)
+    {
+	designer_slot_spec_t *spec = list->data;
+
+	if (strcmp(spec->name, name) == 0)
+	    return designer_node_get_input_slot(node, spec);
     }
 
     return NULL;

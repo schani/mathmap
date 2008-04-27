@@ -147,7 +147,8 @@ extern designer_slot_t* designer_connect_nodes_with_override (designer_node_t *s
 
 extern void designer_set_design_name (designer_design_t *design, const char *name);
 
-extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, const char *name);
+extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, designer_slot_spec_t *spec);
+extern designer_slot_t* designer_node_get_input_slot_by_name (designer_node_t *node, const char *name);
 
 extern designer_node_t* designer_get_node_by_name (designer_design_t *design, const char *name);
 
