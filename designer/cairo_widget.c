@@ -62,6 +62,8 @@ static const double round_s[4] = { 10, 10, 10, 10 };
 static const double upper_s[4] = { 10, 10, 0, 0 };
 static const double lower_s[4] = { 0, 0, 10, 10 };
 
+static const double rnd12_s[4] = { 14, 14, 14, 14 };
+
 static const double circ4_d[2] = { 10 * M_PI / 12.0, 6 * M_PI / 12.0 };
 
 
@@ -142,6 +144,7 @@ typedef struct
     GtkWidget *vscrollbar;
 
     gboolean dragging;
+    _point_t place_next;
     _point_t mouse, mouse_down, mouse_up;
     _state_t state;
 
@@ -341,7 +344,7 @@ calc_node(cairo_t *cr, designer_node_t *n)
 
 
 static void 
-draw_node(cairo_t *cr, designer_node_t *n)
+draw_node(cairo_t *cr, designer_node_t *n, int flags)
 {
     designer_node_type_t *nt = n->type;
     node_type_data_t *ntd = node_type_data(nt);
@@ -431,6 +434,14 @@ draw_node(cairo_t *cr, designer_node_t *n)
     cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);
     round_path(cr, nd->nr, round_s);
     cairo_stroke(cr);
+
+    /* root node? */
+    if (flags & 0x1) {
+	cairo_set_source_rgba(cr, 0.4, 0.4, 0.4, 0.7);
+	round_path(cr, _inset(nd->nr, _size(-2,-2)), rnd12_s);
+	cairo_stroke(cr);
+    }
+
     cairo_move_to(cr, nd->br.o.x, nd->br.o.y);
     cairo_line_to(cr, nd->br.o.x + nd->br.s.w, nd->br.o.y);
     cairo_stroke(cr);
@@ -565,14 +576,21 @@ output_slot_spec(designer_node_t *n, int i)
 }
 
 
+_point_t place_new_node(widget_data_t *data)
+{
+    
+
+    return data->place_next;
+}
+
 
 static void
 draw_slot_highlight(cairo_t *cr, _point_t sl, int check)
 {
     switch (check) {
     case DESIGNER_CONNECTION_UNCONNECTABLE:
-    	cairo_set_source_rgba(cr, 0.6, 0.6, 0.7, 0.5);
-    	cairo_set_line_width(cr, 2.0);
+    	cairo_set_source_rgba(cr, 0.5, 0.5, 0.7, 0.5);
+    	cairo_set_line_width(cr, 3.0);
     	break;
     case DESIGNER_CONNECTION_CONNECTABLE:
     	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
@@ -654,6 +672,15 @@ set_scrollable_size (widget_data_t *data, unsigned int width, unsigned int heigh
 {
     gtk_layout_set_size (GTK_LAYOUT(data->drawing_area), width, height);
 }
+
+
+static void
+reset_widget_data (widget_data_t *data)
+{
+    data->place_next = _point(50,50);
+}
+
+
 
 static gboolean
 expose_event (GtkWidget *widget, GdkEventExpose *event)
@@ -745,11 +772,13 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     for (GSList *list = data->design->nodes;
 	list != NULL; list = list->next) {
 	designer_node_t *node = list->data;
+	int flags = (node == data->design->root) ? 0x1 : 0;
 
-	draw_node(cr, node);
-	if (node == hn)
+	draw_node(cr, node, flags);
+	if (node == hn) {
 	    draw_highlight(cr, node, data->mouse, hit,
 		data->target_check);
+	}
     }
 
     if (data->state == STATE_CONIN) {
@@ -764,7 +793,6 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 
     return FALSE;
 }
-
 
 
 static gboolean
@@ -799,6 +827,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 	break;
     case HIT_CLOSE:
 	designer_disconnect_and_delete_node(hn);
+	signal_design_change(data);
 	break;
     case HIT_INPUT:
 	data->active_node = hn;
@@ -825,6 +854,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
     return TRUE;
 }
 
+
 static gboolean
 button_release_event (GtkWidget *widget, GdkEventButton *event)
 {
@@ -844,6 +874,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 		data->active_node,
 		input_slot_spec(data->active_node, data->active_slot_id),
 		NULL);
+	    signal_design_change(data);
 	}
 	data->state = STATE_IDLE;
 	break;
@@ -855,8 +886,9 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 		data->target_node,
 		input_slot_spec(data->target_node, data->target_slot_id),
 		NULL);
-	data->state = STATE_IDLE;
+	    signal_design_change(data);
 	}
+	data->state = STATE_IDLE;
 	break;
     default:
 	break;
@@ -875,6 +907,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
     gtk_widget_queue_draw(widget);
     return TRUE;
 }
+
 
 static gboolean
 motion_notify_event (GtkWidget *widget, GdkEventMotion *event)
@@ -990,7 +1023,8 @@ designer_widget_new (designer_design_t *design,
 
     data->widget = table;
 
-    populate_table(data);
+    populate_table (data);
+    reset_widget_data (data);
 
     g_object_set_data(G_OBJECT(table), "designer-data", data);
     g_object_set_data(G_OBJECT(data->drawing_area), "designer-data", data);
@@ -1005,8 +1039,11 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 
     g_print("widget %p adds node %s at %gx%g\n", data, node->name, x, y);
 
-    // designer_node_type_set_widget_data(node->type, NULL);
-    // designer_node_set_widget_data(node, NULL);
+    node_data_t *nd = node_data(node);
+
+    nd->origin = place_new_node(data);
+
+    gtk_widget_queue_draw(widget);
 }
 
 void
@@ -1026,7 +1063,10 @@ designer_widget_get_node_position (GtkWidget *widget, designer_node_t *node, dou
 
     g_print("widget %p retrieves position of node %s\n", data, node->name);
 
-    *x = *y = 0.0;
+    node_data_t *nd = node_data(node);
+
+    *x = nd->origin.x;
+    *y = nd->origin.y;
 }
 
 void
@@ -1035,6 +1075,10 @@ designer_widget_move_node (GtkWidget *widget, designer_node_t *node, double x, d
     widget_data_t *data = get_widget_data(widget);
 
     g_print("widget %p moves node %s to %gx%g\n", data, node->name, x, y);
+
+    node_data_t *nd = node_data(node);
+
+    nd->origin = _point(x,y);
 }
 
 void
