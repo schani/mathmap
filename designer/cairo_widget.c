@@ -566,14 +566,14 @@ draw_connect(cairo_t *cr, _point_t p1, _point_t p2, int type)
 {
     _point_t ep[4], hp[5], sp[10];
 
-    int mode = calc_connect_ep(p1, p2, ep, 60);
+    int mode = calc_connect_ep(p1, p2, ep, 50);
 
     switch (mode) {
     case 0:
 	break;
     case 1:
-	calc_connect_hp(p1, p2, ep, hp, mode, 60);
-	calc_connect_sp(p1, p2, ep, hp, sp, mode, 60);
+	calc_connect_hp(p1, p2, ep, hp, mode, 50);
+	calc_connect_sp(p1, p2, ep, hp, sp, mode, 50);
 	break;
     }
 
