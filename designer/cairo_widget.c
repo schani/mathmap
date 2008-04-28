@@ -35,6 +35,24 @@
 #include "cairo_widget.h"
 
 
+
+void _move_to(cairo_t *cr, _point_t p)
+{
+    cairo_move_to(cr, p.x, p.y);
+}
+
+void _line_to(cairo_t *cr, _point_t p)
+{
+    cairo_line_to(cr, p.x, p.y);
+}
+
+void _curve_to(cairo_t *cr, _point_t c1, _point_t c2, _point_t p)
+{
+    cairo_curve_to(cr, c1.x, c1.y, c2.x, c2.y, p.x, p.y);
+}
+
+
+
 static void
 circle_path(cairo_t *cr, _point_t p, double r)
 {
@@ -457,26 +475,123 @@ draw_node(cairo_t *cr, designer_node_t *n, int flags)
 
 
 
+static int
+calc_connect_ep(_point_t p1, _point_t p2, _point_t *ep, double m)
+{
+    _size_t d = _delta(p1, p2);
+    int mode = 0;
+
+    double l = sqrt(d.w*d.w + d.h*d.h);
+    double ms = MIN(m, l);
+    double as = 2*ms;
+
+    if (d.w > fabs(d.h))
+	as = MAX(0, as - 2*ms*(M_PI/4-atan(fabs(d.h)/d.w)));
+
+    ep[0] = _move(p1, _size(as, 0));
+    ep[3] = _move(p2, _size(-as, 0));
+
+    if (d.w < 0) {
+	double xs = ms*0.58;
+	double ys = d.h*0.113;
+	ep[1] = _move(p1, _size(xs, ys));
+	ep[2] = _move(p2, _size(-xs, -ys));
+
+	mode = 1;
+    }
+    return mode;
+}
+
+static int
+calc_connect_hp(_point_t p1, _point_t p2, _point_t *ep, _point_t *hp, int mode, double m)
+{
+    hp[0] = _midp(p1, ep[0]);
+    hp[2] = _midp(p1, p2);
+    hp[4] = _midp(p2, ep[3]);
+
+    hp[1] = _midp(hp[0], hp[2]);
+    hp[3] = _midp(hp[4], hp[2]);
+
+    return mode;
+}
+
+
+#define	MIMAX(s, a, b)	(((s)>0)?MIN(a,b):MAX(a,b))
+#define	MAMIN(s, a, b)	(((s)>0)?MAX(a,b):MIN(a,b))
+
+static int
+calc_connect_sp(_point_t p1, _point_t p2, 
+	_point_t *ep, _point_t *hp, _point_t *sp, int mode, double m)
+{
+    _size_t d = _delta(p1, p2);
+    double l = sqrt(d.w*d.w + d.h*d.h);
+    double ms = MIN(m, l/2);
+    double ds = sign(d.h);
+
+    sp[0] = _point(ep[1].x, hp[0].y);
+    sp[1] = _mixp(p1, sp[0], 0.333);
+    sp[2] = _mixp(ep[1], sp[0], 0.333);
+
+    sp[9] = _point(ep[2].x, hp[4].y);
+    sp[8] = _mixp(p2, sp[9], 0.333);
+    sp[7] = _mixp(ep[2], sp[9], 0.333);
+
+    double dx = MIN(-d.w, 2*ms);
+    double dy = ep[1].y - sp[2].y + ds*dx/2;
+
+    dy = MIMAX(ds, d.h/2, dy/2);
+
+    sp[3] = _move(ep[1], _size(0, dy));
+    sp[4] = _move(hp[1], _size(dx/2, ds*dx));
+    
+    sp[4].x = MIN(sp[4].x, sp[3].x);
+    sp[4].y = MIMAX(ds, sp[4].y, hp[2].y);
+
+    sp[6] = _move(ep[2], _size(0, -dy));
+    sp[5] = _move(hp[3], _size(-dx/2, -ds*dx));
+    
+    sp[5].x = MAX(sp[5].x, sp[6].x);
+    sp[5].y = MAMIN(ds, sp[5].y, hp[2].y);
+
+    ep[1].y += dy/3;
+    ep[2].y -= dy/3;
+
+    return mode;
+}
+
+
+
 static void 
 draw_connect(cairo_t *cr, _point_t p1, _point_t p2, int type)
 {
-    _point_t cp1, cp2;
-    _size_t d = _delta(p1, p2);
-    float f = 0.5;
+    _point_t ep[4], hp[5], sp[10];
 
-    if (d.w*d.w > d.h*d.h) {
-    	cp1 = _move(p1, _size(d.w*f, 0));
-    	cp2 = _move(p2, _size(-d.w*f, 0));
-    } else {
-    	cp1 = _move(p1, _size(0, d.h*f));
-    	cp2 = _move(p2, _size(0, -d.h*f));
+    int mode = calc_connect_ep(p1, p2, ep, 60);
+
+    switch (mode) {
+    case 0:
+	break;
+    case 1:
+	calc_connect_hp(p1, p2, ep, hp, mode, 60);
+	calc_connect_sp(p1, p2, ep, hp, sp, mode, 60);
+	break;
     }
 
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-
     cairo_new_path(cr);
-    cairo_move_to(cr, p1.x, p1.y);
-    cairo_curve_to(cr, cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
+    _move_to(cr, p1);
+
+    switch (mode) {
+    case 1:
+	_curve_to(cr, sp[1], sp[2], ep[1]);
+	_curve_to(cr, sp[3], sp[4], hp[2]);
+	_curve_to(cr, sp[5], sp[6], ep[2]);
+	_curve_to(cr, sp[7], sp[8], p2);
+	break;
+    case 0:
+	_curve_to(cr, ep[0], ep[3], p2);
+	break;
+    }
 
     cairo_set_source_rgba(cr, 0.4, 0.0, 0.0, 0.6);
     cairo_set_line_width(cr, 4.0);
@@ -578,7 +693,8 @@ output_slot_spec(designer_node_t *n, int i)
 
 _point_t place_new_node(widget_data_t *data)
 {
-    
+    /* calc new place */
+    data->place_next = _move(data->place_next, _size(20,20));
 
     return data->place_next;
 }
@@ -613,7 +729,7 @@ draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int chec
     node_data_t *nd = node_data(n);
 
     _point_t pos = nd->origin;
-    _point_t mr = _point(m.x - pos.x, m.y - pos.y);
+    // _point_t mr = _point(m.x - pos.x, m.y - pos.y);
 
     cairo_save(cr);
 
@@ -651,6 +767,8 @@ draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int chec
 }
 
 
+
+
 static void
 signal_design_change (widget_data_t *data)
 {
@@ -673,12 +791,81 @@ set_scrollable_size (widget_data_t *data, unsigned int width, unsigned int heigh
     gtk_layout_set_size (GTK_LAYOUT(data->drawing_area), width, height);
 }
 
+static void
+set_root_focus (widget_data_t *data, designer_node_t *node)
+{
+    designer_set_root(data->design, node);
+    
+    if (data->node_focussed_callback != NULL)
+	data->node_focussed_callback(data->widget, node);
+}
 
 static void
 reset_widget_data (widget_data_t *data)
 {
     data->place_next = _point(50,50);
 }
+
+
+static int
+connect_check(designer_node_t *sn, int si, designer_node_t *dn, int di)
+{
+    int check;
+
+    designer_connect_nodes_with_override(
+	sn, output_slot_spec(sn, si),
+	dn, input_slot_spec(dn, di),
+	&check);
+    return check;
+}
+
+static int
+input_slot_check(designer_node_t *n, int i)
+{
+    return
+	designer_node_get_input_slot(n, input_slot_spec(n, i)) ?
+	DESIGNER_CONNECTION_CONNECTABLE : DESIGNER_CONNECTION_FREE;
+}
+
+
+static void
+connect(widget_data_t *data, designer_node_t *sn, int si, designer_node_t *dn, int di)
+{
+    g_assert(sn != NULL);
+    g_assert(si >= 0);
+    g_assert(dn != NULL);
+    g_assert(di >= 0);
+
+    designer_slot_t *slot =
+	designer_connect_nodes_with_override(
+	sn, output_slot_spec(sn, si),
+	dn, input_slot_spec(dn, di),
+	NULL);
+
+    signal_design_change(data);
+    g_assert(slot);
+}
+
+static void
+loosen_connection(widget_data_t *data, designer_node_t *dn, int di)
+{
+    designer_slot_t *slot =
+	designer_node_get_input_slot(dn, input_slot_spec(dn, di));
+
+    data->active_node = slot->source;
+    data->active_slot_id = 0; /* FIXME: needs output slot index */
+    data->origin = output_slot_origin(
+	data->active_node,data->active_slot_id);
+
+    data->target_node = NULL;
+    data->target_slot_id = -1;
+    data->target_check = 0;
+
+    designer_disconnect_slot(slot);
+    signal_design_change(data);
+    g_assert(slot);
+}
+
 
 
 
@@ -738,30 +925,30 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     case HIT_INPUT:
 	hs = hit_input_slot(hn, data->mouse);
 	data->target = input_slot_origin(hn, hs);
-	if (data->state == STATE_CONIN)
+	if (data->state == STATE_IDLE)
+	    /* show 'break' if already connected */
+	    data->target_check = input_slot_check(hn, hs);
+	else if (data->state == STATE_CONIN)
 	    data->target_check = 0;
 	else if (data->state == STATE_CONOUT &&
-	    ((hn != data->target_node) || (hs != data->target_slot_id))) {
-	    designer_connect_nodes_with_override(data->active_node,
-		output_slot_spec(data->active_node, data->active_slot_id),
-		hn, input_slot_spec(hn, hs),
-		&data->target_check);
-	}
+	    ((hn != data->target_node) || (hs != data->target_slot_id)))
+	    data->target_check = connect_check(
+		data->active_node, data->active_slot_id, hn, hs);
 	break;
     case HIT_OUTPUT:
 	hs = hit_output_slot(hn, data->mouse);
 	data->target = output_slot_origin(hn, hs);
-	if (data->state == STATE_CONOUT)
+	if (data->state == STATE_IDLE)
+	    data->target_check = DESIGNER_CONNECTION_FREE;
+	else if (data->state == STATE_CONOUT)
 	    data->target_check = 0;
 	else if (data->state == STATE_CONIN &&
-	    ((hn != data->target_node) || (hs != data->target_slot_id))) {
-	    designer_connect_nodes_with_override(hn,
-		output_slot_spec(hn, hs), data->active_node,
-		input_slot_spec(data->active_node, data->active_slot_id),
-		&data->target_check);
-	}
+	    ((hn != data->target_node) || (hs != data->target_slot_id)))
+	    data->target_check = connect_check(
+		hn, hs, data->active_node, data->active_slot_id);
 	break;
     default:
+	data->target_check = 0;
 	hs = -1;
 	break;
     }
@@ -782,7 +969,7 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     }
 
     if (data->state == STATE_CONIN) {
-	draw_connect(cr, data->origin, data->mouse, 0);
+	draw_connect(cr, data->mouse, data->origin, 0);
     }
     if (data->state == STATE_CONOUT) {
 	draw_connect(cr, data->origin, data->mouse, 0);
@@ -796,16 +983,38 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 
 
 static gboolean
+double_click_event (GtkWidget *widget, GdkEventButton *event,
+	designer_node_t *hn, _hit_t ht)
+{
+    widget_data_t *data = get_widget_data(widget);
+
+    switch(ht) {
+    case HIT_LABEL:
+    case HIT_TITLE:
+	set_root_focus (data, hn);
+	break;
+	
+    default:
+	break;
+    }
+
+    gtk_widget_queue_draw(widget);
+    return TRUE;
+}
+
+
+static gboolean
 button_press_event (GtkWidget *widget, GdkEventButton *event)
 {
     widget_data_t *data = get_widget_data(widget);
 
     data->mouse_down = _point(event->x, event->y);
-    
+
     designer_node_t *hn = NULL;
     _hit_t ht = HIT_NOTHING; 
+    int hs = -1;
 
-     /* check for best node hit */
+    /* check for best node hit */
     for (GSList *list = data->design->nodes;
 	list != NULL; list = list->next) {
 	designer_node_t *node = list->data;
@@ -816,6 +1025,9 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 	    ht = nht;
 	}
     }
+
+    if (event->type == GDK_2BUTTON_PRESS)
+	return double_click_event(widget, event, hn, ht);
 
     switch(ht) {
     case HIT_LABEL:
@@ -830,15 +1042,24 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 	signal_design_change(data);
 	break;
     case HIT_INPUT:
+	hs = hit_input_slot(hn, data->mouse_down);
+
+	/* loosen connection if connected */
+	if (data->target_check) {
+	    loosen_connection(data, hn, hs);
+	    data->state = STATE_CONOUT;
+	    break;
+	}
 	data->active_node = hn;
-	data->active_slot_id = hit_input_slot(hn, data->mouse_down);
-	data->origin = input_slot_origin(hn, data->active_slot_id);
+	data->active_slot_id = hs;
+	data->origin = input_slot_origin(hn, hs);
 	// g_print("hit %lf,%lf -> %d\n", event->x, event->y, data->active_slot_id);
 	data->state = STATE_CONIN;
 	break;
     case HIT_OUTPUT:
+	hs = hit_output_slot(hn, data->mouse_down);
 	data->active_node = hn;
-	data->active_slot_id = hit_output_slot(hn, data->mouse_down);
+	data->active_slot_id = hs;
 	data->origin = output_slot_origin(hn, data->active_slot_id);
 	// g_print("hit %lf,%lf -> %d\n", event->x, event->y, data->active_slot_Id);
 	data->state = STATE_CONOUT;
@@ -867,27 +1088,17 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONIN:
-	if (data->target_check) {
-	    designer_connect_nodes_with_override(
-		data->target_node,
-		output_slot_spec(data->target_node, data->target_slot_id),
-		data->active_node,
-		input_slot_spec(data->active_node, data->active_slot_id),
-		NULL);
-	    signal_design_change(data);
-	}
+	if (data->target_check)
+	    connect(data,
+		data->target_node, data->target_slot_id,
+		data->active_node, data->active_slot_id);
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONOUT:
-	if (data->target_check) {
-	    designer_connect_nodes_with_override(
-		data->active_node,
-		output_slot_spec(data->active_node, data->active_slot_id),
-		data->target_node,
-		input_slot_spec(data->target_node, data->target_slot_id),
-		NULL);
-	    signal_design_change(data);
-	}
+	if (data->target_check)
+	    connect(data,
+		data->active_node, data->active_slot_id,
+		data->target_node, data->target_slot_id);
 	data->state = STATE_IDLE;
 	break;
     default:
@@ -1042,6 +1253,7 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
     node_data_t *nd = node_data(node);
 
     nd->origin = place_new_node(data);
+    designer_node_push_back(node);
 
     gtk_widget_queue_draw(widget);
 }

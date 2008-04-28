@@ -65,8 +65,6 @@ typedef	union _corn
 
 
 
-
-
 static inline
 _point_t _point(double x, double y)
 {
@@ -108,6 +106,28 @@ _size_t _ptos(_point_t p)
 	return _size(p.x, p.y);
 }
 
+static inline
+_point_t _midp(_point_t p1, _point_t p2)
+{
+	return _point((p1.x + p2.x)/2, (p1.y + p2.y)/2);
+}
+
+static inline
+_point_t _mixp(_point_t p1, _point_t p2, double m)
+{
+	return _point(p1.x*m + p2.x*(1.0-m),
+		p1.y*m + p2.y*(1.0-m));
+}
+
+static inline
+_point_t _rotate(_point_t p, double a)
+{
+	return _point(p.x * cos(a) + p.y * sin(a),
+		p.y * cos(a) - p.x * sin(a));
+}
+
+
+
 
 
 static inline
@@ -121,8 +141,6 @@ _corn_t _corners(_rect_t r)
 	c.ul = _point(c.ll.x, c.ur.y);
 	return c;
 }
-
-
 
 
 
@@ -163,6 +181,56 @@ _size_t _smax(_size_t s1, _size_t s2)
 	return _size(MAX(s1.w, s2.w), MAX(s1.h, s2.h));
 }
 
+
+static inline
+double sign(double value) { 
+	return (value > 0) ? 1.0 : ((value < 0) ? -1.0 : 0.0);
+}
+
+static inline
+_size_t _ssmin(_size_t s1, _size_t s2)
+{
+	double sgw = sign(s1.w);
+	double sgh = sign(s1.h);
+
+	return _size(sgw*MIN(fabs(s1.w), fabs(s2.w)), sgh*MIN(fabs(s1.h), fabs(s2.h)));
+}
+
+static inline
+_size_t _ssmax(_size_t s1, _size_t s2)
+{
+	double sgw = sign(s1.w);
+	double sgh = sign(s1.h);
+
+	return _size(sgw*MAX(fabs(s1.w), fabs(s2.w)), sgh*MAX(fabs(s1.h), fabs(s2.h)));
+}
+
+static inline
+_size_t _smult(_size_t s, double f)
+{
+	return _size(s.w*f, s.h*f);
+}
+
+
+static inline
+_size_t _sshrink(_size_t s1, _size_t s2)
+{
+	if (s2.w && s1.w && s2.w < s1.w)
+		s1 = _size(s2.w, s1.h*s2.w/s1.w);
+	if (s2.h && s1.h && s2.h < s1.h)
+		s1 = _size(s1.w*s2.h/s1.h, s2.h);
+	return s1;
+}
+
+static inline
+_size_t _sgrow(_size_t s1, _size_t s2)
+{
+	if (s2.w && s1.w && s2.w > s1.w)
+		s1 = _size(s2.w, s1.h*s2.w/s1.w);
+	if (s2.h && s1.h && s2.h > s1.h)
+		s1 = _size(s1.w*s2.h/s1.h, s2.h);
+	return s1;
+}
 
 
 static inline
@@ -260,5 +328,7 @@ _rect_t _splitv(_rect_t *r, double h)
 	r->o.y += mh; r->s.h -= mh;
 	return s;
 }
+
+
 
 #endif
