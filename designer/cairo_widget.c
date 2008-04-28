@@ -990,7 +990,10 @@ double_click_event (GtkWidget *widget, GdkEventButton *event,
 
     switch(ht) {
     case HIT_LABEL:
+	g_print("label edit\n");
+	break;
     case HIT_TITLE:
+    case HIT_BODY:
 	set_root_focus (data, hn);
 	break;
 	
@@ -1032,6 +1035,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
     switch(ht) {
     case HIT_LABEL:
     case HIT_TITLE:
+    case HIT_BODY:
 	data->active_node = hn;
 	data->state = STATE_MOVING;
 	data->origin = node_data(hn)->origin;
