@@ -546,8 +546,8 @@ designer_migrate_design (designer_design_t *design, designer_design_type_t *new_
 	    if (new_partner == NULL)
 		continue;
 
-	    designer_connect_nodes(new_partner, slot->output_slot_spec,
-				   new_node, slot->input_slot_spec);
+	    designer_connect_nodes_by_slot_name(new_partner, slot->output_slot_spec->name,
+						new_node, slot->input_slot_spec->name);
 	}
     }
 
