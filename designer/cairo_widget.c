@@ -762,6 +762,8 @@ draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int chec
 	draw_slot_highlight(cr, sl, check);
 	break;
 	}
+    default:
+	break;
     }
     cairo_restore(cr);
 }
@@ -867,6 +869,27 @@ loosen_connection(widget_data_t *data, designer_node_t *dn, int di)
 }
 
 
+static _rect_t
+recalc_area(cairo_t *cr, widget_data_t *data)
+{
+    _rect_t area;
+    int count = 0;
+
+    /* check the nodes */
+    for (GSList *list = data->design->nodes;
+	list != NULL; list = list->next) {
+	designer_node_t *node = list->data;
+
+	calc_node_type(cr, node->type);
+	calc_node(cr, node);
+
+	node_data_t *nd = node_data(node);
+	_rect_t nr = _offset(nd->nr, _ptos(nd->origin));
+
+	area = (count++) ? _union(area, nr) : nr;
+    }
+    return _inset(area, _size(-40, -20));
+}
 
 
 static gboolean
@@ -884,6 +907,10 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     cairo_paint(cr);
 
     cairo_translate(cr, 0.5, 0.5);
+
+    cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 0.5);
+    rect_path(cr, recalc_area(cr, data));
+    cairo_stroke(cr);
 
 
     /* draw the slot conenctions */
