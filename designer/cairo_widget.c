@@ -794,6 +794,13 @@ set_scrollable_size (widget_data_t *data, unsigned int width, unsigned int heigh
 }
 
 static void
+set_scroll_origin (widget_data_t *data, double x, double y)
+{
+    gtk_adjustment_set_value(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area)), x);
+    gtk_adjustment_set_value(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area)), y);
+}
+
+static void
 set_root_focus (widget_data_t *data, designer_node_t *node)
 {
     designer_set_root(data->design, node);
@@ -899,6 +906,7 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     designer_node_t *hn = NULL;
     _hit_t hit;
     int hs = -1;
+    _rect_t area_rect;
 
     cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
     // _size_t ws = _size(widget->allocation.width, widget->allocation.height);
@@ -909,7 +917,8 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     cairo_translate(cr, 0.5, 0.5);
 
     cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 0.5);
-    rect_path(cr, recalc_area(cr, data));
+    area_rect = recalc_area(cr, data);
+    rect_path(cr, area_rect);
     cairo_stroke(cr);
 
 
@@ -1003,7 +1012,6 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     }
 
     cairo_destroy(cr);
-
 
     return FALSE;
 }
