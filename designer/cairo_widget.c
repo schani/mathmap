@@ -162,6 +162,7 @@ typedef struct
     GtkWidget *vscrollbar;
 
     gboolean dragging;
+    _rect_t area;
     _point_t place_next;
     _point_t mouse, mouse_down, mouse_up;
     _state_t state;
@@ -887,8 +888,10 @@ recalc_area(cairo_t *cr, widget_data_t *data)
 	list != NULL; list = list->next) {
 	designer_node_t *node = list->data;
 
-	calc_node_type(cr, node->type);
-	calc_node(cr, node);
+	if (cr) {
+	    calc_node_type(cr, node->type);
+	    calc_node(cr, node);
+	}
 
 	node_data_t *nd = node_data(node);
 	_rect_t nr = _offset(nd->nr, _ptos(nd->origin));
@@ -899,6 +902,29 @@ recalc_area(cairo_t *cr, widget_data_t *data)
 }
 
 
+show_axis(cairo_t *cr, _point_t p, float r, float g, float b, float w, float h)
+{
+    _point_t ap[4];
+
+    ap[0] = _move(p, _size(-w, 0));
+    ap[1] = _move(p, _size( w, 0));
+    ap[2] = _move(p, _size( 0, h));
+    ap[3] = _move(p, _size( 0,-h));
+
+    cairo_set_source_rgba(cr, r, g, b, 0.6);
+    cairo_set_line_width(cr, 1.0);
+
+    _move_to(cr, ap[0]);
+    _line_to(cr, ap[1]);
+    cairo_stroke(cr);
+
+    _move_to(cr, ap[2]);
+    _line_to(cr, ap[3]);
+    cairo_stroke(cr);
+}
+
+
+
 static gboolean
 expose_event (GtkWidget *widget, GdkEventExpose *event)
 {
@@ -906,21 +932,45 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     designer_node_t *hn = NULL;
     _hit_t hit;
     int hs = -1;
-    _rect_t area_rect;
 
     cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
-    // _size_t ws = _size(widget->allocation.width, widget->allocation.height);
+    _size_t ws = _size(widget->allocation.width, widget->allocation.height);
     
     cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
     cairo_paint(cr);
 
+    _rect_t area = data->area;
     cairo_translate(cr, 0.5, 0.5);
 
     cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 0.5);
-    area_rect = recalc_area(cr, data);
-    rect_path(cr, area_rect);
+    cairo_set_line_width(cr, 3.0);
+    round_path(cr, data->area, round_s);
     cairo_stroke(cr);
 
+    {
+	char buf[32];
+	_point_t o = data->mouse;
+	
+	show_axis(cr, o, 0,0,0, 20, 20);
+	set_title_font(cr);
+	cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 0.8);
+	cairo_move_to(cr, o.x + 5, o.y - 5);
+	sprintf(buf, "(%.0f,%.0f)", o.x, o.y);
+	cairo_show_text(cr, buf);
+	cairo_stroke(cr);
+	cairo_move_to(cr, o.x + 5, o.y + 13);
+	sprintf(buf, "[%.0f,%.0f,%.0fx%.0f]",
+	    data->area.o.x, data->area.o.y,
+	    data->area.s.w, data->area.s.h);
+	cairo_show_text(cr, buf);
+	cairo_stroke(cr);
+	cairo_move_to(cr, o.x + 5, o.y + 28);
+	sprintf(buf, "[%.0fx%.0f]", ws.w, ws.h);
+	cairo_show_text(cr, buf);
+	cairo_stroke(cr);
+
+	show_axis(cr, _zerop, 1,0,0, 10, 10);
+    }
 
     /* draw the slot conenctions */
     for (GSList *list = data->design->nodes;
@@ -1017,6 +1067,24 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 }
 
 
+static void
+update_area_conditional(widget_data_t *data)
+{
+    _rect_t area = recalc_area(NULL, data);
+
+    if (!_eqr(data->area, area)) {
+	set_scrollable_size (data, area.s.w, area.s.h);
+	// set_scroll_origin (data, -area.o.x, -area.o.y);
+	data->area = area;
+    }
+}
+
+static _point_t map_location(widget_data_t *data, _point_t p)
+{
+    return p; // _move(p, _size(-data->area.o.x, -data->area.o.y));
+}
+
+
 static gboolean
 double_click_event (GtkWidget *widget, GdkEventButton *event,
 	designer_node_t *hn, _hit_t ht)
@@ -1046,7 +1114,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 {
     widget_data_t *data = get_widget_data(widget);
 
-    data->mouse_down = _point(event->x, event->y);
+    data->mouse_down = map_location(data, _point(event->x, event->y));
 
     designer_node_t *hn = NULL;
     _hit_t ht = HIT_NOTHING; 
@@ -1120,10 +1188,11 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 {
     widget_data_t *data = get_widget_data(widget);
 
-    data->mouse_up = _point(event->x, event->y);
+    data->mouse_up = map_location(data, _point(event->x, event->y));
 
     switch(data->state) {
     case STATE_MOVING:
+	update_area_conditional(data);
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONIN:
@@ -1175,7 +1244,7 @@ motion_notify_event (GtkWidget *widget, GdkEventMotion *event)
 	state = event->state;
     }
 
-    data->mouse = _point(x, y);
+    data->mouse = map_location(data, _point(x, y));
 
     switch(data->state) {
     case STATE_MOVING:

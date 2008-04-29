@@ -89,6 +89,26 @@ _rect_t _rect(double x, double y, double w, double h)
 
 
 static inline
+int _eqp(_point_t p1, _point_t p2)
+{
+	return (p1.x == p2.x) && (p1.y == p2.y);
+}
+
+static inline
+int _eqs(_size_t s1, _size_t s2)
+{
+	return (s1.w == s2.w) && (s1.h == s2.h);
+}
+
+static inline
+int _eqr(_rect_t r1, _rect_t r2)
+{
+	return _eqp(r1.o, r2.o) && _eqs(r1.s, r2.s);
+}
+
+
+
+static inline
 _size_t _delta(_point_t p1, _point_t p2)
 {
 	return _size(p2.x - p1.x, p2.y - p1.y);
