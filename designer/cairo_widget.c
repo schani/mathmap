@@ -1172,6 +1172,12 @@ adjustment_value_changed (GtkAdjustment *adj, widget_data_t *data)
     update_area_conditional(data, TRUE);
 }
 
+static void
+adjustment_changed (GtkAdjustment *adj, widget_data_t *data)
+{
+    update_area_conditional(data, TRUE);
+}
+
 static _point_t map_location(widget_data_t *data, _point_t p)
 {
     return _move(p, _ptos(data->combined_area.o));
@@ -1418,6 +1424,10 @@ populate_table (widget_data_t *data)
 		       (GtkSignalFunc)adjustment_value_changed, data);
     gtk_signal_connect(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))), "value-changed",
 		       (GtkSignalFunc)adjustment_value_changed, data);
+    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area))), "changed",
+		       (GtkSignalFunc)adjustment_changed, data);
+    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))), "changed",
+		       (GtkSignalFunc)adjustment_changed, data);
 }
 
 GtkWidget *
