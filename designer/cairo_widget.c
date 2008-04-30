@@ -981,7 +981,6 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     int hs = -1;
 
     cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
-    /* _size(widget->allocation.width, widget->allocation.height); */
 
     cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
     cairo_paint(cr);
@@ -989,6 +988,7 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     _size_t delta = _ptos(data->combined_area.o);
     cairo_translate(cr, 0.5 - delta.w, 0.5 - delta.h);
 
+#if 0
     cairo_set_line_width(cr, 3.0);
     cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 0.5);
     round_path(cr, data->used_area, round_s);
@@ -1024,6 +1024,7 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 
 	show_axis(cr, _zerop, 1,0,0, 10, 10);
     }
+#endif
 
     /* draw the slot conenctions */
     for (GSList *list = data->design->nodes;
@@ -1170,12 +1171,14 @@ static void
 adjustment_value_changed (GtkAdjustment *adj, widget_data_t *data)
 {
     update_area_conditional(data, TRUE);
+    gtk_widget_queue_draw(data->widget);
 }
 
 static void
 adjustment_changed (GtkAdjustment *adj, widget_data_t *data)
 {
     update_area_conditional(data, TRUE);
+    gtk_widget_queue_draw(data->widget);
 }
 
 static _point_t map_location(widget_data_t *data, _point_t p)
