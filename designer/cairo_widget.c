@@ -162,10 +162,13 @@ typedef struct
     GtkWidget *vscrollbar;
 
     gboolean dragging;
-    _rect_t area;
     _point_t place_next;
     _point_t mouse, mouse_down, mouse_up;
     _state_t state;
+
+    _rect_t used_area;
+    _rect_t visible_area;
+    _rect_t combined_area;
 
     designer_node_t *active_node;
     int active_slot_id;
@@ -789,16 +792,39 @@ get_widget_data (GtkWidget *widget)
 }
 
 static void
-set_scrollable_size (widget_data_t *data, unsigned int width, unsigned int height)
+set_scrollable_size (widget_data_t *data, _size_t s)
 {
-    gtk_layout_set_size (GTK_LAYOUT(data->drawing_area), width, height);
+    gtk_layout_set_size (
+	GTK_LAYOUT(data->drawing_area), s.w, s.h);
+}
+
+static _size_t
+get_scrollable_size (widget_data_t *data)
+{
+    gint w, h;
+    gtk_layout_get_size (
+	GTK_LAYOUT(data->drawing_area),&w, &h);
+    g_print("drawing area: %dx%d\n", w, h);
+    return _size(w, h);
 }
 
 static void
-set_scroll_origin (widget_data_t *data, double x, double y)
+set_scroll_origin (widget_data_t *data, _point_t o)
 {
-    gtk_adjustment_set_value(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area)), x);
-    gtk_adjustment_set_value(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area)), y);
+    gtk_adjustment_set_value(gtk_layout_get_hadjustment(
+	GTK_LAYOUT(data->drawing_area)), o.x);
+    gtk_adjustment_set_value(gtk_layout_get_vadjustment(
+	GTK_LAYOUT(data->drawing_area)), o.y);
+}
+
+static _point_t
+get_scroll_origin (widget_data_t *data)
+{
+    return _point(
+	gtk_adjustment_get_value(gtk_layout_get_hadjustment(
+	    GTK_LAYOUT(data->drawing_area))),
+	gtk_adjustment_get_value(gtk_layout_get_vadjustment(
+	    GTK_LAYOUT(data->drawing_area))));
 }
 
 static void
@@ -814,6 +840,10 @@ static void
 reset_widget_data (widget_data_t *data)
 {
     data->place_next = _point(50,50);
+    
+    data->visible_area.o = _zerop;
+    data->visible_area.s = get_scrollable_size (data);
+    data->combined_area = data->visible_area;
 }
 
 
@@ -883,6 +913,10 @@ recalc_area(cairo_t *cr, widget_data_t *data)
     _rect_t area;
     int count = 0;
 
+    /* no valid data */
+    if (!data || !data->design || !data->design->nodes)
+	return _zeror;
+
     /* check the nodes */
     for (GSList *list = data->design->nodes;
 	list != NULL; list = list->next) {
@@ -901,7 +935,7 @@ recalc_area(cairo_t *cr, widget_data_t *data)
     return _inset(area, _size(-40, -20));
 }
 
-
+static void
 show_axis(cairo_t *cr, _point_t p, float r, float g, float b, float w, float h)
 {
     _point_t ap[4];
@@ -934,17 +968,21 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     int hs = -1;
 
     cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
-    _size_t ws = _size(widget->allocation.width, widget->allocation.height);
-    
+    /* _size(widget->allocation.width, widget->allocation.height); */
+
     cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
     cairo_paint(cr);
 
-    _rect_t area = data->area;
-    cairo_translate(cr, 0.5, 0.5);
+    _size_t delta = _ptos(data->combined_area.o);
+    cairo_translate(cr, 0.5 - delta.w, 0.5 - delta.h);
 
-    cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 0.5);
     cairo_set_line_width(cr, 3.0);
-    round_path(cr, data->area, round_s);
+    cairo_set_source_rgba(cr, 0.3, 0.3, 0.3, 0.5);
+    round_path(cr, data->used_area, round_s);
+    cairo_stroke(cr);
+
+    cairo_set_source_rgba(cr, 0.8, 0.6, 0.3, 0.5);
+    round_path(cr, data->visible_area, round_s);
     cairo_stroke(cr);
 
     {
@@ -960,12 +998,14 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 	cairo_stroke(cr);
 	cairo_move_to(cr, o.x + 5, o.y + 13);
 	sprintf(buf, "[%.0f,%.0f,%.0fx%.0f]",
-	    data->area.o.x, data->area.o.y,
-	    data->area.s.w, data->area.s.h);
+	    data->used_area.o.x, data->used_area.o.y,
+	    data->used_area.s.w, data->used_area.s.h);
 	cairo_show_text(cr, buf);
 	cairo_stroke(cr);
 	cairo_move_to(cr, o.x + 5, o.y + 28);
-	sprintf(buf, "[%.0fx%.0f]", ws.w, ws.h);
+	sprintf(buf, "[%.0f,%.0f,%.0fx%.0f]",
+	    data->visible_area.o.x, data->visible_area.o.y,
+	    data->visible_area.s.w, data->visible_area.s.h);
 	cairo_show_text(cr, buf);
 	cairo_stroke(cr);
 
@@ -1068,15 +1108,38 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 
 
 static void
-update_area_conditional(widget_data_t *data)
+update_area_conditional(widget_data_t *data, int force)
 {
-    _rect_t area = recalc_area(NULL, data);
+    _rect_t ua = recalc_area(NULL, data);
 
-    if (!_eqr(data->area, area)) {
-	set_scrollable_size (data, area.s.w, area.s.h);
-	// set_scroll_origin (data, -area.o.x, -area.o.y);
-	data->area = area;
-    }
+    /* nothing relevant changed */
+    if (_eqr(data->used_area, ua) && !force)
+	return;
+
+    /* in drawing coordinates */
+    data->used_area = ua;
+
+    /* drawing offset */
+    _size_t offset = _ptoo(data->combined_area.o);
+
+    _rect_t va;
+    va.o = _move(get_scroll_origin (data), offset);
+    va.s = get_scrollable_size (data);
+
+    /* in drawing coordinates */
+    data->visible_area = va;
+
+    _rect_t ca = _union(ua, va);
+
+    /* nothing changed for the scroll area */
+    if (_eqr(data->combined_area, ca) && !force)
+	return;
+
+    /* in drawing coordinates */
+    data->combined_area = ca;
+
+    _point_t vo = _stop(_delta(ca.o, va.o));
+    set_scroll_origin (data, vo);
 }
 
 static _point_t map_location(widget_data_t *data, _point_t p)
@@ -1192,7 +1255,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 
     switch(data->state) {
     case STATE_MOVING:
-	update_area_conditional(data);
+	update_area_conditional(data, 0);
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONIN:
@@ -1348,6 +1411,7 @@ designer_widget_new (designer_design_t *design,
     g_object_set_data(G_OBJECT(table), "designer-data", data);
     g_object_set_data(G_OBJECT(data->drawing_area), "designer-data", data);
 
+    update_area_conditional(data, 1);
     return table;
 }
 

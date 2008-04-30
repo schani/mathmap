@@ -127,6 +127,18 @@ _size_t _ptos(_point_t p)
 }
 
 static inline
+_point_t _stop(_size_t s)
+{
+	return _point(s.w, s.h);
+}
+
+static inline
+_size_t _ptoo(_point_t p)
+{
+	return _size(-p.x, -p.y);
+}
+
+static inline
 _point_t _midp(_point_t p1, _point_t p2)
 {
 	return _point((p1.x + p2.x)/2, (p1.y + p2.y)/2);
