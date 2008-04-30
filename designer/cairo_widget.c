@@ -827,6 +827,13 @@ get_scroll_origin (widget_data_t *data)
 	    GTK_LAYOUT(data->drawing_area))));
 }
 
+static _size_t
+get_visible_size (widget_data_t *data)
+{
+    return _size(data->widget->allocation.width,
+	data->widget->allocation.height);
+}
+
 static void
 set_root_focus (widget_data_t *data, designer_node_t *node)
 {
@@ -1131,8 +1138,7 @@ update_area_conditional(widget_data_t *data, int force)
     _rect_t va;
     va.o = _move(get_scroll_origin (data), offset);
     /* FIXME: needs to correct for scrollers */
-    va.s = _size(data->widget->allocation.width,
-	data->widget->allocation.height);
+    va.s = get_visible_size(data);
 
     /* in drawing coordinates */
     data->visible_area = va;
