@@ -1110,21 +1110,29 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 static void
 update_area_conditional(widget_data_t *data, int force)
 {
-    _rect_t ua = recalc_area(NULL, data);
+    cairo_t *cr = NULL;
+    
+    if (force)
+	cr = gdk_cairo_create(
+	    GTK_LAYOUT(data->drawing_area)->bin_window);
+
+    _rect_t ua = recalc_area(cr, data);
 
     /* nothing relevant changed */
-    if (_eqr(data->used_area, ua) && !force)
+    if (!force && _eqr(data->used_area, ua))
 	return;
 
     /* in drawing coordinates */
     data->used_area = ua;
 
     /* drawing offset */
-    _size_t offset = _ptoo(data->combined_area.o);
+    _size_t offset = _ptos(data->combined_area.o);
 
     _rect_t va;
     va.o = _move(get_scroll_origin (data), offset);
-    va.s = get_scrollable_size (data);
+    /* FIXME: needs to correct for scrollers */
+    va.s = _size(data->widget->allocation.width,
+	data->widget->allocation.height);
 
     /* in drawing coordinates */
     data->visible_area = va;
@@ -1132,7 +1140,7 @@ update_area_conditional(widget_data_t *data, int force)
     _rect_t ca = _union(ua, va);
 
     /* nothing changed for the scroll area */
-    if (_eqr(data->combined_area, ca) && !force)
+    if (!force && _eqr(data->combined_area, ca))
 	return;
 
     /* in drawing coordinates */
@@ -1140,11 +1148,15 @@ update_area_conditional(widget_data_t *data, int force)
 
     _point_t vo = _stop(_delta(ca.o, va.o));
     set_scroll_origin (data, vo);
+    set_scrollable_size (data, ca.s);
+
+    if (force)
+	cairo_destroy(cr);
 }
 
 static _point_t map_location(widget_data_t *data, _point_t p)
 {
-    return p; // _move(p, _size(-data->area.o.x, -data->area.o.y));
+    return _move(p, _ptos(data->combined_area.o));
 }
 
 
@@ -1426,6 +1438,7 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 
     nd->origin = place_new_node(data);
     designer_node_push_back(node);
+    update_area_conditional(data, 1);
 
     gtk_widget_queue_draw(widget);
 }
@@ -1438,6 +1451,7 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
     g_print("widget %p sets design to %p\n", data, design);
 
     data->design = design;
+    update_area_conditional(data, 1);
 }
 
 void
@@ -1463,6 +1477,7 @@ designer_widget_move_node (GtkWidget *widget, designer_node_t *node, double x, d
     node_data_t *nd = node_data(node);
 
     nd->origin = _point(x,y);
+    update_area_conditional(data, 0);
 }
 
 void
