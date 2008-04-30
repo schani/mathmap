@@ -801,10 +801,10 @@ set_scrollable_size (widget_data_t *data, _size_t s)
 static _size_t
 get_scrollable_size (widget_data_t *data)
 {
-    gint w, h;
+    guint w, h;
     gtk_layout_get_size (
 	GTK_LAYOUT(data->drawing_area),&w, &h);
-    g_print("drawing area: %dx%d\n", w, h);
+    g_print("drawing area: %ux%u\n", w, h);
     return _size(w, h);
 }
 
@@ -830,8 +830,14 @@ get_scroll_origin (widget_data_t *data)
 static _size_t
 get_visible_size (widget_data_t *data)
 {
-    return _size(data->widget->allocation.width,
-	data->widget->allocation.height);
+    double page_size_h, page_size_v;
+
+    g_object_get(GTK_OBJECT(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area))),
+		 "page-size", &page_size_h, NULL);
+    g_object_get(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))),
+		 "page-size", &page_size_v, NULL);
+
+    return _size(page_size_h, page_size_v);
 }
 
 static void
@@ -1160,6 +1166,12 @@ update_area_conditional(widget_data_t *data, int force)
 	cairo_destroy(cr);
 }
 
+static void
+adjustment_value_changed (GtkAdjustment *adj, widget_data_t *data)
+{
+    update_area_conditional(data, TRUE);
+}
+
 static _point_t map_location(widget_data_t *data, _point_t p)
 {
     return _move(p, _ptos(data->combined_area.o));
@@ -1401,6 +1413,11 @@ populate_table (widget_data_t *data)
 			  | GDK_BUTTON_RELEASE_MASK
 			  | GDK_POINTER_MOTION_MASK
 			  | GDK_POINTER_MOTION_HINT_MASK);
+
+    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area))), "value-changed",
+		       (GtkSignalFunc)adjustment_value_changed, data);
+    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))), "value-changed",
+		       (GtkSignalFunc)adjustment_value_changed, data);
 }
 
 GtkWidget *
