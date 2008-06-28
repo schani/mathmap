@@ -194,7 +194,7 @@ static long num_pixels_requested = 0;
 //static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkSourceBuffer *source_buffer;
-GtkSourceMarker *source_marker;
+GtkSourceMarker *source_marker = NULL;
 GtkWidget *expression_entry = 0,
     *animation_table,
     *frame_table,
@@ -276,6 +276,7 @@ set_filter_source (const char *source, const char *path)
 {
     set_current_filename(path);
 
+    delete_expression_marker();
     gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), source, strlen(source));
 
     expression_copy(mmvals.expression, source);
@@ -2092,7 +2093,7 @@ dialog_text_update (void)
 void
 delete_expression_marker (void)
 {
-    if (source_marker != 0)
+    if (source_marker != NULL)
     {
 	gtk_source_buffer_delete_marker(source_buffer, source_marker);
 	source_marker = 0;
