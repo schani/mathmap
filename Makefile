@@ -207,6 +207,7 @@ dist : new_builtins.c parser.c scanner.c clean
 	mkdir mathmap-$(VERSION)/pixmaps
 	cp pixmaps/*.png mathmap-$(VERSION)/pixmaps
 	cp -rL examples lispreader rwimg mathmap-$(VERSION)/
+	rm -rf mathmap-$(VERSION)/examples/Test
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
 	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h

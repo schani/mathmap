@@ -15,7 +15,6 @@ parse error reporting?
 ** Language
 
 ** Packaging
-don't include Test in dist
 
 ** Rendering
 reasonable default size
