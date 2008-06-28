@@ -33,5 +33,14 @@ if you want to use MathMap, rather than hacking on it, because it's
 set to produce lots of debugging output and doesn't turn on C compiler
 optimizations.
 
+To pull and update to the latest version in the respository you should
+do all four directories, like so:
+
+    cd mathmap
+    hg pull ; hg update
+    ( cd lispreader ; hg pull ; hg update )
+    ( cd rwimg ; hg pull ; hg update )
+    ( cd lisp-utils ; hg pull ; hg update )
+
 -- 
 Mark Probst <schani@complang.tuwien.ac.at>

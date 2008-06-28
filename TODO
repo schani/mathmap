@@ -15,8 +15,6 @@ parse error reporting?
 ** Language
 
 ** Packaging
-install pools.h
-put hg update into README.mercurial
 don't include Test in dist
 
 ** Rendering
