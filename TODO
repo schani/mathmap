@@ -9,7 +9,6 @@ in composer: mugl->droste - compilation takes extremely long.  is it just the de
 ident filter creates one pixel border around image in preview
   black bottom pixel line when doing stupid gauss
 parse errors from init phase (parsing filters for designer) should not create error marks
-Help button should do something
 parse error reporting?
 
 ** Language
@@ -23,7 +22,6 @@ why is gaussian so slow in final rendering?
 
 ** Designer
 filter not in subdir get added automatically (says bertl)
-do migration with save/load
 why is there no default focus?
 no node is focussed when focussed node is deleted
 
@@ -54,6 +52,7 @@ lazy rendering
 use image/row/column const stuff for rendering
 
 ** Designer
+do migration with save/load
 free widget_data in designs
 node renaming
 

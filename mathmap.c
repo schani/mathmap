@@ -2612,15 +2612,13 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
     gint baz;
     GimpPDBProcType proc_type;
 
-    if (gimp_procedural_db_proc_info("extension_web_browser",
+    if (gimp_procedural_db_proc_info("plug-in-web-browser",
 				     &proc_blurb, &proc_help, 
 				     &proc_author, &proc_copyright, &proc_date,
 				     &proc_type, &nparams, &nreturn_vals,
 				     &params, &return_vals))
-	gimp_run_procedure("extension_web_browser", &baz,
-			   GIMP_PDB_INT32, GIMP_RUN_NONINTERACTIVE,
+	gimp_run_procedure("plug-in-web-browser", &baz,
 			   GIMP_PDB_STRING, MATHMAP_MANUAL_URL,
-			   GIMP_PDB_INT32, 1,
 			   GIMP_PDB_END);
     else 
     {
@@ -2628,7 +2626,7 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 
 	gimp_message(message);
 	g_free(message);
-    }                                            
+    }
 } /* dialog_help_callback */
 
 /*****/
