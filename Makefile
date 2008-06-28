@@ -160,6 +160,7 @@ install-local : mathmap
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap ] ; then mkdir $(HOME)/$(GIMPDIR)/mathmap ; fi
 	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
 	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
+	cp lispreader/pools.h $(HOME)/$(GIMPDIR)/mathmap/
 
 	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap/expressions ] ; then cp -r examples $(HOME)/$(GIMPDIR)/mathmap/expressions ; fi
 
