@@ -95,7 +95,7 @@ CC = gcc
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/widget.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/widget.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o
 
 GIMP_OBJECTS = mathmap.o
 
@@ -128,9 +128,9 @@ scanner.c : scanner.fl parser.h
 	flex scanner.fl
 	mv lex.yy.c scanner.c
 
-compiler.o : new_builtins.c opdefs.h compiler_types.h
+compiler.o : new_builtins.c opdefs.h opfuncs.h compiler_types.h
 
-new_builtins.c opdefs.h compiler_types.h : builtins.lisp ops.lisp
+new_builtins.c opdefs.h opfuncs.h compiler_types.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
 blender.o : generators/blender/blender.c
@@ -178,7 +178,7 @@ clean :
 	rm -rf debian/mathmap debian/mathmap.substvars
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h opfuncs.h compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
 
 TAGS :
 	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp'`
@@ -206,6 +206,6 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp -rL examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
-	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/compiler_types.h
+	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)

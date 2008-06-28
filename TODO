@@ -6,7 +6,10 @@
 
 ** GIMP Plug-In
 ident filter creates one pixel border around image in preview
+  black bottom pixel line when doing stupid gauss
 parse errors from init phase (parsing filters for designer) should not create error marks
+Help button should do something
+parse error reporting?
 
 ** Language
 figure out how to do calling between pixel/non-pixel filters (eg mugl in composer)
@@ -14,6 +17,8 @@ figure out how to do calling between pixel/non-pixel filters (eg mugl in compose
 ** Packaging
 install pools.h
 why doesn't about dialog show mathmap (see hans's bug report)?
+put hg update into README.mercurial
+don't include Test in dist
 
 ** Rendering
 reasonable default size
@@ -21,11 +26,13 @@ specifiable size
 why is gaussian so slow in final rendering?
 
 ** Designer
+do migration with save/load
 
 ** Native filters
 
 ** Compiler
 calculate R in the filter code
+optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
 
 ** Filters
 breic's spherical panoramas: http://www.flickr.com/groups/equirectangular/discuss/72157604262342861/
@@ -34,6 +41,7 @@ breic's spherical panoramas: http://www.flickr.com/groups/equirectangular/discus
 
 ** GIMP Plug-In
 unparsable filters should not show up in designer tree view
+filter repeat doesn't work (Filters->Repeat)
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -48,11 +56,15 @@ antialiasing from rendered images
 lazy rendering
 use image/row/column const stuff for rendering
 
+** Designer
+free widget_data in designs
+
 ** Native filters
 convolution
 
 ** Compiler
 Generator for simplifiers
+Simplify coordinate stuff (non-stretched ident filter)
 
 ** Filters
 better layer modes: http://pegtop.net/delphi/articles/blendmodes/

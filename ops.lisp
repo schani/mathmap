@@ -180,6 +180,11 @@
 (defop 'orig-val 4 "ORIG_VAL" :interpreter-c-name "ORIG_VAL_INTERPRETER" :type 'tuple
        :arg-types '(float float image float) :foldable nil)
 
+(defop 'resize-image 3 "RESIZE_IMAGE" :interpreter-c-name "RESIZE_IMAGE_INTERPRETER" :type 'image
+       :arg-types '(image float float) :foldable nil)
+(defop 'strip-resize 1 "STRIP_RESIZE" :interpreter-c-name "STRIP_RESIZE_INTERPRETER" :type 'image
+       :arg-type 'image :foldable nil)
+
 (defop 'render 3 "RENDER" :interpreter-c-name "RENDER_INTERPRETER" :type 'image
        :arg-types '(image int int) :foldable nil)
 
@@ -459,7 +464,9 @@
 (defun make-ops-file ()
   (with-open-file (out "opdefs.h" :direction :output :if-exists :supersede)
     (let ((*standard-output* out))
-      (format t "~A~%#define NUM_OPS ~A~%~%" (make-op-defines) (length *operators*))
+      (format t "~A~%#define NUM_OPS ~A~%" (make-op-defines) (length *operators*))))
+  (with-open-file (out "opfuncs.h" :direction :output :if-exists :supersede)
+    (let ((*standard-output* out))
       (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
       (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%" (make-op-folders))
       (dolist (op (reverse *operators*))

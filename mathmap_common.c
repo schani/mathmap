@@ -63,6 +63,7 @@ image_flags_from_options (option_t *options)
 unsigned int
 filter_flags (filter_t *filter)
 {
+    g_assert(filter->kind == FILTER_MATHMAP);
     return image_flags_from_options(filter->v.mathmap.decl->v.filter.options);
 }
 

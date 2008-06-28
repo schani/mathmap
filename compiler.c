@@ -99,9 +99,12 @@ static type_t primary_type (primary_t *primary);
 
 #define OUTPUT_TUPLE_INTERPRETER(t)	0
 
+#define RESIZE_IMAGE_INTERPRETER(i,xf,yf)	NULL
+#define STRIP_RESIZE_INTERPRETER(i)		NULL
+
 #define ARG(i)	(invocation->uservals[(i)])
 
-#include "opdefs.h"
+#include "opfuncs.h"
 
 static pools_t compiler_pools;
 
@@ -192,7 +195,7 @@ compiler_free_value_set (value_set_t *set)
 }
 
 int
-op_index (operation_t *op)
+compiler_op_index (operation_t *op)
 {
     return op - ops;
 }
@@ -319,6 +322,22 @@ remove_use (value_t *val, statement_t *stmt)
     g_assert_not_reached();
 }
 
+void
+compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary_t new)
+{
+    g_assert(stmt->kind == STMT_ASSIGN);
+    g_assert(stmt->v.assign.rhs->kind == RHS_OP);
+    g_assert(arg_num >= 0 && arg_num < stmt->v.assign.rhs->v.op.op->num_args);
+
+    if (stmt->v.assign.rhs->v.op.args[arg_num].kind == PRIMARY_VALUE)
+	remove_use(stmt->v.assign.rhs->v.op.args[arg_num].v.value, stmt);
+
+    stmt->v.assign.rhs->v.op.args[arg_num] = new;
+
+    if (new.kind == PRIMARY_VALUE)
+	add_use(new.v.value, stmt);
+}
+
 value_t*
 make_value_copy (value_t *val)
 {
@@ -442,7 +461,7 @@ make_op_rhs_from_array (int op_index, primary_t *args)
     return rhs;
 }
 
-static rhs_t*
+rhs_t*
 make_op_rhs (int op_index, ...)
 {
     primary_t args[MAX_OP_ARGS];
@@ -598,6 +617,28 @@ find_value_in_rhs (value_t *val, rhs_t *rhs)
 	    && primaries[i].v.value == val)
 	    return &primaries[i];
     return NULL;
+}
+
+gboolean
+compiler_stmt_is_assign_with_rhs (statement_t *stmt, int rhs_kind)
+{
+    return stmt->kind == STMT_ASSIGN
+	&& stmt->v.assign.rhs->kind == rhs_kind;
+}
+
+gboolean
+compiler_stmt_is_assign_with_op (statement_t *stmt, int op_index)
+{
+    return compiler_stmt_is_assign_with_rhs(stmt, RHS_OP)
+	&& compiler_op_index(stmt->v.assign.rhs->v.op.op) == op_index;
+}
+
+primary_t
+compiler_stmt_op_assign_arg (statement_t *stmt, int arg_index)
+{
+    g_assert (compiler_stmt_is_assign_with_rhs(stmt, RHS_OP));
+
+    return stmt->v.assign.rhs->v.op.args[arg_index];
 }
 
 void
@@ -857,7 +898,7 @@ rewrite_uses_to_value (value_t *old, value_t *new, statement_t *limit)
     rewrite_uses(old, primary, limit);
 }
 
-void
+static void
 commit_assign (statement_t *stmt)
 {
     statement_t *tos;
@@ -969,17 +1010,18 @@ _add_use_in_stmt (value_t *value, void *info)
     add_use(value, CLOSURE_GET(0, statement_t*));
 }
 
-void
-emit_stmt (statement_t *stmt)
+static void
+insert_stmt_before (statement_t *stmt, statement_t **loc)
 {
-    assert(stmt->next == 0);
+    g_assert(stmt->next == NULL);
 
-    stmt->parent = CURRENT_STACK_TOP;
+    stmt->next = *loc;
+    *loc = stmt;
+}
 
-    stmt->next = *emit_loc;
-    *emit_loc = stmt;
-    emit_loc = &stmt->next;
-
+static void
+record_stmt_def_uses (statement_t *stmt)
+{
     switch (stmt->kind)
     {
 	case STMT_NIL :
@@ -1010,6 +1052,30 @@ emit_stmt (statement_t *stmt)
 }
 
 void
+emit_stmt (statement_t *stmt)
+{
+    stmt->parent = CURRENT_STACK_TOP;
+
+    insert_stmt_before(stmt, emit_loc);
+    emit_loc = &stmt->next;
+
+    record_stmt_def_uses(stmt);
+}
+
+statement_t**
+compiler_emit_stmt_before (statement_t *stmt, statement_t **loc, statement_t *parent)
+{
+    stmt->parent = parent;
+    insert_stmt_before(stmt, loc);
+
+    record_stmt_def_uses(stmt);
+    if (stmt->kind == STMT_ASSIGN)
+	assign_value_index_and_make_current(stmt->v.assign.lhs);
+
+    return &stmt->next;
+}
+
+void
 emit_nil (void)
 {
     statement_t *stmt = alloc_stmt();
@@ -1020,7 +1086,7 @@ emit_nil (void)
     emit_stmt(stmt);
 }
 
-static statement_t*
+statement_t*
 make_assign (value_t *lhs, rhs_t *rhs)
 {
     statement_t *stmt = alloc_stmt();
@@ -1163,7 +1229,7 @@ start_while_loop (rhs_t *invariant)
     phi_assign->v.assign.lhs->def = phi_assign;
 
     assign_value_index_and_make_current(phi_assign->v.assign.lhs);
- 
+
     stmt->v.while_loop.invariant = make_value_rhs(current_value(value->compvar));
 
     emit_stmt(stmt);
@@ -1601,6 +1667,72 @@ dump_pre_native_code (void)
 
 /*** ssa generation from tree code ***/
 
+static gboolean
+needs_xy_scaling (int flags)
+{
+    return (flags & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE)) != IMAGE_FLAG_UNIT;
+}
+
+static value_t*
+resize_image_if_necessary (primary_t image, int flags)
+{
+    compvar_t *pixel_width, *pixel_height, *x_factor, *y_factor, *resized_image;
+
+    resized_image = make_temporary(TYPE_IMAGE);
+
+    if (!needs_xy_scaling(flags))
+    {
+	emit_assign(make_lhs(resized_image), make_primary_rhs(image));
+	return current_value(resized_image);
+    }
+
+    pixel_width = make_temporary(TYPE_INT);
+    pixel_height = make_temporary(TYPE_INT);
+    x_factor = make_temporary(TYPE_INT);
+    y_factor = make_temporary(TYPE_INT);
+
+    emit_assign(make_lhs(pixel_width), make_op_rhs(OP_IMAGE_PIXEL_WIDTH, image));
+    emit_assign(make_lhs(pixel_height), make_op_rhs(OP_IMAGE_PIXEL_HEIGHT, image));
+
+    switch (flags)
+    {
+	case 0 :
+	    emit_assign(make_lhs(x_factor),
+			make_op_rhs(OP_DIV, make_int_const_primary(2),
+				    make_compvar_primary(pixel_width)));
+	    emit_assign(make_lhs(y_factor),
+			make_op_rhs(OP_DIV, make_int_const_primary(2),
+				    make_compvar_primary(pixel_height)));
+	    break;
+
+	case IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE :
+	    {
+		compvar_t *max_dim = make_temporary(TYPE_INT);
+
+		emit_assign(make_lhs(max_dim), make_op_rhs(OP_MAX,
+							   make_compvar_primary(pixel_width),
+							   make_compvar_primary(pixel_height)));
+		emit_assign(make_lhs(x_factor), make_op_rhs(OP_DIV,
+							    make_compvar_primary(max_dim),
+							    make_compvar_primary(pixel_width)));
+		emit_assign(make_lhs(y_factor), make_op_rhs(OP_DIV,
+							    make_compvar_primary(max_dim),
+							    make_compvar_primary(pixel_height)));
+	    }
+	    break;
+
+	default :
+	    g_assert_not_reached();
+    }
+
+    emit_assign(make_lhs(resized_image), make_op_rhs(OP_STRIP_RESIZE, image));
+    emit_assign(make_lhs(resized_image),
+		make_op_rhs(OP_RESIZE_IMAGE, make_compvar_primary(resized_image),
+			    make_compvar_primary(x_factor), make_compvar_primary(y_factor)));
+
+    return current_value(resized_image);
+}
+
 static void
 alloc_var_compvars_if_needed (variable_t *var)
 {
@@ -1611,10 +1743,10 @@ alloc_var_compvars_if_needed (variable_t *var)
 	    var->compvar[i] = make_variable(var, i);
 }
 
-static void gen_code (exprtree *tree, compvar_t **dest, int is_alloced);
+static void gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced);
 
 static compvar_t***
-gen_args (exprtree *arg_trees, int **_arglengths, int **_argnumbers)
+gen_args (filter_t *filter, exprtree *arg_trees, int **_arglengths, int **_argnumbers)
 {
     exprtree *arg;
     int num_args = 0;
@@ -1634,7 +1766,7 @@ gen_args (exprtree *arg_trees, int **_arglengths, int **_argnumbers)
 	args[i] = (compvar_t**)pools_alloc(&compiler_pools, arg->result.length * sizeof(compvar_t*));
 	arglengths[i] = arg->result.length;
 	argnumbers[i] = arg->result.number;
-	gen_code(arg, args[i], 0);
+	gen_code(filter, arg, args[i], 0);
     }
 
     *_arglengths = arglengths;
@@ -1659,7 +1791,7 @@ gen_deconstruct_color (compvar_t *color, compvar_t **dest, gboolean is_alloced)
 }
 
 static void
-gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
+gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 {
     int i;
 
@@ -1691,7 +1823,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		exprtree *elem;
 
 		for (i = 0, elem = tree->val.tuple.elems; elem != 0; ++i, elem = elem->next)
-		    gen_code(elem, dest + i, is_alloced);
+		    gen_code(filter, elem, dest + i, is_alloced);
 	    }
 	    break;
 
@@ -1701,7 +1833,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		exprtree *sub;
 		int i;
 
-		gen_code(tree->val.select.tuple, temps, 0);
+		gen_code(filter, tree->val.select.tuple, temps, 0);
 
 		for (sub = tree->val.select.subscripts, i = 0; sub != 0; sub = sub->next, ++i)
 		{
@@ -1728,7 +1860,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			if (!is_alloced)
 			    dest[i] = make_temporary(TYPE_INT);
 
-			gen_code(sub, &subscript, 0);
+			gen_code(filter, sub, &subscript, 0);
 
 			for (j = 1; j < length; ++j)
 			{
@@ -1769,7 +1901,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 	case EXPR_ASSIGNMENT :
 	    alloc_var_compvars_if_needed(tree->val.assignment.var);
-	    gen_code(tree->val.assignment.value, tree->val.assignment.var->compvar, 1);
+	    gen_code(filter, tree->val.assignment.value, tree->val.assignment.var->compvar, 1);
 	    for (i = 0; i < tree->result.length; ++i)
 		if (is_alloced)
 		    emit_assign(make_lhs(dest[i]), make_compvar_rhs(tree->val.assignment.var->compvar[i]));
@@ -1785,12 +1917,12 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		alloc_var_compvars_if_needed(tree->val.sub_assignment.var);
 
-		gen_code(tree->val.sub_assignment.value, temps, 0);
+		gen_code(filter, tree->val.sub_assignment.value, temps, 0);
 
 		for (sub = tree->val.sub_assignment.subscripts, i = 0; sub != 0; sub = sub->next, ++i)
 		{
 		    int subscript;
-		    
+
 		    if (is_exprtree_single_const(sub, &subscript, 0))
 		    {
 			if (subscript < 0)
@@ -1809,7 +1941,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 			if (!is_alloced)
 			    dest[i] = make_temporary(TYPE_INT);
 
-			gen_code(sub, &subscript, 0);
+			gen_code(filter, sub, &subscript, 0);
 
 			for (j = 1; j < length; ++j)
 			{
@@ -1831,7 +1963,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 	    break;
 
 	case EXPR_CAST :
-	    gen_code(tree->val.cast.tuple, dest, is_alloced);
+	    gen_code(filter, tree->val.cast.tuple, dest, is_alloced);
 	    break;
 
 	case EXPR_FUNC :
@@ -1839,7 +1971,7 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t ***args;
 		int *arglengths, *argnumbers;
 
-		args = gen_args(tree->val.func.args, &arglengths, &argnumbers);
+		args = gen_args(filter, tree->val.func.args, &arglengths, &argnumbers);
 
 		if (!is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
@@ -1854,9 +1986,9 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t **left_result;
 
 		left_result = (compvar_t**)alloca(tree->val.operator.left->result.length * sizeof(compvar_t*));
-		gen_code(tree->val.operator.left, left_result, 0);
+		gen_code(filter, tree->val.operator.left, left_result, 0);
 
-		gen_code(tree->val.operator.right, dest, is_alloced);
+		gen_code(filter, tree->val.operator.right, dest, is_alloced);
 	    }
 	    break;
 
@@ -1869,16 +2001,16 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		for (i = 0; i < tree->result.length; ++i)
 		    result[i] = make_temporary(compiler_type_from_tuple_info(&tree->result));
 
-		gen_code(tree->val.ifExpr.condition, &condition, 0);
+		gen_code(filter, tree->val.ifExpr.condition, &condition, 0);
 
 		start_if_cond(make_compvar_rhs(condition));
 
-		gen_code(tree->val.ifExpr.consequent, result, 1);
+		gen_code(filter, tree->val.ifExpr.consequent, result, 1);
 
 		switch_if_branch();
 
 		if (tree->type == EXPR_IF_THEN_ELSE)
-		    gen_code(tree->val.ifExpr.alternative, result, 1);
+		    gen_code(filter, tree->val.ifExpr.alternative, result, 1);
 
 		end_if_cond();
 
@@ -1897,12 +2029,12 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t **body_result = (compvar_t**)alloca(tree->val.whileExpr.body->result.length * sizeof(compvar_t*));
 
 		if (tree->type == EXPR_DO_WHILE)
-		    gen_code(tree->val.whileExpr.body, body_result, 0);
+		    gen_code(filter, tree->val.whileExpr.body, body_result, 0);
 
-		gen_code(tree->val.whileExpr.invariant, &invariant, 1);
+		gen_code(filter, tree->val.whileExpr.invariant, &invariant, 1);
 		start_while_loop(make_compvar_rhs(invariant));
-		gen_code(tree->val.whileExpr.body, body_result, 0);
-		gen_code(tree->val.whileExpr.invariant, &invariant, 1);
+		gen_code(filter, tree->val.whileExpr.body, body_result, 0);
+		gen_code(filter, tree->val.whileExpr.invariant, &invariant, 1);
 		end_while_loop();
 
 		if (!is_alloced)
@@ -1945,8 +2077,10 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 		userval_info_t *infos = tree->val.filter_closure.filter->userval_infos;
 		userval_info_t *info;
 		int i;
+		compvar_t *image = make_temporary(TYPE_IMAGE);
+		value_t *resized_image;
 
-		args = gen_args(tree->val.filter_closure.args, &arglengths, &argnumbers);
+		args = gen_args(filter, tree->val.filter_closure.args, &arglengths, &argnumbers);
 
 		arg_primaries = (primary_t*)pools_alloc(&compiler_pools, sizeof(primary_t) * num_args);
 
@@ -1967,6 +2101,15 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 								   make_compvar_primary(args[i][2]),
 								   make_compvar_primary(args[i][3])));
 		    }
+		    else if (info->type == USERVAL_IMAGE)
+		    {
+			/* FIXME: only do this if necessary, i.e. if
+			   the filter works with resized images */
+
+			compvar = make_temporary(TYPE_IMAGE);
+			emit_assign(make_lhs(compvar), make_op_rhs(OP_STRIP_RESIZE,
+								   make_compvar_primary(args[i][0])));
+		    }
 		    else
 		    {
 			g_assert(arglengths[i] == 1);
@@ -1978,7 +2121,9 @@ gen_code (exprtree *tree, compvar_t **dest, int is_alloced)
 
 		if (!is_alloced)
 		    dest[0] = make_temporary(TYPE_IMAGE);
-		emit_assign(make_lhs(dest[0]), make_closure_rhs(tree->val.filter_closure.filter, arg_primaries));
+		emit_assign(make_lhs(image), make_closure_rhs(tree->val.filter_closure.filter, arg_primaries));
+		resized_image = resize_image_if_necessary(make_compvar_primary(image), filter_flags(filter));
+		emit_assign(make_lhs(dest[0]), make_value_rhs(resized_image));
 	    }
 	    break;
 
@@ -2014,10 +2159,22 @@ gen_binding_values_from_userval_infos (userval_info_t *info, binding_values_t *b
 
 	if (rep != NULL)
 	{
-	    bvs = new_binding_values(BINDING_USERVAL, info, bvs, rep->num_vars, rep->var_type);
+	    if (info->type == USERVAL_IMAGE)
+	    {
+		compvar_t *image = make_temporary(TYPE_IMAGE);
+		value_t *resized_image;
 
-	    emit_assign(bvs->values[0],
-			make_op_rhs(rep->getter_op, make_int_const_primary(info->index)));
+		emit_assign(make_lhs(image), make_op_rhs(rep->getter_op, make_int_const_primary(info->index)));
+		resized_image = resize_image_if_necessary(make_compvar_primary(image), info->v.image.flags);
+
+		bvs = new_binding_values(BINDING_USERVAL, info, bvs, rep->num_vars, rep->var_type);
+		emit_assign(bvs->values[0], make_value_rhs(resized_image));
+	    }
+	    else
+	    {
+		bvs = new_binding_values(BINDING_USERVAL, info, bvs, rep->num_vars, rep->var_type);
+		emit_assign(bvs->values[0], make_op_rhs(rep->getter_op, make_int_const_primary(info->index)));
+	    }
 	}
 
 	info = info->next;
@@ -2168,12 +2325,6 @@ gen_binding_values_for_xy (filter_t *filter, value_t *x, value_t *y, binding_val
     return bvs;
 }
 
-static gboolean
-filter_needs_xy_scaling (filter_t *filter)
-{
-    return (filter_flags(filter) & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE)) != IMAGE_FLAG_UNIT;
-}
-
 static binding_values_t*
 gen_binding_values_from_filter_args (filter_t *filter, primary_t *args, binding_values_t *bvs)
 {
@@ -2196,7 +2347,10 @@ gen_binding_values_from_filter_args (filter_t *filter, primary_t *args, binding_
 
 	bvs = new_binding_values(BINDING_USERVAL, info, bvs, rep->num_vars, rep->var_type);
 
-	emit_assign(bvs->values[0], make_primary_rhs(args[i]));
+	if (info->type == USERVAL_IMAGE)
+	    emit_assign(bvs->values[0], make_value_rhs(resize_image_if_necessary(args[i], info->v.image.flags)));
+	else
+	    emit_assign(bvs->values[0], make_primary_rhs(args[i]));
     }
     g_assert(info == NULL);
 
@@ -2284,7 +2438,7 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     else
     {
 	binding_values = gen_binding_values_from_userval_infos(filter->userval_infos, binding_values);
-	if (filter_needs_xy_scaling(filter))
+	if (needs_xy_scaling(filter_flags(filter)))
 	    binding_values = gen_binding_values_for_xy(filter,
 						       get_internal_value(filter, "x", FALSE),
 						       get_internal_value(filter, "y", FALSE),
@@ -2294,7 +2448,7 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
     if (does_filter_use_ra(filter))
 	binding_values = gen_ra_binding_values(filter, binding_values);
 
-    gen_code(filter->v.mathmap.decl->v.filter.body, result, FALSE);
+    gen_code(filter, filter->v.mathmap.decl->v.filter.body, result, FALSE);
 
     rhs = make_tuple_rhs(4,
 			 make_compvar_primary(result[0]), make_compvar_primary(result[1]),
@@ -2890,7 +3044,7 @@ optimize_closure_application (statement_t *stmt)
 
 	    case STMT_ASSIGN :
 		if (stmt->v.assign.rhs->kind == RHS_OP
-		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_ORIG_VAL
+		    && compiler_op_index(stmt->v.assign.rhs->v.op.op) == OP_ORIG_VAL
 		    && stmt->v.assign.rhs->v.op.args[2].kind == PRIMARY_VALUE)
 		{
 		    statement_t *def = stmt->v.assign.rhs->v.op.args[2].v.value->def;
@@ -3145,7 +3299,7 @@ simplify_rhs (rhs_t **rhsp, int *changed)
     if (rhs->kind != RHS_OP)
 	return;
 
-    switch (op_index(rhs->v.op.op))
+    switch (compiler_op_index(rhs->v.op.op))
     {
 	case OP_ADD :
 	    simplify_unit(rhsp, 0.0, TRUE, TRUE, changed);
@@ -3583,8 +3737,8 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
     return 0;
 }
 
-static void
-replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt)
+void
+compiler_replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt)
 {
     compiler_remove_uses_in_rhs(*rhs, stmt);
 
@@ -3596,7 +3750,7 @@ replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt)
 static void
 replace_rhs_with_value (rhs_t **rhs, value_t *val, statement_t *stmt)
 {
-    replace_rhs(rhs, make_value_rhs(val), stmt);
+    compiler_replace_rhs(rhs, make_value_rhs(val), stmt);
 }
 
 static void
@@ -3714,7 +3868,7 @@ optimize_tuple_nth_recursively (statement_t *stmt, gboolean *changed)
 
 	    case STMT_ASSIGN :
 		if (stmt->v.assign.rhs->kind == RHS_OP
-		    && op_index(stmt->v.assign.rhs->v.op.op) == OP_TUPLE_NTH
+		    && compiler_op_index(stmt->v.assign.rhs->v.op.op) == OP_TUPLE_NTH
 		    && stmt->v.assign.rhs->v.op.args[0].kind == PRIMARY_VALUE
 		    && stmt->v.assign.rhs->v.op.args[0].v.value->def->kind == STMT_ASSIGN
 		    && stmt->v.assign.rhs->v.op.args[0].v.value->def->v.assign.rhs->kind == RHS_TUPLE)
@@ -3730,7 +3884,7 @@ optimize_tuple_nth_recursively (statement_t *stmt, gboolean *changed)
 
 		    g_assert(n < def_rhs->v.tuple.length);
 
-		    replace_rhs(&stmt->v.assign.rhs, make_primary_rhs(def_rhs->v.tuple.args[n]), stmt);
+		    compiler_replace_rhs(&stmt->v.assign.rhs, make_primary_rhs(def_rhs->v.tuple.args[n]), stmt);
 
 		    *changed = TRUE;
 		}
@@ -3793,7 +3947,7 @@ optimize_make_tuple_recursively (statement_t *stmt, gboolean *changed)
 			def = arg->v.value->def;
 			if (def->kind != STMT_ASSIGN
 			    || def->v.assign.rhs->kind != RHS_OP
-			    || op_index(def->v.assign.rhs->v.op.op) != OP_TUPLE_NTH)
+			    || compiler_op_index(def->v.assign.rhs->v.op.op) != OP_TUPLE_NTH)
 			    break;
 
 			g_assert(def->v.assign.rhs->v.op.args[1].kind == PRIMARY_CONST
@@ -3815,7 +3969,7 @@ optimize_make_tuple_recursively (statement_t *stmt, gboolean *changed)
 		    {
 			g_assert(tuple != NULL);
 
-			replace_rhs(&stmt->v.assign.rhs, make_value_rhs(tuple), stmt);
+			compiler_replace_rhs(&stmt->v.assign.rhs, make_value_rhs(tuple), stmt);
 
 			*changed = TRUE;
 		    }
@@ -3931,7 +4085,7 @@ do_inlining_recursively (statement_t **stmt, gboolean *changed)
 		    printf("inlining filter %s\n", filter->name);
 #endif
 
-		    replace_rhs(&(*stmt)->v.assign.rhs, make_color_rhs, *stmt);
+		    compiler_replace_rhs(&(*stmt)->v.assign.rhs, make_color_rhs, *stmt);
 
 		    insert_stmts_before(stmts, stmt, (*stmt)->parent);
 
@@ -5635,6 +5789,21 @@ generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 	CHECK_SSA;
 	changed = simplify_ops() || changed;
 	CHECK_SSA;
+
+#ifdef DEBUG_OUTPUT
+	printf("-------------------------------- before resize\n");
+	dump_code(first_stmt, 0);
+#endif
+	changed = compiler_opt_orig_val_resize(&first_stmt) || changed;
+	CHECK_SSA;
+#ifdef DEBUG_OUTPUT
+	printf("-------------------------------- after resize\n");
+	dump_code(first_stmt, 0);
+#endif
+
+	changed = compiler_opt_strip_resize(&first_stmt) || changed;
+	CHECK_SSA;
+
 	changed = compiler_opt_remove_dead_assignments(first_stmt) || changed;
 	CHECK_SSA;
 	changed = remove_dead_branches() || changed;
@@ -5979,7 +6148,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
         NSModule module;
         const char *moduleName = "Johnny";
         NSSymbol symbol;
-        
+
         NSCreateObjectFileImageFromFile(so_filename, &objectFileImage);
 	if (objectFileImage == 0)
 	{

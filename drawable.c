@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -198,4 +198,22 @@ get_nth_input_drawable (int n)
 	}
 
     g_assert_not_reached();
+}
+
+CALLBACK_SYMBOL
+image_t*
+make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools)
+{
+    image_t *resize = pools_alloc(pools, sizeof(image_t));
+
+    g_assert(image->type != IMAGE_RESIZE);
+
+    resize->type = IMAGE_RESIZE;
+    resize->pixel_width = image->pixel_width;
+    resize->pixel_height = image->pixel_height;
+    resize->v.resize.original = image;
+    resize->v.resize.x_factor = x_factor;
+    resize->v.resize.y_factor = y_factor;
+
+    return resize;
 }

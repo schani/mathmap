@@ -265,33 +265,7 @@ calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float
 {
     float virt_width, virt_height;
 
-    switch (flags & (IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE))
-    {
-	case 0 :
-	    virt_width = pixel_width;
-	    virt_height = pixel_height;
-	    break;
-
-	case IMAGE_FLAG_UNIT :
-	    virt_width = virt_height = 2.0;
-	    break;
-
-	case IMAGE_FLAG_UNIT | IMAGE_FLAG_SQUARE :
-	    if (pixel_width > pixel_height)
-	    {
-		virt_width = 2.0;
-		virt_height = 2.0 * pixel_height / pixel_width;
-	    }
-	    else
-	    {
-		virt_height = 2.0;
-		virt_width = 2.0 * pixel_width / pixel_height;
-	    }
-	    break;
-
-	default :
-	    assert(0);
-    }
+    virt_width = virt_height = 2.0;
 
     *scale_x = pixel_width / virt_width;
     *scale_y = pixel_height / virt_height;

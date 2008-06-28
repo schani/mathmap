@@ -193,16 +193,27 @@ typedef struct
 #define APPLY_GRADIENT(g,p)	({ color_t color = (g)->values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))]; \
 	    			   TUPLE_FROM_COLOR(color); })
 
-#define ORIG_VAL(x,y,i,f)     ({ float *result; \
-	    			 if ((i)->type == IMAGE_CLOSURE) \
-				     result = (i)->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(i), (x), (y), (f), pools); \
-				 else if ((i)->type == IMAGE_FLOATMAP) \
-				     result = get_floatmap_pixel(invocation, (i), (x), (y), (f)); \
-				 else { \
-				     color_t color = get_orig_val_pixel_func(invocation, (x), (y), (i), (f)); \
-				     result = TUPLE_FROM_COLOR(color); \
-				 } \
-				 result; })
+#define RESIZE_IMAGE(i,xf,yf)	(make_resize_image((i), (xf), (yf), pools))
+#define STRIP_RESIZE(i)		((i)->type == IMAGE_RESIZE ? (i)->v.resize.original : (i))
+
+#define ORIG_VAL(ix,iy,i,f)	({ float *result; \
+	    			   float x = (ix);			\
+				   float y = (iy);			\
+				   image_t *img = (i);			\
+				   if (img->type == IMAGE_RESIZE) {	\
+				       x *= img->v.resize.x_factor;	\
+				       y *= img->v.resize.y_factor;	\
+				       img = img->v.resize.original;	\
+				   }					\
+				   if (img->type == IMAGE_CLOSURE)	\
+				       result = img->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(img), (x), (y), (f), pools); \
+				   else if (img->type == IMAGE_FLOATMAP) \
+				       result = get_floatmap_pixel(invocation, img, (x), (y), (f)); \
+				   else {				\
+				       color_t color = get_orig_val_pixel_func(invocation, (x), (y), img, (f)); \
+				       result = TUPLE_FROM_COLOR(color); \
+				   }					\
+				   result; })
 
 #define RENDER(i,w,h)	      (render_image(invocation, (i),(w),(h), pools))
 

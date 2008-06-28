@@ -49,6 +49,7 @@ struct _cache_entry_t;
 #define IMAGE_DRAWABLE		1
 #define IMAGE_CLOSURE		2
 #define IMAGE_FLOATMAP		3
+#define IMAGE_RESIZE		4
 
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _userval_t*,
@@ -78,6 +79,11 @@ typedef struct _image_t
 	    float by;
 	    float *data;
 	} floatmap;
+	struct {
+	    struct _image_t *original;
+	    float x_factor;
+	    float y_factor;
+	} resize;
     } v;
 } image_t;
 
@@ -158,6 +164,8 @@ input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 #endif
 
 image_t* floatmap_copy (image_t *floatmap, pools_t *pools);
+
+image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
 
 void floatmap_get_channel_column (float *dst, image_t *img, int col, int channel);
 void floatmap_get_channel_row (float *dst, image_t *img, int row, int channel);

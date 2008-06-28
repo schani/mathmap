@@ -129,7 +129,7 @@
 			    (let ((type (if (null type) (rt-type-with-name 'int) type)))
 			      (if allocatedp
 				  ""
-				  (format nil "~A = make_temporary(~A);~%" name
+				  (format nil "~A = compiler_make_temporary(~A);~%" name
 					  (rt-type-c-define type)))))
 			  ;; returns type, length, c-type
 			  (expr-type (expr)
@@ -400,7 +400,7 @@
 		      (error "unknown statement ~A" stmt))))))
 	(format t "static void~%gen_~A (compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%"
 		(dcs name))
-	(format t "compvar_t *result_tmps[~A];~%int i;~%for (i = 0; i < ~A; ++i) result_tmps[i] = make_temporary(result[i]->type);~%"
+	(format t "compvar_t *result_tmps[~A];~%int i;~%for (i = 0; i < ~A; ++i) result_tmps[i] = compiler_make_temporary(result[i]->type);~%"
 		 result-length result-length)
 	(dolist (stmt body)
 	  (princ (gen stmt nil)))

@@ -28,6 +28,8 @@
 #include "compiler.h"
 #include "bitvector.h"
 
+#include "opdefs.h"
+
 #define CLOSURE_GET(n,t)		(t)(((void**)info)[(n)])
 #define CLOSURE_VAR(t,name,n)		t name = CLOSURE_GET((n),t)
 
@@ -270,9 +272,35 @@ typedef struct _binding_values_t
 
 typedef bit_vector_t value_set_t;
 
+extern int compiler_op_index (operation_t *op);
+
+extern compvar_t* make_temporary (type_t type);
+#define compiler_make_temporary make_temporary
+extern statement_t* make_assign (value_t *lhs, rhs_t *rhs);
+#define compiler_make_assign make_assign
+extern value_t* make_lhs (compvar_t *compvar);
+#define compiler_make_lhs make_lhs
+extern rhs_t* make_op_rhs (int op_index, ...);
+#define compiler_make_op_rhs make_op_rhs
+extern primary_t make_compvar_primary (compvar_t *compvar);
+#define compiler_make_compvar_primary make_compvar_primary
+extern rhs_t* make_primary_rhs (primary_t primary);
+#define compiler_make_primary_rhs make_primary_rhs
+extern rhs_t* make_value_rhs (value_t *val);
+#define compiler_make_value_rhs make_value_rhs
+
+extern statement_t** compiler_emit_stmt_before (statement_t *stmt, statement_t **loc, statement_t *parent);
+
 extern gboolean compiler_rhs_is_pure (rhs_t *rhs);
 
+extern gboolean compiler_stmt_is_assign_with_rhs (statement_t *stmt, int rhs_kind);
+extern gboolean compiler_stmt_is_assign_with_op (statement_t *stmt, int op_index);
+extern primary_t compiler_stmt_op_assign_arg (statement_t *stmt, int arg_index);
+
 extern void compiler_remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt);
+
+extern void compiler_replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt);
+extern void compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary_t new);
 
 extern value_set_t* compiler_new_value_set (void);
 extern void compiler_value_set_add (value_set_t *set, value_t *val);
@@ -283,6 +311,8 @@ extern void compiler_for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *v
 					    void *info);
 
 extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
+extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);
+extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
 
 #define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
 

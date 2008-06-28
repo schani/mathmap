@@ -87,6 +87,7 @@ typedef unsigned int color_t;
 #define IMAGE_DRAWABLE		1
 #define IMAGE_CLOSURE		2
 #define IMAGE_FLOATMAP		3
+#define IMAGE_RESIZE		4
 
 struct _mathmap_invocation_t;
 struct _userval_t;
@@ -152,6 +153,11 @@ typedef struct _image_t
 	    float by;
 	    float *data;
 	} floatmap;
+	struct {
+	    struct _image_t *original;
+	    float x_factor;
+	    float y_factor;
+	} resize;
     } v;
 } image_t;
 
@@ -249,6 +255,8 @@ extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation,
 extern float* get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, float y, float frame);
 
 extern image_t* render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools);
+
+extern image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
 
 extern float noise (float, float, float);
 
