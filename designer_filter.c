@@ -49,18 +49,19 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
 {
     expression_db_t *edb = node->type->data;
     userval_info_t *args = get_expression_args(edb, node->design->type);
-    int num_slots, i;
     gboolean first;
+    GSList *list;
 
     if (g_slist_find(*computed_nodes, node) != NULL)
 	return;
 
-    num_slots = g_slist_length(node->type->input_slot_specs);
-
     /* compute all the dependencies first */
-    for (i = 0; i < num_slots; ++i)
-	if (node->input_slots[i].partner != NULL)
-	    compute_node(node->input_slots[i].partner, string, computed_nodes);
+    for (list = node->input_slots; list != NULL; list = list->next)
+    {
+	designer_slot_t *slot = list->data;
+
+	compute_node(slot->source, string, computed_nodes);
+    }
 
     g_string_append(string, "    ");
     append_node_result(string, node);
@@ -69,17 +70,17 @@ compute_node (designer_node_t *node, GString *string, GSList **computed_nodes)
     first = TRUE;
     while (args != NULL)
     {
-	designer_slot_t *slot = designer_node_get_input_slot(node, args->name);
+	designer_slot_t *slot = designer_node_get_input_slot_by_name(node, args->name);
 
 	if (!first)
 	    g_string_append(string, ", ");
 	else
 	    first = FALSE;
 
-	if (slot == NULL || slot->partner == NULL)
+	if (slot == NULL)
 	    append_node_slot(string, node, args);
 	else
-	    append_node_result(string, slot->partner);
+	    append_node_result(string, slot->source);
 
 	args = args->next;
     }
@@ -102,9 +103,17 @@ append_limits_and_defaults (GString *string, userval_info_t *info)
 	    break;
 
 	case USERVAL_FLOAT_CONST :
-	    g_string_append_printf(string, " : %g - %g (%g)",
-				   info->v.float_const.min, info->v.float_const.max,
-				   info->v.float_const.default_value);
+	    {
+		char min_buf [G_ASCII_DTOSTR_BUF_SIZE];
+		char max_buf [G_ASCII_DTOSTR_BUF_SIZE];
+		char default_buf [G_ASCII_DTOSTR_BUF_SIZE];
+
+		g_ascii_dtostr (min_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.min);
+		g_ascii_dtostr (max_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.max);
+		g_ascii_dtostr (default_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.default_value);
+
+		g_string_append_printf(string, " : %s - %s (%s)", min_buf, max_buf, default_buf);
+	    }
 	    break;
 
 	case USERVAL_BOOL_CONST :
@@ -139,12 +148,12 @@ make_filter_source (designer_design_t *design, const char *filter_name, GString 
 	for (list = nodes; list != NULL; list = list->next)
 	{
 	    designer_node_t *node = list->data;
-	    int num_slots = g_slist_length(node->type->input_slot_specs);
-	    int i;
+	    GSList *slot_list;
 
-	    for (i = 0; i < num_slots; ++i)
+	    for (slot_list = node->input_slots; slot_list != NULL; slot_list = slot_list->next)
 	    {
-		designer_node_t *partner = node->input_slots[i].partner;
+		designer_slot_t *slot = slot_list->data;
+		designer_node_t *partner = slot->source;
 
 		if (partner != NULL && g_slist_find(nodes, partner) == NULL)
 		{
@@ -224,9 +233,9 @@ make_filter_source (designer_design_t *design, const char *filter_name, GString 
 
 	while (args != NULL)
 	{
-	    designer_slot_t *slot = designer_node_get_input_slot(node, args->name);
+	    designer_slot_t *slot = designer_node_get_input_slot_by_name(node, args->name);
 
-	    if (slot == NULL || slot->partner == NULL)
+	    if (slot == NULL)
 	    {
 		if (!first)
 		    g_string_append(string, ", ");

@@ -44,6 +44,7 @@ typedef struct
     char *name;
     designer_type_t *type;
     gpointer data;
+    gpointer widget_data;
 } designer_slot_spec_t;
 
 typedef struct
@@ -53,12 +54,16 @@ typedef struct
     GSList *input_slot_specs;
     GSList *output_slot_specs;
     gpointer data;
+    gpointer widget_data;
 } designer_node_type_t;
 
 typedef struct
 {
-    designer_node_t *partner; /* NULL if not assigned */
-    designer_slot_spec_t *partner_slot_spec;
+    designer_node_t *source;
+    designer_slot_spec_t *output_slot_spec;
+    designer_node_t *dest;
+    designer_slot_spec_t *input_slot_spec;
+    gpointer widget_data;
 } designer_slot_t;
 
 struct _designer_node_t
@@ -66,7 +71,9 @@ struct _designer_node_t
     designer_design_t *design;
     designer_node_type_t *type;
     char *name;
-    designer_slot_t *input_slots;
+    GSList *input_slots;
+    GSList *output_slots;
+    gpointer widget_data;
 };
 
 struct _designer_design_type_t
@@ -116,15 +123,32 @@ extern void designer_free_design (designer_design_t *design);
 
 extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
 extern void designer_delete_node (designer_node_t *node);
+extern void designer_disconnect_and_delete_node (designer_node_t *node);
 
-extern gboolean designer_connect_nodes (designer_node_t *source, const char *output_slot_name,
-					designer_node_t *dest, const char *input_slot_name);
+extern designer_slot_t* designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
+						designer_node_t *dest, designer_slot_spec_t *input_slot_spec);
+extern designer_slot_t* designer_connect_nodes_by_slot_name (designer_node_t *source, const char *output_slot_name,
+							     designer_node_t *dest, const char *input_slot_name);
 extern void designer_disconnect_nodes (designer_node_t *source, const char *output_slot_name,
 				       designer_node_t *dest, const char *input_slot_name);
+extern void designer_disconnect_slot (designer_slot_t *slot);
+
+enum {
+    DESIGNER_CONNECTION_UNCONNECTABLE = 0,
+    DESIGNER_CONNECTION_FREE,
+    DESIGNER_CONNECTION_CONNECTABLE
+};
+
+extern designer_slot_t* designer_connect_nodes_with_override (designer_node_t *source,
+							      designer_slot_spec_t *output_slot_spec,
+							      designer_node_t *dest,
+							      designer_slot_spec_t *input_slot_spec,
+							      int *check_only);
 
 extern void designer_set_design_name (designer_design_t *design, const char *name);
 
-extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, const char *name);
+extern designer_slot_t* designer_node_get_input_slot (designer_node_t *node, designer_slot_spec_t *spec);
+extern designer_slot_t* designer_node_get_input_slot_by_name (designer_node_t *node, const char *name);
 
 extern designer_node_t* designer_get_node_by_name (designer_design_t *design, const char *name);
 
@@ -134,6 +158,11 @@ extern gboolean designer_verify_design (designer_design_t *design);
 extern gboolean designer_design_contains_cycles (designer_design_t *design);
 
 extern designer_design_t* designer_migrate_design (designer_design_t *design, designer_design_type_t *new_type);
+
+#define designer_slot_get_source_node(sl)	((sl)->source_node)
+#define designer_slot_get_dest_node(sl)		((sl)->dest_node)
+
+extern void designer_node_push_back (designer_node_t *node);
 
 /* load/save */
 
@@ -146,6 +175,20 @@ extern gboolean designer_save_design (designer_design_t *design, const char *fil
 				      designer_node_aux_print_func_t node_aux_print,
 				      designer_design_aux_print_func_t design_aux_print,
 				      gpointer user_data);
+
+/* widget_data */
+
+#define designer_node_type_set_widget_data(nt,d)	((nt)->widget_data = (d))
+#define designer_node_type_get_widget_data(nt)		((nt)->widget_data)
+
+#define designer_slot_spec_set_widget_data(ss,d)	((ss)->widget_data = (d))
+#define designer_slot_spec_get_widget_data(ss)		((ss)->widget_data)
+
+#define designer_node_set_widget_data(n,d)		((n)->widget_data = (d))
+#define designer_node_get_widget_data(n)		((n)->widget_data)
+
+#define designer_slot_set_widget_data(sl,d)		((sl)->widget_data = (d))
+#define designer_slot_get_widget_data(sl)		((sl)->widget_data)
 
 /* widget */
 
