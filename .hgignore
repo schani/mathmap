@@ -2,6 +2,7 @@ syntax: glob
 .svn
 *.o
 *~
+*.orig
 builtins_doc.html
 compiler_types.h
 new_builtins.c
