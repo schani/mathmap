@@ -2660,6 +2660,8 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 
     gtk_show_about_dialog (NULL, 
 			   "name", "MathMap",
+			   "program-name", "MathMap",
+			   "title", "About MathMap",
 			   "version", MATHMAP_VERSION,
 			   "authors", authors,
 			   "artists", artists,
