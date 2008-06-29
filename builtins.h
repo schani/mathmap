@@ -33,8 +33,9 @@
 struct _mathmap_invocation_t;
 struct _compvar_t;
 struct _image_t;
+struct _filter_t;
 
-typedef void (*generator_function_t) (struct _compvar_t***, int*, int*, struct _compvar_t**);
+typedef void (*generator_function_t) (struct _filter_t*, struct _compvar_t***, int*, int*, struct _compvar_t**);
 
 color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
 color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);

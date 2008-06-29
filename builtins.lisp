@@ -146,6 +146,8 @@
 				 (values 'tuple (lookup-length (cadr type)) c-type)))
 			      ((sum ?expr)
 			       'primary)
+			      ((internal ?name)
+			       (values 'primary nil 'float))
 			      ((?op . ?args)
 			       (cond ((member op '(and or not))
 				      'primary)
@@ -219,6 +221,9 @@
 			       (let ((number (number-of-arg-pos (arg-pos val))))
 				 (format nil "~Aemit_assign(make_lhs(~A), make_int_const_rhs(~A));~%"
 					 (make-allocated lval allocatedp) lval number)))
+			      ((internal ?name)
+			       (format nil "~Aemit_assign(make_lhs(~A), make_value_rhs(get_internal_value(filter, \"~A\", TRUE)));~%"
+				       (make-allocated lval allocatedp) lval name))
 			      ((?op . ?args)
 			       (let ((op-entry (lookup-op op (length args) *primops*)))
 				 (if (not (null op-entry))
@@ -398,7 +403,7 @@
 				  (mapcar #'(lambda (s) (gen s bindings)) body)))))
 		     (?
 		      (error "unknown statement ~A" stmt))))))
-	(format t "static void~%gen_~A (compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%"
+	(format t "static void~%gen_~A (filter_t *filter, compvar_t ***args, int *arglengths, int *argnumbers, compvar_t **result)~%{~%"
 		(dcs name))
 	(format t "compvar_t *result_tmps[~A];~%int i;~%for (i = 0; i < ~A; ++i) result_tmps[i] = compiler_make_temporary(result[i]->type);~%"
 		 result-length result-length)
@@ -1157,7 +1162,8 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
 
 (defbuiltin "render" render (image 1) ((drawable (image 1)))
   ;FIXME: docstring
-  (set result (make (image 1) (render (nth 0 drawable) 512 512)))) ;FIXME: get width/height via internal
+  (set result (make (image 1) (render (nth 0 drawable)
+				      (internal "__renderPixelW") (internal "__renderPixelH")))))
 
 ;;; images
 

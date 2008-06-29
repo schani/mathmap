@@ -15,14 +15,13 @@ parse errors from init phase (parsing filters for designer) should not create er
 ** Packaging
 
 ** Rendering
-reasonable default size
-specifiable size
 why is gaussian so slow in final rendering?
 
 ** Designer
-filter not in subdir get added automatically (says bertl)
+filter not in subdir get added to designer automatically (says bertl)
 why is there no default focus?
 no node is focussed when focussed node is deleted
+node renaming
 
 ** Native filters
 
@@ -46,6 +45,7 @@ builtin for getting size of an image
 Generate keyword list in sourceview spec file from builtins.lisp
 
 ** Rendering
+specifiable size
 antialiasing from rendered images
 lazy rendering
 use image/row/column const stuff for rendering
@@ -53,7 +53,6 @@ use image/row/column const stuff for rendering
 ** Designer
 do migration with save/load
 free widget_data in designs
-node renaming
 
 ** Native filters
 convolution
