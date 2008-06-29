@@ -190,6 +190,9 @@ gint sel_width, sel_height;
 
 static long num_pixels_requested = 0;
 
+static gboolean ignore_dialog_tree_changes = FALSE;
+static gboolean ignore_designer_tree_changes = FALSE;
+
 //static int debug_tuples = 0;
 //static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
@@ -1423,6 +1426,9 @@ update_expression_tree (void)
 
 	g_free(positions);
     }
+
+    ignore_dialog_tree_changes = TRUE;
+    ignore_designer_tree_changes = TRUE;
 }
 
 /*****/
@@ -2732,6 +2738,12 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
     GtkTreeModel *model;
     GtkTreeIter iter;
 
+    if (ignore_dialog_tree_changes)
+    {
+	ignore_dialog_tree_changes = FALSE;
+	return;
+    }
+
     if (selection == 0)
 	return;
 
@@ -2787,6 +2799,12 @@ designer_tree_callback (GtkTreeSelection *selection, gpointer data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
+
+    if (ignore_designer_tree_changes)
+    {
+	ignore_designer_tree_changes = FALSE;
+	return;
+    }
 
     if (selection == 0)
 	return;

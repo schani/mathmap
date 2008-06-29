@@ -18,7 +18,6 @@ parse errors from init phase (parsing filters for designer) should not create er
 why is gaussian so slow in final rendering?
 
 ** Designer
-filter not in subdir get added to designer automatically (says bertl)
 node renaming
 Composer Test2 crashes
 
