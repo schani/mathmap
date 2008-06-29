@@ -6,20 +6,24 @@
 in composer: mugl->droste - compilation takes extremely long.  is it just the debug output?
 
 ** GIMP Plug-In
-ident filter creates one pixel border around image in preview
+ident filter creates one pixel border around image
   black bottom pixel line when doing stupid gauss
 mathmap icon for message dialogs
 
 ** Language
 
 ** Packaging
+remove MOVIE stuff from Makefile and docs
+install localization files in packages
+build requirement: gettext
+test localization
 
 ** Rendering
 why is gaussian so slow in final rendering?
 
 ** Designer
 node renaming
-Composer Test2 crashes
+Composer Test 3 hangup - see mail to Bertl
 
 ** Native filters
 

@@ -32,7 +32,7 @@ ENABLE_NLS = YES
 # because MathMap cannot install system-wide yet.
 
 # Prefix for the software installation
-PREFIX = /usr/local
+PREFIX = /tmp/mathmap
 
 # Directory where the localization files should be installed in
 LOCALEDIR = $(PREFIX)/share/locale
@@ -86,7 +86,7 @@ endif
 
 ifeq ($(ENABLE_NLS),YES)
 NLS_CFLAGS = -DENABLE_NLS
-MOS = fr.mo
+MOS = fr.mo ru.mo
 endif
 
 CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
@@ -169,9 +169,12 @@ install-local : mathmap
 	cp mathmap.lang $(HOME)/.gnome2/gtksourceview-1.0/language-specs
 
 install-mos : $(MOS)
-	if [ ! -d $(LOCALEDIR)/fr ] ; then mkdir $(LOCALEDIR)/fr ; fi
-	if [ ! -d $(LOCALEDIR)/fr/LC_MESSAGES ] ; then mkdir $(LOCALEDIR)/fr/LC_MESSAGES ; fi
-	cp fr.mo $(LOCALEDIR)/fr/LC_MESSAGES/mathmap.mo
+	mofiles=`ls *.mo`; \
+	for i in $$mofiles; do \
+	    lng=`echo $$i | sed "s/\.mo//"`; \
+	    if [ ! -d $(LOCALEDIR)/$$lng/LC_MESSAGES ] ; then mkdir -p $(LOCALEDIR)/$$lng/LC_MESSAGES ; fi; \
+	    cp $$lng.mo $(LOCALEDIR)/$$lng/LC_MESSAGES/mathmap.mo; \
+	done
 
 clean :
 	rm -f *.o designer/*.o native-filters/*.o compopt/*.o generators/blender/*.o mathmap compiler parser.output core

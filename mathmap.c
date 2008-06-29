@@ -2677,7 +2677,8 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
     char *authors[] = { "Mark Probst <schani@complang.tuwien.ac.at>",
 			"Herbert Poetzl <herbert@13thfloor.at>",
 			NULL };
-    char *artists[] = { "Herbert Poetzl <herbert@13thfloor.at>", 0 };
+    char *artists[] = { "Herbert Poetzl <herbert@13thfloor.at>", NULL };
+    char *translators = "Laurent Despeyroux <not@fgrev.no>\nYury Aliaev <mutabor@altlinux.org>";
 
     if (mathmap_logo == NULL)
 	mathmap_logo = gdk_pixbuf_new_from_file(MATHMAP_PIXMAP_NAME, NULL);
@@ -2689,6 +2690,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "version", MATHMAP_VERSION,
 			   "authors", authors,
 			   "artists", artists,
+			   "translator-credits", translators,
 			   "comments", "An image generation and manipulation system",
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
 			   "copyright", "Copyright © 1997-2008 Mark Probst, Herbert Poetzl",
