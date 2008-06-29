@@ -286,11 +286,14 @@ end : T_END
 
 %%
 
+extern gboolean report_parse_error_to_user;
+
 int
 yyerror (char *s)
 {
     sprintf(error_string, "Parse error.");
-    set_expression_marker(scanner_line_num, 0);
+    if (report_parse_error_to_user)
+	set_expression_marker(scanner_line_num, 0);
     JUMP(1);
 
     return 0;

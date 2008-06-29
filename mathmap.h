@@ -235,7 +235,7 @@ void start_parsing_filter (mathmap_t *mathmap, top_level_decl_t *decl);
 void finish_parsing_filter (mathmap_t *mathmap);
 
 int check_mathmap (char *expression);
-mathmap_t* parse_mathmap (char *expression);
+mathmap_t* parse_mathmap (char *expression, gboolean report_error);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
 void init_frame (mathmap_slice_t *slice);

@@ -42,6 +42,8 @@ int cmd_line_mode = 0;
 mathmap_t *the_mathmap = 0;
 int scanner_line_num;
 
+gboolean report_parse_error_to_user = FALSE;
+
 /* from parser.y */
 int yyparse (void);
 
@@ -356,7 +358,7 @@ does_filter_use_t (filter_t *filter)
 }
 
 mathmap_t*
-parse_mathmap (char *expression)
+parse_mathmap (char *expression, gboolean report_error)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     filter_t *filter;
@@ -370,6 +372,7 @@ parse_mathmap (char *expression)
     DO_JUMP_CODE {
 	scanner_line_num = 0;
 	scanFromString(expression);
+	report_parse_error_to_user = report_error;
 	yyparse();
 	endScanningFromString();
 
@@ -428,7 +431,7 @@ parse_mathmap (char *expression)
 int
 check_mathmap (char *expression)
 {
-    mathmap_t *mathmap = parse_mathmap(expression);
+    mathmap_t *mathmap = parse_mathmap(expression, TRUE);
 
     if (mathmap != 0)
     {
@@ -452,7 +455,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
     DO_JUMP_CODE {
 	if (try_compiler)
 	{
-	    mathmap = parse_mathmap(expression);
+	    mathmap = parse_mathmap(expression, TRUE);
 
 	    if (mathmap == 0)
 	    {
@@ -482,7 +485,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 
 	if (!try_compiler || mathmap->initfunc == 0)
 	{
-	    mathmap = parse_mathmap(expression);
+	    mathmap = parse_mathmap(expression, TRUE);
 
 	    if (mathmap == 0)
 	    {

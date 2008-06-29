@@ -115,8 +115,6 @@ static int generate_code (int current_frame, float current_t);
 static void do_mathmap (int frame_num, float t);
 static gint32 mathmap_layer_copy (gint32 layerID);
 
-extern int yyparse (void);
-
 static void update_userval_table (void);
 
 static void load_design (const char *filename);
