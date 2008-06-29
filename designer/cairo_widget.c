@@ -919,6 +919,18 @@ loosen_connection(widget_data_t *data, designer_node_t *dn, int di)
     g_assert(slot);
 }
 
+static void
+promote_focus(widget_data_t *data)
+{
+    designer_node_t *node;
+    
+    if (!data->design->nodes)
+	return;
+    
+    node = g_slist_last(data->design->nodes)->data;
+    if (node)
+	set_root_focus (data, node);
+}
 
 static _rect_t
 recalc_area(cairo_t *cr, widget_data_t *data)
@@ -1160,8 +1172,8 @@ update_area_conditional(widget_data_t *data, int force)
     data->combined_area = ca;
 
     _point_t vo = _stop(_delta(ca.o, va.o));
-    set_scroll_origin (data, vo);
     set_scrollable_size (data, ca.s);
+    set_scroll_origin (data, vo);
 
     if (force)
 	cairo_destroy(cr);
@@ -1171,14 +1183,14 @@ static void
 adjustment_value_changed (GtkAdjustment *adj, widget_data_t *data)
 {
     update_area_conditional(data, TRUE);
-    gtk_widget_queue_draw(data->widget);
+    // gtk_widget_queue_draw(data->widget);
 }
 
 static void
 adjustment_changed (GtkAdjustment *adj, widget_data_t *data)
 {
     update_area_conditional(data, TRUE);
-    gtk_widget_queue_draw(data->widget);
+    // gtk_widget_queue_draw(data->widget);
 }
 
 static _point_t map_location(widget_data_t *data, _point_t p)
@@ -1248,6 +1260,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 	break;
     case HIT_CLOSE:
 	designer_disconnect_and_delete_node(hn);
+	promote_focus(data);
 	signal_design_change(data);
 	break;
     case HIT_INPUT:
@@ -1474,6 +1487,7 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 
     nd->origin = place_new_node(data);
     designer_node_push_back(node);
+    set_root_focus (data, node);
     update_area_conditional(data, 1);
 
     gtk_widget_queue_draw(widget);
