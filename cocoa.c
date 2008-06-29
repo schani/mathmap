@@ -44,7 +44,7 @@ set_expression_marker (int line, int column)
 }
 
 void
-gimp_message (const char *msg)
+mathmap_message_dialog (const char *msg)
 {
     printf("message: %s\n", msg);
 }

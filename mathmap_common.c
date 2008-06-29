@@ -465,12 +465,10 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 						"means that MathMap won't work.\n"
 						"This is the reason why the compiler failed:\n%s", error_string);
 
-		/*
 		if (cmd_line_mode)
 		    fprintf(stderr, "%s\n", message);
 		else
-		    gimp_message(message);
-		*/
+		    mathmap_message_dialog(message);
 
 		strcpy(error_string, message);
 
@@ -1179,7 +1177,7 @@ add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
 				  get_expression_path(type->data),
 				  get_expression_path(edb),
 				  name);
-	gimp_message(message);
+	mathmap_message_dialog(message);
 	g_free(message);
 
 	return;
@@ -1217,7 +1215,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 						  "`%s'\n"
 						  "cannot be parsed.",
 						  get_expression_path(edb));
-			gimp_message(message);
+			mathmap_message_dialog(message);
 			g_free(message);
 		    }
 		}
@@ -1241,7 +1239,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 			message = g_strdup_printf("Could not load composition from file\n"
 						  "`%s'.\n",
 						  get_expression_path(edb));
-			gimp_message(message);
+			mathmap_message_dialog(message);
 			g_free(message);
 			break;
 		    }
@@ -1264,7 +1262,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 						  "filter.  Please check that all filters\n"
 						  "used by that composition work properly.",
 						  get_expression_path(edb));
-			gimp_message(message);
+			mathmap_message_dialog(message);
 			g_free(message);
 			break;
 		    }

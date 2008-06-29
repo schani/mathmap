@@ -295,6 +295,8 @@ void mathmap_thread_kill (thread_handle_t thread);
 
 char* make_filter_source_from_design (designer_design_t *design, const char *filter_name);
 
+void mathmap_message_dialog (const char *message);
+
 #define CALLBACK_SYMBOL __attribute((visibility("default")))
 
 #endif

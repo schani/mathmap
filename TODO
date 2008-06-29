@@ -9,7 +9,6 @@ in composer: mugl->droste - compilation takes extremely long.  is it just the de
 ident filter creates one pixel border around image in preview
   black bottom pixel line when doing stupid gauss
 parse errors from init phase (parsing filters for designer) should not create error marks
-parse error reporting?
 
 ** Language
 

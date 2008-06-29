@@ -195,7 +195,8 @@ static long num_pixels_requested = 0;
 
 GtkSourceBuffer *source_buffer;
 GtkSourceMarker *source_marker = NULL;
-GtkWidget *expression_entry = 0,
+GtkWidget *mathmap_dialog_window,
+    *expression_entry,
     *animation_table,
     *frame_table,
     *edge_color_x_well,
@@ -744,6 +745,23 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
 /*****/
 
+void
+mathmap_message_dialog (const char *message)
+{
+    GtkWidget *dialog = gtk_message_dialog_new (GTK_WINDOW(mathmap_dialog_window),
+						GTK_DIALOG_DESTROY_WITH_PARENT,
+						GTK_MESSAGE_ERROR,
+						GTK_BUTTONS_CLOSE,
+						"%s", message);
+    g_signal_connect_swapped (dialog, "response",
+			      G_CALLBACK (gtk_widget_destroy),
+			      dialog);
+    gtk_window_set_title(GTK_WINDOW(dialog), "MathMap Message");
+    gtk_widget_show(dialog);
+}
+
+/*****/
+
 static void
 node_focussed_callback (GtkWidget *widget, designer_node_t *node)
 {
@@ -780,7 +798,7 @@ load_design (const char *filename)
     {
 	char *message = g_strdup_printf(_("Cannot read composer file `%s'"), filename);
 
-	gimp_message(message);
+	mathmap_message_dialog(message);
 	g_free(message);
 
 	return;
@@ -894,7 +912,9 @@ generate_code (int current_frame, float current_t)
 
 	if (new_mathmap == 0)
 	{
-	    gimp_message(error_string);
+	    g_print("Error: %s\n", error_string);
+
+	    mathmap_message_dialog(error_string);
 
 	    /* FIXME: free old mathmap/invocation */
 
@@ -1522,7 +1542,6 @@ make_save_table (GtkWidget *content, GtkSignalFunc save_callback, GtkSignalFunc 
 static gint
 mathmap_dialog (int mutable_expression)
 {
-    GtkWidget *dialog;
     GtkWidget *top_table, *middle_table;
     GtkWidget *hpaned;
     GtkWidget *vbox;
@@ -1541,25 +1560,25 @@ mathmap_dialog (int mutable_expression)
 
     alloc_preview_pixbuf(DEFAULT_PREVIEW_SIZE, DEFAULT_PREVIEW_SIZE);
 
-    dialog = gimp_dialog_new("MathMap", "mathmap",
-			     NULL, 0,
-			     gimp_standard_help_func, "plug-in-mathmap",
-			     GTK_STOCK_HELP, GTK_RESPONSE_HELP,
-			     _("About"), RESPONSE_ABOUT,
-			     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-			     GTK_STOCK_OK, GTK_RESPONSE_OK,
-			     NULL);
+    mathmap_dialog_window = gimp_dialog_new("MathMap", "mathmap",
+					    NULL, 0,
+					    gimp_standard_help_func, "plug-in-mathmap",
+					    GTK_STOCK_HELP, GTK_RESPONSE_HELP,
+					    _("About"), RESPONSE_ABOUT,
+					    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+					    GTK_STOCK_OK, GTK_RESPONSE_OK,
+					    NULL);
 
-    g_signal_connect (dialog, "response",
+    g_signal_connect (mathmap_dialog_window, "response",
 		      G_CALLBACK (dialog_response),
 		      NULL);
 
-    g_signal_connect (dialog, "destroy",
+    g_signal_connect (mathmap_dialog_window, "destroy",
 		      G_CALLBACK (gtk_main_quit),
 		      NULL);
 
     top_table = gtk_hpaned_new();
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), top_table, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(mathmap_dialog_window)->vbox), top_table, TRUE, TRUE, 0);
     gtk_widget_show(top_table);
 
     /* Preview */
@@ -1893,7 +1912,7 @@ mathmap_dialog (int mutable_expression)
     if (!mutable_expression)
 	dialog_update_preview();
 
-    gtk_widget_show(dialog);
+    gtk_widget_show(mathmap_dialog_window);
 
     gtk_main();
     gdk_flush();
@@ -2428,7 +2447,7 @@ save_expression (void)
     {
 	char *message = g_strdup_printf(_("Cannot open file `%s': %m"), current_filename);
 
-	gimp_message(message);
+	mathmap_message_dialog(message);
 	g_free(message);
 
 	return;
@@ -2439,7 +2458,7 @@ save_expression (void)
     {
 	char *message = g_strdup_printf(_("Could not write to file `%s': %m"), current_filename);
 
-	gimp_message(message);
+	mathmap_message_dialog(message);
 	g_free(message);
     }
 
@@ -2624,7 +2643,7 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
     {
 	gchar *message = g_strdup_printf(_("See %s"), MATHMAP_MANUAL_URL);
 
-	gimp_message(message);
+	mathmap_message_dialog(message);
 	g_free(message);
     }
 } /* dialog_help_callback */
@@ -2735,7 +2754,7 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 	    {
 		char *message = g_strdup_printf(_("Could not read expression from file `%s'"), path);
 
-		gimp_message(message);
+		mathmap_message_dialog(message);
 		g_free(message);
 
 		return;
