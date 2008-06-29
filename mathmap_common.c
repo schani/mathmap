@@ -192,6 +192,8 @@ init_internals (filter_t *filter)
     register_internal(&filter->v.mathmap.internals, "R", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "__canvasPixelW", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "__canvasPixelH", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "__renderPixelW", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "__renderPixelH", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "frame", CONST_X | CONST_Y);
 }
 

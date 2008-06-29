@@ -1266,11 +1266,6 @@ end_while_loop (void)
     emit_loc = &stmt->next;
 }
 
-#define STK                   (invocation->stack_machine->stack)
-#define STKP                  (invocation->stack_machine->stackp)
-
-#include "new_builtins.c"
-
 /*** inline history ***/
 
 static inlining_history_t*
@@ -1977,7 +1972,7 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 		    for (i = 0; i < tree->result.length; ++i)
 			dest[i] = make_temporary(compiler_type_from_tuple_info(&tree->result));
 
-		tree->val.func.entry->v.builtin_generator(args, arglengths, argnumbers, dest);
+		tree->val.func.entry->v.builtin_generator(filter, args, arglengths, argnumbers, dest);
 	    }
 	    break;
 
@@ -2469,6 +2464,13 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
 
     return stmt;
 }
+
+/*** builtins ***/
+
+#define STK                   (invocation->stack_machine->stack)
+#define STKP                  (invocation->stack_machine->stackp)
+
+#include "new_builtins.c"
 
 /*** dfa ***/
 
