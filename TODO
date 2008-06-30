@@ -17,6 +17,7 @@ remove MOVIE stuff from Makefile and docs
 install localization files in packages
 build requirement: gettext
 test localization
+GSL package name (see Westy mail)
 
 ** Rendering
 why is gaussian so slow in final rendering?
