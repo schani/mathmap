@@ -820,7 +820,7 @@ reset_widget_data (widget_data_t *data)
     data->place_next = _point(50,50);
     
     data->visible_area.o = _zerop;
-    data->visible_area.s = get_scrollable_size (data);
+    data->visible_area.s = get_visible_size(data);
     data->combined_area = data->visible_area;
 }
 
@@ -957,7 +957,8 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     _hit_t hit;
     int hs = -1;
 
-    cairo_t *cr = gdk_cairo_create(GTK_LAYOUT(widget)->bin_window);
+    cairo_t *cr = gdk_cairo_create(
+	GTK_WIDGET (data->drawing_area)->window);
 
     cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
     cairo_paint(cr);
@@ -1098,6 +1099,22 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 }
 
 
+static _point_t
+get_scroll_origin (widget_data_t *data)
+{
+    return _point(
+	gtk_adjustment_get_value(data->hadjustment),
+	gtk_adjustment_get_value(data->vadjustment));
+}
+
+static void
+set_scroll_origin (widget_data_t *data, _point_t o)
+{
+    gtk_adjustment_set_value(data->hadjustment, o.x);
+    gtk_adjustment_set_value(data->vadjustment, o.y);
+}
+
+
 static void
 update_area_conditional(widget_data_t *data, int force)
 {
@@ -1105,7 +1122,7 @@ update_area_conditional(widget_data_t *data, int force)
     
     if (force)
 	cr = gdk_cairo_create(
-	    GTK_LAYOUT(data->drawing_area)->bin_window);
+	    GTK_WIDGET (data->drawing_area)->window);
 
     _rect_t ua = recalc_area(cr, data);
 
@@ -1116,11 +1133,8 @@ update_area_conditional(widget_data_t *data, int force)
     /* in drawing coordinates */
     data->used_area = ua;
 
-    /* drawing offset */
-    _size_t offset = _ptos(data->combined_area.o);
-
     _rect_t va;
-    va.o = _move(get_scroll_origin (data), offset);
+    va.o = get_scroll_origin (data);
     /* FIXME: needs to correct for scrollers */
     va.s = get_visible_size(data);
 
@@ -1136,9 +1150,17 @@ update_area_conditional(widget_data_t *data, int force)
     /* in drawing coordinates */
     data->combined_area = ca;
 
-    _point_t vo = _stop(_delta(ca.o, va.o));
-    set_scrollable_size (data, ca.s);
-    set_scroll_origin (data, vo);
+//    _point_t vo = _stop(_delta(ca.o, va.o));
+    g_print("origin: [%f,%f,%f,%f], [%f,%f,%f,%f]\n", 
+	va.o.x, va.o.y, va.s.w, va.s.h,
+	ca.o.x, ca.o.y, ca.s.w, ca.s.h);
+    // set_scrollable_size (data, ca.s);
+    // set_scroll_origin (data, vo);
+
+    set_scroll_parameters(data->hadjustment,
+	ca.o.x, ca.o.x + ca.s.w, va.s.w);
+    set_scroll_parameters(data->vadjustment,
+	ca.o.y, ca.o.y + ca.s.h, va.s.h);
 
     if (force)
 	cairo_destroy(cr);
@@ -1227,6 +1249,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 	designer_disconnect_and_delete_node(hn);
 	promote_focus(data);
 	signal_design_change(data);
+	update_area_conditional(data, FALSE);
 	break;
     case HIT_INPUT:
 	hs = hit_input_slot(hn, data->mouse_down);
@@ -1272,7 +1295,7 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 
     switch(data->state) {
     case STATE_MOVING:
-	update_area_conditional(data, 0);
+	update_area_conditional(data, FALSE);
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONIN:
@@ -1433,7 +1456,7 @@ designer_widget_new (designer_design_t *design,
     g_object_set_data(G_OBJECT(table), "designer-data", data);
     g_object_set_data(G_OBJECT(data->drawing_area), "designer-data", data);
 
-    update_area_conditional(data, 1);
+    update_area_conditional(data, TRUE);
     return table;
 }
 
@@ -1449,7 +1472,7 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
     nd->origin = place_new_node(data);
     designer_node_push_back(node);
     set_root_focus (data, node);
-    update_area_conditional(data, 1);
+    update_area_conditional(data, TRUE);
 
     gtk_widget_queue_draw(widget);
 }
@@ -1462,7 +1485,7 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
     g_print("widget %p sets design to %p\n", data, design);
 
     data->design = design;
-    update_area_conditional(data, 1);
+    update_area_conditional(data, TRUE);
 }
 
 void
@@ -1488,7 +1511,7 @@ designer_widget_move_node (GtkWidget *widget, designer_node_t *node, double x, d
     node_data_t *nd = node_data(node);
 
     nd->origin = _point(x,y);
-    update_area_conditional(data, 0);
+    update_area_conditional(data, FALSE);
 }
 
 void
