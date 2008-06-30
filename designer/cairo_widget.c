@@ -965,7 +965,7 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
     cairo_set_source_rgb(cr, 0.9, 0.9, 0.9);
     cairo_paint(cr);
 
-    _size_t delta = _ptos(data->combined_area.o);
+    _size_t delta = _ptos(data->visible_area.o);
     cairo_translate(cr, 0.5 - delta.w, 0.5 - delta.h);
 
 #if 0
@@ -1136,7 +1136,7 @@ update_area_conditional(widget_data_t *data, int force)
     data->used_area = ua;
 
     _rect_t va;
-    va.o = get_scroll_origin (data);
+    va.o = get_scroll_origin(data);
     /* FIXME: needs to correct for scrollers */
     va.s = get_visible_size(data);
 
@@ -1164,6 +1164,10 @@ update_area_conditional(widget_data_t *data, int force)
     set_scroll_parameters(data->vadjustment,
 	ca.o.y, ca.o.y + ca.s.h, va.s.h);
 
+    gtk_widget_queue_draw_area(GTK_WIDGET(data->drawing_area), 
+	0, 0, va.s.w, va.s.h);
+
+
     if (force)
 	cairo_destroy(cr);
 }
@@ -1178,7 +1182,7 @@ adjustment_value_changed (GtkAdjustment *adj, widget_data_t *data)
 static void
 adjustment_changed (GtkAdjustment *adj, widget_data_t *data)
 {
-    update_area_conditional(data, TRUE);
+    // update_area_conditional(data, TRUE);
     // gtk_widget_queue_draw(data->widget);
 }
 
