@@ -794,7 +794,9 @@ get_widget_data (GtkWidget *widget)
 static void
 set_scroll_parameters (GtkAdjustment *adjustment, double lower, double upper, double page_size)
 {
-    g_object_set(GTK_OBJECT(adjustment), "lower", &lower, "upper", &upper, "page-size", &page_size, NULL);
+    g_print("setting scroll %g-%g (%g)\n", lower, upper, page_size);
+
+    g_object_set(G_OBJECT(adjustment), "lower", lower, "upper", upper, "page-size", page_size, NULL);
 }
 
 static _size_t
@@ -1180,6 +1182,14 @@ adjustment_changed (GtkAdjustment *adj, widget_data_t *data)
     // gtk_widget_queue_draw(data->widget);
 }
 
+static void
+size_changed (GtkWidget *widget, GtkAllocation *allocation, widget_data_t *data)
+{
+    g_print("size changed to %dx%d\n", allocation->width, allocation->height);
+    g_assert(allocation->width == GTK_WIDGET(data->drawing_area)->allocation.width
+	     && allocation->height == GTK_WIDGET(data->drawing_area)->allocation.height);
+}
+
 static _point_t map_location(widget_data_t *data, _point_t p)
 {
     return _move(p, _ptos(data->combined_area.o));
@@ -1428,6 +1438,8 @@ populate_table (widget_data_t *data)
     gtk_signal_connect(GTK_OBJECT(data->vadjustment), "value-changed", (GtkSignalFunc)adjustment_value_changed, data);
     gtk_signal_connect(GTK_OBJECT(data->hadjustment), "changed", (GtkSignalFunc)adjustment_changed, data);
     gtk_signal_connect(GTK_OBJECT(data->vadjustment), "changed", (GtkSignalFunc)adjustment_changed, data);
+
+    gtk_signal_connect(GTK_OBJECT(data->drawing_area), "size-allocate", (GtkSignalFunc)size_changed, data);
 }
 
 GtkWidget *
