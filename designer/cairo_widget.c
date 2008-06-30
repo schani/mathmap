@@ -158,8 +158,8 @@ typedef struct
     designer_node_focussed_callback_t node_focussed_callback;
     GtkWidget *widget;
     GtkWidget *drawing_area;
-    GtkWidget *hscrollbar;
-    GtkWidget *vscrollbar;
+    GtkAdjustment *hadjustment;
+    GtkAdjustment *vadjustment;
 
     gboolean dragging;
     _point_t place_next;
@@ -792,52 +792,17 @@ get_widget_data (GtkWidget *widget)
 }
 
 static void
-set_scrollable_size (widget_data_t *data, _size_t s)
+set_scroll_parameters (GtkAdjustment *adjustment, double lower, double upper, double page_size)
 {
-    gtk_layout_set_size (
-	GTK_LAYOUT(data->drawing_area), s.w, s.h);
-}
-
-static _size_t
-get_scrollable_size (widget_data_t *data)
-{
-    guint w, h;
-    gtk_layout_get_size (
-	GTK_LAYOUT(data->drawing_area),&w, &h);
-    g_print("drawing area: %ux%u\n", w, h);
-    return _size(w, h);
-}
-
-static void
-set_scroll_origin (widget_data_t *data, _point_t o)
-{
-    gtk_adjustment_set_value(gtk_layout_get_hadjustment(
-	GTK_LAYOUT(data->drawing_area)), o.x);
-    gtk_adjustment_set_value(gtk_layout_get_vadjustment(
-	GTK_LAYOUT(data->drawing_area)), o.y);
-}
-
-static _point_t
-get_scroll_origin (widget_data_t *data)
-{
-    return _point(
-	gtk_adjustment_get_value(gtk_layout_get_hadjustment(
-	    GTK_LAYOUT(data->drawing_area))),
-	gtk_adjustment_get_value(gtk_layout_get_vadjustment(
-	    GTK_LAYOUT(data->drawing_area))));
+    g_object_set(GTK_OBJECT(adjustment), "lower", &lower, "upper", &upper, "page-size", &page_size, NULL);
 }
 
 static _size_t
 get_visible_size (widget_data_t *data)
 {
-    double page_size_h, page_size_v;
+    GtkAllocation *allocation = &(GTK_WIDGET(data->drawing_area)->allocation);
 
-    g_object_get(GTK_OBJECT(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area))),
-		 "page-size", &page_size_h, NULL);
-    g_object_get(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))),
-		 "page-size", &page_size_v, NULL);
-
-    return _size(page_size_h, page_size_v);
+    return _size(allocation->width, allocation->height);
 }
 
 static void
@@ -1392,7 +1357,7 @@ populate_table (widget_data_t *data)
     GtkWidget *table = data->widget;
     GtkWidget *drawing_area, *w;
 
-    drawing_area = gtk_layout_new(NULL, NULL);
+    drawing_area = gtk_drawing_area_new();
 
     gtk_widget_show(drawing_area);
     data->drawing_area = drawing_area;
@@ -1403,23 +1368,23 @@ populate_table (widget_data_t *data)
 		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
 		      0, 0);
 
-    w = gtk_hscrollbar_new (GTK_LAYOUT (drawing_area)->hadjustment);
+    data->hadjustment = GTK_ADJUSTMENT(gtk_adjustment_new (0.0, 0.0, 100.0, 10.0, 100.0, 100.0));
+    w = gtk_hscrollbar_new (data->hadjustment);
     gtk_table_attach (GTK_TABLE (table), w,
 		      0, 1, 1, 2,
 		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
 		      GTK_FILL,
 		      0, 0);
     gtk_widget_show (w);
-    data->hscrollbar = w;
 
-    w = gtk_vscrollbar_new (GTK_LAYOUT (drawing_area)->vadjustment);
+    data->vadjustment = GTK_ADJUSTMENT(gtk_adjustment_new (0.0, 0.0, 100.0, 10.0, 100.0, 100.0));
+    w = gtk_vscrollbar_new (data->vadjustment);
     gtk_table_attach (GTK_TABLE (table), w,
 		      1, 2, 0, 1,
 		      GTK_FILL,
 		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
 		      0, 0);
     gtk_widget_show (w);
-    data->vscrollbar = w;
 
     gtk_signal_connect(GTK_OBJECT(drawing_area), "expose_event",
 		       (GtkSignalFunc)expose_event, NULL);
@@ -1436,14 +1401,10 @@ populate_table (widget_data_t *data)
 			  | GDK_POINTER_MOTION_MASK
 			  | GDK_POINTER_MOTION_HINT_MASK);
 
-    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area))), "value-changed",
-		       (GtkSignalFunc)adjustment_value_changed, data);
-    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))), "value-changed",
-		       (GtkSignalFunc)adjustment_value_changed, data);
-    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_hadjustment(GTK_LAYOUT(data->drawing_area))), "changed",
-		       (GtkSignalFunc)adjustment_changed, data);
-    gtk_signal_connect(GTK_OBJECT(gtk_layout_get_vadjustment(GTK_LAYOUT(data->drawing_area))), "changed",
-		       (GtkSignalFunc)adjustment_changed, data);
+    gtk_signal_connect(GTK_OBJECT(data->hadjustment), "value-changed", (GtkSignalFunc)adjustment_value_changed, data);
+    gtk_signal_connect(GTK_OBJECT(data->vadjustment), "value-changed", (GtkSignalFunc)adjustment_value_changed, data);
+    gtk_signal_connect(GTK_OBJECT(data->hadjustment), "changed", (GtkSignalFunc)adjustment_changed, data);
+    gtk_signal_connect(GTK_OBJECT(data->vadjustment), "changed", (GtkSignalFunc)adjustment_changed, data);
 }
 
 GtkWidget *
