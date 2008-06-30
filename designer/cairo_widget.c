@@ -1201,11 +1201,12 @@ size_changed (GtkWidget *widget, GtkAllocation *allocation, widget_data_t *data)
     g_print("size changed to %dx%d\n", allocation->width, allocation->height);
     g_assert(allocation->width == GTK_WIDGET(data->drawing_area)->allocation.width
 	     && allocation->height == GTK_WIDGET(data->drawing_area)->allocation.height);
+    update_area_conditional(data, TRUE);
 }
 
 static _point_t map_location(widget_data_t *data, _point_t p)
 {
-    return _move(p, _ptos(data->combined_area.o));
+    return _move(p, _ptos(data->visible_area.o));
 }
 
 
