@@ -160,6 +160,8 @@ typedef struct
     GtkWidget *drawing_area;
     GtkAdjustment *hadjustment;
     GtkAdjustment *vadjustment;
+    GtkWidget *hscrollbar;
+    GtkWidget *vscrollbar;
 
     gboolean dragging;
     _point_t place_next;
@@ -792,11 +794,18 @@ get_widget_data (GtkWidget *widget)
 }
 
 static void
-set_scroll_parameters (GtkAdjustment *adjustment, double lower, double upper, double page_size)
+set_scroll_parameters (widget_data_t *data, GtkAdjustment *adjustment, double lower, double upper, double page_size)
 {
     g_print("setting scroll %g-%g (%g)\n", lower, upper, page_size);
 
     g_object_set(G_OBJECT(adjustment), "lower", lower, "upper", upper, "page-size", page_size, NULL);
+
+    if (adjustment == data->hadjustment)
+	gtk_widget_queue_draw(data->hscrollbar);
+    else if (adjustment == data->vadjustment)
+	gtk_widget_queue_draw(data->vscrollbar);
+    else
+	g_assert_not_reached();
 }
 
 static _size_t
@@ -1159,9 +1168,9 @@ update_area_conditional(widget_data_t *data, int force)
     // set_scrollable_size (data, ca.s);
     // set_scroll_origin (data, vo);
 
-    set_scroll_parameters(data->hadjustment,
+    set_scroll_parameters(data, data->hadjustment,
 	ca.o.x, ca.o.x + ca.s.w, va.s.w);
-    set_scroll_parameters(data->vadjustment,
+    set_scroll_parameters(data, data->vadjustment,
 	ca.o.y, ca.o.y + ca.s.h, va.s.h);
 
     gtk_widget_queue_draw_area(GTK_WIDGET(data->drawing_area), 
@@ -1413,6 +1422,7 @@ populate_table (widget_data_t *data)
 		      GTK_FILL,
 		      0, 0);
     gtk_widget_show (w);
+    data->hscrollbar = w;
 
     data->vadjustment = GTK_ADJUSTMENT(gtk_adjustment_new (0.0, 0.0, 100.0, 10.0, 100.0, 100.0));
     w = gtk_vscrollbar_new (data->vadjustment);
@@ -1422,6 +1432,7 @@ populate_table (widget_data_t *data)
 		      GTK_EXPAND | GTK_FILL | GTK_SHRINK,
 		      0, 0);
     gtk_widget_show (w);
+    data->vscrollbar = w;
 
     gtk_signal_connect(GTK_OBJECT(drawing_area), "expose_event",
 		       (GtkSignalFunc)expose_event, NULL);
