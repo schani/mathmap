@@ -27,6 +27,26 @@
 
 #include <glib.h>
 
+
+// #define	RGBA_TITLE_AREA		0.3, 1.0, 0.8, 0.8
+#define	RGBA_TITLE_AREA		1.0, 0.9, 0.2, 0.8
+#define	RGBA_TITLE_TEXT		0.0, 0.0, 0.0, 0.8
+
+#define	RGBA_BODY_AREA		1.0, 1.0, 1.0, 0.7
+
+// #define	RGBA_ROOT_NODE		0.4, 0.4, 0.4, 0.7
+// #define	RGBA_ROOT_NODE		0.8, 0.0, 0.1, 0.3
+#define	RGBA_ROOT_NODE		0.0, 0.0, 0.0, 0.7
+
+#define	RGBA_DROP_SHADOW	0.0, 0.0, 0.0, 0.1
+
+#define	RGBA_BLOCKED		0.5, 0.5, 0.7, 0.5
+#define	RGBA_HIGHLIGHT		0.2, 0.5, 1.0, 0.4
+
+#define	RGBA_CONNECT		0.4, 0.0, 0.0, 0.6
+#define	RGBA_CONNECT_HL		1.0, 0.6, 0.6, 0.6
+
+
 typedef struct _point
 {
 	double x;

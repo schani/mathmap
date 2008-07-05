@@ -81,8 +81,11 @@ static const double upper_s[4] = { 10, 10, 0, 0 };
 static const double lower_s[4] = { 0, 0, 10, 10 };
 
 static const double rnd12_s[4] = { 14, 14, 14, 14 };
+static const double rnd13_s[4] = { 15, 15, 15, 15 };
+static const double rnd14_s[4] = { 16, 16, 16, 16 };
 
 static const double circ4_d[2] = { 10 * M_PI / 12.0, 6 * M_PI / 12.0 };
+static const double round_d[2] = { 1.0, 1.0 };
 
 
 static void
@@ -380,18 +383,18 @@ draw_node(cairo_t *cr, designer_node_t *n, int flags)
     cairo_translate(cr, pos.x, pos.y);
 
     /* drop shadow */
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.1);
+    cairo_set_source_rgba(cr, RGBA_DROP_SHADOW);
     round_path(cr, _offset(nd->nr, _size(3, 3)), round_s);
     cairo_fill(cr);
 
     /* title area color */
-    cairo_set_source_rgba(cr, 0.3, 1.0, 0.8, 0.8);
+    cairo_set_source_rgba(cr, RGBA_TITLE_AREA);
     round_path(cr, nd->tr, upper_s);
     cairo_fill(cr);
 
     /* title text */
     set_title_font(cr);
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);
+    cairo_set_source_rgba(cr, RGBA_TITLE_TEXT);
     cairo_move_to(cr, nd->lr.o.x - 1, 
 	nd->lr.o.y + nd->lr.s.h - 1);
     cairo_show_text(cr, n->name);
@@ -407,7 +410,7 @@ draw_node(cairo_t *cr, designer_node_t *n, int flags)
     cairo_stroke(cr);
 
     /* body area color */
-    cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 0.7);
+    cairo_set_source_rgba(cr, RGBA_BODY_AREA);
     round_path(cr, nd->br, lower_s);
     cairo_fill(cr);
 
@@ -459,16 +462,20 @@ draw_node(cairo_t *cr, designer_node_t *n, int flags)
     round_path(cr, nd->nr, round_s);
     cairo_stroke(cr);
 
-    /* root node? */
-    if (flags & 0x1) {
-	cairo_set_source_rgba(cr, 0.4, 0.4, 0.4, 0.7);
-	round_path(cr, _inset(nd->nr, _size(-2,-2)), rnd12_s);
-	cairo_stroke(cr);
-    }
-
     cairo_move_to(cr, nd->br.o.x, nd->br.o.y);
     cairo_line_to(cr, nd->br.o.x + nd->br.s.w, nd->br.o.y);
     cairo_stroke(cr);
+
+    /* root node? */
+    if (flags & 0x1) {
+	cairo_set_line_width(cr, 2.0);
+	cairo_set_source_rgba(cr, RGBA_ROOT_NODE);
+	// cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
+	// cairo_set_dash(cr, round_d, 2, 0);
+	round_path(cr, _inset(nd->nr, _size(-3,-3)), rnd13_s);
+	cairo_stroke(cr);
+    }
+
 
 /*
     rect_path(cr, nd->ir);
@@ -599,11 +606,11 @@ draw_connect(cairo_t *cr, _point_t p1, _point_t p2, int type)
 	break;
     }
 
-    cairo_set_source_rgba(cr, 0.4, 0.0, 0.0, 0.6);
+    cairo_set_source_rgba(cr, RGBA_CONNECT);
     cairo_set_line_width(cr, 4.0);
     cairo_stroke_preserve(cr);
 
-    cairo_set_source_rgba(cr, 1.0, 0.6, 0.6, 0.6);
+    cairo_set_source_rgba(cr, RGBA_CONNECT_HL);
     cairo_set_line_width(cr, 3.0);
     cairo_stroke(cr);
 }
@@ -711,17 +718,17 @@ draw_slot_highlight(cairo_t *cr, _point_t sl, int check)
 {
     switch (check) {
     case DESIGNER_CONNECTION_UNCONNECTABLE:
-    	cairo_set_source_rgba(cr, 0.5, 0.5, 0.7, 0.5);
+    	cairo_set_source_rgba(cr, RGBA_BLOCKED);
     	cairo_set_line_width(cr, 3.0);
     	break;
     case DESIGNER_CONNECTION_CONNECTABLE:
-    	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+    	cairo_set_source_rgba(cr, RGBA_HIGHLIGHT);
     	cairo_set_line_cap(cr, CAIRO_LINE_CAP_BUTT);
     	cairo_set_line_width(cr, 3.0);
     	cairo_set_dash(cr, circ4_d, 2, 0);
     	break;
     case DESIGNER_CONNECTION_FREE:
-    	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+    	cairo_set_source_rgba(cr, RGBA_HIGHLIGHT);
     	cairo_set_line_width(cr, 2.0);
     	break;
     }
@@ -746,7 +753,7 @@ draw_highlight(cairo_t *cr, designer_node_t *n, _point_t m, _hit_t hit, int chec
     case HIT_BODY:
 	cairo_translate(cr, pos.x, pos.y);
 	cairo_set_line_width(cr, 4.0);
-	cairo_set_source_rgba(cr, 0.0, 0.5, 1.0, 0.5);
+	cairo_set_source_rgba(cr, RGBA_HIGHLIGHT);
 	round_path(cr, _inset(nd->nr, _size(-1, -1)), round_s);
 	cairo_stroke(cr);
 	break;
