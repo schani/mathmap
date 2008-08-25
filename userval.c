@@ -258,26 +258,6 @@ register_image (userval_info_t **infos, const char *name, unsigned int flags)
     return info;
 }
 
-/* The scale factors computed by this function are to get from virtual
-   coordinates to pixel coordinates. */
-static void
-calc_scale_factors (unsigned int flags, int pixel_width, int pixel_height, float *scale_x, float *scale_y)
-{
-    float virt_width, virt_height;
-
-    virt_width = virt_height = 2.0;
-
-    *scale_x = pixel_width / virt_width;
-    *scale_y = pixel_height / virt_height;
-}
-
-static void
-calc_middle_values (int img_width, int img_height, float scale_x, float scale_y, float *middle_x, float *middle_y)
-{
-    *middle_x = (img_width - 1) / 2.0 * scale_x;
-    *middle_y = (img_height - 1) / 2.0 * scale_y;
-}
-
 static void
 calc_image_values (userval_info_t *info, userval_t *val)
 {
@@ -290,11 +270,11 @@ calc_image_values (userval_info_t *info, userval_t *val)
     width = val->v.image->pixel_width;
     height = val->v.image->pixel_height;
 
-    calc_scale_factors(info->v.image.flags, width, height,
-		       &val->v.image->v.drawable->scale_x, &val->v.image->v.drawable->scale_y);
-    calc_middle_values(width, height, 
-		       1.0 / val->v.image->v.drawable->scale_x, 1.0 / val->v.image->v.drawable->scale_y,
-		       &val->v.image->v.drawable->middle_x, &val->v.image->v.drawable->middle_y);
+    val->v.image->v.drawable->scale_x = (width - 1) / 2.0;
+    val->v.image->v.drawable->scale_y = (height - 1) / 2.0;
+
+    val->v.image->v.drawable->middle_x = 1.0;
+    val->v.image->v.drawable->middle_y = 1.0;
 }
 
 static curve_t*

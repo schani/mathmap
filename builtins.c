@@ -120,7 +120,7 @@ apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int wi
 
 static color_t
 get_pixel (mathmap_invocation_t *invocation, int x, int y, input_drawable_t *drawable, int frame)
-{ 
+{
     if (drawable == NULL)
 	return MAKE_RGBA_COLOR(255, 255, 255, 255);
 

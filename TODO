@@ -5,8 +5,7 @@
 ** General
 
 ** GIMP Plug-In
-ident filter creates one pixel border around image
-  black bottom pixel line when doing stupid gauss
+black top and right pixel line when doing gauss
 mathmap icon for message dialogs
 
 ** Language
