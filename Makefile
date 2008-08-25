@@ -43,7 +43,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 VERSION = 1.3.3
 
 #OPT_CFLAGS := -O2
-OPT_CFLAGS := -std=gnu99 -g -DDEBUG_OUTPUT #-fgnu89-inline 
+OPT_CFLAGS := -g -DDEBUG_OUTPUT #-fgnu89-inline 
 
 #PROF_FLAGS := -pg
 
@@ -69,7 +69,7 @@ GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
 
-CFLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS)
+CFLAGS = -std=gnu99 -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS)
 
 ifeq ($(MOVIES),YES)
@@ -145,8 +145,8 @@ install : mathmap
 	cp new_template.c $(GIMPDATADIR)/mathmap/
 	cp opmacros.h $(GIMPDATADIR)/mathmap/
 	cp lispreader/pools.h $(GIMPDATADIR)/mathmap/
-	cp generators/blender/blender_template.c $(GIMPDATADIR)/mathmap/
-	cp generators/blender/blender_opmacros.h $(GIMPDATADIR)/mathmap/
+#	cp generators/blender/blender_template.c $(GIMPDATADIR)/mathmap/
+#	cp generators/blender/blender_opmacros.h $(GIMPDATADIR)/mathmap/
 	if [ ! -d $(GIMPDATADIR)/mathmap/expressions ] ; then cp -r examples $(GIMPDATADIR)/mathmap/expressions ; fi
 	if [ ! -d $(PIXMAP_DIR) ] ; then mkdir $(PIXMAP_DIR) ; fi
 	cp pixmaps/*.png $(PIXMAP_DIR)
