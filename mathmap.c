@@ -1557,6 +1557,7 @@ mathmap_dialog (int mutable_expression)
     GtkWidget *alignment;
     GtkWidget *scale;
     GtkWidget *t_table;
+    GtkWidget *spin_button;
     GtkObject *adjustment;
     GdkPixbuf *pixbuf;
 
@@ -1806,18 +1807,14 @@ mathmap_dialog (int mutable_expression)
 		label = gtk_label_new(_("Frames"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		gtk_table_attach(GTK_TABLE(frame_table), label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
-		adjustment = gtk_adjustment_new(mmvals.frames, 2, 360, 1.0, 10.0, 0.0);
-		scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
-		gtk_widget_set_usize(scale, 100, 0);
-		gtk_table_attach (GTK_TABLE (frame_table), scale, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
-		gtk_scale_set_value_pos (GTK_SCALE (scale), GTK_POS_TOP);
-		gtk_scale_set_digits(GTK_SCALE(scale),0);
-		gtk_range_set_update_policy (GTK_RANGE (scale), GTK_UPDATE_DELAYED);
+		adjustment = gtk_adjustment_new(mmvals.frames, 2, 10000, 1.0, 10.0, 0.0);
+		spin_button = gtk_spin_button_new(GTK_ADJUSTMENT(adjustment), 10.0, 0);
+		gtk_table_attach (GTK_TABLE (frame_table), spin_button, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect (GTK_OBJECT (adjustment), "value_changed",
 				    (GtkSignalFunc) dialog_scale_update,
 				    &mmvals.frames);
 		gtk_widget_show(label);
-		gtk_widget_show(scale);
+		gtk_widget_show(spin_button);
 
 		gtk_widget_show(frame_table);
 		gtk_widget_set_sensitive(frame_table, mmvals.flags & FLAG_ANIMATION);
