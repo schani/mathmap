@@ -686,14 +686,14 @@ cmdline_main (int argc, char *argv[])
 		define = lookup_define(defines, userval_info->name);
 		if (define == NULL)
 		{
-		    fprintf(stderr, "Error: No value defined for input image `%s'.", userval_info->name);
+		    fprintf(stderr, "Error: No value defined for input image `%s'.\n", userval_info->name);
 		    return 1;
 		}
 
 		image = read_image(define->value, &img_width, &img_height);
 		if (image == NULL)
 		{
-		    fprintf(stderr, "Error: Could not read input image `%s'.", define->value);
+		    fprintf(stderr, "Error: Could not read input image `%s'.\n", define->value);
 		    return 1;
 		}
 		free(image);
@@ -722,7 +722,7 @@ cmdline_main (int argc, char *argv[])
 	    {
 		if (userval_info->type == USERVAL_IMAGE)
 		{
-		    fprintf(stderr, "Error: No value defined for input image `%s'.", userval_info->name);
+		    fprintf(stderr, "Error: No value defined for input image `%s'.\n", userval_info->name);
 		    return 1;
 		}
 	    }
