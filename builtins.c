@@ -254,8 +254,8 @@ get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, f
 
     g_assert(image->type == IMAGE_FLOATMAP);
 
-    ix = (int)(image->v.floatmap.ax * x + image->v.floatmap.bx);
-    iy = (int)(image->v.floatmap.ay * y + image->v.floatmap.by);
+    ix = (int)lrintf(image->v.floatmap.ax * x + image->v.floatmap.bx);
+    iy = (int)lrintf(image->v.floatmap.ay * y + image->v.floatmap.by);
 
     if (ix < 0 || ix >= image->pixel_width
 	|| iy < 0 || iy >= image->pixel_height)
@@ -284,8 +284,8 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
     new_image->type = IMAGE_FLOATMAP;
     new_image->pixel_width = width;
     new_image->pixel_height = height;
-    new_image->v.floatmap.ax = new_image->v.floatmap.bx = ax = bx = (float)width / 2.0;
-    new_image->v.floatmap.ay = new_image->v.floatmap.by = ay = by = (float)height / 2.0;
+    new_image->v.floatmap.ax = new_image->v.floatmap.bx = ax = bx = (float)(width - 1) / 2.0;
+    new_image->v.floatmap.ay = new_image->v.floatmap.by = ay = by = (float)(height - 1) / 2.0;
 
     p = new_image->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * 4);
 

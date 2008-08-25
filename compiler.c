@@ -6037,7 +6037,7 @@ exec_cmd (char *log_filename, char *format, ...)
     }
 
     full_cmdline = g_strdup_printf("%s >>%s 2>&1", cmdline, log_filename);
- 
+
     result = system(full_cmdline);
 
     g_free(full_cmdline);

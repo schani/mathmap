@@ -177,4 +177,6 @@ void floatmap_get_row (float *dst, image_t *img, int row);
 void floatmap_set_column (image_t *img, int col, float *src);
 void floatmap_set_row (image_t *img, int row, float *src);
 
+void floatmap_write (image_t *img, const char *filename);
+
 #endif

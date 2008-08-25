@@ -1954,7 +1954,7 @@ recalculate_preview (void)
 	int preview_height = gdk_pixbuf_get_height(wint.pixbuf);
 	int x, y;
 	guchar *p_ul, *p;
-	gint check, check_0, check_1; 
+	gint check, check_0, check_1;
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
 	int old_render_width, old_render_height;
 
@@ -2683,7 +2683,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
     if (mathmap_logo == NULL)
 	mathmap_logo = gdk_pixbuf_new_from_file(MATHMAP_PIXMAP_NAME, NULL);
 
-    gtk_show_about_dialog (NULL, 
+    gtk_show_about_dialog (NULL,
 			   "name", "MathMap",
 			   "program-name", "MathMap",
 			   "title", "About MathMap",

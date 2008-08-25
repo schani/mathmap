@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include "drawable.h"
+#include "rwimg/writeimage.h"
 
 image_t*
 floatmap_copy (image_t *floatmap, pools_t *pools)
@@ -147,4 +148,26 @@ floatmap_set_row (image_t *img, int row, float *src)
 
     memcpy(&FLOATMAP_VALUE_XY(img, 0, row, 0), src,
 	   sizeof(float) * img->pixel_width * NUM_FLOATMAP_CHANNELS);
+}
+
+/* This is for debugging purposes only. */
+void
+floatmap_write (image_t *img, const char *filename)
+{
+    unsigned char *data;
+    int i;
+
+    g_assert(img->type == IMAGE_FLOATMAP);
+
+    data = g_malloc(3 * img->pixel_width * img->pixel_height);
+    for (i = 0; i < img->pixel_width * img->pixel_height; ++i)
+    {
+	data[i * 3 + 0] = FLOATMAP_VALUE_I(img, i, 0) * 255.0;
+	data[i * 3 + 1] = FLOATMAP_VALUE_I(img, i, 1) * 255.0;
+	data[i * 3 + 2] = FLOATMAP_VALUE_I(img, i, 2) * 255.0;
+    }
+
+    write_image(filename, img->pixel_width, img->pixel_height, data, 3, 3 * img->pixel_width, IMAGE_FORMAT_PNG);
+
+    g_free(data);
 }
