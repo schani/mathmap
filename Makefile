@@ -21,7 +21,8 @@ GIFLIB = -lgif
 #THREADED = -DTHREADED_FINAL_RENDER
 
 # If want to have movie (Quicktime) support in the command line,
-# uncomment the following line.
+# uncomment the following line.  Please not that this feature hasn't
+# been maintained for quite some time and probably doesn't work.
 #MOVIES = YES
 
 # If you do not want localization (relevant for plug-in version only),
