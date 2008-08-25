@@ -803,7 +803,9 @@ get_widget_data (GtkWidget *widget)
 static void
 set_scroll_parameters (widget_data_t *data, GtkAdjustment *adjustment, double lower, double upper, double page_size)
 {
+#ifdef DEBUG_OUTPUT
     g_print("setting scroll %g-%g (%g)\n", lower, upper, page_size);
+#endif
 
     g_object_set(G_OBJECT(adjustment), "lower", lower, "upper", upper, "page-size", page_size, NULL);
 
@@ -1169,9 +1171,11 @@ update_area_conditional(widget_data_t *data, int force)
     data->combined_area = ca;
 
 //    _point_t vo = _stop(_delta(ca.o, va.o));
+#ifdef DEBUG_OUTPUT
     g_print("origin: [%f,%f,%f,%f], [%f,%f,%f,%f]\n", 
 	va.o.x, va.o.y, va.s.w, va.s.h,
 	ca.o.x, ca.o.y, ca.s.w, ca.s.h);
+#endif
     // set_scrollable_size (data, ca.s);
     // set_scroll_origin (data, vo);
 
@@ -1205,7 +1209,9 @@ adjustment_changed (GtkAdjustment *adj, widget_data_t *data)
 static void
 size_changed (GtkWidget *widget, GtkAllocation *allocation, widget_data_t *data)
 {
+#ifdef DEBUG_OUTPUT
     g_print("size changed to %dx%d\n", allocation->width, allocation->height);
+#endif
     g_assert(allocation->width == GTK_WIDGET(data->drawing_area)->allocation.width
 	     && allocation->height == GTK_WIDGET(data->drawing_area)->allocation.height);
     update_area_conditional(data, TRUE);
@@ -1225,6 +1231,7 @@ double_click_event (GtkWidget *widget, GdkEventButton *event,
 
     switch(ht) {
     case HIT_LABEL:
+	// FIXME: implement
 	g_print("label edit\n");
 	break;
     case HIT_TITLE:
@@ -1500,7 +1507,9 @@ designer_widget_add_node (GtkWidget *widget, designer_node_t *node, double x, do
 {
     widget_data_t *data = get_widget_data(widget);
 
+#ifdef DEBUG_OUTPUT
     g_print("widget %p adds node %s at %gx%g\n", data, node->name, x, y);
+#endif
 
     node_data_t *nd = node_data(node);
 
@@ -1517,7 +1526,9 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
 {
     widget_data_t *data = get_widget_data(widget);
 
+#ifdef DEBUG_OUTPUT
     g_print("widget %p sets design to %p\n", data, design);
+#endif
 
     data->design = design;
     update_area_conditional(data, TRUE);
@@ -1528,7 +1539,9 @@ designer_widget_get_node_position (GtkWidget *widget, designer_node_t *node, dou
 {
     widget_data_t *data = get_widget_data(widget);
 
+#ifdef DEBUG_OUTPUT
     g_print("widget %p retrieves position of node %s\n", data, node->name);
+#endif
 
     node_data_t *nd = node_data(node);
 
@@ -1541,7 +1554,9 @@ designer_widget_move_node (GtkWidget *widget, designer_node_t *node, double x, d
 {
     widget_data_t *data = get_widget_data(widget);
 
+#ifdef DEBUG_OUTPUT
     g_print("widget %p moves node %s to %gx%g\n", data, node->name, x, y);
+#endif
 
     node_data_t *nd = node_data(node);
 
@@ -1555,7 +1570,9 @@ designer_widget_design_loaded_callback (designer_design_t *design, gpointer user
     GtkWidget *widget = GTK_WIDGET(user_data);
     widget_data_t *data = get_widget_data(widget);
 
+#ifdef DEBUG_OUTPUT
     g_print("design loaded for widget %p\n", data);
+#endif
 
     designer_widget_set_design(widget, design);
 }
