@@ -1267,14 +1267,23 @@ change_node_title (widget_data_t *data, designer_node_t *node)
 		update_area_conditional(data, TRUE);
 	    break;
 
-	case GTK_RESPONSE_CANCEL :
-	    break;
-
 	default :
-	    g_assert_not_reached ();
+	    break;
     }
 
     gtk_widget_destroy (dialog);
+}
+
+static void
+clean_up_active_target (widget_data_t *data)
+{
+    g_assert (data->state == STATE_IDLE);
+
+    data->active_node = NULL;
+    data->target_node = NULL;
+    data->active_slot_id = -1;
+    data->target_slot_id = -1;
+    data->target_check = 0;
 }
 
 static gboolean
@@ -1286,6 +1295,9 @@ double_click_event (GtkWidget *widget, GdkEventButton *event,
     switch(ht) {
     case HIT_LABEL:
 	change_node_title (data, hn);
+	data->state = STATE_IDLE;
+	clean_up_active_target (data);
+	data->dragging = FALSE;
 	break;
 
     case HIT_TITLE:
@@ -1300,7 +1312,6 @@ double_click_event (GtkWidget *widget, GdkEventButton *event,
     gtk_widget_queue_draw(widget);
     return TRUE;
 }
-
 
 static gboolean
 button_press_event (GtkWidget *widget, GdkEventButton *event)
@@ -1409,13 +1420,8 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
     }
 
     /* clean up active/target */
-    if (data->state == STATE_IDLE) {
-	data->active_node = NULL;
-	data->target_node = NULL;
-	data->active_slot_id = -1;
-	data->target_slot_id = -1;
-	data->target_check = 0;
-    }
+    if (data->state == STATE_IDLE)
+	clean_up_active_target (data);
     data->dragging = FALSE;
 
     gtk_widget_queue_draw(widget);

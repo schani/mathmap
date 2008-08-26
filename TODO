@@ -15,7 +15,6 @@ test localization
 ** Rendering
 
 ** Designer
-don't drag after changing node title
 
 ** Native filters
 
@@ -58,6 +57,7 @@ Simplify coordinate stuff (non-stretched ident filter)
 calculate R in the filter code
 optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
+use real vectors for tuples which are accessed with non-constant index
 
 ** Filters
 better layer modes: http://pegtop.net/delphi/articles/blendmodes/
@@ -113,7 +113,6 @@ optimization for filters which use the "current" pixel
 Copy elimination for phis in pre-native code
 Remove dead whiles
 XY constants for interpreter code
-use real vectors for tuples which are accessed with non-constant index
 
 ** Documentation/Homepage
 

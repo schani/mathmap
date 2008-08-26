@@ -810,7 +810,10 @@ node_title_change_callback (GtkWidget *widget, designer_node_t *node, const char
     }
 
     if (designer_node_set_name (node, name))
+    {
+	design_changed_callback(widget, node->design);
 	return TRUE;
+    }
 
     mathmap_message_dialog_modal("Another node already has that name");
 
