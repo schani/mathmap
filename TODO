@@ -51,6 +51,9 @@ free widget_data in designs
 ** Native filters
 convolution
 
+** Tests
+do image diff instead of md5sum
+
 ** Compiler
 Generator for simplifiers
 Simplify coordinate stuff (non-stretched ident filter)

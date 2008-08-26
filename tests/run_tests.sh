@@ -29,7 +29,7 @@ run_test () {
     REF_CKSUM=`md5sum "$REFERENCE" | awk '{print $1}'`
 
     if [ "x$CKSUM" != "x$REF_CKSUM" ] ; then
-	echo "Error: Output image doesn't match reference."
+	echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
 	exit 1
     fi
 }

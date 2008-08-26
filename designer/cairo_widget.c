@@ -33,7 +33,7 @@
 
 #include "designer.h"
 #include "cairo_widget.h"
-
+#include "../mathmap.h"
 
 
 void _move_to(cairo_t *cr, _point_t p)
@@ -1245,7 +1245,7 @@ change_node_title (widget_data_t *data, designer_node_t *node)
 
     g_assert (data->node_title_change_callback != NULL);
 
-    dialog = gtk_dialog_new_with_buttons ("Change node title",
+    dialog = gtk_dialog_new_with_buttons (_("Change node title"),
 					  get_root_window (data->widget),
 					  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 					  GTK_STOCK_OK,

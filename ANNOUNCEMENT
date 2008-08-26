@@ -37,6 +37,7 @@ Changes in 1.3.3:
 
   * Optically much improved composer (thanks to Herbert Pötzl).
   * Gaussian blur filter.
+  * Animations can be up to 9999 frames.
   * Bugfixes.
 
 Changes in 1.3.2:

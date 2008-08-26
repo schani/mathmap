@@ -61,15 +61,12 @@
 #include "expression_db.h"
 #include "designer/designer.h"
 
-#define INIT_LOCALE(x)
-#define _(x)             (x)
-
 #define DEFAULT_PREVIEW_SIZE	384
 
 /* Even more stuff from Quartics plugins */
 #define CHECK_SIZE  8
 #define CHECK_DARK  ((int) (1.0 / 3.0 * 255))
-#define CHECK_LIGHT ((int) (2.0 / 3.0 * 255))   
+#define CHECK_LIGHT ((int) (2.0 / 3.0 * 255))
 
 #define EXPRESSIONS_DIR         "expressions"
 
@@ -292,6 +289,7 @@ my_gimp_main (const GimpPlugInInfo *info, int argc, char *argv[])
     int i;
 
     gsl_set_error_handler_off();
+    init_gettext();
 
     for (i = 0; i < USER_GRADIENT_POINTS; ++i)
     {
@@ -561,13 +559,9 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     GimpDrawable *gimp_drawable;
     int default_preview_width, default_preview_height;
 
-    INIT_LOCALE("mathmap");
-
     if (strncmp(name, "mathmap_", 8) == 0)
     {
 	char *exp = expression_for_symbol(name + 8, read_expressions());
-
-	fprintf(stderr, "found %s\n", exp);
 
 	if (exp != 0)
 	{
@@ -709,7 +703,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 		else
 		    t = (double)frame / (double)(mmvals.frames - 1);
 		layer = mathmap_layer_copy(layer_id);
-		sprintf(layer_name, "Frame %d", frame + 1);
+		sprintf(layer_name, _("Frame %d"), frame + 1);
 		gimp_drawable_set_name(layer, layer_name);
 		output_drawable = gimp_drawable_get(layer);
 		gimp_image_add_layer(image_id, layer, 0);
@@ -757,7 +751,7 @@ mathmap_message_dialog (const char *message)
     g_signal_connect_swapped (dialog, "response",
 			      G_CALLBACK (gtk_widget_destroy),
 			      dialog);
-    gtk_window_set_title(GTK_WINDOW(dialog), "MathMap Message");
+    gtk_window_set_title(GTK_WINDOW(dialog), _("MathMap Message"));
     gtk_widget_show(dialog);
 }
 
@@ -769,7 +763,7 @@ mathmap_message_dialog_modal (const char *message)
 						GTK_MESSAGE_ERROR,
 						GTK_BUTTONS_CLOSE,
 						"%s", message);
-    gtk_window_set_title(GTK_WINDOW(dialog), "MathMap Message");
+    gtk_window_set_title(GTK_WINDOW(dialog), _("MathMap Message"));
     gtk_widget_show(dialog);
 
     gtk_dialog_run(GTK_DIALOG(dialog));
@@ -805,7 +799,7 @@ node_title_change_callback (GtkWidget *widget, designer_node_t *node, const char
 {
     if (strlen (name) == 0)
     {
-	mathmap_message_dialog_modal("Node title cannot be empty");
+	mathmap_message_dialog_modal(_("Node title cannot be empty"));
 	return FALSE;
     }
 
@@ -815,7 +809,7 @@ node_title_change_callback (GtkWidget *widget, designer_node_t *node, const char
 	return TRUE;
     }
 
-    mathmap_message_dialog_modal("Another node already has that name");
+    mathmap_message_dialog_modal(_("Another node already has that name"));
 
     return FALSE;
 }
@@ -925,7 +919,7 @@ generate_code (int current_frame, float current_t)
 	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME);
 	if (template_filename == 0)
 	{
-	    sprintf(error_string, "Cannot find template file `%s'.  MathMap is not installed correctly.", MAIN_TEMPLATE_FILENAME);
+	    sprintf(error_string, _("Cannot find template file `%s'.  MathMap is not installed correctly."), MAIN_TEMPLATE_FILENAME);
 	    new_mathmap = 0;
 	}
 	else
@@ -934,7 +928,7 @@ generate_code (int current_frame, float current_t)
 
 	    if (opmacros_name == 0)
 	    {
-		sprintf(error_string, "Support file `%s' does not exist.  MathMap is not installed correctly.", OPMACROS_FILENAME);
+		sprintf(error_string, _("Support file `%s' does not exist.  MathMap is not installed correctly."), OPMACROS_FILENAME);
 		new_mathmap = 0;
 	    }
 	    else
@@ -949,7 +943,7 @@ generate_code (int current_frame, float current_t)
 
 	if (new_mathmap == 0)
 	{
-	    g_print("Error: %s\n", error_string);
+	    g_print(_("Error: %s\n"), error_string);
 
 	    mathmap_message_dialog(error_string);
 
@@ -2168,7 +2162,9 @@ set_expression_marker (int line, int column)
     {
 	GtkTextIter iter;
 
+#ifdef DEBUG_OUTPUT
 	g_print("line %d\n", line);
+#endif
 
 	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &iter, line, 0);
 	source_marker = gtk_source_buffer_create_marker(source_buffer, NULL, "one", &iter);
@@ -2722,12 +2718,12 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
     gtk_show_about_dialog (NULL,
 			   "name", "MathMap",
 			   "program-name", "MathMap",
-			   "title", "About MathMap",
+			   "title", _("About MathMap"),
 			   "version", MATHMAP_VERSION,
 			   "authors", authors,
 			   "artists", artists,
 			   "translator-credits", translators,
-			   "comments", "An image generation and manipulation system",
+			   "comments", _("An image generation and manipulation system"),
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
 			   "copyright", "Copyright © 1997-2008 Mark Probst, Herbert Poetzl",
 			   "license", gpl,

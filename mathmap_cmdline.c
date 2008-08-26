@@ -109,7 +109,7 @@ get_cache_entry_for_image (const char *filename, int *width, int *height)
     cache_entry->data = read_image(filename, width, height);
     if (cache_entry->data == 0)
     {
-	fprintf(stderr, "Error: Cannot read input image `%s'.\n", filename);
+	fprintf(stderr, _("Error: Cannot read input image `%s'.\n"), filename);
 	exit(1);
     }
 
@@ -393,7 +393,7 @@ append_define (const char *str, define_t **defines)
     p = strchr(str, '=');
     if (p == NULL)
     {
-	fprintf(stderr, "Error: Option to -D is malformed: `%s'.\n", str);
+	fprintf(stderr, _("Error: Option to -D is malformed: `%s'.\n"), str);
 	exit(1);
     }
 
@@ -516,7 +516,7 @@ cmdline_main (int argc, char *argv[])
 	    case OPTION_VERSION :
 		printf("MathMap " MATHMAP_VERSION "\n"
 		       "\n"
-		       "Copyright (C) 1997-2007 Mark Probst\n"
+		       "Copyright (C) 1997-2008 Mark Probst\n"
 		       "\n"
 		       "This program is free software; you can redistribute it and/or modify\n"
 		       "it under the terms of the GNU General Public License as published by\n"
@@ -544,7 +544,7 @@ cmdline_main (int argc, char *argv[])
 	    case 'f' :
 		if (!g_file_get_contents(optarg, &script, NULL, NULL))
 		{
-		    fprintf(stderr, "Error: The script file `%s' could not be read.\n", optarg);
+		    fprintf(stderr, _("Error: The script file `%s' could not be read.\n"), optarg);
 		    return 1;
 		}
 		break;
@@ -577,7 +577,7 @@ cmdline_main (int argc, char *argv[])
 	    case 's' :
 		if (!parse_image_size(optarg, &img_width, &img_height))
 		{
-		    fprintf(stderr, "Error: Invalid image size.  Syntax is <width>x<height>.  Example: 1024x768.\n");
+		    fprintf(stderr, _("Error: Invalid image size.  Syntax is <width>x<height>.  Example: 1024x768.\n"));
 		    exit(1);
 		}
 		size_is_set = 1;
@@ -633,14 +633,14 @@ cmdline_main (int argc, char *argv[])
 
 	if (mathmap == NULL)
 	{
-	    fprintf(stderr, "Error: Could not read MathMap script: %s\n", error_string);
+	    fprintf(stderr, _("Error: Could not read MathMap script: %s\n"), error_string);
 	    return 1;
 	}
 
 	out = fopen(output_filename, "w");
 	if (out == NULL)
 	{
-	    fprintf(stderr, "Error: Cannot open file `%s' for writing: %s\n",
+	    fprintf(stderr, _("Error: Cannot open file `%s' for writing: %s\n"),
 		    output_filename, strerror(errno));
 	    return 1;
 	}
@@ -668,7 +668,7 @@ cmdline_main (int argc, char *argv[])
 				  GIMPDATADIR "/mathmap");
 	if (mathmap == 0)
 	{
-	    fprintf(stderr, "Error: %s\n", error_string);
+	    fprintf(stderr, _("Error: %s\n"), error_string);
 	    exit(1);
 	}
 
@@ -686,14 +686,14 @@ cmdline_main (int argc, char *argv[])
 		define = lookup_define(defines, userval_info->name);
 		if (define == NULL)
 		{
-		    fprintf(stderr, "Error: No value defined for input image `%s'.\n", userval_info->name);
+		    fprintf(stderr, _("Error: No value defined for input image `%s'.\n"), userval_info->name);
 		    return 1;
 		}
 
 		image = read_image(define->value, &img_width, &img_height);
 		if (image == NULL)
 		{
-		    fprintf(stderr, "Error: Could not read input image `%s'.\n", define->value);
+		    fprintf(stderr, _("Error: Could not read input image `%s'.\n"), define->value);
 		    return 1;
 		}
 		free(image);
@@ -705,7 +705,7 @@ cmdline_main (int argc, char *argv[])
 
 	if (!size_is_set)
 	{
-	    fprintf(stderr, "Error: Image size not set and no input images given.\n");
+	    fprintf(stderr, _("Error: Image size not set and no input images given.\n"));
 	    exit(1);
 	}
 
@@ -722,7 +722,7 @@ cmdline_main (int argc, char *argv[])
 	    {
 		if (userval_info->type == USERVAL_IMAGE)
 		{
-		    fprintf(stderr, "Error: No value defined for input image `%s'.\n", userval_info->name);
+		    fprintf(stderr, _("Error: No value defined for input image `%s'.\n"), userval_info->name);
 		    return 1;
 		}
 	    }
@@ -748,7 +748,7 @@ cmdline_main (int argc, char *argv[])
 			break;
 
 		    default :
-			fprintf(stderr, "Error: Can only define user values for types int, float, bool and image.\n");
+			fprintf(stderr, _("Error: Can only define user values for types int, float, bool and image.\n"));
 			return 1;
 		}
 	}
@@ -797,7 +797,7 @@ cmdline_main (int argc, char *argv[])
 #ifdef MOVIES
 	    if (generate_movie)
 	    {
-		fprintf(stderr, "writing frame %d\n", current_frame);
+		fprintf(stderr, _("writing frame %d\n"), current_frame);
 		assert(quicktime_encode_video(output_movie, rows, 0) == 0);
 	    }
 #endif
@@ -827,7 +827,7 @@ cmdline_main (int argc, char *argv[])
 	*/
 	else
 	{
-	    fprintf(stderr, "Unknown generator `%s'\n", generator);
+	    fprintf(stderr, _("Unknown generator `%s'\n"), generator);
 	    return 1;
 	}
     }

@@ -37,7 +37,7 @@ PREFIX = /usr
 VERSION = 1.3.3
 
 OPT_CFLAGS := -O2
-#OPT_CFLAGS := -g -DDEBUG_OUTPUT #-fgnu89-inline 
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT #-DDONT_UNLINK_C #-fgnu89-inline 
 
 #PROF_FLAGS := -pg
 

@@ -6095,14 +6095,14 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     out = fopen(c_filename, "w");
     if (out == 0)
     {
-	sprintf(error_string, "Could not write temporary file `%s'", c_filename);
+	sprintf(error_string, _("Could not write temporary file `%s'"), c_filename);
 	return 0;
     }
 
     set_include_path(include_path);
     if (!process_template_file(mathmap, template_filename, out, &compiler_template_processor, 0))
     {
-	sprintf(error_string, "Could not process template file `%s'", template_filename);
+	sprintf(error_string, _("Could not process template file `%s'"), template_filename);
 	return 0;
     }
 
@@ -6116,7 +6116,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 
     if (exec_cmd(log_filename, "%s %s %s", CGEN_CC, o_filename, c_filename) != 0)
     {
-	sprintf(error_string, "C compiler failed.  See logfile `%s'.", log_filename);
+	sprintf(error_string, _("C compiler failed.  See logfile `%s'."), log_filename);
 	return 0;
     }
 
@@ -6124,7 +6124,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 
     if (exec_cmd(log_filename, "%s %s %s", CGEN_LD, so_filename, o_filename) != 0)
     {
-	sprintf(error_string, "Linker failed.  See logfile `%s'.", log_filename);
+	sprintf(error_string, _("Linker failed.  See logfile `%s'."), log_filename);
 	return 0;
     }
 
@@ -6132,7 +6132,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     module = g_module_open(so_filename, 0);
     if (module == 0)
     {
-	sprintf(error_string, "Could not load module `%s': %s.", so_filename, g_module_error());
+	sprintf(error_string, _("Could not load module `%s': %s."), so_filename, g_module_error());
 	return 0;
     }
 
@@ -6184,13 +6184,15 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 
 #ifndef DONT_UNLINK_SO
     unlink(so_filename);
-    g_free(so_filename);
 #endif
+    g_free(so_filename);
 
     unlink(o_filename);
     g_free(o_filename);
 
-    //unlink(c_filename);
+#ifndef DONT_UNLINK_C
+    unlink(c_filename);
+#endif
     g_free(c_filename);
 
     unlink(log_filename);
@@ -6249,7 +6251,7 @@ generate_plug_in (char *filter, char *output_filename,
 
     if (mathmap == 0)
     {
-	fprintf(stderr, "Error: %s\n", error_string);
+	fprintf(stderr, _("Error: %s\n"), error_string);
 	return 0;
     }
 
@@ -6259,14 +6261,14 @@ generate_plug_in (char *filter, char *output_filename,
 
     if (out == 0)
     {
-	fprintf(stderr, "Could not open output file `%s'\n", output_filename);
+	fprintf(stderr, _("Could not open output file `%s'\n"), output_filename);
 	exit(1);
     }
 
     set_include_path(TEMPLATE_DIR);
     if (!process_template_file(mathmap, template_path, out, template_processor, 0))
     {
-	fprintf(stderr, "Could not process template file `%s'\n", template_path);
+	fprintf(stderr, _("Could not process template file `%s'\n"), template_path);
 	exit(1);
     }
 

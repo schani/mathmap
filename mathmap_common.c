@@ -29,6 +29,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <libintl.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -80,7 +81,7 @@ arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
 
 	if (lookup_userval(infos, arg_decls->name) != NULL)
 	{
-	    sprintf(error_string, "The argument `%s' is declared more than once.", arg_decls->name);
+	    sprintf(error_string, _("The argument `%s' is declared more than once."), arg_decls->name);
 	    JUMP(1);
 	}
 
@@ -134,7 +135,7 @@ arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
 
 	if (result == 0)
 	{
-	    sprintf(error_string, "Conflict for argument %s.", arg_decls->name);
+	    sprintf(error_string, _("Conflict for argument %s."), arg_decls->name);
 	    JUMP(1);
 	}
 
@@ -167,7 +168,7 @@ register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 	if (lookup_internal(filter->v.mathmap.internals, decl->name, TRUE) != NULL
 	    || lookup_variable_macro(decl->name, NULL) != NULL)
 	{
-	    sprintf(error_string, "Argument `%s' has the same name as an internal variable.", decl->name);
+	    sprintf(error_string, _("Argument `%s' has the same name as an internal variable."), decl->name);
 	    JUMP(1);
 	}
 
@@ -381,7 +382,7 @@ parse_mathmap (char *expression, gboolean report_error)
 	    free_filters(mathmap->filters);
 	    mathmap->filters = 0;
 
-	    sprintf(error_string, "At least one filter must be defined.");
+	    sprintf(error_string, _("At least one filter must be defined."));
 	    JUMP(1);
 	}
 
@@ -397,7 +398,7 @@ parse_mathmap (char *expression, gboolean report_error)
 		free_filters(mathmap->filters);
 		mathmap->filters = 0;
 
-		sprintf(error_string, "Top-level declarations can only be filters.");
+		sprintf(error_string, _("Top-level declarations can only be filters."));
 		JUMP(1);
 	    }
 
@@ -406,7 +407,7 @@ parse_mathmap (char *expression, gboolean report_error)
 	    if (expr->result.number != rgba_tag_number
 		|| expr->result.length != 4)
 	    {
-		sprintf(error_string, "The filter `%s' must have the result type rgba:4.", filter->name);
+		sprintf(error_string, _("The filter `%s' must have the result type rgba:4."), filter->name);
 
 		free_filters(mathmap->filters);
 		mathmap->filters = 0;
@@ -465,10 +466,10 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 	    if (mathmap->initfunc == 0)
 	    {
-		char *message = g_strdup_printf("The MathMap compiler failed.  Since this development\n"
-						"release does not provide a fallback interpreter that\n"
-						"means that MathMap won't work.\n"
-						"This is the reason why the compiler failed:\n%s", error_string);
+		char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"
+						  "release does not provide a fallback interpreter that\n"
+						  "means that MathMap won't work.\n"
+						  "This is the reason why the compiler failed:\n%s"), error_string);
 
 		if (cmd_line_mode)
 		    fprintf(stderr, "%s\n", message);
@@ -1173,12 +1174,12 @@ add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
 	type = designer_get_node_type_by_name(design_type, name);
 	g_assert(type != NULL);
 
-	message = g_strdup_printf("The filters in the files\n"
-				  "`%s'\n"
-				  "and\n"
-				  "`%s'\n"
-				  "have the same name `%s'.\n"
-				  "Only the former can be used from the composer.",
+	message = g_strdup_printf(_("The filters in the files\n"
+				    "`%s'\n"
+				    "and\n"
+				    "`%s'\n"
+				    "have the same name `%s'.\n"
+				    "Only the former can be used from the composer."),
 				  get_expression_path(type->data),
 				  get_expression_path(edb),
 				  name);
@@ -1216,9 +1217,9 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 		    {
 			char *message;
 
-			message = g_strdup_printf("The filter in the file\n"
-						  "`%s'\n"
-						  "cannot be parsed.",
+			message = g_strdup_printf(_("The filter in the file\n"
+						    "`%s'\n"
+						    "cannot be parsed."),
 						  get_expression_path(edb));
 			mathmap_message_dialog(message);
 			g_free(message);
@@ -1241,8 +1242,8 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 		    {
 			char *message;
 
-			message = g_strdup_printf("Could not load composition from file\n"
-						  "`%s'.\n",
+			message = g_strdup_printf(_("Could not load composition from file\n"
+						    "`%s'.\n"),
 						  get_expression_path(edb));
 			mathmap_message_dialog(message);
 			g_free(message);
@@ -1261,11 +1262,11 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 		    {
 			char *message;
 
-			message = g_strdup_printf("The composition in the file\n"
-						  "`%s'\n"
-						  "does not produce a valid MathMap\n"
-						  "filter.  Please check that all filters\n"
-						  "used by that composition work properly.",
+			message = g_strdup_printf(_("The composition in the file\n"
+						    "`%s'\n"
+						    "does not produce a valid MathMap\n"
+						    "filter.  Please check that all filters\n"
+						    "used by that composition work properly."),
 						  get_expression_path(edb));
 			mathmap_message_dialog(message);
 			g_free(message);
@@ -1300,4 +1301,12 @@ design_type_from_expression_db (expression_db_t *edb)
     } while (did_add);
 
     return type;
+}
+
+void
+init_gettext (void)
+{
+    setlocale(LC_ALL, "");
+    textdomain("mathmap");
+    bindtextdomain("mathmap", LOCALEDIR);
 }

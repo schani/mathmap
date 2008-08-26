@@ -263,7 +263,7 @@ make_int_limits (int min, int max)
 
     if (min >= max)
     {
-	strcpy(error_string, "Lower limit must be less than upper limit");
+	strcpy(error_string, _("Lower limit must be less than upper limit"));
 	JUMP(1);
     }
 
@@ -280,7 +280,7 @@ make_float_limits (float min, float max)
 
     if (min >= max)
     {
-	strcpy(error_string, "Lower limit must be less than upper limit");
+	strcpy(error_string, _("Lower limit must be less than upper limit"));
 	JUMP(1);
     }
 
@@ -303,7 +303,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
     {
 	if (limits->type != LIMITS_INT)
 	{
-	    strcpy(error_string, "Only integers can be limits for an int argument");
+	    strcpy(error_string, _("Only integers can be limits for an int argument"));
 	    JUMP(1);
 	}
 
@@ -328,7 +328,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
 	}
 	else
 	{
-	    strcpy(error_string, "Only integers and floats can be limits for a float argument");
+	    strcpy(error_string, _("Only integers and floats can be limits for a float argument"));
 	    JUMP(1);
 	}
 
@@ -339,7 +339,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
     }
     else
     {
-	strcpy(error_string, "Limits applied to wrongly typed argument");
+	strcpy(error_string, _("Limits applied to wrongly typed argument"));
 	JUMP(1);
     }
 }
@@ -352,14 +352,14 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	case ARG_TYPE_INT :
 	    if (exprtree->type != EXPR_INT_CONST)
 	    {
-		strcpy(error_string, "Only integers can be defaults for an int argument");
+		strcpy(error_string, _("Only integers can be defaults for an int argument"));
 		JUMP(1);
 	    }
 
 	    if (exprtree->val.int_const < arg_decl->v.integer.min
 		|| exprtree->val.int_const > arg_decl->v.integer.max)
 	    {
-		strcpy(error_string, "Default value outside of bounds");
+		strcpy(error_string, _("Default value outside of bounds"));
 		JUMP(1);
 	    }
 
@@ -376,14 +376,14 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 		    default_value = exprtree->val.float_const;
 		else
 		{
-		    strcpy(error_string, "Only floats can be defaults for a float argument");
+		    strcpy(error_string, _("Only floats can be defaults for a float argument"));
 		    JUMP(1);
 		}
 
 		if (default_value < arg_decl->v.floating.min
 		    || default_value > arg_decl->v.floating.max)
 		{
-		    strcpy(error_string, "Default value outside of bounds");
+		    strcpy(error_string, _("Default value outside of bounds"));
 		    JUMP(1);
 		}
 
@@ -394,7 +394,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	case ARG_TYPE_BOOL :
 	    if (exprtree->type != EXPR_INT_CONST)
 	    {
-		strcpy(error_string, "Only integers can be defaults for a bool argument");
+		strcpy(error_string, _("Only integers can be defaults for a bool argument"));
 		JUMP(1);
 	    }
 
@@ -402,7 +402,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	    break;
 
 	default :
-	    strcpy(error_string, "Default applied to wrongly typed argument");
+	    strcpy(error_string, _("Default applied to wrongly typed argument"));
 	    JUMP(1);
     }
 }
@@ -450,7 +450,7 @@ make_range (int first, int last)
 {
     if (first > last)
     {
-	sprintf(error_string, "Invalid range %d..%d.", first, last);
+	sprintf(error_string, _("Invalid range %d..%d."), first, last);
 	JUMP(1);
     }
     else if (first == last)
@@ -478,7 +478,7 @@ make_userval (userval_info_t *info, exprtree *args)
 	case USERVAL_COLOR :
 	    if (exprlist_length(args) != 0)
 	    {
-		sprintf(error_string, "Integer inputs take no arguments.");
+		sprintf(error_string, _("Integer inputs take no arguments."));
 		JUMP(1);
 	    }
 
@@ -526,7 +526,7 @@ make_userval (userval_info_t *info, exprtree *args)
 
 	    if (exprlist_length(args) != 0)
 	    {
-		sprintf(error_string, "A curve takes one argument.");
+		sprintf(error_string, _("A curve takes one argument."));
 		JUMP(1);
 	    }
 	    break;
@@ -539,7 +539,7 @@ make_userval (userval_info_t *info, exprtree *args)
 
 	    if (exprlist_length(args) != 0)
 	    {
-		sprintf(error_string, "A gradient takes one argument.");
+		sprintf(error_string, _("A gradient takes one argument."));
 		JUMP(1);
 	    }
 	    break;
@@ -552,7 +552,7 @@ make_userval (userval_info_t *info, exprtree *args)
 
 	    if (exprlist_length(args) != 0)
 	    {
-		sprintf(error_string, "An image takes one or two arguments.");
+		sprintf(error_string, _("An image takes one or two arguments."));
 		JUMP(1);
 	    }
 	    break;
@@ -611,7 +611,7 @@ make_var (const char *name)
     }
     else
     {
-	sprintf(error_string, "Undefined variable %s.", name);
+	sprintf(error_string, _("Undefined variable %s."), name);
 	JUMP(1);
     }
 
@@ -631,7 +631,7 @@ make_tuple_exprtree (exprtree *elems)
 
 	if (elem->result.length != 1)
 	{
-	    sprintf(error_string, "Tuples cannot contain tuples of length other than 1.");
+	    sprintf(error_string, _("Tuples cannot contain tuples of length other than 1."));
 	    JUMP(1);
 	}
 
@@ -747,7 +747,7 @@ make_filter_call (filter_t *filter, exprtree *args)
     if (num_args < filter->num_uservals
 	|| num_args >= filter->num_uservals + 3)
     {
-	sprintf(error_string, "Filter %s takes %d to %d arguments but is called with %d.",
+	sprintf(error_string, _("Filter %s takes %d to %d arguments but is called with %d."),
 		filter->name, filter->num_uservals, filter->num_uservals + 2, exprlist_length(args));
 	JUMP(1);
     }
@@ -768,7 +768,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    case USERVAL_IMAGE :
 		if ((*argp)->result.length != 1)
 		{
-		    sprintf(error_string, "Can only pass tuples of length 1 as numbers, booleans, curves, gradients, or images.");
+		    sprintf(error_string, _("Can only pass tuples of length 1 as numbers, booleans, curves, gradients, or images."));
 		    JUMP(1);
 		}
 		break;
@@ -776,7 +776,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    case USERVAL_COLOR :
 		if ((*argp)->result.number != rgba_tag_number || (*argp)->result.length != 4)
 		{
-		    sprintf(error_string, "Can only pass tuples of type rgba:4 as colors.");
+		    sprintf(error_string, _("Can only pass tuples of type rgba:4 as colors."));
 		    JUMP(1);
 		}
 		break;
@@ -814,7 +814,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	|| (call_args->result.number != xy_tag_number
 	    && call_args->result.number != ra_tag_number))
     {
-	sprintf(error_string, "The coordinate argument to a filter must be a tuple of type xy:2 or ra:2.");
+	sprintf(error_string, _("The coordinate argument to a filter must be a tuple of type xy:2 or ra:2."));
 	JUMP(1);
     }
 
@@ -835,7 +835,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	*argp = make_var("t");
     else if ((*argp)->result.length != 1)
     {
-	sprintf(error_string, "The time argument to a filter must be a tuple of length 1.");
+	sprintf(error_string, _("The time argument to a filter must be a tuple of length 1."));
 	JUMP(1);
     }
 
@@ -849,7 +849,7 @@ make_image_call (exprtree *image, exprtree *args)
 {
     if (exprlist_length(args) != 1 && exprlist_length(args) != 2)
     {
-	sprintf(error_string, "An image must be invoked with one or two arguments.");
+	sprintf(error_string, _("An image must be invoked with one or two arguments."));
 	JUMP(1);
     }
 
@@ -857,7 +857,7 @@ make_image_call (exprtree *image, exprtree *args)
 	|| (args->result.number != xy_tag_number
 	    && args->result.number != ra_tag_number))
     {
-	sprintf(error_string, "The coordinate argument to an image must be of type xy:2 or ra:2.");
+	sprintf(error_string, _("The coordinate argument to an image must be of type xy:2 or ra:2."));
 	JUMP(1);
     }
     if (args->result.number == ra_tag_number)
@@ -867,7 +867,7 @@ make_image_call (exprtree *image, exprtree *args)
     {
 	if (args->next->result.length != 1)
 	{
-	    sprintf(error_string, "The time argument to an image have length 1.");
+	    sprintf(error_string, _("The time argument to an image have length 1."));
 	    JUMP(1);
 	}
     }
@@ -886,7 +886,7 @@ make_function (const char *name, exprtree *args)
 
     if (args == 0)
     {
-	sprintf(error_string, "Function %s must be called with at least one argument.", name);
+	sprintf(error_string, _("Function %s must be called with at least one argument."), name);
 	JUMP(1);
     }
 
@@ -948,13 +948,13 @@ make_function (const char *name, exprtree *args)
 	if (info.number != image_tag_number
 	    || info.length != 1)
 	{
-	    sprintf(error_string, "Variable %s is not an image and cannot be invoked.", name);
+	    sprintf(error_string, _("Variable %s is not an image and cannot be invoked."), name);
 	    JUMP(1);
 	}
 
 	return make_image_call(make_var_exprtree(var, info), args);
     } else {
-	sprintf(error_string, "Unable to resolve invocation of %s.", name);
+	sprintf(error_string, _("Unable to resolve invocation of %s."), name);
 	JUMP(1);
     }
 
@@ -985,12 +985,12 @@ make_assignment (const char *name, exprtree *value)
 	if (lookup_internal(the_mathmap->current_filter->v.mathmap.internals, name, TRUE) != NULL
 	    || lookup_variable_macro(name, NULL) != NULL)
 	{
-	    sprintf(error_string, "Cannot assign to internal variable `%s'.", name);
+	    sprintf(error_string, _("Cannot assign to internal variable `%s'."), name);
 	    JUMP(1);
 	}
 	if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != NULL)
 	{
-	    sprintf(error_string, "Cannot assign to filter argument `%s'.", name);
+	    sprintf(error_string, _("Cannot assign to filter argument `%s'."), name);
 	    JUMP(1);
 	}
 
@@ -1000,7 +1000,7 @@ make_assignment (const char *name, exprtree *value)
 
     if (tree->result.number != value->result.number || tree->result.length != value->result.length)
     {
-	sprintf(error_string, "Variable %s is being assigned two different types.", name);
+	sprintf(error_string, _("Variable %s is being assigned two different types."), name);
 	JUMP(1);
     }
 
@@ -1020,13 +1020,13 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
 
     if (var == 0)
     {
-	sprintf(error_string, "Undefined variable %s.", name);
+	sprintf(error_string, _("Undefined variable %s."), name);
 	JUMP(1);
     }
 
     if (subscripts->result.length != value->result.length)
     {
-	sprintf(error_string, "Lhs does not match rhs in sub assignment.");
+	sprintf(error_string, _("Lhs does not match rhs in sub assignment."));
 	JUMP(1);
     }
 
@@ -1046,7 +1046,7 @@ make_if_then (exprtree *condition, exprtree *consequent)
 
     if (condition->result.length != 1)
     {
-	sprintf(error_string, "Condition to if statement must have length 1.");
+	sprintf(error_string, _("Condition to if statement must have length 1."));
 	JUMP(1);
     }
 
@@ -1065,13 +1065,13 @@ make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternat
 
     if (condition->result.length != 1)
     {
-	sprintf(error_string, "Condition to if statement must have length 1.");
+	sprintf(error_string, _("Condition to if statement must have length 1."));
 	JUMP(1);
     }
     if (consequent->result.number != alternative->result.number
 	|| consequent->result.length != alternative->result.length)
     {
-	sprintf(error_string, "Consequent and alternative must have the same type in if statement.");
+	sprintf(error_string, _("Consequent and alternative must have the same type in if statement."));
 	JUMP(1);
     }
 
@@ -1115,7 +1115,7 @@ check_for_start (exprtree *start)
 {
     if (start->result.length != 1)
     {
-	sprintf(error_string, "The start and end of a for loop interval must be tuples of length 1.");
+	sprintf(error_string, _("The start and end of a for loop interval must be tuples of length 1."));
 	JUMP(1);
     }
 }
@@ -1125,7 +1125,7 @@ make_for (const char *counter_name, exprtree *counter_init, exprtree *start, exp
 {
     if (start->result.length != 1 || end->result.length != 1 || start->result.number != end->result.number)
     {
-	sprintf(error_string, "The start and end of a for loop interval must be tuples of the same tag and length 1.");
+	sprintf(error_string, _("The start and end of a for loop interval must be tuples of the same tag and length 1."));
 	JUMP(1);
     }
     else
