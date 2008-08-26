@@ -25,26 +25,19 @@ GIFLIB = -lgif
 # been maintained for quite some time and probably doesn't work.
 #MOVIES = YES
 
-# If you do not want localization (relevant for plug-in version only),
-# comment the following line
-ENABLE_NLS = YES
-
 # The settings for the following directories doesn't affect anything
 # because MathMap cannot install system-wide yet.
 
 # Prefix for the software installation
-PREFIX = /tmp/mathmap
-
-# Directory where the localization files should be installed in
-LOCALEDIR = $(PREFIX)/share/locale
+PREFIX = /usr
 
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
 VERSION = 1.3.3
 
-#OPT_CFLAGS := -O2
-OPT_CFLAGS := -g -DDEBUG_OUTPUT #-fgnu89-inline 
+OPT_CFLAGS := -O2
+#OPT_CFLAGS := -g -DDEBUG_OUTPUT #-fgnu89-inline 
 
 #PROF_FLAGS := -pg
 
@@ -63,12 +56,13 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
-GIMPDATADIR := `$(GIMPTOOL) --gimpdatadir`
+GIMPDATADIR := $(PREFIX)/share/gimp/2.0
 GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0 libgnomecanvas-2.0`
 GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0 libgnomecanvas-2.0`
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
+LOCALEDIR = $(PREFIX)/share/locale
 
 CFLAGS = -std=gnu99 -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS)
@@ -87,10 +81,8 @@ CFLAGS += -DMATHMAP_CMDLINE -DGIMPDATADIR=\"$(GIMPDATADIR)\"
 LDFLAGS += -ljpeg -lpng $(GIFLIB)
 endif
 
-ifeq ($(ENABLE_NLS),YES)
 NLS_CFLAGS = -DENABLE_NLS
 MOS = fr.mo ru.mo
-endif
 
 CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
 
@@ -140,17 +132,22 @@ new_builtins.c opdefs.h opfuncs.h compiler_types.h : builtins.lisp ops.lisp
 
 blender.o : generators/blender/blender.c
 
-install : mathmap
-	$(GIMPTOOL) --install-admin-bin mathmap
-	if [ ! -d $(GIMPDATADIR)/mathmap ] ; then mkdir $(GIMPDATADIR)/mathmap ; fi
-	cp new_template.c $(GIMPDATADIR)/mathmap/
-	cp opmacros.h $(GIMPDATADIR)/mathmap/
-	cp lispreader/pools.h $(GIMPDATADIR)/mathmap/
-#	cp generators/blender/blender_template.c $(GIMPDATADIR)/mathmap/
-#	cp generators/blender/blender_opmacros.h $(GIMPDATADIR)/mathmap/
-	if [ ! -d $(GIMPDATADIR)/mathmap/expressions ] ; then cp -r examples $(GIMPDATADIR)/mathmap/expressions ; fi
-	if [ ! -d $(PIXMAP_DIR) ] ; then mkdir $(PIXMAP_DIR) ; fi
-	cp pixmaps/*.png $(PIXMAP_DIR)
+install : mathmap $(MOS)
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -d $(DESTDIR)$(PREFIX)/lib/gimp/2.0/plug-ins
+	install -d $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap
+	install -d $(DESTDIR)$(PREFIX)/share/gtksourceview-1.0/language-specs
+	install mathmap $(DESTDIR)$(PREFIX)/bin/mathmap
+	ln -s $(PREFIX)/bin/mathmap $(DESTDIR)$(PREFIX)/lib/gimp/2.0/plug-ins/mathmap
+	cp new_template.c opmacros.h lispreader/pools.h $(DESTDIR)$(TEMPLATE_DIR)
+	cp pixmaps/*.png $(DESTDIR)$(PIXMAP_DIR)
+	cp mathmap.lang $(DESTDIR)$(PREFIX)/share/gtksourceview-1.0/language-specs
+	cp -r examples $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap/expressions
+	for i in $(MOS); do	\
+		lng=`echo $$i | sed "s/\.mo//"`;	\
+		install -d $(DESTDIR)$(LOCALEDIR)/$$lng/LC_MESSAGES;	\
+		cp $$lng.mo $(DESTDIR)$(LOCALEDIR)/$$lng/LC_MESSAGES/mathmap.mo; \
+	done
 
 install-local : mathmap
 #	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
@@ -170,14 +167,6 @@ install-local : mathmap
 	if [ ! -d $(HOME)/.gnome2/gtksourceview-1.0 ] ; then mkdir $(HOME)/.gnome2/gtksourceview-1.0 ; fi
 	if [ ! -d $(HOME)/.gnome2/gtksourceview-1.0/language-specs ] ; then mkdir $(HOME)/.gnome2/gtksourceview-1.0/language-specs ; fi
 	cp mathmap.lang $(HOME)/.gnome2/gtksourceview-1.0/language-specs
-
-install-mos : $(MOS)
-	mofiles=`ls *.mo`; \
-	for i in $$mofiles; do \
-	    lng=`echo $$i | sed "s/\.mo//"`; \
-	    if [ ! -d $(LOCALEDIR)/$$lng/LC_MESSAGES ] ; then mkdir -p $(LOCALEDIR)/$$lng/LC_MESSAGES ; fi; \
-	    cp $$lng.mo $(LOCALEDIR)/$$lng/LC_MESSAGES/mathmap.mo; \
-	done
 
 clean :
 	rm -f *.o designer/*.o native-filters/*.o compopt/*.o generators/blender/*.o mathmap compiler parser.output core
@@ -214,6 +203,7 @@ dist : new_builtins.c parser.c scanner.c clean
 	cp pixmaps/*.png mathmap-$(VERSION)/pixmaps
 	cp -rL examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf mathmap-$(VERSION)/examples/Test
+	rm -f mathmap-$(VERSION)/examples/*.mm
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
 	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h

@@ -9,7 +9,7 @@ either refer to a pixel in the source image or can generate pixels
 completely independent of the source.  MathMap allows the generation
 of still images and of animations.
 
-The MathMap homepage can be found at
+The MathMap homepage is
 
     http://www.complang.tuwien.ac.at/schani/mathmap/
 
@@ -214,25 +214,25 @@ Changes in 0.8:
 
 Changes in 0.7:
 
-  * Implemented the tagged tuples type system. This is major feature! 
+  * Implemented the tagged tuples type system. This is major feature!
   * Implemented better error handling by borrowing a piece of code
     from the current development tree of chpp.
 
 Changes in 0.6:
 
-  * Alpha channel now shows up in the preview (thanks to Andy Thomas). 
-  * Added the exponentation operator (^). 
+  * Alpha channel now shows up in the preview (thanks to Andy Thomas).
+  * Added the exponentation operator (^).
 
 Changes in 0.5:
 
-  * Completely redesigned the dialog. 
+  * Completely redesigned the dialog.
   * Added a curve widget which allows the user to intuitively specify
-    a function which can be accessed from the expression (curve). 
+    a function which can be accessed from the expression (curve).
   * Added the function gradient which accesses the user-defined
     gradient.
-  * Made it possible to change the parameter t when not animating. 
-  * Implemented a fast-preview option. 
-  * Put the examples into a file which is displayed in a tree widget. 
+  * Made it possible to change the parameter t when not animating.
+  * Implemented a fast-preview option.
+  * Put the examples into a file which is displayed in a tree widget.
   * Expressions are now edited in a text widget, which allows for
     multi-line expressions.
   * Moved the plug-in to Filters/Generic, so as to conform to the new
@@ -242,21 +242,21 @@ Changes in 0.4:
 
   * Added syntactic sugar for some functions (especially logical
     operators).
-  * Added a pow function. 
-  * Support for alpha layer. 
-  * Support for grayscale images. 
-  * Animation capability. 
+  * Added a pow function.
+  * Support for alpha layer.
+  * Support for grayscale images.
+  * Animation capability.
 
 Changes in 0.3:
 
-  * if is now a language-level construct. 
-  * I have introduced while and do-while loops. 
+  * if is now a language-level construct.
+  * I have introduced while and do-while loops.
 
 Changes in 0.2:
 
   * Fixed the bug that caused it to crash after the first preview.
-  * Added a few more functions: red, green, blue and rgbColor. 
-  * Added the assignment (=) and the sequence operator (;). 
+  * Added a few more functions: red, green, blue and rgbColor.
+  * Added the assignment (=) and the sequence operator (;).
 
 --- 
 Mark Probst <schani@complang.tuwien.ac.at>

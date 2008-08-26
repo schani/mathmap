@@ -2,7 +2,7 @@ Source: mathmap
 Section: graphics
 Priority: optional
 Maintainer: Mark Probst <schani@complang.tuwien.ac.at>
-Build-Depends: debhelper (>= 5), libgsl0-dev, libjpeg62-dev, libpng12-dev, libungif4-dev, libgimp2.0-dev, libgtksourceview-dev, gettext
+Build-Depends: debhelper (>= 5), libgsl0-dev, libjpeg62-dev, libpng12-dev, libgif-dev, libgimp2.0-dev, libgtksourceview-dev, gettext
 Standards-Version: 3.7.2
 
 Package: mathmap
