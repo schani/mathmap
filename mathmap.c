@@ -761,6 +761,22 @@ mathmap_message_dialog (const char *message)
     gtk_widget_show(dialog);
 }
 
+void
+mathmap_message_dialog_modal (const char *message)
+{
+    GtkWidget *dialog = gtk_message_dialog_new (GTK_WINDOW(mathmap_dialog_window),
+						GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+						GTK_MESSAGE_ERROR,
+						GTK_BUTTONS_CLOSE,
+						"%s", message);
+    gtk_window_set_title(GTK_WINDOW(dialog), "MathMap Message");
+    gtk_widget_show(dialog);
+
+    gtk_dialog_run(GTK_DIALOG(dialog));
+
+    gtk_widget_destroy(dialog);
+}
+
 /*****/
 
 static void
@@ -782,6 +798,23 @@ design_changed_callback (GtkWidget *widget, designer_design_t *design)
 
     if (node != NULL)
 	node_focussed_callback(widget, node);
+}
+
+static gboolean
+node_title_change_callback (GtkWidget *widget, designer_node_t *node, const char *name)
+{
+    if (strlen (name) == 0)
+    {
+	mathmap_message_dialog_modal("Node title cannot be empty");
+	return FALSE;
+    }
+
+    if (designer_node_set_name (node, name))
+	return TRUE;
+
+    mathmap_message_dialog_modal("Another node already has that name");
+
+    return FALSE;
 }
 
 static void
@@ -1807,7 +1840,7 @@ mathmap_dialog (int mutable_expression)
 		label = gtk_label_new(_("Frames"));
 		gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		gtk_table_attach(GTK_TABLE(frame_table), label, 0, 1, 0, 1, GTK_FILL, 0, 0, 0);
-		adjustment = gtk_adjustment_new(mmvals.frames, 2, 10000, 1.0, 10.0, 0.0);
+		adjustment = gtk_adjustment_new(mmvals.frames, 2, 9999, 1.0, 10.0, 0.0);
 		spin_button = gtk_spin_button_new(GTK_ADJUSTMENT(adjustment), 10.0, 0);
 		gtk_table_attach (GTK_TABLE (frame_table), spin_button, 1, 2, 0, 1, GTK_FILL, 0, 0, 0);
 		gtk_signal_connect (GTK_OBJECT (adjustment), "value_changed",
@@ -1891,7 +1924,10 @@ mathmap_dialog (int mutable_expression)
 	    gtk_widget_set_size_request(designer_tree_scrolled_window, 150, 200);
 	    gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
 
-	    designer_widget = designer_widget_new(NULL, design_changed_callback, node_focussed_callback);
+	    designer_widget = designer_widget_new(NULL,
+						  design_changed_callback,
+						  node_focussed_callback,
+						  node_title_change_callback);
 	    gtk_widget_set_size_request(designer_widget, 400, 400);
 	    gtk_paned_add2(GTK_PANED(hpaned), designer_widget);
 

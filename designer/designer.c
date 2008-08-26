@@ -264,6 +264,21 @@ designer_disconnect_and_delete_node (designer_node_t *node)
     designer_delete_node(node);
 }
 
+gboolean
+designer_node_set_name (designer_node_t *node, const char *name)
+{
+    if (strcmp(node->name, name) == 0)
+	return TRUE;
+
+    if (designer_get_node_by_name(node->design, name) != NULL)
+	return FALSE;
+
+    g_free(node->name);
+    node->name = g_strdup(name);
+
+    return TRUE;
+}
+
 static designer_slot_spec_t*
 lookup_slot_spec (GSList *list, const char *name)
 {

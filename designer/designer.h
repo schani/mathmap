@@ -93,6 +93,7 @@ struct _designer_design_t
 
 typedef void (*designer_design_changed_callback_t) (GtkWidget *widget, designer_design_t *design);
 typedef void (*designer_node_focussed_callback_t) (GtkWidget *widget, designer_node_t *node);
+typedef gboolean (*designer_node_title_change_callback_t) (GtkWidget *widget, designer_node_t *node, const char *name);
 
 typedef void (*designer_design_loaded_callback_t) (designer_design_t *design, gpointer user_data);
 typedef void (*designer_node_aux_load_callback_t) (designer_node_t *node, lisp_object_t *obj, gpointer user_data);
@@ -124,6 +125,7 @@ extern void designer_free_design (designer_design_t *design);
 extern designer_node_t* designer_add_node (designer_design_t *design, const char *name, const char *node_type_name);
 extern void designer_delete_node (designer_node_t *node);
 extern void designer_disconnect_and_delete_node (designer_node_t *node);
+extern gboolean designer_node_set_name (designer_node_t *node, const char *name);
 
 extern designer_slot_t* designer_connect_nodes (designer_node_t *source, designer_slot_spec_t *output_slot_spec,
 						designer_node_t *dest, designer_slot_spec_t *input_slot_spec);
@@ -194,7 +196,8 @@ extern gboolean designer_save_design (designer_design_t *design, const char *fil
 
 extern GtkWidget* designer_widget_new (designer_design_t *design,
 				       designer_design_changed_callback_t design_changed_callback,
-				       designer_node_focussed_callback_t node_focussed_callback);
+				       designer_node_focussed_callback_t node_focussed_callback,
+				       designer_node_title_change_callback_t node_title_change_callback);
 
 extern void designer_widget_set_design (GtkWidget *widget, designer_design_t *design);
 

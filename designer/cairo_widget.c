@@ -159,6 +159,7 @@ typedef struct
     designer_design_t *design;
     designer_design_changed_callback_t design_changed_callback;
     designer_node_focussed_callback_t node_focussed_callback;
+    designer_node_title_change_callback_t node_title_change_callback;
     GtkWidget *widget;
     GtkWidget *drawing_area;
     GtkAdjustment *hadjustment;
@@ -1222,6 +1223,59 @@ static _point_t map_location(widget_data_t *data, _point_t p)
     return _move(p, _ptos(data->visible_area.o));
 }
 
+static GtkWindow*
+get_root_window (GtkWidget *widget)
+{
+    for (;;)
+    {
+	GtkWidget *parent = gtk_widget_get_parent(widget);
+
+	if (parent == NULL)
+	    return GTK_WINDOW(widget);
+
+	widget = parent;
+    }
+}
+
+static void
+change_node_title (widget_data_t *data, designer_node_t *node)
+{
+    GtkWidget *dialog, *entry;
+    guint response;
+
+    g_assert (data->node_title_change_callback != NULL);
+
+    dialog = gtk_dialog_new_with_buttons ("Change node title",
+					  get_root_window (data->widget),
+					  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+					  GTK_STOCK_OK,
+					  GTK_RESPONSE_OK,
+					  GTK_STOCK_CANCEL,
+					  GTK_RESPONSE_CANCEL,
+					  NULL);
+
+    entry = gtk_entry_new ();
+    gtk_entry_set_text (GTK_ENTRY(entry), node->name);
+    gtk_container_add (GTK_CONTAINER (GTK_DIALOG(dialog)->vbox), entry);
+    gtk_widget_show_all (dialog);
+
+    response = gtk_dialog_run (GTK_DIALOG (dialog));
+    switch (response)
+    {
+	case GTK_RESPONSE_OK :
+	    if (data->node_title_change_callback (data->widget, node, gtk_entry_get_text (GTK_ENTRY(entry))))
+		update_area_conditional(data, TRUE);
+	    break;
+
+	case GTK_RESPONSE_CANCEL :
+	    break;
+
+	default :
+	    g_assert_not_reached ();
+    }
+
+    gtk_widget_destroy (dialog);
+}
 
 static gboolean
 double_click_event (GtkWidget *widget, GdkEventButton *event,
@@ -1231,14 +1285,14 @@ double_click_event (GtkWidget *widget, GdkEventButton *event,
 
     switch(ht) {
     case HIT_LABEL:
-	// FIXME: implement
-	g_print("label edit\n");
+	change_node_title (data, hn);
 	break;
+
     case HIT_TITLE:
     case HIT_BODY:
 	set_root_focus (data, hn);
 	break;
-	
+
     default:
 	break;
     }
@@ -1256,7 +1310,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
     data->mouse_down = map_location(data, _point(event->x, event->y));
 
     designer_node_t *hn = NULL;
-    _hit_t ht = HIT_NOTHING; 
+    _hit_t ht = HIT_NOTHING;
     int hs = -1;
 
     /* check for best node hit */
@@ -1475,7 +1529,8 @@ populate_table (widget_data_t *data)
 GtkWidget *
 designer_widget_new (designer_design_t *design,
 		     designer_design_changed_callback_t design_changed_callback,
-		     designer_node_focussed_callback_t node_focussed_callback)
+		     designer_node_focussed_callback_t node_focussed_callback,
+		     designer_node_title_change_callback_t node_title_change_callback)
 {
     GtkWidget *table;
     widget_data_t *data;
@@ -1484,6 +1539,7 @@ designer_widget_new (designer_design_t *design,
     data->design = design;
     data->design_changed_callback = design_changed_callback;
     data->node_focussed_callback = node_focussed_callback;
+    data->node_title_change_callback = node_title_change_callback;
 
     table = gtk_table_new (2, 2, FALSE);
     gtk_table_set_row_spacings (GTK_TABLE (table), 4);

@@ -15,7 +15,7 @@ test localization
 ** Rendering
 
 ** Designer
-node renaming
+don't drag after changing node title
 
 ** Native filters
 
@@ -113,6 +113,7 @@ optimization for filters which use the "current" pixel
 Copy elimination for phis in pre-native code
 Remove dead whiles
 XY constants for interpreter code
+use real vectors for tuples which are accessed with non-constant index
 
 ** Documentation/Homepage
 
