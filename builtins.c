@@ -36,6 +36,7 @@
 #include "tags.h"
 #include "overload.h"
 #include "mathmap.h"
+#include "opmacros.h"
 
 static void
 apply_edge_behaviour (mathmap_invocation_t *invocation, int *_x, int *_y, int width, int height)
@@ -273,11 +274,10 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
     float *p;
     float ax, bx, ay, by;
     pools_t filter_pools;
+    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int) = get_orig_val_pixel;
 
-    if (image->type == IMAGE_DRAWABLE || image->type == IMAGE_FLOATMAP)
+    if (image->type == IMAGE_FLOATMAP)
 	return image;
-
-    g_assert(image->type == IMAGE_CLOSURE);
 
     new_image = pools_alloc(pools, sizeof(image_t));
 
@@ -290,6 +290,7 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
     p = new_image->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * 4);
 
     init_pools(&filter_pools);
+    pools = &filter_pools;
 
     for (y = 0; y < height; ++y)
     {
@@ -301,7 +302,7 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 	    float *tuple;
 
 	    reset_pools(&filter_pools);
-	    tuple = image->v.closure.func(invocation, image->v.closure.args, fx, fy, 0.0, &filter_pools);
+	    tuple = ORIG_VAL(fx, fy, image, 0.0);
 
 	    memcpy(p, tuple, sizeof(float) * 4);
 
