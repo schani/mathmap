@@ -19,7 +19,6 @@ builtin for getting size of an image
 Generate keyword list in sourceview spec file from builtins.lisp
 
 ** Rendering
-separate global init from col/row init (to speed up rendering stuff in final mathmap render)
 specifiable size
 antialiasing from rendered images
 use image/row/column const stuff for rendering
@@ -30,7 +29,6 @@ free widget_data in designs
 akklimatisierungsbug (bertl)
 
 ** Native filters
-don't crash if input image is not a floatmap
 render gaussian multithreaded if possible
 convolution
 
