@@ -577,6 +577,20 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 }
 
 void
+invocation_init_frame (mathmap_invocation_t *invocation)
+{
+    init_pools(&invocation->pools);
+    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
+	invocation->mathfuncs.init_frame(invocation);
+}
+
+void
+invocation_deinit_frame (mathmap_invocation_t *invocation)
+{
+    free_pools(&invocation->pools);
+}
+
+void
 enable_debugging (mathmap_invocation_t *invocation)
 {
     invocation->do_debug = 1;
@@ -851,10 +865,6 @@ call_invocation_parallel (mathmap_invocation_t *invocation,
     if (!(invocation->mathmap->flags & MATHMAP_FLAG_NATIVE))
 	num_threads = 1;
 
-    init_pools(&invocation->pools);
-    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	invocation->mathfuncs.init_frame(invocation);
-
     call = g_malloc(sizeof(invocation_call_t) + sizeof(thread_data_t) * num_threads);
 
     call->num_threads = num_threads;
@@ -883,8 +893,6 @@ join_invocation_call (gpointer *_call)
 
     for (i = 0; i < call->num_threads; ++i)
 	mathmap_thread_join(call->datas[i].thread_handle);
-
-    free_pools(&call->datas[0].invocation->pools);
 
     g_free(call);
 }

@@ -792,7 +792,9 @@ cmdline_main (int argc, char *argv[])
 
 	    update_image_internals(invocation);
 
+	    invocation_init_frame(invocation);
 	    call_invocation_parallel_and_join(invocation, 0, 0, img_width, img_height, output, 1);
+	    invocation_deinit_frame(invocation);
 
 #ifdef MOVIES
 	    if (generate_movie)

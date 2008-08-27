@@ -240,7 +240,8 @@ int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression, gboolean report_error);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
-void init_frame (mathmap_slice_t *slice);
+void invocation_init_frame (mathmap_invocation_t *invocation);
+void invocation_deinit_frame (mathmap_invocation_t *invocation);
 
 gpointer call_invocation_parallel (mathmap_invocation_t *invocation,
 				   int region_x, int region_y, int region_width, int region_height,

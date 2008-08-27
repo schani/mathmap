@@ -1083,6 +1083,8 @@ do_mathmap (int frame_num, float current_t)
 	    strcpy(progress_info, _("Mathmapping..."));
 	gimp_progress_init(progress_info);
 
+	invocation_init_frame(invocation);
+
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
 	{
@@ -1101,6 +1103,8 @@ do_mathmap (int frame_num, float current_t)
 	    progress += region_width * region_height;
 	    gimp_progress_update((double) progress / max_progress);
 	}
+
+	invocation_deinit_frame(invocation);
 
 	unref_tiles();
 
@@ -2016,12 +2020,17 @@ recalculate_preview (void)
 	invocation->render_width = preview_width;
 	invocation->render_height = preview_height;
 
-	if (previewing) {
+	if (previewing)
 	    for_each_input_drawable(build_fast_image_source);
+
+	invocation_init_frame(invocation);
+
+	if (previewing)
 	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, get_num_cpus());
-	}
 	else
 	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
+
+	invocation_deinit_frame(invocation);
 
 	invocation->render_width = old_render_width;
 	invocation->render_height = old_render_height;
