@@ -172,6 +172,9 @@ typedef struct _mathmap_invocation_t
 
     unsigned char * volatile rows_finished;
 
+    void *xy_vars;
+    pools_t pools;
+
     mathfuncs_t mathfuncs;
 
     int do_debug;
@@ -189,9 +192,7 @@ typedef struct _mathmap_slice_t
     float sampling_offset_x, sampling_offset_y;
     int region_x, region_y, region_width, region_height;
 
-    void *xy_vars;
     void *y_vars;
-
     pools_t pools;
 } mathmap_slice_t;
 

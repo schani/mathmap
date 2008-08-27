@@ -29,7 +29,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <pthread.h>
-#include <libintl.h>
+#include <locale.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -642,13 +642,6 @@ write_color_to_pixel (color_t color, guchar *dest, int output_bpp)
 	dest[output_bpp - 1] = ALPHA(color);
 }
 
-void
-init_frame (mathmap_slice_t *slice)
-{
-    if (slice->invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	slice->invocation->mathfuncs.init_frame(slice);
-}
-
 static void
 run_interpreter (mathmap_invocation_t *invocation)
 {
@@ -737,16 +730,13 @@ init_slice (mathmap_slice_t *slice, mathmap_invocation_t *invocation, int region
 
     init_pools(&slice->pools);
 
-    init_frame(slice);
+    if (slice->invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
+	slice->invocation->mathfuncs.init_slice(slice);
 }
 
 static void
 deinit_slice (mathmap_slice_t *slice)
 {
-    if (slice->xy_vars)
-	free(slice->xy_vars);
-    if (slice->y_vars)
-	free(slice->y_vars);
     free_pools(&slice->pools);
 }
 
@@ -861,6 +851,10 @@ call_invocation_parallel (mathmap_invocation_t *invocation,
     if (!(invocation->mathmap->flags & MATHMAP_FLAG_NATIVE))
 	num_threads = 1;
 
+    init_pools(&invocation->pools);
+    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
+	invocation->mathfuncs.init_frame(invocation);
+
     call = g_malloc(sizeof(invocation_call_t) + sizeof(thread_data_t) * num_threads);
 
     call->num_threads = num_threads;
@@ -890,6 +884,8 @@ join_invocation_call (gpointer *_call)
     for (i = 0; i < call->num_threads; ++i)
 	mathmap_thread_join(call->datas[i].thread_handle);
 
+    free_pools(&call->datas[0].invocation->pools);
+
     g_free(call);
 }
 
@@ -901,6 +897,8 @@ kill_invocation_call (gpointer *_call)
 
     for (i = 0; i < call->num_threads; ++i)
 	mathmap_thread_kill(call->datas[i].thread_handle);
+
+    free_pools(&call->datas[0].invocation->pools);
 
     g_free(call);
 }

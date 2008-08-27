@@ -1,25 +1,5 @@
 -*- outline -*-
 
-* 1.3.3
-
-** General
-
-** GIMP Plug-In
-
-** Language
-
-** Packaging
-
-** Rendering
-
-** Designer
-
-** Native filters
-
-** Compiler
-
-** Filters
-
 * 1.3.4
 
 ** GIMP Plug-In
@@ -28,6 +8,7 @@ filter repeat doesn't work (Filters->Repeat)
 use big render size unless doing fast preview
 speed up rendering of GIMP drawables by processing tile for tile
 pressing enter in label change text field should close dialog
+why do we get c compiler error messages twice?
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -38,11 +19,10 @@ builtin for getting size of an image
 Generate keyword list in sourceview spec file from builtins.lisp
 
 ** Rendering
+separate global init from col/row init (to speed up rendering stuff in final mathmap render)
 specifiable size
 antialiasing from rendered images
-lazy rendering
 use image/row/column const stuff for rendering
-separate global init from col/row init (to speed up rendering stuff in final mathmap render)
 
 ** Designer
 do migration with save/load
@@ -50,6 +30,8 @@ free widget_data in designs
 akklimatisierungsbug (bertl)
 
 ** Native filters
+don't crash if input image is not a floatmap
+render gaussian multithreaded if possible
 convolution
 
 ** Tests
@@ -96,6 +78,9 @@ Logarithmic sliders
 Debug tuples
 Better source reference for error messages
 Remove i18n?
+
+** Rendering
+lazy rendering
 
 ** Packaging
 Real dependencies
