@@ -1068,7 +1068,7 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 	    /* show 'break' if already connected */
 	    data->target_check = input_slot_check(hn, hs);
 	else if (data->state == STATE_CONIN)
-	    data->target_check = 0;
+	    data->target_check = DESIGNER_CONNECTION_UNCONNECTABLE;
 	else if (data->state == STATE_CONOUT &&
 	    ((hn != data->target_node) || (hs != data->target_slot_id)))
 	    data->target_check = connect_check(
@@ -1080,14 +1080,14 @@ expose_event (GtkWidget *widget, GdkEventExpose *event)
 	if (data->state == STATE_IDLE)
 	    data->target_check = DESIGNER_CONNECTION_FREE;
 	else if (data->state == STATE_CONOUT)
-	    data->target_check = 0;
+	    data->target_check = DESIGNER_CONNECTION_UNCONNECTABLE;
 	else if (data->state == STATE_CONIN &&
 	    ((hn != data->target_node) || (hs != data->target_slot_id)))
 	    data->target_check = connect_check(
 		hn, hs, data->active_node, data->active_slot_id);
 	break;
     default:
-	data->target_check = 0;
+	data->target_check = DESIGNER_CONNECTION_UNCONNECTABLE;
 	hs = -1;
 	break;
     }
@@ -1283,7 +1283,7 @@ clean_up_active_target (widget_data_t *data)
     data->target_node = NULL;
     data->active_slot_id = -1;
     data->target_slot_id = -1;
-    data->target_check = 0;
+    data->target_check = DESIGNER_CONNECTION_UNCONNECTABLE;
 }
 
 static gboolean
@@ -1358,7 +1358,7 @@ button_press_event (GtkWidget *widget, GdkEventButton *event)
 	hs = hit_input_slot(hn, data->mouse_down);
 
 	/* loosen connection if connected */
-	if (data->target_check) {
+	if (data->target_check == DESIGNER_CONNECTION_CONNECTABLE) {
 	    loosen_connection(data, hn, hs);
 	    data->state = STATE_CONOUT;
 	    break;
@@ -1402,14 +1402,14 @@ button_release_event (GtkWidget *widget, GdkEventButton *event)
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONIN:
-	if (data->target_check)
+	if (data->target_check != DESIGNER_CONNECTION_UNCONNECTABLE)
 	    connect(data,
 		data->target_node, data->target_slot_id,
 		data->active_node, data->active_slot_id);
 	data->state = STATE_IDLE;
 	break;
     case STATE_CONOUT:
-	if (data->target_check)
+	if (data->target_check != DESIGNER_CONNECTION_UNCONNECTABLE)
 	    connect(data,
 		data->active_node, data->active_slot_id,
 		data->target_node, data->target_slot_id);
