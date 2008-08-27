@@ -57,12 +57,14 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 GIMPDATADIR := $(PREFIX)/share/gimp/2.0
-GIMP_CFLAGS := `$(GIMPTOOL) --cflags` `pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0 libgnomecanvas-2.0`
-GIMP_LDFLAGS := `$(GIMPTOOL) --libs` `pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0 libgnomecanvas-2.0`
+GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0)
+GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0)
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
 LOCALEDIR = $(PREFIX)/share/locale
+#FIXME: does not honor prefix
+LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
 CFLAGS = -std=gnu99 -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS)
@@ -134,11 +136,11 @@ blender.o : generators/blender/blender.c
 
 install : mathmap $(MOS)
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -d $(DESTDIR)$(PREFIX)/lib/gimp/2.0/plug-ins
+	install -d $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins
 	install -d $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap
 	install -d $(DESTDIR)$(PREFIX)/share/gtksourceview-1.0/language-specs
 	install mathmap $(DESTDIR)$(PREFIX)/bin/mathmap
-	ln -s $(PREFIX)/bin/mathmap $(DESTDIR)$(PREFIX)/lib/gimp/2.0/plug-ins/mathmap
+	ln -s $(PREFIX)/bin/mathmap $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins/mathmap
 	cp new_template.c opmacros.h lispreader/pools.h $(DESTDIR)$(TEMPLATE_DIR)
 	cp pixmaps/*.png $(DESTDIR)$(PIXMAP_DIR)
 	cp mathmap.lang $(DESTDIR)$(PREFIX)/share/gtksourceview-1.0/language-specs

@@ -9,7 +9,6 @@
 ** Language
 
 ** Packaging
-test localization
 
 ** Rendering
 
@@ -28,6 +27,7 @@ unparsable filters should not show up in designer tree view
 filter repeat doesn't work (Filters->Repeat)
 use big render size unless doing fast preview
 speed up rendering of GIMP drawables by processing tile for tile
+pressing enter in label change text field should close dialog
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -47,6 +47,7 @@ separate global init from col/row init (to speed up rendering stuff in final mat
 ** Designer
 do migration with save/load
 free widget_data in designs
+akklimatisierungsbug (bertl)
 
 ** Native filters
 convolution
