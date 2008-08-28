@@ -1238,6 +1238,12 @@ get_root_window (GtkWidget *widget)
 }
 
 static void
+node_title_change_entry_activate (GtkWidget *entry, GtkDialog *dialog)
+{
+    gtk_dialog_response(dialog, GTK_RESPONSE_OK);
+}
+
+static void
 change_node_title (widget_data_t *data, designer_node_t *node)
 {
     GtkWidget *dialog, *entry;
@@ -1245,7 +1251,7 @@ change_node_title (widget_data_t *data, designer_node_t *node)
 
     g_assert (data->node_title_change_callback != NULL);
 
-    dialog = gtk_dialog_new_with_buttons (_("Change node title"),
+    dialog = gtk_dialog_new_with_buttons (_("Change node name"),
 					  get_root_window (data->widget),
 					  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 					  GTK_STOCK_OK,
@@ -1258,6 +1264,10 @@ change_node_title (widget_data_t *data, designer_node_t *node)
     gtk_entry_set_text (GTK_ENTRY(entry), node->name);
     gtk_container_add (GTK_CONTAINER (GTK_DIALOG(dialog)->vbox), entry);
     gtk_widget_show_all (dialog);
+
+    g_signal_connect(entry, "activate",
+		     G_CALLBACK(node_title_change_entry_activate),
+		     dialog);
 
     response = gtk_dialog_run (GTK_DIALOG (dialog));
     switch (response)
