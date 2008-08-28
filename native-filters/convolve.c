@@ -250,6 +250,7 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
     fftw_complex *image_out;
     fftw_plan in_plan;
     int i, n, nhalf, cn, cw, channel;
+    double sqrtn;
 
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
@@ -259,6 +260,7 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
 
     n = in_image->pixel_height * in_image->pixel_width;
     nhalf = in_image->pixel_width * (in_image->pixel_height / 2) + in_image->pixel_width / 2;
+    sqrtn = sqrt(n);
     cw = in_image->pixel_width / 2 + 1;
     cn = in_image->pixel_height * cw;
 
@@ -293,7 +295,7 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
 	    {
 		int out_x1 = cw - 1 - x;
 		int out_x2 = x + in_image->pixel_width - cw;
-		double val = cabs(image_out[x + y * cw]);
+		double val = cabs(image_out[x + y * cw]) / sqrtn;
 
 		out_image->v.floatmap.data[(out_x1 + out_y * in_image->pixel_width) * NUM_FLOATMAP_CHANNELS + channel]
 		    = val;
