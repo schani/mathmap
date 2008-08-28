@@ -108,9 +108,9 @@ append_limits_and_defaults (GString *string, userval_info_t *info)
 		char max_buf [G_ASCII_DTOSTR_BUF_SIZE];
 		char default_buf [G_ASCII_DTOSTR_BUF_SIZE];
 
-		g_ascii_dtostr (min_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.min);
-		g_ascii_dtostr (max_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.max);
-		g_ascii_dtostr (default_buf, G_ASCII_DTOSTR_BUF_SIZE, info->v.float_const.default_value);
+		g_ascii_formatd (min_buf, G_ASCII_DTOSTR_BUF_SIZE, "%f", info->v.float_const.min);
+		g_ascii_formatd (max_buf, G_ASCII_DTOSTR_BUF_SIZE, "%f", info->v.float_const.max);
+		g_ascii_formatd (default_buf, G_ASCII_DTOSTR_BUF_SIZE, "%f", info->v.float_const.default_value);
 
 		g_string_append_printf(string, " : %s - %s (%s)", min_buf, max_buf, default_buf);
 	    }

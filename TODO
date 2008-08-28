@@ -14,7 +14,6 @@ use big render size unless doing fast preview
 ** Rendering
 
 ** Designer
-designer can output scientific notation for numbers (try gauss kernel)
 
 ** Native filters
 copy_alpha option for convolves
