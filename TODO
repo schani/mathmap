@@ -14,6 +14,7 @@ use big render size unless doing fast preview
 ** Rendering
 
 ** Designer
+designer can output scientific notation for numbers (try gauss kernel)
 
 ** Native filters
 copy_alpha option for convolves
@@ -23,7 +24,6 @@ zoom (for better filter kernels)
 ** Tests
 
 ** Compiler
-use real vectors for tuples which are accessed with non-constant index
 
 ** Filters
 
@@ -42,6 +42,7 @@ statement for importing filters
 builtin for getting size of an image
 
 ** Compiler
+use real vectors for tuples which are accessed with non-constant index
 Generator for simplifiers
 Simplify coordinate stuff (non-stretched ident filter)
 calculate R in the filter code

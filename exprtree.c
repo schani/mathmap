@@ -884,12 +884,6 @@ make_function (const char *name, exprtree *args)
     overload_entry_t *entry;
     tuple_info_t info;
 
-    if (args == 0)
-    {
-	sprintf(error_string, _("Function %s must be called with at least one argument."), name);
-	JUMP(1);
-    }
-
     if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != 0)
     {
 	userval_info_t *info = lookup_userval(the_mathmap->current_filter->userval_infos, name);
