@@ -9,6 +9,10 @@ use big render size unless doing fast preview
 speed up rendering of GIMP drawables by processing tile for tile
 pressing enter in label change text field should close dialog
 why do we get c compiler error messages twice?
+make preview input drawables to be floatmaps
+
+** General
+why is bool_const a float in userval_t
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -22,6 +26,7 @@ Generate keyword list in sourceview spec file from builtins.lisp
 specifiable size
 antialiasing from rendered images
 use image/row/column const stuff for rendering
+do rendering multi-threaded if possible
 
 ** Designer
 do migration with save/load
@@ -29,8 +34,10 @@ free widget_data in designs
 akklimatisierungsbug (bertl)
 
 ** Native filters
-render gaussian multithreaded if possible
-convolution
+half convolution
+zoom (for better filter kernels)
+figure out how much faster 2^n ffts are
+do gaussian multithreaded if possible
 
 ** Tests
 do image diff instead of md5sum

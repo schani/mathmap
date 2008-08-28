@@ -324,6 +324,12 @@ register_native_filters (mathmap_t *mathmap)
     register_float_const(&infos, "horizontal_std_dev", 0.0, 2.0, 0.01);
     register_float_const(&infos, "vertical_std_dev", 0.0, 2.0, 0.01);
     register_native_filter(mathmap, "gaussian_blur", infos, TRUE, TRUE, "native_filter_gaussian_blur");
+
+    infos = NULL;
+    register_image(&infos, "in", 0);
+    register_image(&infos, "kernel", 0);
+    register_bool(&infos, "normalize", 1.0);
+    register_native_filter(mathmap, "convolve", infos, TRUE, TRUE, "native_filter_convolve");
 }
 
 #define X_INTERNAL_INDEX         0

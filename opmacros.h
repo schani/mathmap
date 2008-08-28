@@ -215,6 +215,6 @@ typedef struct
 				   }					\
 				   result; })
 
-#define RENDER(i,w,h)	      (render_image(invocation, (i),(w),(h), pools))
+#define RENDER(i,w,h)	      (render_image(invocation, (i), (w), (h), pools, 0))
 
 #endif

@@ -267,7 +267,7 @@ get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, f
 
 CALLBACK_SYMBOL
 image_t*
-render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools)
+render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools, int force)
 {
     image_t *new_image;
     int x, y;
@@ -276,22 +276,21 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
     pools_t filter_pools;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int) = get_orig_val_pixel;
 
-    if (image->type == IMAGE_FLOATMAP)
+    if (!force && image->type == IMAGE_FLOATMAP)
 	return image;
 
-    new_image = pools_alloc(pools, sizeof(image_t));
+    g_print("rendering %dx%d\n", width, height);
+    new_image = floatmap_alloc(width, height, pools);
 
-    new_image->type = IMAGE_FLOATMAP;
-    new_image->pixel_width = width;
-    new_image->pixel_height = height;
-    new_image->v.floatmap.ax = new_image->v.floatmap.bx = ax = bx = (float)(width - 1) / 2.0;
-    new_image->v.floatmap.ay = new_image->v.floatmap.by = ay = by = (float)(height - 1) / 2.0;
-
-    p = new_image->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * 4);
+    ax = new_image->v.floatmap.ax;
+    bx = new_image->v.floatmap.bx;
+    ay = new_image->v.floatmap.ay;
+    by = new_image->v.floatmap.by;
 
     init_pools(&filter_pools);
     pools = &filter_pools;
 
+    p = new_image->v.floatmap.data;
     for (y = 0; y < height; ++y)
     {
 	float fy = ((float)y - by) / ay;

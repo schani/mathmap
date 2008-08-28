@@ -648,7 +648,7 @@ native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, 
 
     if (floatmap->type != IMAGE_FLOATMAP)
 	floatmap = render_image(invocation, floatmap,
-				invocation->render_width, invocation->render_height, pools);
+				invocation->render_width, invocation->render_height, pools, FALSE);
 
     horizontal_std_dev = fabs(horizontal_std_dev * floatmap->v.floatmap.ax);
     vertical_std_dev = fabs(vertical_std_dev * floatmap->v.floatmap.ay);

@@ -257,7 +257,7 @@ extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation,
 
 extern float* get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, float y, float frame);
 
-extern image_t* render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools);
+extern image_t* render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools, int force);
 
 extern image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
 

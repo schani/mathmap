@@ -28,24 +28,37 @@
 #include "rwimg/writeimage.h"
 
 image_t*
+floatmap_alloc (int width, int height, pools_t *pools)
+{
+    image_t *img = pools_alloc(pools, sizeof(image_t));
+
+    img->type = IMAGE_FLOATMAP;
+    img->pixel_width = width;
+    img->pixel_height = height;
+    img->v.floatmap.ax = img->v.floatmap.bx = (float)(width - 1) / 2.0;
+    img->v.floatmap.ay = img->v.floatmap.by = (float)(height - 1) / 2.0;
+
+    img->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * NUM_FLOATMAP_CHANNELS);
+
+    return img;
+}
+
+image_t*
 floatmap_copy (image_t *floatmap, pools_t *pools)
 {
-    image_t *copy = pools_alloc(pools, sizeof(image_t));
-    int size;
+    image_t *copy;
 
     g_assert(floatmap->type == IMAGE_FLOATMAP);
 
-    copy->type = IMAGE_FLOATMAP;
-    copy->pixel_width = floatmap->pixel_width;
-    copy->pixel_height = floatmap->pixel_height;
+    copy = floatmap_alloc(floatmap->pixel_width, floatmap->pixel_height, pools);
+
     copy->v.floatmap.ax = floatmap->v.floatmap.ax;
     copy->v.floatmap.bx = floatmap->v.floatmap.bx;
     copy->v.floatmap.ay = floatmap->v.floatmap.ay;
     copy->v.floatmap.by = floatmap->v.floatmap.by;
 
-    size = sizeof(float) * floatmap->pixel_width * floatmap->pixel_height * NUM_FLOATMAP_CHANNELS;
-    copy->v.floatmap.data = pools_alloc(pools, size);
-    memcpy(copy->v.floatmap.data, floatmap->v.floatmap.data, size);
+    memcpy(copy->v.floatmap.data, floatmap->v.floatmap.data,
+	   sizeof(float) * floatmap->pixel_width * floatmap->pixel_height * NUM_FLOATMAP_CHANNELS);
 
     return copy;
 }

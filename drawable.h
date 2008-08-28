@@ -163,6 +163,7 @@ input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 #endif
 #endif
 
+image_t* floatmap_alloc (int width, int height, pools_t *pools);
 image_t* floatmap_copy (image_t *floatmap, pools_t *pools);
 
 image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
