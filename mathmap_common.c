@@ -692,7 +692,6 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     {
 	int row, col;
 	int output_bpp = invocation->output_bpp;
-	int origin_x = slice->region_x, origin_y = slice->region_y;
 	float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
 	int uses_ra = does_filter_use_ra(invocation->mathmap->main_filter);
 	int img_width = invocation->img_width, img_height = invocation->img_height;
@@ -1177,11 +1176,24 @@ make_mathmap_design_type (void)
 }
 
 static void
-add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
+remove_edb (expression_db_t **edb)
 {
-    char *name = get_expression_name(edb, design_type);
-    userval_info_t *args = get_expression_args(edb, design_type);
-    designer_node_type_t *type = designer_add_node_type(design_type, name, edb);
+    expression_db_t *e = *edb;
+
+    g_assert(e != NULL);
+
+    *edb = e->next;
+
+    e->next = NULL;
+    free_expression_db(e);
+}
+
+static void
+add_filter_node_type (designer_design_type_t *design_type, expression_db_t **edb)
+{
+    char *name = get_expression_name(*edb, design_type);
+    userval_info_t *args = get_expression_args(*edb, design_type);
+    designer_node_type_t *type = designer_add_node_type(design_type, name, *edb);
 
     if (type == NULL)
     {
@@ -1197,10 +1209,12 @@ add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
 				    "have the same name `%s'.\n"
 				    "Only the former can be used from the composer."),
 				  get_expression_path(type->data),
-				  get_expression_path(edb),
+				  get_expression_path(*edb),
 				  name);
 	mathmap_message_dialog(message);
 	g_free(message);
+
+	remove_edb(edb);
 
 	return;
     }
@@ -1216,16 +1230,18 @@ add_filter_node_type (designer_design_type_t *design_type, expression_db_t *edb)
 }
 
 static void
-add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gboolean compositions, gboolean *did_add)
+add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboolean compositions, gboolean *did_add)
 {
-    while (edb != NULL)
+    while (*edb != NULL)
     {
-	switch (edb->kind)
+	expression_db_t *current = *edb;
+
+	switch ((*edb)->kind)
 	{
 	    case EXPRESSION_DB_EXPRESSION :
 		if (!compositions)
 		{
-		    char *name = get_expression_name(edb, design_type);
+		    char *name = get_expression_name(*edb, design_type);
 
 		    if (name != NULL)
 			add_filter_node_type(design_type, edb);
@@ -1236,23 +1252,25 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 			message = g_strdup_printf(_("The filter in the file\n"
 						    "`%s'\n"
 						    "cannot be parsed."),
-						  get_expression_path(edb));
+						  get_expression_path(*edb));
 			mathmap_message_dialog(message);
 			g_free(message);
+
+			remove_edb(edb);
 		    }
 		}
 		break;
 
 	    case EXPRESSION_DB_GROUP :
-		add_node_types(design_type, edb->v.group.subs, compositions, did_add);
+		add_node_types(design_type, &(*edb)->v.group.subs, compositions, did_add);
 		break;
 
 	    case EXPRESSION_DB_DESIGN :
 		if (compositions)
 		{
-		    designer_design_t *design = designer_load_design(design_type, edb->v.design.path,
+		    designer_design_t *design = designer_load_design(design_type, (*edb)->v.design.path,
 								     NULL, NULL, NULL, NULL);
-		    char *name = get_expression_name (edb, design_type);
+		    char *name = get_expression_name ((*edb), design_type);
 
 		    if (design == NULL)
 		    {
@@ -1260,9 +1278,11 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 
 			message = g_strdup_printf(_("Could not load composition from file\n"
 						    "`%s'.\n"),
-						  get_expression_path(edb));
+						  get_expression_path(*edb));
 			mathmap_message_dialog(message);
 			g_free(message);
+
+			remove_edb(edb);
 			break;
 		    }
 
@@ -1283,9 +1303,11 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 						    "does not produce a valid MathMap\n"
 						    "filter.  Please check that all filters\n"
 						    "used by that composition work properly."),
-						  get_expression_path(edb));
+						  get_expression_path(*edb));
 			mathmap_message_dialog(message);
 			g_free(message);
+
+			remove_edb(edb);
 			break;
 		    }
 
@@ -1299,12 +1321,13 @@ add_node_types (designer_design_type_t *design_type, expression_db_t *edb, gbool
 		g_assert_not_reached();
 	}
 
-	edb = edb->next;
+	if (*edb == current)
+	    edb = &(*edb)->next;
     }
 }
 
 designer_design_type_t*
-design_type_from_expression_db (expression_db_t *edb)
+design_type_from_expression_db (expression_db_t **edb)
 {
     designer_design_type_t *type = make_mathmap_design_type();
     gboolean did_add;

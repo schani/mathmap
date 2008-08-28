@@ -279,7 +279,7 @@ void set_expression_marker (int line, int column);
 
 int get_num_cpus (void);
 
-designer_design_type_t* design_type_from_expression_db (expression_db_t *edb);
+designer_design_type_t* design_type_from_expression_db (expression_db_t **edb);
 
 #ifndef OPENSTEP
 #define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)

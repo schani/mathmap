@@ -3,7 +3,6 @@
 * 1.3.4
 
 ** GIMP Plug-In
-unparsable filters should not show up in designer tree view
 use big render size unless doing fast preview
 
 ** General

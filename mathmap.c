@@ -1401,12 +1401,12 @@ update_expression_tree (void)
 	free_expression_db(designer_edb);
 
     filters_edb = read_expressions();
+
     designer_edb = copy_expression_db(filters_edb);
+    new_design_type = design_type_from_expression_db(&designer_edb);
 
     update_expression_tree_from_edb(tree_scrolled_window, filters_edb, G_CALLBACK(dialog_tree_changed));
     update_expression_tree_from_edb(designer_tree_scrolled_window, designer_edb, G_CALLBACK(designer_tree_callback));
-
-    new_design_type = design_type_from_expression_db(designer_edb);
 
     if (the_current_design != NULL)
     {
