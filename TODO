@@ -10,13 +10,13 @@ use big render size unless doing fast preview
 ** Language
 
 ** Packaging
+fftw3 dependency
 
 ** Rendering
 
 ** Designer
 
 ** Native filters
-copy_alpha option for convolves
 convolutions should take kernel per-pixel if possible
 zoom (for better filter kernels)
 

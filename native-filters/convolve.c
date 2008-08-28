@@ -71,11 +71,12 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
     image_t *in_image = args[0].v.image;
     image_t *filter_image = args[1].v.image;
     gboolean normalize = args[2].v.bool_const != 0.0;
+    gboolean copy_alpha = args[3].v.bool_const != 0.0;
     image_t *out_image;
     double *fftw_in;
     fftw_complex *image_out, *filter_out;
     fftw_plan in_plan, filter_plan, inverse_plan;
-    int i, n, nhalf, cn, channel;
+    int i, n, nhalf, cn, channel, num_channels;
 
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
@@ -106,7 +107,11 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
 					 image_out, fftw_in,
 					 FFTW_ESTIMATE);
 
-    for (channel = 0; channel < 3; ++channel)
+    if (copy_alpha)
+	num_channels = 3;
+    else
+	num_channels = 4;
+    for (channel = 0; channel < num_channels; ++channel)
     {
 	// FFT of input image
 	for (i = 0; i < n; ++i)
@@ -145,9 +150,10 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
     }
 
     // copy alpha channel
-    for (i = 0; i < n; ++i)
-	out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
-	    = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
+    if (copy_alpha)
+	for (i = 0; i < n; ++i)
+	    out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
+		= in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
 
     fftw_destroy_plan(in_plan);
     fftw_destroy_plan(filter_plan);
@@ -166,11 +172,12 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
 {
     image_t *in_image = args[0].v.image;
     image_t *filter_image = args[1].v.image;
+    gboolean copy_alpha = args[2].v.bool_const != 0.0;
     image_t *out_image;
     double *fftw_in;
     fftw_complex *image_out;
     fftw_plan in_plan, inverse_plan;
-    int i, n, nhalf, cn, cw, channel;
+    int i, n, nhalf, cn, cw, channel, num_channels;
 
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
@@ -198,7 +205,11 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
 					 image_out, fftw_in,
 					 FFTW_ESTIMATE);
 
-    for (channel = 0; channel < 3; ++channel)
+    if (copy_alpha)
+	num_channels = 3;
+    else
+	num_channels = 4;
+    for (channel = 0; channel < num_channels; ++channel)
     {
 	// FFT of input image
 	for (i = 0; i < n; ++i)
@@ -227,9 +238,10 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
     }
 
     // copy alpha channel
-    for (i = 0; i < n; ++i)
-	out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
-	    = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
+    if (copy_alpha)
+	for (i = 0; i < n; ++i)
+	    out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
+		= in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
 
     fftw_destroy_plan(in_plan);
     fftw_destroy_plan(inverse_plan);
@@ -245,11 +257,12 @@ image_t*
 native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
 {
     image_t *in_image = args[0].v.image;
+    gboolean ignore_alpha = args[1].v.bool_const != 0.0;
     image_t *out_image;
     double *fftw_in;
     fftw_complex *image_out;
     fftw_plan in_plan;
-    int i, n, nhalf, cn, cw, channel;
+    int i, n, nhalf, cn, cw, channel, num_channels;
     double sqrtn;
 
     if (in_image->type != IMAGE_FLOATMAP)
@@ -274,7 +287,11 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
     memset(out_image->v.floatmap.data, 0,
 	   sizeof(float) * in_image->pixel_width * in_image->pixel_height * NUM_FLOATMAP_CHANNELS);
 
-    for (channel = 0; channel < 3; ++channel)
+    if (ignore_alpha)
+	num_channels = 3;
+    else
+	num_channels = 4;
+    for (channel = 0; channel < num_channels; ++channel)
     {
 	// FFT of input image
 	for (i = 0; i < n; ++i)
@@ -305,10 +322,10 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
 	}
     }
 
-    // copy alpha channel
-    for (i = 0; i < n; ++i)
-	out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
-	    = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
+    // set alpha channel
+    if (ignore_alpha)
+	for (i = 0; i < n; ++i)
+	    out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3] = 1.0;
 
     fftw_destroy_plan(in_plan);
 
