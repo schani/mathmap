@@ -28,7 +28,9 @@
 #include "../mathmap.h"
 
 extern image_t* native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
+
 extern image_t* native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
 extern image_t* native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
+extern image_t* native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
 
 #endif

@@ -37,7 +37,7 @@ copy (double *dest, float *src, int n)
     int i;
 
     for (i = 0; i < n; ++i)
-	dest[i] = src[i * 4];
+	dest[i] = src[i * NUM_FLOATMAP_CHANNELS];
 }
 
 static double
@@ -110,7 +110,7 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
     {
 	// FFT of input image
 	for (i = 0; i < n; ++i)
-	    fftw_in[i] = in_image->v.floatmap.data[i * 4 + channel];
+	    fftw_in[i] = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + channel];
 	fftw_execute(in_plan);
 
 	// FFT of kernel image
@@ -141,12 +141,13 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
 	// reverse FFT
 	fftw_execute(inverse_plan);
 	for (i = 0; i < n; ++i)
-	    out_image->v.floatmap.data[i * 4 + channel] = fftw_in[i] / n;
+	    out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + channel] = fftw_in[i] / n;
     }
 
     // copy alpha channel
     for (i = 0; i < n; ++i)
-	out_image->v.floatmap.data[i * 4 + 3] = in_image->v.floatmap.data[i * 4 + 3];
+	out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
+	    = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
 
     fftw_destroy_plan(in_plan);
     fftw_destroy_plan(filter_plan);
@@ -197,14 +198,11 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
 					 image_out, fftw_in,
 					 FFTW_ESTIMATE);
 
-    memset(out_image->v.floatmap.data, 0,
-	   sizeof(float) * in_image->pixel_width * in_image->pixel_height * NUM_FLOATMAP_CHANNELS);
-
     for (channel = 0; channel < 3; ++channel)
     {
 	// FFT of input image
 	for (i = 0; i < n; ++i)
-	    fftw_in[i] = in_image->v.floatmap.data[i * 4 + channel];
+	    fftw_in[i] = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + channel];
 	fftw_execute(in_plan);
 
 	// multiply in frequency domain
@@ -219,21 +217,98 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
 		if (in_idx >= n)
 		    in_idx -= n;
 
-		image_out[x + y * cw] *= filter_image->v.floatmap.data[in_idx * 4 + channel];
+		image_out[x + y * cw] *= filter_image->v.floatmap.data[in_idx * NUM_FLOATMAP_CHANNELS + channel];
 	    }
 
 	// reverse FFT
 	fftw_execute(inverse_plan);
 	for (i = 0; i < n; ++i)
-	    out_image->v.floatmap.data[i * 4 + channel] = fftw_in[i] / n;
+	    out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + channel] = fftw_in[i] / n;
     }
 
     // copy alpha channel
     for (i = 0; i < n; ++i)
-	out_image->v.floatmap.data[i * 4 + 3] = in_image->v.floatmap.data[i * 4 + 3];
+	out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
+	    = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
 
     fftw_destroy_plan(in_plan);
     fftw_destroy_plan(inverse_plan);
+
+    fftw_free(fftw_in);
+    fftw_free(image_out);
+
+    return out_image;
+}
+
+CALLBACK_SYMBOL
+image_t*
+native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+{
+    image_t *in_image = args[0].v.image;
+    image_t *out_image;
+    double *fftw_in;
+    fftw_complex *image_out;
+    fftw_plan in_plan;
+    int i, n, nhalf, cn, cw, channel;
+
+    if (in_image->type != IMAGE_FLOATMAP)
+	in_image = render_image(invocation, in_image,
+				invocation->render_width, invocation->render_height, pools, TRUE);
+
+    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, pools);
+
+    n = in_image->pixel_height * in_image->pixel_width;
+    nhalf = in_image->pixel_width * (in_image->pixel_height / 2) + in_image->pixel_width / 2;
+    cw = in_image->pixel_width / 2 + 1;
+    cn = in_image->pixel_height * cw;
+
+    fftw_in = fftw_malloc(sizeof(double) * n);
+    image_out = fftw_malloc(sizeof(fftw_complex) * cn);
+
+    in_plan = fftw_plan_dft_r2c_2d(in_image->pixel_height, in_image->pixel_width,
+				    fftw_in, image_out,
+				    FFTW_ESTIMATE);
+
+    memset(out_image->v.floatmap.data, 0,
+	   sizeof(float) * in_image->pixel_width * in_image->pixel_height * NUM_FLOATMAP_CHANNELS);
+
+    for (channel = 0; channel < 3; ++channel)
+    {
+	// FFT of input image
+	for (i = 0; i < n; ++i)
+	    fftw_in[i] = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + channel];
+	fftw_execute(in_plan);
+
+	// multiply in frequency domain
+	int x, y;
+
+	for (y = 0; y < in_image->pixel_height; ++y)
+	{
+	    int out_y = y + in_image->pixel_height / 2;
+
+	    if (out_y >= in_image->pixel_height)
+		out_y -= in_image->pixel_height;
+
+	    for (x = 0; x < cw; ++x)
+	    {
+		int out_x1 = cw - 1 - x;
+		int out_x2 = x + in_image->pixel_width - cw;
+		double val = cabs(image_out[x + y * cw]);
+
+		out_image->v.floatmap.data[(out_x1 + out_y * in_image->pixel_width) * NUM_FLOATMAP_CHANNELS + channel]
+		    = val;
+		out_image->v.floatmap.data[(out_x2 + out_y * in_image->pixel_width) * NUM_FLOATMAP_CHANNELS + channel]
+		    = val;
+	    }
+	}
+    }
+
+    // copy alpha channel
+    for (i = 0; i < n; ++i)
+	out_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3]
+	    = in_image->v.floatmap.data[i * NUM_FLOATMAP_CHANNELS + 3];
+
+    fftw_destroy_plan(in_plan);
 
     fftw_free(fftw_in);
     fftw_free(image_out);

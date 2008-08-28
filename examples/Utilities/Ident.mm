@@ -1,3 +1,3 @@
-filter ident (image in)
+filter util_ident (image in)
     in(xy)
 end

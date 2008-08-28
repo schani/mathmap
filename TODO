@@ -6,9 +6,37 @@
 unparsable filters should not show up in designer tree view
 filter repeat doesn't work (Filters->Repeat)
 use big render size unless doing fast preview
-speed up rendering of GIMP drawables by processing tile for tile
 pressing enter in label change text field should close dialog
 why do we get c compiler error messages twice?
+
+** General
+
+** Language
+
+** Packaging
+
+** Rendering
+
+** Designer
+
+** Native filters
+copy_alpha option for convolves
+make sure all filters are stretched
+are circles really circles?
+zoom (for better filter kernels)
+
+** Tests
+do image diff instead of md5sum
+
+** Compiler
+use real vectors for tuples which are accessed with non-constant index
+
+** Filters
+
+* 1.3.5
+
+** GIMP Plug-In
+speed up rendering of GIMP drawables by processing tile for tile
 make preview input drawables to be floatmaps
 
 ** General
@@ -18,6 +46,13 @@ why is bool_const a float in userval_t
 HSL color space (for color gimp layer mode)
 statement for importing filters
 builtin for getting size of an image
+
+** Compiler
+Generator for simplifiers
+Simplify coordinate stuff (non-stretched ident filter)
+calculate R in the filter code
+optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
+speed up compiler - see what the bottlenecks are with valgrind's callgrind
 
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
@@ -29,30 +64,19 @@ use image/row/column const stuff for rendering
 do rendering multi-threaded if possible
 
 ** Designer
+non-image slots
+native filters should show up directly, without .mm filters
 do migration with save/load
 free widget_data in designs
 akklimatisierungsbug (bertl)
 
-** Native filters
-make sure all filters are stretched
-zoom (for better filter kernels)
-figure out how much faster 2^n ffts are
-do gaussian multithreaded if possible
-
-** Tests
-do image diff instead of md5sum
-
-** Compiler
-Generator for simplifiers
-Simplify coordinate stuff (non-stretched ident filter)
-calculate R in the filter code
-optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
-speed up compiler - see what the bottlenecks are with valgrind's callgrind
-use real vectors for tuples which are accessed with non-constant index
-
 ** Filters
 better layer modes: http://pegtop.net/delphi/articles/blendmodes/
 color gimp layer mode
+
+** Native filters
+figure out how much faster 2^n ffts are
+do gaussian multithreaded if possible
 
 * 1.3.x
 
