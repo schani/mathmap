@@ -486,11 +486,6 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 						  "means that MathMap won't work.\n"
 						  "This is the reason why the compiler failed:\n%s"), error_string);
 
-		if (cmd_line_mode)
-		    fprintf(stderr, "%s\n", message);
-		else
-		    mathmap_message_dialog(message);
-
 		strcpy(error_string, message);
 
 		g_free(message);
