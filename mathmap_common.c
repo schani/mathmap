@@ -330,6 +330,11 @@ register_native_filters (mathmap_t *mathmap)
     register_image(&infos, "kernel", 0);
     register_bool(&infos, "normalize", 1.0);
     register_native_filter(mathmap, "convolve", infos, TRUE, TRUE, "native_filter_convolve");
+
+    infos = NULL;
+    register_image(&infos, "in", 0);
+    register_image(&infos, "mask", 0);
+    register_native_filter(mathmap, "half_convolve", infos, TRUE, TRUE, "native_filter_half_convolve");
 }
 
 #define X_INTERNAL_INDEX         0

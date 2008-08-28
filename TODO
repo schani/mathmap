@@ -34,7 +34,7 @@ free widget_data in designs
 akklimatisierungsbug (bertl)
 
 ** Native filters
-half convolution
+make sure all filters are stretched
 zoom (for better filter kernels)
 figure out how much faster 2^n ffts are
 do gaussian multithreaded if possible
