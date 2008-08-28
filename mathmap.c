@@ -231,7 +231,8 @@ mathmap_invocation_t *invocation = NULL;
 static char *current_filename = NULL;
 static char *current_design_filename = NULL;
 
-static expression_db_t *the_edb = NULL;
+static expression_db_t *filters_edb = NULL;
+static expression_db_t *designer_edb = NULL;
 static designer_design_type_t *the_design_type = NULL;
 static designer_design_t *the_current_design = NULL;
 
@@ -1394,15 +1395,18 @@ update_expression_tree (void)
     int num_nodes = -1;
     node_and_position_t *positions = NULL;
 
-    if (the_edb != NULL)
-	free_expression_db(the_edb);
+    if (filters_edb != NULL)
+	free_expression_db(filters_edb);
+    if (designer_edb != NULL)
+	free_expression_db(designer_edb);
 
-    the_edb = read_expressions();
+    filters_edb = read_expressions();
+    designer_edb = copy_expression_db(filters_edb);
 
-    update_expression_tree_from_edb(tree_scrolled_window, the_edb, G_CALLBACK(dialog_tree_changed));
-    update_expression_tree_from_edb(designer_tree_scrolled_window, the_edb, G_CALLBACK(designer_tree_callback));
+    update_expression_tree_from_edb(tree_scrolled_window, filters_edb, G_CALLBACK(dialog_tree_changed));
+    update_expression_tree_from_edb(designer_tree_scrolled_window, designer_edb, G_CALLBACK(designer_tree_callback));
 
-    new_design_type = design_type_from_expression_db(the_edb);
+    new_design_type = design_type_from_expression_db(designer_edb);
 
     if (the_current_design != NULL)
     {

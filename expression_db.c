@@ -41,7 +41,7 @@ new_expression_db (int kind)
 {
     expression_db_t *edb = (expression_db_t*)malloc(sizeof(expression_db_t));
 
-    assert(edb != 0);
+    g_assert(edb != 0);
 
     memset(edb, 0, sizeof(expression_db_t));
 
@@ -272,6 +272,35 @@ copy_expression (expression_db_t *edb)
 	copy->v.expression.docstring = g_strdup(edb->v.expression.docstring);
 
     return copy;
+}
+
+expression_db_t*
+copy_expression_db (expression_db_t *edb)
+{
+    expression_db_t *head = NULL;
+    expression_db_t *last = NULL;
+
+    while (edb != NULL)
+    {
+	expression_db_t *copy;
+
+	if (edb->kind == EXPRESSION_DB_GROUP)
+	    copy = make_expression_db_group(edb->name, copy_expression_db(edb->v.group.subs));
+	else
+	    copy = copy_expression(edb);
+
+	if (last == NULL)
+	{
+	    g_assert(head == NULL);
+	    head = last = copy;
+	}
+	else
+	    last = last->next = copy;
+
+	edb = edb->next;
+    }
+
+    return head;
 }
 
 expression_db_t*
