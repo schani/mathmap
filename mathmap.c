@@ -1346,6 +1346,9 @@ make_tree_from_edb (expression_db_t *edb, GCallback callback)
 static void
 update_userval_table (void)
 {
+    if (run_mode != GIMP_RUN_INTERACTIVE)
+	return;
+
     if (uservalues_table != 0)
 	gtk_container_remove(GTK_CONTAINER(GTK_BIN(uservalues_scrolled_window)->child), uservalues_table);
 
