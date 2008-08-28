@@ -18,12 +18,10 @@ use big render size unless doing fast preview
 
 ** Native filters
 copy_alpha option for convolves
-make sure all filters are stretched
-are circles really circles?
+convolutions should take kernel per-pixel if possible
 zoom (for better filter kernels)
 
 ** Tests
-do image diff instead of md5sum
 
 ** Compiler
 use real vectors for tuples which are accessed with non-constant index
@@ -53,6 +51,7 @@ speed up compiler - see what the bottlenecks are with valgrind's callgrind
 
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
+add a few new tests, especially for native filters
 
 ** Rendering
 specifiable size
@@ -74,6 +73,7 @@ color gimp layer mode
 ** Native filters
 figure out how much faster 2^n ffts are
 do gaussian multithreaded if possible
+take aspect ratio of kernel into consideration - don't stretch it
 
 * 1.3.x
 

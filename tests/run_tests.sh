@@ -25,10 +25,7 @@ run_test () {
 	exit 1
     fi
 
-    CKSUM=`md5sum "$OUTFILE" | awk '{print $1}'`
-    REF_CKSUM=`md5sum "$REFERENCE" | awk '{print $1}'`
-
-    if [ "x$CKSUM" != "x$REF_CKSUM" ] ; then
+    if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
 	echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
 	exit 1
     fi
