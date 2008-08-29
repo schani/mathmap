@@ -161,6 +161,7 @@ typedef struct _mathmap_invocation_t
     /* These are in pixel coordinates: */
     int img_width, img_height;
     int render_width, render_height;
+    int final_render_width, final_render_height;
 
     /* These are in virtual coordinates: */
     float image_R;		/* FIXME: remove and calculate in

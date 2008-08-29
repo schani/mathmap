@@ -565,8 +565,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->edge_behaviour_x = invocation->edge_behaviour_y = EDGE_BEHAVIOUR_COLOR;
 
-    invocation->img_width = invocation->render_width = img_width;
-    invocation->img_height = invocation->render_height = img_height;
+    invocation->img_width = invocation->render_width = invocation->final_render_width = img_width;
+    invocation->img_height = invocation->render_height = invocation->final_render_height = img_height;
 
     invocation->image_R = sqrt(2.0); //hypot(invocation->image_X, invocation->image_Y);
 

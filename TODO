@@ -3,7 +3,6 @@
 * 1.3.4
 
 ** GIMP Plug-In
-use big render size unless doing fast preview
 
 ** General
 
@@ -13,6 +12,7 @@ use big render size unless doing fast preview
 fftw3 dependency
 
 ** Rendering
+use image/row/column const stuff for rendering
 
 ** Designer
 
@@ -52,7 +52,7 @@ Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
 
 ** Rendering
-use image/row/column const stuff for rendering
+combine render code with calc_lines
 specifiable size
 antialiasing from rendered images
 do rendering multi-threaded if possible

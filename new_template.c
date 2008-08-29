@@ -220,6 +220,7 @@ typedef struct _mathmap_invocation_t
     int current_frame;
     int img_width, img_height;
     int render_width, render_height;
+    int final_render_width, final_render_height;
     float image_R;
 
     float current_x, current_y, current_r, current_a, current_t;
@@ -333,7 +334,8 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     pools_t pixel_pools;
     pools_t *pools;
     int region_x = slice->region_x;
-    int render_width = invocation->render_width, render_height = invocation->render_height;
+    int final_render_width = invocation->final_render_width;
+    int final_render_height = invocation->final_render_height;
 
     init_pools(&pixel_pools);
 
@@ -347,7 +349,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 
     for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
-	float y = CALC_VIRTUAL_Y(row + slice->region_y, render_height, sampling_offset_y);
+	float y = CALC_VIRTUAL_Y(row + slice->region_y, final_render_height, sampling_offset_y);
 	unsigned char *p = q;
 
 	pools = &slice->pools;
@@ -361,7 +363,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 	for (col = 0; col < slice->region_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &slice->y_vars[col];
-	    float x = CALC_VIRTUAL_X(col + region_x, render_width, sampling_offset_x);
+	    float x = CALC_VIRTUAL_X(col + region_x, final_render_width, sampling_offset_x);
 	    float *return_tuple;
 
 	    if (invocation->do_debug)
@@ -453,7 +455,7 @@ init_slice (mathmap_slice_t *slice)
 	for (col = 0; col < slice->region_width; ++col)
 	{
 	    y_const_vars_t *y_vars = &slice->y_vars[col];
-	    float x = CALC_VIRTUAL_X(col + slice->region_x, invocation->render_width, slice->sampling_offset_x);
+	    float x = CALC_VIRTUAL_X(col + slice->region_x, invocation->final_render_width, slice->sampling_offset_x);
 
 	    {
 		$y_code
