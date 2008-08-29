@@ -1915,7 +1915,8 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 
 		gen_code(filter, tree->val.sub_assignment.value, temps, 0);
 
-		for (sub = tree->val.sub_assignment.subscripts, i = 0; sub != 0; sub = sub->next, ++i)
+		g_assert(tree->val.sub_assignment.subscripts->type == EXPR_TUPLE);
+		for (sub = tree->val.sub_assignment.subscripts->val.tuple.elems, i = 0; sub != 0; sub = sub->next, ++i)
 		{
 		    int subscript;
 
