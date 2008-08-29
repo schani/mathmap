@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,10 @@
 #ifndef __NOISE_H__
 #define __NOISE_H__
 
+/* TEMPLATE noise */
 float noise (float x, float y, float z);
+/* END */
+
 void init_noise (void);
 
 #endif

@@ -93,6 +93,7 @@ typedef struct _filter_t
     struct _filter_t *next;
 } filter_t;
 
+/* TEMPLATE mathmap */
 typedef struct _mathmap_t
 {
     filter_t *filters;
@@ -110,6 +111,7 @@ typedef struct _mathmap_t
 
     struct _mathmap_t *next;
 } mathmap_t;
+/* END */
 
 /* If this is in the plug-in then 0, otherwise it's in the command
    line. */
@@ -131,10 +133,12 @@ extern color_t gradient_samples[USER_GRADIENT_POINTS];
 extern int fast_image_source_scale;
 #endif
 
-#define EDGE_BEHAVIOUR_COLOR          1	/* all four used in new_template.c */
+/* TEMPLATE edge_behaviour */
+#define EDGE_BEHAVIOUR_COLOR          1
 #define EDGE_BEHAVIOUR_WRAP           2
 #define EDGE_BEHAVIOUR_REFLECT        3
 #define EDGE_BEHAVIOUR_ROTATE         4
+/* END */
 #define EDGE_BEHAVIOUR_MASK	      0xff
 
 #define EDGE_BEHAVIOUR_X_FLAG	      0x0100
@@ -142,6 +146,10 @@ extern int fast_image_source_scale;
 
 #define MAX_DEBUG_TUPLES              8
 
+typedef struct _xy_const_vars_t xy_const_vars_t;
+typedef struct _y_const_vars_t y_const_vars_t;
+
+/* TEMPLATE invocation_frame_slice */
 typedef struct _mathmap_invocation_t
 {
     mathmap_t *mathmap;
@@ -186,7 +194,7 @@ typedef struct _mathmap_frame_t
     int current_frame;
     float current_t;
 
-    void *xy_vars;
+    xy_const_vars_t *xy_vars;
     pools_t pools;
 } mathmap_frame_t;
 
@@ -197,9 +205,10 @@ typedef struct _mathmap_slice_t
     float sampling_offset_x, sampling_offset_y;
     int region_x, region_y, region_width, region_height;
 
-    void *y_vars;
+    y_const_vars_t *y_vars;
     pools_t pools;
 } mathmap_slice_t;
+/* END */
 
 typedef struct
 {

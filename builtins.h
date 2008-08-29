@@ -38,10 +38,14 @@ struct _filter_t;
 
 typedef void (*generator_function_t) (struct _filter_t*, struct _compvar_t***, int*, int*, struct _compvar_t**);
 
+/* TEMPLATE builtins */
 color_t get_orig_val_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
 color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation, float x, float y, struct _image_t *image, int frame);
 
+float* get_floatmap_pixel (struct _mathmap_invocation_t *invocation, struct _image_t *image, float x, float y, float frame);
+
 struct _image_t* render_image (struct _mathmap_invocation_t *invocation, struct _image_t *image, int width, int height, pools_t *pools, int force);
+/* END */
 
 void init_builtins (void);
 

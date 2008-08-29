@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2007 Mark Probst
+ * Copyright (C) 2002-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -57,24 +57,16 @@
 
 #define M_PI		3.14159265358979323846	/* pi */
 
-#define EDGE_BEHAVIOUR_COLOR          1
-#define EDGE_BEHAVIOUR_WRAP           2
-#define EDGE_BEHAVIOUR_REFLECT        3
-#define EDGE_BEHAVIOUR_ROTATE	      4
+$def_edge_behaviour
 
-#define USERVAL_IMAGE       7
+$def_userval_image
 
 #define USER_CURVE_POINTS             $p
 #define USER_GRADIENT_POINTS          $q
 
 #define MAX_DEBUG_TUPLES              $max_debug_tuples
 
-typedef struct
-{
-    int number;
-    int length;
-    float data[];
-} tuple_t;
+$def_tuple
 
 typedef unsigned int color_t;
 
@@ -84,101 +76,33 @@ typedef unsigned int color_t;
 #define BLUE(c)                             (((c)>>8)&0xff)
 #define ALPHA(c)                            ((c)&0xff)
 
-#define IMAGE_DRAWABLE		1
-#define IMAGE_CLOSURE		2
-#define IMAGE_FLOATMAP		3
-#define IMAGE_RESIZE		4
+$def_image_types
 
 struct _mathmap_invocation_t;
 struct _userval_t;
 struct _image_t;
 
-typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
-				 struct _userval_t*,
-				 float, float, float,
-				 pools_t*);
+$def_filter_funcs
 
 typedef struct
 {
-    float *values;
-} curve_t;
+    double r, g, b, a;
+} GimpRGB;
 
-typedef struct
-{
-    color_t *values;
-} gradient_t;
+typedef struct _GtkWidget GtkWidget;
 
-typedef struct _userval_t
-{
-    int type;
+$def_userval
 
-    union
-    {
-	int int_const;
-	float float_const;
-	float bool_const;
-	struct _image_t *image;
-	curve_t *curve;
-	gradient_t *gradient;
+struct _input_drawable_t;
 
-	struct
-	{
-#if $g
-	    struct { double r, g, b, a; } button_value;
-#endif
-	    color_t value;
-	} color;
-    } v;
+$def_image
 
-#ifndef OPENSTEP
-    void *widget;
-#endif
-} userval_t;
+typedef struct _filter_t filter_t;
+typedef struct _interpreter_insn_t interpreter_insn_t;
+typedef struct _GArray GArray;
+typedef void* initfunc_t;
 
-typedef struct _image_t
-{
-    int type;
-    int pixel_width;
-    int pixel_height;
-    union {
-	void *drawable;
-	struct {
-	    filter_func_t func;
-	    userval_t args[];
-	} closure;
-	struct {
-	    float ax;
-	    float bx;
-	    float ay;
-	    float by;
-	    float *data;
-	} floatmap;
-	struct {
-	    struct _image_t *original;
-	    float x_factor;
-	    float y_factor;
-	} resize;
-    } v;
-} image_t;
-
-typedef struct _mathmap_t
-{
-    void *internals;
-
-    void *filters;
-    void *current_filter;
-    void *main_filter;
-
-    unsigned int flags;
-
-    void *initfunc;
-    void *module_info;
-
-    void *interpreter_insns;
-    void *interpreter_values;
-
-    struct _mathmap_t *next;
-} mathmap_t;
+$def_mathmap
 
 typedef struct
 {
@@ -193,82 +117,15 @@ typedef struct
 struct _mathmap_frame_t;
 struct _mathmap_slice_t;
 
-typedef void (*init_frame_func_t) (struct _mathmap_frame_t*);
-typedef void (*init_slice_func_t) (struct _mathmap_slice_t*);
-typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, unsigned char*);
+$def_mathfuncs
 
-typedef struct
-{
-    init_frame_func_t init_frame;
-    init_slice_func_t init_slice;
-    calc_lines_func_t calc_lines;
-} mathfuncs_t;
+$def_invocation_frame_slice
 
-typedef struct _mathmap_invocation_t
-{
-    mathmap_t *mathmap;
+$def_builtins
 
-    userval_t *uservals;
+$def_make_resize_image
 
-    int antialiasing;
-    int supersampling;
-
-    int output_bpp;
-
-    int edge_behaviour_x, edge_behaviour_y;
-    color_t edge_color_x, edge_color_y;
-
-    int img_width, img_height;
-    int render_width, render_height;
-    int final_render_width, final_render_height;
-    float image_R;
-
-    int row_stride;
-
-    unsigned char * volatile rows_finished;
-
-    mathfuncs_t mathfuncs;
-
-    int do_debug;
-    int num_debug_tuples;
-    tuple_t *debug_tuples[MAX_DEBUG_TUPLES];
-
-    int interpreter_ip;
-    color_t interpreter_output_color;
-} mathmap_invocation_t;
-
-typedef struct _mathmap_frame_t
-{
-    mathmap_invocation_t *invocation;
-
-    int current_frame;
-    float current_t;
-
-    xy_const_vars_t *xy_vars;
-    pools_t pools;
-} mathmap_frame_t;
-
-typedef struct _mathmap_slice_t
-{
-    mathmap_frame_t *frame;
-
-    float sampling_offset_x, sampling_offset_y;
-    int region_x, region_y, region_width, region_height;
-
-    y_const_vars_t *y_vars;
-    pools_t pools;
-} mathmap_slice_t;
-
-extern color_t get_orig_val_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
-extern color_t get_orig_val_intersample_pixel (mathmap_invocation_t *invocation, float x, float y, image_t *image, int frame);
-
-extern float* get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, float y, float frame);
-
-extern image_t* render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools, int force);
-
-extern image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
-
-extern float noise (float, float, float);
+$def_noise
 
 struct _gsl_vector;
 typedef struct _gsl_vector gsl_vector;

@@ -29,12 +29,14 @@ typedef struct
     int length;
 } tuple_info_t;
 
+/* TEMPLATE tuple */
 typedef struct
 {
     int number;
     int length;
     float data[];
 } tuple_t;
+/* END */
 
 tuple_info_t make_tuple_info (int number, int length);
 

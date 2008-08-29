@@ -37,7 +37,7 @@ PREFIX = /usr
 VERSION = 1.3.4
 
 #OPT_CFLAGS := -O2
-OPT_CFLAGS := -g -DDEBUG_OUTPUT #-DDONT_UNLINK_C #-fgnu89-inline 
+OPT_CFLAGS := -g -DDEBUG_OUTPUT #-DDONT_UNLINK_C #-fgnu89-inline
 
 #PROF_FLAGS := -pg
 
@@ -100,7 +100,9 @@ GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader
+TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h noise.h
+
+mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c
 	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) lispreader/liblispreader.a $(LDFLAGS)
 
 librwimg :
@@ -132,9 +134,12 @@ compiler.o : new_builtins.c opdefs.h opfuncs.h compiler_types.h
 new_builtins.c opdefs.h opfuncs.h compiler_types.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
+new_template.c : make_template.pl new_template.c.in $(TEMPLATE_INPUTS)
+	./make_template.pl $(TEMPLATE_INPUTS) new_template.c.in >new_template.c
+
 blender.o : generators/blender/blender.c
 
-install : mathmap $(MOS)
+install : mathmap new_template.c $(MOS)
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -d $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins
 	install -d $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap
@@ -151,25 +156,6 @@ install : mathmap $(MOS)
 		cp $$lng.mo $(DESTDIR)$(LOCALEDIR)/$$lng/LC_MESSAGES/mathmap.mo; \
 	done
 
-install-local : mathmap
-#	if [ ! -d $(TEMPLATE_DIR) ] ; then mkdir $(TEMPLATE_DIR) ; fi
-#	cp generators/blender/blender_template.c generators/blender/blender_opmacros.h $(TEMPLATE_DIR)
-
-	if [ ! -d $(HOME)/$(GIMPDIR) ] ; then mkdir $(HOME)/$(GIMPDIR) ; fi
-	if [ ! -d $(HOME)/$(GIMPDIR)/plug-ins ] ; then mkdir $(HOME)/$(GIMPDIR)/plug-ins ; fi
-	cp mathmap $(HOME)/$(GIMPDIR)/plug-ins/
-
-	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap ] ; then mkdir $(HOME)/$(GIMPDIR)/mathmap ; fi
-	cp new_template.c $(HOME)/$(GIMPDIR)/mathmap/
-	cp opmacros.h $(HOME)/$(GIMPDIR)/mathmap/
-	cp lispreader/pools.h $(HOME)/$(GIMPDIR)/mathmap/
-
-	if [ ! -d $(HOME)/$(GIMPDIR)/mathmap/expressions ] ; then cp -r examples $(HOME)/$(GIMPDIR)/mathmap/expressions ; fi
-
-	if [ ! -d $(HOME)/.gnome2/gtksourceview-1.0 ] ; then mkdir $(HOME)/.gnome2/gtksourceview-1.0 ; fi
-	if [ ! -d $(HOME)/.gnome2/gtksourceview-1.0/language-specs ] ; then mkdir $(HOME)/.gnome2/gtksourceview-1.0/language-specs ; fi
-	cp mathmap.lang $(HOME)/.gnome2/gtksourceview-1.0/language-specs
-
 clean :
 	rm -f *.o designer/*.o native-filters/*.o compopt/*.o generators/blender/*.o mathmap compiler parser.output core
 	find . -name '*~' | xargs -r -d '\n' rm
@@ -183,10 +169,10 @@ realclean : clean
 TAGS :
 	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp'`
 
-dist : new_builtins.c parser.c scanner.c clean
+dist : new_builtins.c parser.c scanner.c new_template.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils

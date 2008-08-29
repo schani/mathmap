@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -43,7 +43,9 @@
 #define USERVAL_COLOR       4
 #define USERVAL_CURVE       5
 #define USERVAL_GRADIENT    6
-#define USERVAL_IMAGE       7	/* used in new_template.c */
+/* TEMPLATE userval_image */
+#define USERVAL_IMAGE       7
+/* END */
 
 typedef struct _userval_info_t
 {
@@ -81,6 +83,7 @@ typedef struct _userval_info_t
 struct _image_t;
 struct _input_drawable_t;
 
+/* TEMPLATE userval */
 typedef struct
 {
     float *values;
@@ -117,6 +120,7 @@ typedef struct _userval_t
     GtkWidget *widget;
 #endif
 } userval_t;
+/* END */
 
 userval_info_t* lookup_userval (userval_info_t *infos, const char *name);
 userval_info_t* lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info);

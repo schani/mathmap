@@ -46,6 +46,7 @@ typedef union
     RUNTIME_VALUE_DECL
 } runtime_value_t;
 
+/* TEMPLATE mathfuncs */
 typedef void (*init_frame_func_t) (struct _mathmap_frame_t*);
 typedef void (*init_slice_func_t) (struct _mathmap_slice_t*);
 typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, unsigned char*);
@@ -56,6 +57,7 @@ typedef struct
     init_slice_func_t init_slice;
     calc_lines_func_t calc_lines;
 } mathfuncs_t;
+/* END */
 
 typedef mathfuncs_t (*initfunc_t) (struct _mathmap_invocation_t*);
 

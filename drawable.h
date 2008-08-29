@@ -46,20 +46,25 @@
 struct _cache_entry_t;
 #endif
 
+/* TEMPLATE image_types */
 #define IMAGE_DRAWABLE		1
 #define IMAGE_CLOSURE		2
 #define IMAGE_FLOATMAP		3
 #define IMAGE_RESIZE		4
+/* END */
 
+/* TEMPLATE filter_funcs */
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _userval_t*,
 				 float, float, float,
 				 pools_t*);
+/* END */
 
 struct _input_drawable_t;
 
 #define NUM_FLOATMAP_CHANNELS	4
 
+/* TEMPLATE image */
 typedef struct _image_t
 {
     int type;
@@ -86,6 +91,7 @@ typedef struct _image_t
 	} resize;
     } v;
 } image_t;
+/* END */
 
 #define FLOATMAP_VALUE_I(img,i,c)          ((img)->v.floatmap.data[(i)*NUM_FLOATMAP_CHANNELS + (c)])
 #define FLOATMAP_VALUE_XY(img,x,y,c)	   FLOATMAP_VALUE_I((img), ((y)*(img)->pixel_width + (x)), (c))
@@ -166,7 +172,9 @@ input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 image_t* floatmap_alloc (int width, int height, pools_t *pools);
 image_t* floatmap_copy (image_t *floatmap, pools_t *pools);
 
+/* TEMPLATE make_resize_image */
 image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
+/* END */
 
 void floatmap_get_channel_column (float *dst, image_t *img, int col, int channel);
 void floatmap_get_channel_row (float *dst, image_t *img, int row, int channel);
