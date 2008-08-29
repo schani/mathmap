@@ -21,6 +21,7 @@ use image/row/column const stuff for rendering
 ** Tests
 
 ** Compiler
+variable "frame"?  it's not available in all funcs in new_template.c
 
 ** Filters
 

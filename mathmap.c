@@ -107,7 +107,7 @@ static void run (const gchar *name,
 
 static void expression_copy (gchar *dest, const gchar *src);
 
-static int generate_code (int current_frame, float current_t);
+static gboolean generate_code (void);
 
 static void do_mathmap (int frame_num, float t);
 static gint32 mathmap_layer_copy (gint32 layerID);
@@ -650,7 +650,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 		mmvals.param_t = param[5].data.d_float;
 		expression_copy(mmvals.expression, param[6].data.d_string);
 
-		if (!generate_code(0, 0))
+		if (!generate_code())
 		    status = GIMP_PDB_CALLING_ERROR;
 	    }
 
@@ -661,7 +661,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
 	    gimp_get_data(name, &mmvals);
 
-	    if (!generate_code(0, 0))
+	    if (!generate_code())
 		status = GIMP_PDB_CALLING_ERROR;
 
 	    break;
@@ -903,8 +903,8 @@ update_gradient (void)
 
 /*****/
 
-static int
-generate_code (int current_frame, float current_t)
+static gboolean
+generate_code (void)
 {
     if (expression_changed)
     {
@@ -989,15 +989,10 @@ generate_code (int current_frame, float current_t)
 	invocation->antialiasing = mmvals.flags & FLAG_ANTIALIASING;
 	invocation->supersampling = mmvals.flags & FLAG_SUPERSAMPLING;
 
-	invocation->current_frame = current_frame;
-	invocation->current_t = current_t;
-
 	invocation->edge_behaviour_x = edge_behaviour_x_mode;
 	invocation->edge_behaviour_y = edge_behaviour_y_mode;
 	invocation->edge_color_x = MAKE_RGBA_COLOR_FLOAT(edge_color_x.r, edge_color_x.g, edge_color_x.b, edge_color_x.a);
 	invocation->edge_color_y = MAKE_RGBA_COLOR_FLOAT(edge_color_y.r, edge_color_y.g, edge_color_y.b, edge_color_y.a);
-
-	update_image_internals(invocation);
     }
 
     return invocation != 0;
@@ -1068,10 +1063,11 @@ do_mathmap (int frame_num, float current_t)
 
     previewing = 0;
 
-    if (generate_code(frame_num, current_t))
+    if (generate_code())
     {
-	/* Initialize pixel region */
+	mathmap_frame_t *frame;
 
+	/* Initialize pixel region */
 	gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
 			    TRUE, TRUE);
 
@@ -1084,7 +1080,8 @@ do_mathmap (int frame_num, float current_t)
 	    strcpy(progress_info, _("Mathmapping..."));
 	gimp_progress_init(progress_info);
 
-	invocation_init_frame(invocation);
+	frame = invocation_new_frame(invocation, frame_num, current_t);
+	update_image_internals(frame);
 
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
@@ -1097,7 +1094,7 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->row_stride = dest_rgn.rowstride;
 	    invocation->output_bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(output_drawable));
 
-	    call_invocation_parallel_and_join(invocation, region_x, region_y, region_width, region_height,
+	    call_invocation_parallel_and_join(frame, region_x, region_y, region_width, region_height,
 					      dest_rgn.data, NUM_FINAL_RENDER_CPUS);
 
 	    /* Update progress */
@@ -1105,7 +1102,7 @@ do_mathmap (int frame_num, float current_t)
 	    gimp_progress_update((double) progress / max_progress);
 	}
 
-	invocation_deinit_frame(invocation);
+	invocation_free_frame(frame);
 
 	unref_tiles();
 
@@ -1989,7 +1986,7 @@ recalculate_preview (void)
 
     ++in_recalculate;
 
-    if (generate_code(0, mmvals.param_t))
+    if (generate_code())
     {
 	int preview_width = gdk_pixbuf_get_width(wint.pixbuf);
 	int preview_height = gdk_pixbuf_get_height(wint.pixbuf);
@@ -1999,6 +1996,7 @@ recalculate_preview (void)
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
 	int old_render_width, old_render_height;
 	int old_final_render_width, old_final_render_height;
+	mathmap_frame_t *frame;
 
 	assert(buf != 0);
 
@@ -2044,14 +2042,15 @@ recalculate_preview (void)
 	if (previewing)
 	    for_each_input_drawable(build_fast_image_source);
 
-	invocation_init_frame(invocation);
+	frame = invocation_new_frame(invocation, 0, mmvals.param_t);
+	update_image_internals(frame);
 
 	if (previewing)
-	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, get_num_cpus());
+	    call_invocation_parallel_and_join(frame, 0, 0, preview_width, preview_height, buf, get_num_cpus());
 	else
-	    call_invocation_parallel_and_join(invocation, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
+	    call_invocation_parallel_and_join(frame, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
 
-	invocation_deinit_frame(invocation);
+	invocation_free_frame(frame);
 
 	invocation->render_width = old_render_width;
 	invocation->render_height = old_render_height;
@@ -2679,7 +2678,7 @@ design_save_callback (GtkWidget *widget, gpointer data)
 static void
 dialog_ok_callback (GtkWidget *widget, gpointer data)
 {
-    if (generate_code(0, 0))
+    if (generate_code())
     {
 	wint.run = TRUE;
 	if (!does_filter_use_t(mathmap->main_filter))

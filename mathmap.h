@@ -156,8 +156,6 @@ typedef struct _mathmap_invocation_t
     int edge_behaviour_x, edge_behaviour_y;
     color_t edge_color_x, edge_color_y;
 
-    int current_frame;
-
     /* These are in pixel coordinates: */
     int img_width, img_height;
     int render_width, render_height;
@@ -167,14 +165,9 @@ typedef struct _mathmap_invocation_t
     float image_R;		/* FIXME: remove and calculate in
 				   filter code */
 
-    float current_x, current_y, current_r, current_a, current_t;
-
     int row_stride;
 
     unsigned char * volatile rows_finished;
-
-    void *xy_vars;
-    pools_t pools;
 
     mathfuncs_t mathfuncs;
 
@@ -186,9 +179,20 @@ typedef struct _mathmap_invocation_t
     color_t interpreter_output_color;
 } mathmap_invocation_t;
 
-typedef struct _mathmap_slice_t
+typedef struct _mathmap_frame_t
 {
     mathmap_invocation_t *invocation;
+
+    int current_frame;
+    float current_t;
+
+    void *xy_vars;
+    pools_t pools;
+} mathmap_frame_t;
+
+typedef struct _mathmap_slice_t
+{
+    mathmap_frame_t *frame;
 
     float sampling_offset_x, sampling_offset_y;
     int region_x, region_y, region_width, region_height;
@@ -241,13 +245,13 @@ int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression, gboolean report_error);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
-void invocation_init_frame (mathmap_invocation_t *invocation);
-void invocation_deinit_frame (mathmap_invocation_t *invocation);
+mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, int current_frame, float current_t);
+void invocation_free_frame (mathmap_frame_t *frame);
 
-gpointer call_invocation_parallel (mathmap_invocation_t *invocation,
+gpointer call_invocation_parallel (mathmap_frame_t *frame,
 				   int region_x, int region_y, int region_width, int region_height,
 				   unsigned char *q, int num_threads);
-void call_invocation_parallel_and_join (mathmap_invocation_t *invocation,
+void call_invocation_parallel_and_join (mathmap_frame_t *frame,
 					int region_x, int region_y, int region_width, int region_height,
 					unsigned char *q, int num_threads);
 
@@ -257,7 +261,7 @@ gboolean invocation_call_is_done (gpointer *_call);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
 
-void update_image_internals (mathmap_invocation_t *invocation);
+void update_image_internals (mathmap_frame_t *frame);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 

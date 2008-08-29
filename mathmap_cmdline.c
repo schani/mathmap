@@ -660,6 +660,7 @@ cmdline_main (int argc, char *argv[])
     {
 	mathmap_t *mathmap;
 	mathmap_invocation_t *invocation;
+	int current_frame;
 
 	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
 
@@ -786,15 +787,16 @@ cmdline_main (int argc, char *argv[])
 	}
 #endif
 
-	for (invocation->current_frame = 0; invocation->current_frame < num_frames; ++invocation->current_frame)
+	for (current_frame = 0; current_frame < num_frames; ++current_frame)
 	{
-	    invocation->current_t = (float)invocation->current_frame / (float)num_frames;
+	    float current_t = (float)current_frame / (float)num_frames;
+	    mathmap_frame_t *frame = invocation_new_frame(invocation, current_frame, current_t);
 
-	    update_image_internals(invocation);
+	    update_image_internals(frame);
 
-	    invocation_init_frame(invocation);
-	    call_invocation_parallel_and_join(invocation, 0, 0, img_width, img_height, output, 1);
-	    invocation_deinit_frame(invocation);
+	    call_invocation_parallel_and_join(frame, 0, 0, img_width, img_height, output, 1);
+
+	    invocation_free_frame(frame);
 
 #ifdef MOVIES
 	    if (generate_movie)

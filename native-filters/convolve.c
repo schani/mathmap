@@ -64,6 +64,24 @@ copy_and_add (double *dest, float *src, int n)
 	+ copy_and_add(dest + half, src + half * NUM_FLOATMAP_CHANNELS, n - half);
 }
 
+static char*
+image_type_name (int type)
+{
+    switch (type)
+    {
+	case IMAGE_DRAWABLE :
+	    return "drawable";
+	case IMAGE_CLOSURE :
+	    return "closure";
+	case IMAGE_FLOATMAP :
+	    return "floatmap";
+	case IMAGE_RESIZE :
+	    return "resize";
+	default :
+	    g_assert_not_reached();
+    }
+}
+
 CALLBACK_SYMBOL
 image_t*
 native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
@@ -77,6 +95,10 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
     fftw_complex *image_out, *filter_out;
     fftw_plan in_plan, filter_plan, inverse_plan;
     int i, n, nhalf, cn, channel, num_channels;
+
+    g_print("kernel image is %s - size: %dx%d\n",
+	    image_type_name(filter_image->type),
+	    filter_image->pixel_width, filter_image->pixel_height);
 
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
@@ -128,6 +150,8 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
 				     filter_image->v.floatmap.data + channel,
 				     n - nhalf);
 	    double factor = 1.0 / (d1 + d2);
+
+	    g_print("sum is %g\n", d1 + d2);
 
 	    for (i = 0; i < n; ++i)
 		fftw_in[i] *= factor;

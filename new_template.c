@@ -190,9 +190,10 @@ typedef struct
     $y_decls
 } y_const_vars_t;
 
+struct _mathmap_frame_t;
 struct _mathmap_slice_t;
 
-typedef void (*init_frame_func_t) (struct _mathmap_invocation_t*);
+typedef void (*init_frame_func_t) (struct _mathmap_frame_t*);
 typedef void (*init_slice_func_t) (struct _mathmap_slice_t*);
 typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, unsigned char*);
 
@@ -217,20 +218,14 @@ typedef struct _mathmap_invocation_t
     int edge_behaviour_x, edge_behaviour_y;
     color_t edge_color_x, edge_color_y;
 
-    int current_frame;
     int img_width, img_height;
     int render_width, render_height;
     int final_render_width, final_render_height;
     float image_R;
 
-    float current_x, current_y, current_r, current_a, current_t;
-
     int row_stride;
 
     unsigned char * volatile rows_finished;
-
-    xy_const_vars_t *xy_vars;
-    pools_t pools;
 
     mathfuncs_t mathfuncs;
 
@@ -242,9 +237,20 @@ typedef struct _mathmap_invocation_t
     color_t interpreter_output_color;
 } mathmap_invocation_t;
 
-typedef struct _mathmap_slice_t
+typedef struct _mathmap_frame_t
 {
     mathmap_invocation_t *invocation;
+
+    int current_frame;
+    float current_t;
+
+    xy_const_vars_t *xy_vars;
+    pools_t pools;
+} mathmap_frame_t;
+
+typedef struct _mathmap_slice_t
+{
+    mathmap_frame_t *frame;
 
     float sampling_offset_x, sampling_offset_y;
     int region_x, region_y, region_width, region_height;
@@ -314,10 +320,11 @@ $filter_end
 static void
 calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {
-    mathmap_invocation_t *invocation = slice->invocation;
+    mathmap_frame_t *mmframe = slice->frame;
+    mathmap_invocation_t *invocation = mmframe->invocation;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int row, col;
-    float t = invocation->current_t;
+    float t = mmframe->current_t;
     float R = invocation->image_R;
     int __canvasPixelW = invocation->img_width;
     int __canvasPixelH = invocation->img_height;
@@ -325,12 +332,12 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     int __renderPixelH = invocation->render_height;
     float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
     int origin_x = slice->region_x, origin_y = slice->region_y;
-    int frame = invocation->current_frame;
+    int frame = mmframe->current_frame;
     int output_bpp = invocation->output_bpp;
     int is_bw = output_bpp == 1 || output_bpp == 2;
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
-    xy_const_vars_t *xy_vars = invocation->xy_vars;
+    xy_const_vars_t *xy_vars = mmframe->xy_vars;
     pools_t pixel_pools;
     pools_t *pools;
     int region_x = slice->region_x;
@@ -404,24 +411,25 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 }
 
 static void
-init_frame (mathmap_invocation_t *invocation)
+init_frame (mathmap_frame_t *mmframe)
 {
+    mathmap_invocation_t *invocation = mmframe->invocation;
     xy_const_vars_t *xy_vars;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
-    float t = invocation->current_t;
+    float t = mmframe->current_t;
     int __canvasPixelW = invocation->img_width;
     int __canvasPixelH = invocation->img_height;
     int __renderPixelW = invocation->render_width;
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
-    pools_t *pools = &invocation->pools;
+    pools_t *pools = &mmframe->pools;
 
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
 
-    invocation->xy_vars = xy_vars = (xy_const_vars_t*)pools_alloc(pools, sizeof(xy_const_vars_t));
+    mmframe->xy_vars = xy_vars = (xy_const_vars_t*)pools_alloc(pools, sizeof(xy_const_vars_t));
 
     {
 	$xy_code
@@ -431,9 +439,10 @@ init_frame (mathmap_invocation_t *invocation)
 static void
 init_slice (mathmap_slice_t *slice)
 {
-    mathmap_invocation_t *invocation = slice->invocation;
+    mathmap_frame_t *mmframe = slice->frame;
+    mathmap_invocation_t *invocation = mmframe->invocation;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
-    float t = invocation->current_t;
+    float t = mmframe->current_t;
     int __canvasPixelW = invocation->img_width;
     int __canvasPixelH = invocation->img_height;
     int __renderPixelW = invocation->render_width;
@@ -449,7 +458,7 @@ init_slice (mathmap_slice_t *slice)
     slice->y_vars = (y_const_vars_t*)pools_alloc(pools, sizeof(y_const_vars_t) * slice->region_width);
 
     {
-	xy_const_vars_t *xy_vars = invocation->xy_vars;
+	xy_const_vars_t *xy_vars = mmframe->xy_vars;
 	int col;
 
 	for (col = 0; col < slice->region_width; ++col)
