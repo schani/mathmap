@@ -272,8 +272,8 @@ subscripts : subscript                 { $<exprtree>$ = $<exprtree>1; }
            ;
 
 subscript : expr                   { $<exprtree>$ = $<exprtree>1; }
-          | T_INT T_RANGE T_INT    { $<exprtree>$ = make_range($<exprtree>1->val.tuple_const->data[1],
-                                                               $<exprtree>3->val.tuple_const->data[3]); }
+          | T_INT T_RANGE T_INT    { $<exprtree>$ = make_range($<exprtree>1->val.int_const,
+                                                               $<exprtree>3->val.int_const); }
           ;
 
 else : T_ELSE

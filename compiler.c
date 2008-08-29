@@ -1830,7 +1830,8 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 
 		gen_code(filter, tree->val.select.tuple, temps, 0);
 
-		for (sub = tree->val.select.subscripts, i = 0; sub != 0; sub = sub->next, ++i)
+		g_assert(tree->val.select.subscripts->type == EXPR_TUPLE);
+		for (sub = tree->val.select.subscripts->val.tuple.elems, i = 0; sub != 0; sub = sub->next, ++i)
 		{
 		    int subscript;
 

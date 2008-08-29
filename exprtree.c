@@ -622,7 +622,7 @@ exprtree*
 make_tuple_exprtree (exprtree *elems)
 {
     exprtree *tree, *elem;
-    int is_const = 1, length;
+    int length;
 
     length = 0;
     for (elem = elems; elem != 0; elem = elem->next)
@@ -634,37 +634,14 @@ make_tuple_exprtree (exprtree *elems)
 	    sprintf(error_string, _("Tuples cannot contain tuples of length other than 1."));
 	    JUMP(1);
 	}
-
-	if (elem->type != EXPR_TUPLE_CONST
-	    || elem->type != EXPR_FLOAT_CONST)
-	    is_const = 0;
     }
 
     tree = alloc_exprtree();
 
-    if (is_const)
-    {
-	int i;
+    tree->type = EXPR_TUPLE;
+    tree->val.tuple.length = length;
+    tree->val.tuple.elems = elems;
 
-	tree->type = EXPR_TUPLE_CONST;
-	tree->val.tuple_const = make_tuple(nil_tag_number, length);
-
-	elem = elems;
-	for (i = 0; i < length; ++i)
-	{
-	    if (elem->type == EXPR_TUPLE_CONST)
-		tree->val.tuple_const->data[i] = elem->val.tuple_const->data[0];
-	    else
-		tree->val.tuple_const->data[i] = elem->val.float_const;
-	    elem = elem->next;
-	}
-    }
-    else
-    {
-	tree->type = EXPR_TUPLE;
-	tree->val.tuple.length = length;
-	tree->val.tuple.elems = elems;
-    }
     tree->result = make_tuple_info(nil_tag_number, length);
 
     return tree;
