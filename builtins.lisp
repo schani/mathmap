@@ -677,7 +677,7 @@ be positive, otherwise the result will not be definied."
 (defbuiltin "sqrt" sqrt_1 (?T 1) ((a (?T 1)))
   (set result (make (?T 1) (sqrt (nth 0 a)))))
 
-(defbuiltin "sum" sum (?T 1) ((a (?T ?L)))
+(defbuiltin "sum" sum (nil 1) ((a (?T ?L)))
   "The sum of all elements of a tuple."
   (set result (make (?T 1) (sum a))))
 
@@ -739,6 +739,15 @@ quaternions, hypercomplex numbers and vectors (Euclidian norm)."
 				     (* (nth 2 a) (nth 2 a))
 				     (* (nth 3 a) (nth 3 a)))))))
 
+(defbuiltin "abs" abs_v2 (nil 1) ((a (v2 2)))
+  (set result (make (nil 1) (sqrt (+ (* (nth 0 a) (nth 0 a))
+				     (* (nth 1 a) (nth 1 a)))))))
+
+(defbuiltin "abs" abs_v3 (nil 1) ((a (v3 3)))
+  (set result (make (nil 1) (sqrt (+ (* (nth 0 a) (nth 0 a))
+				     (* (nth 1 a) (nth 1 a))
+				     (* (nth 2 a) (nth 2 a)))))))
+
 (defbuiltin "abs" abs_1 (?T 1) ((a (?T 1)))
   (set result (abs-v a)))
 
@@ -750,7 +759,7 @@ quaternions, hypercomplex numbers and vectors (Euclidian norm)."
 (defbuiltin "deg2rad" deg2rad (nil 1) ((a (? 1)))
   "Convert degrees to radians."
   (set result (make (nil 1) (* (nth 0 a) 0.017453292519943295722))))
-                           
+
 (defbuiltin "rad2deg" rad2deg (deg 1) ((a (? 1)))
   "Convert radians to degrees."
   (set result (make (deg 1) (* (nth 0 a) 57.2957795130823208768))))
