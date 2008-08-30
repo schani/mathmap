@@ -44,6 +44,7 @@ typedef struct
 #define MAX_PROMOTABLE_TYPE  TYPE_COMPLEX
 
 #define CONST_MAX            (CONST_Y | CONST_X | CONST_T)
+#define CONST_IGNORE	     0x1000
 
 typedef int type_t;
 
@@ -187,6 +188,7 @@ typedef struct
 #define SLICE_X_CONST        2
 #define SLICE_Y_CONST        4
 #define SLICE_NO_CONST       8
+#define SLICE_IGNORE	     0x1000
 
 typedef struct _statement_t
 {

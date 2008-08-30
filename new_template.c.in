@@ -79,6 +79,8 @@ typedef unsigned int color_t;
 $def_image_types
 
 struct _mathmap_invocation_t;
+struct _mathmap_frame_t;
+struct _mathmap_slice_t;
 struct _userval_t;
 struct _image_t;
 
@@ -103,19 +105,6 @@ typedef struct _GArray GArray;
 typedef void* initfunc_t;
 
 $def_mathmap
-
-typedef struct
-{
-    $xy_decls
-} xy_const_vars_t;
-
-typedef struct
-{
-    $y_decls
-} y_const_vars_t;
-
-struct _mathmap_frame_t;
-struct _mathmap_slice_t;
 
 $def_mathfuncs
 
@@ -170,12 +159,32 @@ extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int co
 $native_filter_decls
 
 $filter_begin
+static void
+calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q);
+
+static void
+init_frame_$name (mathmap_frame_t *mmframe);
+
+static void
+init_slice_$name (mathmap_slice_t *slice);
+
 static float*
 filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, float t, pools_t *pools);
 $filter_end
 
+$filter_begin
+typedef struct
+{
+    $xy_decls
+} xy_const_vars_t_$name;
+
+typedef struct
+{
+    $y_decls
+} y_const_vars_t_$name;
+
 static void
-calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
+calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
 {
     mathmap_frame_t *mmframe = slice->frame;
     mathmap_invocation_t *invocation = mmframe->invocation;
@@ -194,7 +203,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     int is_bw = output_bpp == 1 || output_bpp == 2;
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
-    xy_const_vars_t *xy_vars = mmframe->xy_vars;
+    xy_const_vars_t_$name *xy_vars = mmframe->xy_vars;
     pools_t pixel_pools;
     pools_t *pools;
     int region_x = slice->region_x;
@@ -226,7 +235,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 
 	for (col = 0; col < slice->region_width; ++col)
 	{
-	    y_const_vars_t *y_vars = &slice->y_vars[col];
+	    y_const_vars_t_$name *y_vars = &((y_const_vars_t_$name*)slice->y_vars)[col];
 	    float x = CALC_VIRTUAL_X(col + region_x, final_render_width, sampling_offset_x);
 	    float *return_tuple;
 
@@ -268,10 +277,10 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 }
 
 static void
-init_frame (mathmap_frame_t *mmframe)
+init_frame_$name (mathmap_frame_t *mmframe)
 {
     mathmap_invocation_t *invocation = mmframe->invocation;
-    xy_const_vars_t *xy_vars;
+    xy_const_vars_t_$name *xy_vars;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     float t = mmframe->current_t;
     int __canvasPixelW = invocation->img_width;
@@ -286,7 +295,7 @@ init_frame (mathmap_frame_t *mmframe)
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
 
-    mmframe->xy_vars = xy_vars = (xy_const_vars_t*)pools_alloc(pools, sizeof(xy_const_vars_t));
+    mmframe->xy_vars = xy_vars = (xy_const_vars_t_$name*)pools_alloc(pools, sizeof(xy_const_vars_t_$name));
 
     {
 	$xy_code
@@ -294,7 +303,7 @@ init_frame (mathmap_frame_t *mmframe)
 }
 
 static void
-init_slice (mathmap_slice_t *slice)
+init_slice_$name (mathmap_slice_t *slice)
 {
     mathmap_frame_t *mmframe = slice->frame;
     mathmap_invocation_t *invocation = mmframe->invocation;
@@ -312,15 +321,15 @@ init_slice (mathmap_slice_t *slice)
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
 
-    slice->y_vars = (y_const_vars_t*)pools_alloc(pools, sizeof(y_const_vars_t) * slice->region_width);
+    slice->y_vars = (y_const_vars_t_$name*)pools_alloc(pools, sizeof(y_const_vars_t_$name) * slice->region_width);
 
     {
-	xy_const_vars_t *xy_vars = mmframe->xy_vars;
+	xy_const_vars_t_$name *xy_vars = mmframe->xy_vars;
 	int col;
 
 	for (col = 0; col < slice->region_width; ++col)
 	{
-	    y_const_vars_t *y_vars = &slice->y_vars[col];
+	    y_const_vars_t_$name *y_vars = &((y_const_vars_t_$name*)slice->y_vars)[col];
 	    float x = CALC_VIRTUAL_X(col + slice->region_x, invocation->final_render_width, slice->sampling_offset_x);
 
 	    {
@@ -329,18 +338,7 @@ init_slice (mathmap_slice_t *slice)
 	}
     }
 }
-
-mathfuncs_t
-mathmapinit (mathmap_invocation_t *invocation)
-{
-    mathfuncs_t funcs;
-
-    funcs.init_frame = &init_frame;
-    funcs.init_slice = &init_slice;
-    funcs.calc_lines = &calc_lines;
-
-    return funcs;
-}
+$filter_end
 
 #undef ARG
 #define ARG(i)			(arguments[(i)])
@@ -357,21 +355,34 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
     float *return_tuple;
+    xy_const_vars_t_$name _xy_vars;
+    xy_const_vars_t_$name *xy_vars = &_xy_vars;
+    y_const_vars_t_$name _y_vars;
+    y_const_vars_t_$name *y_vars = &_y_vars;
 
-#if $g
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
-#else
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel_fast;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel_fast;
-#endif
 
-    $m
+    {
+	$x_decls
+
+	$non_const_code
+    }
 
     return return_tuple;
 }
 $filter_end
+
+mathfuncs_t
+mathmapinit (mathmap_invocation_t *invocation)
+{
+    mathfuncs_t funcs;
+
+    funcs.init_frame = &init_frame_$filter_name;
+    funcs.init_slice = &init_slice_$filter_name;
+    funcs.calc_lines = &calc_lines_$filter_name;
+
+    return funcs;
+}

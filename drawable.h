@@ -53,7 +53,14 @@ struct _cache_entry_t;
 #define IMAGE_RESIZE		4
 /* END */
 
+struct _mathmap_frame_t;
+struct _mathmap_slice_t;
+
 /* TEMPLATE filter_funcs */
+typedef void (*init_frame_func_t) (struct _mathmap_frame_t*);
+typedef void (*init_slice_func_t) (struct _mathmap_slice_t*);
+typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, unsigned char*);
+
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _userval_t*,
 				 float, float, float,
@@ -74,6 +81,9 @@ typedef struct _image_t
     {
 	struct _input_drawable_t *drawable;
 	struct {
+	    init_frame_func_t init_frame;
+	    init_slice_func_t init_slice;
+	    calc_lines_func_t calc_lines;
 	    filter_func_t func;
 	    userval_t args[];
 	} closure;

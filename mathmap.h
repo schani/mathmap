@@ -146,9 +146,6 @@ extern int fast_image_source_scale;
 
 #define MAX_DEBUG_TUPLES              8
 
-typedef struct _xy_const_vars_t xy_const_vars_t;
-typedef struct _y_const_vars_t y_const_vars_t;
-
 /* TEMPLATE invocation_frame_slice */
 typedef struct _mathmap_invocation_t
 {
@@ -194,7 +191,7 @@ typedef struct _mathmap_frame_t
     int current_frame;
     float current_t;
 
-    xy_const_vars_t *xy_vars;
+    void *xy_vars;
     pools_t pools;
 } mathmap_frame_t;
 
@@ -205,7 +202,7 @@ typedef struct _mathmap_slice_t
     float sampling_offset_x, sampling_offset_y;
     int region_x, region_y, region_width, region_height;
 
-    y_const_vars_t *y_vars;
+    void *y_vars;
     pools_t pools;
 } mathmap_slice_t;
 /* END */

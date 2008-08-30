@@ -134,7 +134,6 @@ static int stmt_stackp = 0;
     ({ (s)->parent = CURRENT_STACK_TOP; \
        (s)->next = (l); (l) = (s); })
 
-static filter_code_t *main_filter_code;
 static filter_code_t **filter_codes;
 
 /*** hash tables ***/
@@ -5059,7 +5058,7 @@ is_const_type_within (int const_type, int lower_bound, int upper_bound)
 	&& (const_type & upper_bound) == const_type;
 }
 
-void
+static void
 output_value_name (FILE *out, value_t *value, int for_decl)
 {
     if (value->index < 0)
@@ -5088,7 +5087,7 @@ output_value_name (FILE *out, value_t *value, int for_decl)
     }
 }
 
-void
+static void
 output_value_decl (FILE *out, value_t *value)
 {
     if (!value->have_defined && value->index >= 0)
@@ -5112,7 +5111,7 @@ reset_have_defined (statement_t *stmt)
     FOR_EACH_VALUE_IN_STATEMENTS(stmt, &_reset_value_have_defined);
 }
 
-void
+static void
 output_primary (FILE *out, primary_t *primary)
 {
     switch (primary->kind)
@@ -5160,7 +5159,7 @@ userval_element_name (userval_info_t *info)
     }
 }
 
-void
+static void
 output_rhs (FILE *out, rhs_t *rhs)
 {
     switch (rhs->kind)
@@ -5226,7 +5225,18 @@ output_rhs (FILE *out, rhs_t *rhs)
 
 		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		{
-		    fprintf(out, "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d); image->type = IMAGE_CLOSURE; image->v.closure.func = filter_%s; ", num_args, rhs->v.closure.filter->name);
+		    fprintf(out,
+			    "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d);"
+			    "image->type = IMAGE_CLOSURE;"
+			    "image->v.closure.func = filter_%s;"
+			    "image->v.closure.init_frame = init_frame_%s;"
+			    "image->v.closure.init_slice = init_slice_%s;"
+			    "image->v.closure.calc_lines = calc_lines_%s;",
+			    num_args,
+			    rhs->v.closure.filter->name,
+			    rhs->v.closure.filter->name,
+			    rhs->v.closure.filter->name,
+			    rhs->v.closure.filter->name);
 
 		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
 			 info != 0;
@@ -5292,24 +5302,22 @@ output_rhs (FILE *out, rhs_t *rhs)
     }
 }
 
-void
+static void
 output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
 {
     while (phis != 0)
     {
 	rhs_t *rhs;
 
-#ifndef NO_CONSTANTS_ANALYSIS
-	if ((phis->slice_flags & slice_flag) == 0)
-#else
         if (phis->kind == STMT_NIL)
-#endif
-	{
-	    phis = phis->next;
-	    continue;
-	}
+	    goto next;
 
-	assert(phis->kind == STMT_PHI_ASSIGN);
+#ifndef NO_CONSTANTS_ANALYSIS
+	if (slice_flag != SLICE_IGNORE && (phis->slice_flags & slice_flag) == 0)
+	    goto next;
+#endif
+
+	g_assert(slice_flag == SLICE_IGNORE || phis->kind == STMT_PHI_ASSIGN);
 
 	rhs = ((branch == 0) ? phis->v.assign.rhs : phis->v.assign.rhs2);
 
@@ -5323,23 +5331,24 @@ output_phis (FILE *out, statement_t *phis, int branch, unsigned int slice_flag)
 	    fputs(";\n", out);
 	}
 
+    next:
 	phis = phis->next;
     }
 }
 
-void
+static void
 output_stmts (FILE *out, statement_t *stmt, unsigned int slice_flag)
 {
     while (stmt != 0)
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	if (stmt->slice_flags & slice_flag)
+	if (slice_flag == SLICE_IGNORE || (stmt->slice_flags & slice_flag))
 #endif
 	    switch (stmt->kind)
 	    {
 		case STMT_NIL :
 #ifndef NO_CONSTANTS_ANALYSIS
-		    g_assert_not_reached();
+		    g_assert(slice_flag == SLICE_IGNORE);
 #endif
 		    break;
 
@@ -5419,7 +5428,7 @@ _output_value_if_needed_code (value_t *value, statement_t *stmt, void *info)
     CLOSURE_VAR(int, const_type, 1);
 
     if ((is_temporary_const_value(value) || const_type == 0)
-	&& _is_value_needed(value, const_type))
+	 && (const_type == CONST_IGNORE || _is_value_needed(value, const_type)))
 	output_value_decl(out, value);
 }
 
@@ -5455,6 +5464,13 @@ output_permanent_const_code (filter_code_t *code, FILE *out, int const_type)
     SLICE_CODE(code->first_stmt, slice_flag, &_const_predicate, (void*)const_type);
 
     output_stmts(out, code->first_stmt, slice_flag);
+}
+
+static void
+output_all_code (filter_code_t *code, FILE *out)
+{
+    FOR_EACH_VALUE_IN_STATEMENTS(code->first_stmt, &_output_value_if_needed_code, out, (void*)CONST_IGNORE);
+    output_stmts(out, code->first_stmt, SLICE_IGNORE);
 }
 
 /*** generating interpreter code ***/
@@ -5889,8 +5905,48 @@ filter_template_processor (mathmap_t *mathmap, const char *directive, const char
 	fputs(code->filter->name, out);
     else if (strcmp(directive, "m") == 0)
 	output_permanent_const_code(code, out, 0);
-    else if (strcmp(directive, "uses_ra") == 0)
-	fputs("1", out);
+    else if (strcmp(directive, "xy_decls") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_declarations(code, out, CONST_X | CONST_Y);
+#endif
+    }
+    else if (strcmp(directive, "x_decls") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_declarations(code, out, CONST_X);
+#endif
+    }
+    else if (strcmp(directive, "y_decls") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_declarations(code, out, CONST_Y);
+#endif
+    }
+    else if (strcmp(directive, "xy_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_code(code, out, CONST_X | CONST_Y);
+#endif
+    }
+    else if (strcmp(directive, "x_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_code(code, out, CONST_X);
+#endif
+    }
+    else if (strcmp(directive, "y_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_permanent_const_code(code, out, CONST_Y);
+#endif
+    }
+    else if (strcmp(directive, "non_const_code") == 0)
+    {
+#ifndef NO_CONSTANTS_ANALYSIS
+	output_all_code(code, out);
+#endif
+    }
     else
 	return 0;
     return 1;
@@ -5910,48 +5966,10 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
 	putc('1', out);
 #endif
     }
-    else if (strcmp(directive, "m") == 0)
-	output_permanent_const_code(main_filter_code, out, 0);
     else if (strcmp(directive, "p") == 0)
 	fprintf(out, "%d", USER_CURVE_POINTS);
     else if (strcmp(directive, "q") == 0)
 	fprintf(out, "%d", USER_GRADIENT_POINTS);
-    else if (strcmp(directive, "xy_decls") == 0)
-    {
-#ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(main_filter_code, out, CONST_X | CONST_Y);
-#endif
-    }
-    else if (strcmp(directive, "x_decls") == 0)
-    {
-#ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(main_filter_code, out, CONST_X);
-#endif
-    }
-    else if (strcmp(directive, "y_decls") == 0)
-    {
-#ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_declarations(main_filter_code, out, CONST_Y);
-#endif
-    }
-    else if (strcmp(directive, "xy_code") == 0)
-    {
-#ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(main_filter_code, out, CONST_X | CONST_Y);
-#endif
-    }
-    else if (strcmp(directive, "x_code") == 0)
-    {
-#ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(main_filter_code, out, CONST_X);
-#endif
-    }
-    else if (strcmp(directive, "y_code") == 0)
-    {
-#ifndef NO_CONSTANTS_ANALYSIS
-	output_permanent_const_code(main_filter_code, out, CONST_Y);
-#endif
-    }
     else if (strcmp(directive, "include") == 0)
     {
 	fputs(include_path, out);
@@ -5959,14 +5977,6 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
     else if (strcmp(directive, "max_debug_tuples") == 0)
     {
 	fprintf(out, "%d", MAX_DEBUG_TUPLES);
-    }
-    else if (strcmp(directive, "uses_ra") == 0)
-    {
-	fprintf(out, "%d", does_filter_use_ra(mathmap->main_filter) ? 1 : 0);
-    }
-    else if (strcmp(directive, "uses_t") == 0)
-    {
-	fprintf(out, "%d", does_filter_use_t(mathmap->main_filter) ? 1 : 0);
     }
     else if (strcmp(directive, "filter_name") == 0)
     {
@@ -6085,13 +6095,8 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 #ifdef DEBUG_OUTPUT
 	g_print("compiling filter %s\n", filter->name);
 #endif
-	filter_codes[i] = generate_ir_code(filter, 0, 0);
+	filter_codes[i] = generate_ir_code(filter, 1, 0);
     }
-
-#ifdef DEBUG_OUTPUT
-    g_print("compiling main filter\n");
-#endif
-    main_filter_code = generate_ir_code(mathmap->main_filter, 1, 0);
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);
     out = fopen(c_filename, "w");
@@ -6108,7 +6113,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
 	return 0;
     }
 
-    main_filter_code = 0;
     filter_codes = 0;
 
     fclose(out);
