@@ -565,10 +565,10 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->edge_behaviour_x = invocation->edge_behaviour_y = EDGE_BEHAVIOUR_COLOR;
 
-    invocation->img_width = invocation->render_width = invocation->final_render_width = img_width;
-    invocation->img_height = invocation->render_height = invocation->final_render_height = img_height;
+    invocation->img_width = invocation->render_width = img_width;
+    invocation->img_height = invocation->render_height = img_height;
 
-    invocation->image_R = sqrt(2.0); //hypot(invocation->image_X, invocation->image_Y);
+    invocation->image_R = sqrt(2.0);
 
     invocation->row_stride = img_width * 4;
 
@@ -593,6 +593,9 @@ invocation_new_frame (mathmap_invocation_t *invocation, int current_frame, float
     mathmap_frame_t *frame = g_new0(mathmap_frame_t, 1);
 
     frame->invocation = invocation;
+
+    frame->frame_render_width = invocation->render_width;
+    frame->frame_render_height = invocation->render_height;
 
     frame->current_frame = current_frame;
     frame->current_t = current_t;

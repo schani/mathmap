@@ -1995,7 +1995,6 @@ recalculate_preview (void)
 	gint check, check_0, check_1;
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
 	int old_render_width, old_render_height;
-	int old_final_render_width, old_final_render_height;
 	mathmap_frame_t *frame;
 
 	assert(buf != 0);
@@ -2022,8 +2021,6 @@ recalculate_preview (void)
 
 	old_render_width = invocation->render_width;
 	old_render_height = invocation->render_height;
-	old_final_render_width = invocation->final_render_width;
-	old_final_render_height = invocation->final_render_height;
 
 	if (previewing)
 	{
@@ -2036,13 +2033,14 @@ recalculate_preview (void)
 	    invocation->render_height = invocation->img_height;
 	}
 
-	invocation->final_render_width = preview_width;
-	invocation->final_render_height = preview_height;
-
 	if (previewing)
 	    for_each_input_drawable(build_fast_image_source);
 
 	frame = invocation_new_frame(invocation, 0, mmvals.param_t);
+
+	frame->frame_render_width = preview_width;
+	frame->frame_render_height = preview_height;
+
 	update_image_internals(frame);
 
 	if (previewing)
@@ -2054,8 +2052,6 @@ recalculate_preview (void)
 
 	invocation->render_width = old_render_width;
 	invocation->render_height = old_render_height;
-	invocation->final_render_width = old_final_render_width;
-	invocation->final_render_height = old_final_render_height;
 
 	p = buf;
 	p_ul = wint.wimage;

@@ -207,8 +207,8 @@ calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, unsigned 
     pools_t pixel_pools;
     pools_t *pools;
     int region_x = slice->region_x;
-    int final_render_width = invocation->final_render_width;
-    int final_render_height = invocation->final_render_height;
+    int frame_render_width = mmframe->frame_render_width;
+    int frame_render_height = mmframe->frame_render_height;
 
     init_pools(&pixel_pools);
 
@@ -222,7 +222,7 @@ calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, unsigned 
 
     for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
-	float y = CALC_VIRTUAL_Y(row + slice->region_y, final_render_height, sampling_offset_y);
+	float y = CALC_VIRTUAL_Y(row + slice->region_y, frame_render_height, sampling_offset_y);
 	unsigned char *p = q;
 
 	pools = &slice->pools;
@@ -236,7 +236,7 @@ calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, unsigned 
 	for (col = 0; col < slice->region_width; ++col)
 	{
 	    y_const_vars_t_$name *y_vars = &((y_const_vars_t_$name*)slice->y_vars)[col];
-	    float x = CALC_VIRTUAL_X(col + region_x, final_render_width, sampling_offset_x);
+	    float x = CALC_VIRTUAL_X(col + region_x, frame_render_width, sampling_offset_x);
 	    float *return_tuple;
 
 	    if (invocation->do_debug)
@@ -330,7 +330,7 @@ init_slice_$name (mathmap_slice_t *slice)
 	for (col = 0; col < slice->region_width; ++col)
 	{
 	    y_const_vars_t_$name *y_vars = &((y_const_vars_t_$name*)slice->y_vars)[col];
-	    float x = CALC_VIRTUAL_X(col + slice->region_x, invocation->final_render_width, slice->sampling_offset_x);
+	    float x = CALC_VIRTUAL_X(col + slice->region_x, mmframe->frame_render_width, slice->sampling_offset_x);
 
 	    {
 		$y_code
