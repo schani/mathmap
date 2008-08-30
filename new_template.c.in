@@ -172,7 +172,7 @@ static void
 init_slice_$name (mathmap_slice_t *slice);
 
 static float*
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, float t, pools_t *pools);
+filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, pools_t *pools);
 
 static mathfuncs_t mathfuncs_$name;
 $filter_end
@@ -306,6 +306,7 @@ init_frame_$name (mathmap_frame_t *mmframe)
     mathmap_invocation_t *invocation = mmframe->invocation;
     xy_const_vars_t_$name *xy_vars;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
+    int frame = mmframe->current_frame;
     float t = mmframe->current_t;
     int __canvasPixelW = invocation->img_width;
     int __canvasPixelH = invocation->img_height;
@@ -333,6 +334,7 @@ init_slice_$name (mathmap_slice_t *slice)
     mathmap_frame_t *mmframe = slice->frame;
     mathmap_invocation_t *invocation = mmframe->invocation;
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
+    int frame = mmframe->current_frame;
     float t = mmframe->current_t;
     int __canvasPixelW = invocation->img_width;
     int __canvasPixelH = invocation->img_height;
@@ -366,7 +368,7 @@ init_slice_$name (mathmap_slice_t *slice)
 }
 
 static float*
-filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, float y, float t, pools_t *pools)
+filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, pools_t *pools)
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int frame = 0;
@@ -376,20 +378,40 @@ filter_$name (mathmap_invocation_t *invocation, userval_t *arguments, float x, f
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
     float *return_tuple;
-    xy_const_vars_t_$name _xy_vars;
-    xy_const_vars_t_$name *xy_vars = &_xy_vars;
+    xy_const_vars_t_$name *xy_vars;
     y_const_vars_t_$name _y_vars;
     y_const_vars_t_$name *y_vars = &_y_vars;
+    userval_t *arguments = closure->v.closure.args;
 
     if (invocation->antialiasing)
 	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
     else
 	get_orig_val_pixel_func = get_orig_val_pixel;
 
+    if (closure->v.closure.xy_vars == 0)
+    {
+	pools_t *pools = closure->v.closure.pools;
+
+	xy_vars = closure->v.closure.xy_vars = pools_alloc(pools, sizeof(xy_const_vars_t_$name));
+
+	{
+	    $xy_code
+	}
+    }
+    else
+	xy_vars = closure->v.closure.xy_vars;
+
+    {
+	$y_code
+    }
     {
 	$x_decls
 
-	$non_const_code
+	$x_code
+
+	{
+	    $m
+	}
     }
 
     return return_tuple;

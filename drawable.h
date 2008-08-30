@@ -62,7 +62,7 @@ typedef void (*init_slice_func_t) (struct _mathmap_slice_t*);
 typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, void*, int);
 
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
-				 struct _userval_t*,
+				 struct _image_t*,
 				 float, float, float,
 				 pools_t*);
 /* END */
@@ -87,6 +87,8 @@ typedef struct _image_t
 	struct {
 	    struct _mathfuncs_t *funcs;
 	    filter_func_t func;
+	    pools_t *pools;
+	    void *xy_vars;
 	    userval_t args[];
 	} closure;
 	struct {

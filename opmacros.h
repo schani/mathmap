@@ -206,7 +206,7 @@ typedef struct
 				       img = img->v.resize.original;	\
 				   }					\
 				   if (img->type == IMAGE_CLOSURE)	\
-				       result = img->v.closure.func(invocation, CLOSURE_IMAGE_ARGS(img), (x), (y), (f), pools); \
+				       result = img->v.closure.func(invocation, img, (x), (y), (f), pools); \
 				   else if (img->type == IMAGE_FLOATMAP) \
 				       result = get_floatmap_pixel(invocation, img, (x), (y), (f)); \
 				   else {				\

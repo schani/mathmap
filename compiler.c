@@ -5228,6 +5228,8 @@ output_rhs (FILE *out, rhs_t *rhs)
 		    fprintf(out,
 			    "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d);"
 			    "image->type = IMAGE_CLOSURE;"
+			    "image->v.closure.pools = pools;"
+			    "image->v.closure.xy_vars = 0;"
 			    "image->v.closure.funcs = &mathfuncs_%s;"
 			    "image->v.closure.func = filter_%s;",
 			    num_args,

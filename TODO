@@ -5,7 +5,6 @@
 ** GIMP Plug-In
 
 ** General
-use xy_consts in closures
 
 ** Language
 
@@ -21,7 +20,6 @@ fftw3 dependency
 ** Tests
 
 ** Compiler
-variable "frame"?  it's not available in all funcs in new_template.c
 
 ** Filters
 
@@ -49,6 +47,8 @@ Simplify coordinate stuff (non-stretched ident filter)
 calculate R in the filter code
 optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
+replace resize with a simple internal filter
+don't use x_consts and y_consts in filter_func
 
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
