@@ -37,6 +37,7 @@ floatmap_alloc (int width, int height, pools_t *pools)
     img->pixel_height = height;
     img->v.floatmap.ax = img->v.floatmap.bx = (float)(width - 1) / 2.0;
     img->v.floatmap.ay = img->v.floatmap.by = (float)(height - 1) / 2.0;
+    img->v.floatmap.ay *= -1.0;
 
     img->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * NUM_FLOATMAP_CHANNELS);
 

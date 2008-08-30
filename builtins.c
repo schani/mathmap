@@ -270,46 +270,72 @@ image_t*
 render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools, int force)
 {
     image_t *new_image;
-    int x, y;
-    float *p;
-    float ax, bx, ay, by;
-    pools_t filter_pools;
-    color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int) = get_orig_val_pixel;
 
     if (!force && image->type == IMAGE_FLOATMAP)
 	return image;
 
-    g_print("rendering %dx%d\n", width, height);
     new_image = floatmap_alloc(width, height, pools);
 
-    ax = new_image->v.floatmap.ax;
-    bx = new_image->v.floatmap.bx;
-    ay = new_image->v.floatmap.ay;
-    by = new_image->v.floatmap.by;
+    g_print("rendering %dx%d\n", width, height);
 
-    init_pools(&filter_pools);
-    pools = &filter_pools;
-
-    p = new_image->v.floatmap.data;
-    for (y = 0; y < height; ++y)
+    if (image->type == IMAGE_CLOSURE)
     {
-	float fy = ((float)y - by) / ay;
+	mathmap_frame_t *frame;
+	mathmap_slice_t slice;
 
-	for (x = 0; x < width; ++x)
-	{
-	    float fx = ((float)x - bx) / ax;
-	    float *tuple;
+	g_print("image is closure\n");
 
-	    reset_pools(&filter_pools);
-	    tuple = ORIG_VAL(fx, fy, image, 0.0);
+	frame = invocation_new_frame(invocation, image->v.closure.funcs, image->v.closure.args, 0, 0.0);
+	frame->frame_render_width = width;
+	frame->frame_render_height = height;
 
-	    memcpy(p, tuple, sizeof(float) * 4);
+	invocation_init_slice(&slice, frame, 0, 0, width, height, 0.0, 0.0);
 
-	    p += 4;
-	}
+	image->v.closure.funcs->calc_lines(&slice, 0, height, new_image->v.floatmap.data, 1);
+
+	invocation_deinit_slice(&slice);
+
+	invocation_free_frame(frame);
     }
+    else
+    {
+	float ax, bx, ay, by;
+	color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int) = get_orig_val_pixel;
+	int x, y;
+	float *p;
+	pools_t filter_pools;
 
-    free_pools(&filter_pools);
+	g_print("image is not closure: %d\n", image->type);
+
+	ax = new_image->v.floatmap.ax;
+	bx = new_image->v.floatmap.bx;
+	ay = new_image->v.floatmap.ay;
+	by = new_image->v.floatmap.by;
+
+	init_pools(&filter_pools);
+	pools = &filter_pools;
+
+	p = new_image->v.floatmap.data;
+	for (y = 0; y < height; ++y)
+	{
+	    float fy = ((float)y - by) / ay;
+
+	    for (x = 0; x < width; ++x)
+	    {
+		float fx = ((float)x - bx) / ax;
+		float *tuple;
+
+		reset_pools(&filter_pools);
+		tuple = ORIG_VAL(fx, fy, image, 0.0);
+
+		memcpy(p, tuple, sizeof(float) * 4);
+
+		p += 4;
+	    }
+	}
+
+	free_pools(&filter_pools);
+    }
 
     return new_image;
 }

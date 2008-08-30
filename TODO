@@ -5,6 +5,7 @@
 ** GIMP Plug-In
 
 ** General
+use xy_consts in closures
 
 ** Language
 
@@ -12,7 +13,6 @@
 fftw3 dependency
 
 ** Rendering
-use image/row/column const stuff for rendering
 
 ** Designer
 
@@ -34,6 +34,8 @@ make first input drawable chooseable, too
 
 ** General
 why is bool_const a float in userval_t
+move everything from invocation to frame that belongs there
+pass through frame and t everwhere
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -64,6 +66,7 @@ native filters should show up directly, without .mm filters
 do migration with save/load
 free widget_data in designs
 akklimatisierungsbug (bertl)
+when adding new node connect output of previously focussed node to new node
 
 ** Filters
 better layer modes: http://pegtop.net/delphi/articles/blendmodes/

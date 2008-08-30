@@ -588,11 +588,15 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 }
 
 mathmap_frame_t*
-invocation_new_frame (mathmap_invocation_t *invocation, int current_frame, float current_t)
+invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, userval_t *arguments,
+		      int current_frame, float current_t)
 {
     mathmap_frame_t *frame = g_new0(mathmap_frame_t, 1);
 
     frame->invocation = invocation;
+
+    frame->mathfuncs = mathfuncs;
+    frame->arguments = arguments;
 
     frame->frame_render_width = invocation->render_width;
     frame->frame_render_height = invocation->render_height;
@@ -603,7 +607,7 @@ invocation_new_frame (mathmap_invocation_t *invocation, int current_frame, float
     init_pools(&frame->pools);
 
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	invocation->mathfuncs.init_frame(frame);
+	mathfuncs->init_frame(frame);
 
     return frame;
 }
@@ -704,7 +708,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     assert(first_row >= 0 && last_row <= invocation->img_height + 1 && first_row <= last_row);
 
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	invocation->mathfuncs.calc_lines(slice, first_row, last_row, q);
+	frame->mathfuncs->calc_lines(slice, first_row, last_row, q, 0);
     else
     {
 	int row, col;
@@ -754,9 +758,9 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     }
 }
 
-static void
-init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int region_y,
-	    int region_width, int region_height, float sampling_offset_x, float sampling_offset_y)
+void
+invocation_init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int region_y,
+		       int region_width, int region_height, float sampling_offset_x, float sampling_offset_y)
 {
     memset(slice, 0, sizeof(mathmap_slice_t));
 
@@ -771,11 +775,11 @@ init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int re
     init_pools(&slice->pools);
 
     if (frame->invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	frame->invocation->mathfuncs.init_slice(slice);
+	frame->mathfuncs->init_slice(slice);
 }
 
-static void
-deinit_slice (mathmap_slice_t *slice)
+void
+invocation_deinit_slice (mathmap_slice_t *slice)
 {
     free_pools(&slice->pools);
 }
@@ -796,8 +800,8 @@ call_invocation (mathmap_frame_t *frame, int region_x, int region_y, int region_
 	line2 = (guchar*)malloc(region_width * invocation->output_bpp);
 	line3 = (guchar*)malloc((region_width + 1) * invocation->output_bpp);
 
-	init_slice(&short_slice, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
-	init_slice(&long_slice, frame, region_x, region_y, region_width + 1, region_height, -0.5, -0.5);
+	invocation_init_slice(&short_slice, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
+	invocation_init_slice(&long_slice, frame, region_x, region_y, region_width + 1, region_height, -0.5, -0.5);
 
 	calc_lines(&long_slice, region_y, region_y + 1, line1);
 
@@ -831,16 +835,16 @@ call_invocation (mathmap_frame_t *frame, int region_x, int region_y, int region_
 	free(line2);
 	free(line3);
 
-	deinit_slice(&short_slice);
-	deinit_slice(&long_slice);
+	invocation_deinit_slice(&short_slice);
+	invocation_deinit_slice(&long_slice);
     }
     else
     {
 	mathmap_slice_t slice;
 
-	init_slice(&slice, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
+	invocation_init_slice(&slice, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
 	calc_lines(&slice, region_y, region_y + region_height, q);
-	deinit_slice(&slice);
+	invocation_deinit_slice(&slice);
     }
 }
 

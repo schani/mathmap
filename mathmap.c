@@ -1080,7 +1080,8 @@ do_mathmap (int frame_num, float current_t)
 	    strcpy(progress_info, _("Mathmapping..."));
 	gimp_progress_init(progress_info);
 
-	frame = invocation_new_frame(invocation, frame_num, current_t);
+	frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
+				     frame_num, current_t);
 	update_image_internals(frame);
 
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
@@ -2036,7 +2037,8 @@ recalculate_preview (void)
 	if (previewing)
 	    for_each_input_drawable(build_fast_image_source);
 
-	frame = invocation_new_frame(invocation, 0, mmvals.param_t);
+	frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
+				     0, mmvals.param_t);
 
 	frame->frame_render_width = preview_width;
 	frame->frame_render_height = preview_height;

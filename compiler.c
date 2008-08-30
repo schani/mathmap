@@ -5228,13 +5228,9 @@ output_rhs (FILE *out, rhs_t *rhs)
 		    fprintf(out,
 			    "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d);"
 			    "image->type = IMAGE_CLOSURE;"
-			    "image->v.closure.func = filter_%s;"
-			    "image->v.closure.init_frame = init_frame_%s;"
-			    "image->v.closure.init_slice = init_slice_%s;"
-			    "image->v.closure.calc_lines = calc_lines_%s;",
+			    "image->v.closure.funcs = &mathfuncs_%s;"
+			    "image->v.closure.func = filter_%s;",
 			    num_args,
-			    rhs->v.closure.filter->name,
-			    rhs->v.closure.filter->name,
 			    rhs->v.closure.filter->name,
 			    rhs->v.closure.filter->name);
 

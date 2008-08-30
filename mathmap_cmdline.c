@@ -790,7 +790,8 @@ cmdline_main (int argc, char *argv[])
 	for (current_frame = 0; current_frame < num_frames; ++current_frame)
 	{
 	    float current_t = (float)current_frame / (float)num_frames;
-	    mathmap_frame_t *frame = invocation_new_frame(invocation, current_frame, current_t);
+	    mathmap_frame_t *frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
+							  current_frame, current_t);
 
 	    update_image_internals(frame);
 

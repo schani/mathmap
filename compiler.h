@@ -47,8 +47,9 @@ typedef union
 } runtime_value_t;
 
 /* TEMPLATE mathfuncs */
-typedef struct
+typedef struct _mathfuncs_t
 {
+    /* new_template.c.in depends on the order of this struct! */
     init_frame_func_t init_frame;
     init_slice_func_t init_slice;
     calc_lines_func_t calc_lines;

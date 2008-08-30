@@ -187,6 +187,9 @@ typedef struct _mathmap_frame_t
 {
     mathmap_invocation_t *invocation;
 
+    mathfuncs_t *mathfuncs;
+    userval_t *arguments;
+
     int frame_render_width, frame_render_height;
 
     int current_frame;
@@ -251,9 +254,16 @@ void finish_parsing_filter (mathmap_t *mathmap);
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression, gboolean report_error);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
-mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height);
-mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, int current_frame, float current_t);
+mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template,
+				      int img_width, int img_height);
+
+mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, userval_t *arguments,
+				       int current_frame, float current_t);
 void invocation_free_frame (mathmap_frame_t *frame);
+
+void invocation_init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int region_y,
+			    int region_width, int region_height, float sampling_offset_x, float sampling_offset_y);
+void invocation_deinit_slice (mathmap_slice_t *slice);
 
 gpointer call_invocation_parallel (mathmap_frame_t *frame,
 				   int region_x, int region_y, int region_width, int region_height,
