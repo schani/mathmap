@@ -49,6 +49,7 @@ optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
 replace resize with a simple internal filter
 don't use x_consts and y_consts in filter_func
+make two different filter_XXX functions: one for calling in closure, one without closure
 
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
@@ -132,6 +133,7 @@ optimization for filters which use the "current" pixel
 Copy elimination for phis in pre-native code
 Remove dead whiles
 XY constants for interpreter code
+don't use const vars for int/float constants
 
 ** Documentation/Homepage
 

@@ -5160,6 +5160,55 @@ userval_element_name (userval_info_t *info)
 }
 
 static void
+output_make_mathmap_filter_closure (FILE *out, const char *var_name,
+				    filter_t *filter, primary_t *args)
+{
+    int num_args = num_filter_args(filter) - 3;
+    int i;
+    gboolean have_size;
+    userval_info_t *info;
+
+    g_assert(filter->kind == FILTER_MATHMAP);
+
+    fprintf(out,
+	    "({ image_t *%s = ALLOC_CLOSURE_IMAGE(%d);"
+	    "%s->type = IMAGE_CLOSURE;"
+	    "%s->v.closure.pools = pools;"
+	    "%s->v.closure.xy_vars = 0;"
+	    "%s->v.closure.funcs = &mathfuncs_%s;"
+	    "%s->v.closure.func = filter_%s;",
+	    var_name, num_args,
+	    var_name,
+	    var_name,
+	    var_name,
+	    var_name, filter->name,
+	    var_name, filter->name);
+
+    have_size = FALSE;
+    for (i = 0, info = filter->userval_infos;
+	 info != 0;
+	 ++i, info = info->next)
+    {
+	fprintf(out, "CLOSURE_IMAGE_ARGS(%s)[%d].v.%s = ", var_name, i, userval_element_name(info));
+	output_primary(out, &args[i]);
+	fprintf(out, "; ");
+	if (info->type == USERVAL_IMAGE && !have_size)
+	{
+	    fprintf(out,
+		    "%s->pixel_width = IMAGE_PIXEL_WIDTH(CLOSURE_IMAGE_ARGS(%s)[%d].v.image);"
+		    "%s->pixel_height = IMAGE_PIXEL_HEIGHT(CLOSURE_IMAGE_ARGS(%s)[%d].v.image);\n",
+		    var_name, var_name, i,
+		    var_name, var_name, i);
+	    have_size = TRUE;
+	}
+    }
+    g_assert(i == num_args);
+
+    if (!have_size)
+	fprintf(out, "image->pixel_width = __canvasPixelW; image->pixel_height = __canvasPixelH;\n");
+}
+
+static void
 output_rhs (FILE *out, rhs_t *rhs)
 {
     switch (rhs->kind)
@@ -5190,23 +5239,11 @@ output_rhs (FILE *out, rhs_t *rhs)
 
 	case RHS_FILTER :
 	    {
-		int i;
 		int num_args = num_filter_args(rhs->v.filter.filter);
-		userval_info_t *info;
 
-		fprintf(out, "({ userval_t args[%d]; ", num_args - 3);
+		output_make_mathmap_filter_closure(out, "image", rhs->v.filter.filter, rhs->v.filter.args);
 
-		for (i = 0, info = rhs->v.filter.filter->userval_infos;
-		     info != 0;
-		     ++i, info = info->next)
-		{
-		    fprintf(out, "args[%d].v.%s = ", i, userval_element_name(info));
-		    output_primary(out, &rhs->v.filter.args[i]);
-		    fprintf(out, "; ");
-		}
-		g_assert(i == num_args - 3);
-
-		fprintf(out, "filter_%s(invocation, args, ", rhs->v.filter.filter->name);
+		fprintf(out, "filter_%s(invocation, image, ", rhs->v.filter.filter->name);
 		output_primary(out, &rhs->v.filter.args[num_args - 3]);
 		fprintf(out, ", ");
 		output_primary(out, &rhs->v.filter.args[num_args - 2]);
@@ -5219,46 +5256,17 @@ output_rhs (FILE *out, rhs_t *rhs)
 	case RHS_CLOSURE :
 	    {
 		int i;
-		int num_args = num_filter_args(rhs->v.closure.filter) - 3;
 		userval_info_t *info;
-		gboolean have_size = FALSE;
 
 		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		{
-		    fprintf(out,
-			    "({ image_t *image = ALLOC_CLOSURE_IMAGE(%d);"
-			    "image->type = IMAGE_CLOSURE;"
-			    "image->v.closure.pools = pools;"
-			    "image->v.closure.xy_vars = 0;"
-			    "image->v.closure.funcs = &mathfuncs_%s;"
-			    "image->v.closure.func = filter_%s;",
-			    num_args,
-			    rhs->v.closure.filter->name,
-			    rhs->v.closure.filter->name);
-
-		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
-			 info != 0;
-			 ++i, info = info->next)
-		    {
-			fprintf(out, "CLOSURE_IMAGE_ARGS(image)[%d].v.%s = ", i, userval_element_name(info));
-			output_primary(out, &rhs->v.closure.args[i]);
-			fprintf(out, "; ");
-			if (info->type == USERVAL_IMAGE && !have_size)
-			{
-			    fprintf(out, "image->pixel_width = IMAGE_PIXEL_WIDTH(CLOSURE_IMAGE_ARGS(image)[%d].v.image); image->pixel_height = IMAGE_PIXEL_HEIGHT(CLOSURE_IMAGE_ARGS(image)[%d].v.image);\n",
-				    i, i);
-			    have_size = TRUE;
-			}
-		    }
-		    g_assert(i == num_args);
-
-		    if (!have_size)
-			fprintf(out, "image->pixel_width = __canvasPixelW; image->pixel_height = __canvasPixelH;\n");
-
+		    output_make_mathmap_filter_closure(out, "image", rhs->v.closure.filter, rhs->v.closure.args);
 		    fprintf(out, "image; })");
 		}
 		else if (rhs->v.closure.filter->kind == FILTER_NATIVE)
 		{
+		    int num_args = num_filter_args(rhs->v.closure.filter) - 3;
+
 		    fprintf(out, "({ userval_t args[%d]; ", num_args);
 
 		    for (i = 0, info = rhs->v.closure.filter->userval_infos;
