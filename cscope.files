@@ -60,6 +60,7 @@ designer/cairo_widget.h
 generators/blender/blender.c
 generators/blender/blender.h
 native-filters/gauss.c
+native-filters/convolve.c
 lispreader/allocator.c
 lispreader/allocator.h
 lispreader/pools.c

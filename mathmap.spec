@@ -31,7 +31,7 @@
 %endif
 
 Name:           mathmap
-Version:        1.3.3
+Version:        1.3.4
 Release:        %{_mmrelease}
 License:        GPL
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -48,6 +48,7 @@ BuildRequires: gsl-devel
 BuildRequires: gimp-devel
 BuildRequires: gimp
 BuildRequires: make
+BuildRequires: fftw3-devel
 BuildRequires: %{_gtksourceview}-devel
 BuildRequires: gettext
 %if 0%{?mandriva_version} == 2008
@@ -93,6 +94,9 @@ rm -rf "$RPM_BUILD_ROOT"
 %{_datadir}/locale
 
 %changelog
+* Sun Aug 31 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.4
+- Update for version 1.3.4
+
 * Tue Aug 26 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.3
 - Update for version 1.3.3
 

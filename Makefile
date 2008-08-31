@@ -37,6 +37,7 @@ PREFIX = /usr
 VERSION = 1.3.4
 
 OPT_CFLAGS := -O2
+COMPILER_C_OPT_CFLAGS := -O1
 #OPT_CFLAGS := -g -DDEBUG_OUTPUT -DDONT_UNLINK_C #-fgnu89-inline
 
 #PROF_FLAGS := -pg
@@ -129,7 +130,8 @@ scanner.c : scanner.fl parser.h
 	flex scanner.fl
 	mv lex.yy.c scanner.c
 
-compiler.o : new_builtins.c opdefs.h opfuncs.h compiler_types.h
+compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
+	$(CC) $(CFLAGS) $(COMPILER_C_OPT_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
 new_builtins.c opdefs.h opfuncs.h compiler_types.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
@@ -172,7 +174,7 @@ TAGS :
 dist : new_builtins.c parser.c scanner.c new_template.c clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl *.po mathmap.lang mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl make_template.pl *.po mathmap.lang mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils

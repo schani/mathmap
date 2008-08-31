@@ -22,6 +22,7 @@ fftw3 dependency
 ** Compiler
 
 ** Filters
+sharp blur
 
 * 1.3.5
 
@@ -34,6 +35,7 @@ make first input drawable chooseable, too
 why is bool_const a float in userval_t
 move everything from invocation to frame that belongs there
 pass through frame and t everwhere
+use -O3
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -41,6 +43,7 @@ statement for importing filters
 builtin for getting size of an image
 
 ** Compiler
+compiler crashes for Tom Test with -O2
 use real vectors for tuples which are accessed with non-constant index
 Generator for simplifiers
 Simplify coordinate stuff (non-stretched ident filter)
