@@ -64,7 +64,7 @@ GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
 LOCALEDIR = $(PREFIX)/share/locale
-#FIXME: does not honor prefix
+#FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
 CFLAGS = -std=gnu99 -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS)
