@@ -1,29 +1,5 @@
 -*- outline -*-
 
-* 1.3.4
-
-** GIMP Plug-In
-
-** General
-
-** Language
-
-** Packaging
-fftw3 dependency
-
-** Rendering
-
-** Designer
-
-** Native filters
-
-** Tests
-
-** Compiler
-
-** Filters
-sharp blur
-
 * 1.3.5
 
 ** GIMP Plug-In
@@ -41,10 +17,13 @@ use -O3
 HSL color space (for color gimp layer mode)
 statement for importing filters
 builtin for getting size of an image
+real gamma function buggy
+implement markers - points on the image that the user can set (should probably be user values of type point (xy:2)
 
 ** Compiler
 compiler crashes for Tom Test with -O2
 use real vectors for tuples which are accessed with non-constant index
+  http://flickr.com/groups/mathmap/discuss/72157606694646848/
 Generator for simplifiers
 Simplify coordinate stuff (non-stretched ident filter)
 calculate R in the filter code
@@ -53,6 +32,7 @@ speed up compiler - see what the bottlenecks are with valgrind's callgrind
 replace resize with a simple internal filter
 don't use x_consts and y_consts in filter_func
 make two different filter_XXX functions: one for calling in closure, one without closure
+crashes compiler: in/2
 
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
@@ -71,8 +51,12 @@ do migration with save/load
 free widget_data in designs
 akklimatisierungsbug (bertl)
 when adding new node connect output of previously focussed node to new node
+when bigger fonts are used the nodes look funny
+make new nodes appear relative to the current view
 
 ** Filters
+sharp blur
+math filters with constants for composer
 better layer modes: http://pegtop.net/delphi/articles/blendmodes/
 color gimp layer mode
 
@@ -81,6 +65,7 @@ figure out how to do pixel-precise kernels
 figure out how much faster 2^n ffts are
 do gaussian multithreaded if possible
 take aspect ratio of kernel into consideration - don't stretch it
+normalize argument for convolve should not be bool but be the value to normalize to
 
 * 1.3.x
 
