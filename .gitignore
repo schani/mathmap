@@ -1,5 +1,3 @@
-syntax: glob
-.svn
 *.o
 *~
 *.orig
@@ -9,8 +7,7 @@ new_builtins.c
 opdefs.h
 parser.[ch]
 scanner.c
-lispreader
-lisp-utils
-rwimg
 TAGS
 mathmap
+new_template.c
+opfuncs.h
