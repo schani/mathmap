@@ -5972,17 +5972,9 @@ compiler_template_processor (mathmap_t *mathmap, const char *directive, const ch
 	putc('1', out);
 #endif
     }
-    else if (strcmp(directive, "p") == 0)
-	fprintf(out, "%d", USER_CURVE_POINTS);
-    else if (strcmp(directive, "q") == 0)
-	fprintf(out, "%d", USER_GRADIENT_POINTS);
     else if (strcmp(directive, "include") == 0)
     {
 	fputs(include_path, out);
-    }
-    else if (strcmp(directive, "max_debug_tuples") == 0)
-    {
-	fprintf(out, "%d", MAX_DEBUG_TUPLES);
     }
     else if (strcmp(directive, "filter_name") == 0)
     {

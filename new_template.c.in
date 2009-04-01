@@ -1,9 +1,9 @@
 /*
- * new_template.c
+ * new_template.c.in
  *
  * MathMap
  *
- * Copyright (C) 2002-2008 Mark Probst
+ * Copyright (C) 2002-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,8 +23,6 @@
 /*
  * $$g -> GIMP ? 1 : 0
  * $$m -> mathmap code
- * $$p -> USER_CURVE_POINTS
- * $$q -> USER_GRADIENT_POINTS
  * $$xy_decls         -> declarations for xy-constant variables
  * $$xy_code          -> code for xy-constant variables
  * $$x_decls          -> declarations for x-constant variables
@@ -32,7 +30,6 @@
  * $$y_decls          -> declarations for y-constant variables
  * $$y_code           -> code for y-constant variables
  * $$opmacros_h       -> full name of opmacros.h file
- * $$max_debug_tuples -> MAX_DEBUG_TUPLES
  */
 
 #include <stdlib.h>
@@ -63,10 +60,9 @@ $def_userval_image
 
 $def_num_floatmap_channels
 
-#define USER_CURVE_POINTS             $p
-#define USER_GRADIENT_POINTS          $q
+$def_userval_points
 
-#define MAX_DEBUG_TUPLES              $max_debug_tuples
+$def_max_debug_tuples
 
 $def_tuple
 

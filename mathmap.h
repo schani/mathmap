@@ -144,7 +144,9 @@ extern int fast_image_source_scale;
 #define EDGE_BEHAVIOUR_X_FLAG	      0x0100
 #define EDGE_BEHAVIOUR_Y_FLAG	      0x0200
 
+/* TEMPLATE max_debug_tuples */
 #define MAX_DEBUG_TUPLES              8
+/* END */
 
 /* TEMPLATE invocation_frame_slice */
 typedef struct _mathmap_invocation_t
