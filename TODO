@@ -37,6 +37,7 @@ crashes compiler: in/2
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
+document git/github
 
 ** Rendering
 combine render code with calc_lines
