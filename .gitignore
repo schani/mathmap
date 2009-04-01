@@ -11,3 +11,5 @@ TAGS
 mathmap
 new_template.c
 opfuncs.h
+llvm-ops.h
+llvm_template.c

@@ -1425,3 +1425,4 @@ values lie between -1 and 1."
 
 (make-types-file)
 (make-ops-file)
+(make-llvm-ops-file)

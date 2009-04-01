@@ -133,11 +133,14 @@ scanner.c : scanner.fl parser.h
 compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 	$(CC) $(CFLAGS) $(COMPILER_C_OPT_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
-new_builtins.c opdefs.h opfuncs.h compiler_types.h : builtins.lisp ops.lisp
+new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
 new_template.c : make_template.pl new_template.c.in $(TEMPLATE_INPUTS)
 	./make_template.pl $(TEMPLATE_INPUTS) new_template.c.in >new_template.c
+
+llvm_template.c : make_template.pl llvm_template.c.in $(TEMPLATE_INPUTS)
+	./make_template.pl $(TEMPLATE_INPUTS) llvm_template.c.in >llvm_template.c
 
 blender.o : generators/blender/blender.c
 
@@ -166,7 +169,7 @@ clean :
 	rm -rf debian/mathmap debian/mathmap.substvars
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h opfuncs.h compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
 
 TAGS :
 	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp'`
