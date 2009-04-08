@@ -291,6 +291,8 @@ extern rhs_t* make_primary_rhs (primary_t primary);
 extern rhs_t* make_value_rhs (value_t *val);
 #define compiler_make_value_rhs make_value_rhs
 
+extern int compiler_num_filter_args (filter_t *filter);
+
 extern statement_t** compiler_emit_stmt_before (statement_t *stmt, statement_t **loc, statement_t *parent);
 
 extern gboolean compiler_rhs_is_pure (rhs_t *rhs);
@@ -311,11 +313,25 @@ extern void compiler_free_value_set (value_set_t *set);
 
 extern void compiler_for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info),
 					    void *info);
+extern void compiler_for_each_value_in_statements (statement_t *stmt,
+						   void (*func) (value_t *value, statement_t *stmt, void *info),
+						   void *info);
+
+extern int compiler_slice_code (statement_t *stmt, unsigned int slice_flag,
+				int (*predicate) (statement_t *stmt, void *info), void *info);
+
+extern filter_code_t* compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types);
+
+extern filter_code_t** compiler_compile_filters (mathmap_t *mathmap);
+
+extern void compiler_free_pools (mathmap_t *mathmap);
 
 extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
 extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);
 extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
 
 #define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
+#define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)
+#define COMPILER_SLICE_CODE(stmt,flag,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
 
 #endif

@@ -93,7 +93,7 @@ CC = gcc
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/convolve.o compopt/dce.o compopt/resize.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/convolve.o compopt/dce.o compopt/resize.o backends/cc.o
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -133,6 +133,8 @@ scanner.c : scanner.fl parser.h
 compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 	$(CC) $(CFLAGS) $(COMPILER_C_OPT_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
+backends/cc.o : compiler_types.h
+
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
@@ -141,6 +143,9 @@ new_template.c : make_template.pl new_template.c.in $(TEMPLATE_INPUTS)
 
 llvm_template.c : make_template.pl llvm_template.c.in $(TEMPLATE_INPUTS)
 	./make_template.pl $(TEMPLATE_INPUTS) llvm_template.c.in >llvm_template.c
+
+llvm_template.o : llvm_template.c opmacros.h
+	llvm-gcc -emit-llvm -O3 -c llvm_template.c
 
 blender.o : generators/blender/blender.c
 
@@ -162,7 +167,7 @@ install : mathmap new_template.c $(MOS)
 	done
 
 clean :
-	rm -f *.o designer/*.o native-filters/*.o compopt/*.o generators/blender/*.o mathmap compiler parser.output core
+	rm -f *.o designer/*.o native-filters/*.o compopt/*.o backends/*.o generators/blender/*.o mathmap compiler parser.output core
 	find . -name '*~' | xargs -r -d '\n' rm
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
@@ -190,6 +195,8 @@ dist : new_builtins.c parser.c scanner.c new_template.c clean
 	cp native-filters/*.[ch] mathmap-$(VERSION)/native-filters
 	mkdir mathmap-$(VERSION)/compopt
 	cp compopt/*.[ch] mathmap-$(VERSION)/compopt
+	mkdir mathmap-$(VERSION)/backends
+	cp backends/*.[ch] mathmap-$(VERSION)/backends
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	mkdir mathmap-$(VERSION)/pixmaps
