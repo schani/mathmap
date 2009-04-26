@@ -242,4 +242,6 @@ promote_float_to_complex (float x)
 #undef OUTPUT_TUPLE
 #define OUTPUT_TUPLE(x) 0
 
+#define get_orig_val_pixel_func get_orig_val_pixel
+
 #include "llvm-ops.h"

@@ -35,6 +35,10 @@ don't use x_consts and y_consts in filter_func
 make two different filter_XXX functions: one for calling in closure, one without closure
 crashes compiler: in/2
 
+** LLVM
+antialiasing must work, too
+make LLVM optimize
+
 ** Packaging
 Put all external files into strings in the binary - single binary install
 Generate keyword list in sourceview spec file from builtins.lisp

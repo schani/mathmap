@@ -373,6 +373,15 @@ code_emitter::emit ()
     emit_stmts(filter_code->first_stmt, SLICE_IGNORE);
 }
 
+static void*
+lazy_creator (const std::string &name)
+{
+    std::cout << "resolving func " << name << endl;
+    if (name == "get_orig_val_pixel")
+	return (void*)get_orig_val_pixel;
+    g_assert_not_reached ();
+}
+
 extern "C"
 filter_func_t
 gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_filename)
@@ -401,6 +410,8 @@ gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_f
     module->dump();
 
     ExecutionEngine *ee = ExecutionEngine::create (module);
+
+    ee->InstallLazyFunctionCreator(lazy_creator);
 
     void *fptr = ee->getPointerToFunction (filter_function);
     assert(fptr);
