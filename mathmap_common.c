@@ -260,7 +260,11 @@ unload_mathmap (mathmap_t *mathmap)
 {
     if ((mathmap->flags & MATHMAP_FLAG_NATIVE) && mathmap->module_info != 0)
     {
+#ifdef USE_LLVM
+	unload_llvm_code(mathmap->module_info);
+#else
 	unload_c_code(mathmap->module_info);
+#endif
 	mathmap->module_info = 0;
     }
 }

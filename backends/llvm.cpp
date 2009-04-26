@@ -346,9 +346,20 @@ gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_f
     void *fptr = ee->getPointerToFunction (filter_function);
     assert(fptr);
 
-    //delete module;
-
     compiler_free_pools(mathmap);
 
+    mathmap->module_info = ee;
+
     return (filter_func_t)fptr;
+}
+
+extern "C"
+void
+unload_llvm_code (void *module_info)
+{
+    ExecutionEngine *ee = (ExecutionEngine*)module_info;
+
+    std::cout << "deleting execution engine" << endl;
+
+    delete ee;
 }

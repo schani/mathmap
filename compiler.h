@@ -79,6 +79,7 @@ void unload_c_code (void *module_info);
 
 filter_func_t gen_and_load_llvm_code (struct _mathmap_t *mathmap, void **module_info,
 				      char *template_filename);
+void unload_llvm_code (void *module_info);
 
 void generate_interpreter_code (struct _mathmap_t *mathmap);
 
