@@ -502,7 +502,10 @@
   (make-rhs-op-switch #'(lambda (op)
 			  (format nil "return \"builtin_~A\";" (op-instantiation-name op nil)))
 		      #'(lambda (op arg-types)
-			  (format nil "return \"builtin_~A\";" (op-instantiation-name op (max-type arg-types))))
+			  (let ((max-type (max-type arg-types)))
+			    (format nil "*promotion_type = ~A; return \"builtin_~A\";"
+				    (rt-type-c-define max-type)
+				    (op-instantiation-name op max-type))))
 		      nil))
 
 (defun make-ops-file ()
@@ -513,7 +516,7 @@
     (let ((*standard-output* out))
       (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
       (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-folders))
-      (format t "char* compiler_function_name_for_op_rhs (rhs_t *rhs)~%{switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-names-switch))
+      (format t "char* compiler_function_name_for_op_rhs (rhs_t *rhs, type_t *promotion_type)~%{switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-names-switch))
       (dolist (op (reverse *operators*))
 	(print-op-builtins op))
       (format t "static builtin_func_t~%get_builtin (rhs_t *rhs)~%{~%switch (rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-builtin-getter)))))

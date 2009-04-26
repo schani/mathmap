@@ -191,6 +191,54 @@ tuple_set (float *tuple, int n, float x)
     TUPLE_SET(tuple, n, x);
 }
 
+int
+get_invocation_img_width (mathmap_invocation_t *invocation)
+{
+    return invocation->img_width;
+}
+
+int
+get_invocation_img_height (mathmap_invocation_t *invocation)
+{
+    return invocation->img_height;
+}
+
+int
+get_invocation_render_width (mathmap_invocation_t *invocation)
+{
+    return invocation->render_width;
+}
+
+int
+get_invocation_render_height (mathmap_invocation_t *invocation)
+{
+    return invocation->render_height;
+}
+
+float
+get_invocation_image_R (mathmap_invocation_t *invocation)
+{
+    return invocation->image_R;
+}
+
+float
+promote_int_to_float (int x)
+{
+    return (float)x;
+}
+
+complex float
+promote_int_to_complex (int x)
+{
+    return (complex float)x;
+}
+
+complex float
+promote_float_to_complex (float x)
+{
+    return x;
+}
+
 #undef OUTPUT_TUPLE
 #define OUTPUT_TUPLE(x) 0
 

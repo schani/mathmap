@@ -1487,8 +1487,8 @@ count_uses (value_t *val)
     return num_uses;
 }
 
-static void
-print_assign_statement (statement_t *stmt)
+void
+compiler_print_assign_statement (statement_t *stmt)
 {
     switch (stmt->kind)
     {
@@ -1538,7 +1538,7 @@ dump_code (statement_t *stmt, int indent)
 
 	    case STMT_ASSIGN :
 	    case STMT_PHI_ASSIGN :
-		print_assign_statement(stmt);
+		compiler_print_assign_statement(stmt);
 		printf("\n");
 		break;
 

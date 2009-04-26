@@ -50,7 +50,7 @@ using namespace llvm;
 class code_emitter
 {
 public:
-    code_emitter (Module *module, filter_code_t *code);
+    code_emitter (Module *module, filter_t *filter, filter_code_t *code);
     ~code_emitter ();
 
     void emit ();
@@ -58,34 +58,37 @@ public:
     Function* get_filter_function ();
 
 private:
+    filter_t *filter;
+    filter_code_t *filter_code;
+
     Module *module;
     IRBuilder<> *builder;
     Function *filter_function;
-    filter_code_t *filter_code;
     map<value_t*, Value*> value_map;
     map<internal_t*, Value*> internal_map;
 
     Value *invocation_arg;
     Value *closure_arg;
-    Value *x_arg;
-    Value *y_arg;
-    Value *t_arg;
     Value *pools_arg;
 
     void set_value (value_t *value, Value *llvm_value);
     Value* lookup_value (value_t *value);
 
+    void set_internal (internal_t *internal, Value *llvm_value);
     Value* lookup_internal (internal_t *internal);
+
+    Value* promote (Value *val, int type);
 
     void emit_stmts (statement_t *stmt, unsigned int slice_flag);
     Value* emit_rhs (rhs_t *rhs);
     Value* emit_primary (primary_t *primary, bool need_float = false);
 };
 
-code_emitter::code_emitter (Module *_module, filter_code_t *code)
+code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *code)
 {
     module = _module;
     filter_code = code;
+    filter = _filter;
 
     /*
     TypeSymbolTable &tst = module->getTypeSymbolTable ();
@@ -115,18 +118,26 @@ code_emitter::code_emitter (Module *_module, filter_code_t *code)
     invocation_arg->setName("invocation");
     closure_arg = args++;
     closure_arg->setName("closure");
-    x_arg = args++;
-    x_arg->setName("x");
-    y_arg = args++;
-    y_arg->setName("y");
-    t_arg = args++;
-    t_arg->setName("t");
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "x", true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "y", true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
     pools_arg = args++;
     pools_arg->setName("pools");
 
     BasicBlock *block = BasicBlock::Create("entry", filter_function);
 
     builder = new IRBuilder<> (block);
+
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_img_width")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelH", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_img_height")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelW", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_render_width")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelH", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_render_height")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "R", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_image_R")), invocation_arg));
 }
 
 code_emitter::~code_emitter ()
@@ -143,6 +154,7 @@ code_emitter::get_filter_function ()
 void
 code_emitter::set_value (value_t *value, Value *llvm_value)
 {
+    g_assert(value);
     g_assert(value_map.find(value) == value_map.end());
     value_map[value] = llvm_value;
 }
@@ -152,6 +164,15 @@ code_emitter::lookup_value (value_t *value)
 {
     g_assert(value_map.find(value) != value_map.end());
     return value_map[value];
+}
+
+void
+code_emitter::set_internal (internal_t *internal, Value *llvm_value)
+{
+    g_assert(internal);
+    g_assert(internal_map.find(internal) == internal_map.end());
+    internal_map[internal] = llvm_value;
+    llvm_value->setName(internal->name);
 }
 
 Value*
@@ -174,6 +195,28 @@ make_float_const (float x)
 }
 
 Value*
+code_emitter::promote (Value *val, int type)
+{
+    switch (type)
+    {
+	case TYPE_FLOAT :
+	    if (val->getType() == Type::Int32Ty)
+		val = builder->CreateCall(module->getFunction(string("promote_int_to_float")), val);
+	    else
+		assert(val->getType() == Type::FloatTy);
+	    break;
+
+	case TYPE_COMPLEX :
+	    if (val->getType() == Type::Int32Ty)
+		val = builder->CreateCall(module->getFunction(string("promote_int_to_complex")), val);
+	    else if (val->getType() == Type::FloatTy)
+		val = builder->CreateCall(module->getFunction(string("promote_float_to_complex")), val);
+	    break;
+    }
+    return val;
+}
+
+Value*
 code_emitter::emit_primary (primary_t *primary, bool need_float)
 {
     switch (primary->kind)
@@ -183,7 +226,7 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
 		Value *val = lookup_value(primary->v.value);
 
 		if (need_float)
-		    assert(val->getType() == Type::FloatTy);
+		    val = promote(val, TYPE_FLOAT);
 		return val;
 	    }
 
@@ -245,13 +288,27 @@ code_emitter::emit_rhs (rhs_t *rhs)
 	    return lookup_internal(rhs->v.internal);
 	case RHS_OP :
 	    {
-		Function *func = module->getFunction(string(compiler_function_name_for_op_rhs(rhs)));
+		operation_t *op = rhs->v.op.op;
+		type_t promotion_type = TYPE_NIL;
+		char *function_name = compiler_function_name_for_op_rhs(rhs, &promotion_type);
+
+		if (promotion_type == TYPE_NIL)
+		    assert(op->type_prop == TYPE_PROP_CONST);
+		if (op->type_prop != TYPE_PROP_CONST)
+		    assert(promotion_type != TYPE_NIL);
+
+		Function *func = module->getFunction(string(function_name));
 		g_assert(func);
 		std::vector<Value*> args;
 		args.push_back(invocation_arg);
 		args.push_back(pools_arg);
-		for (int i = 0; i < rhs->v.op.op->num_args; ++i)
-		    args.push_back(emit_primary(&rhs->v.op.args[i]));
+		for (int i = 0; i < rhs->v.op.op->num_args; ++i) {
+		    type_t type = promotion_type == TYPE_NIL ? op->arg_types[i] : promotion_type;
+		    Value *val = emit_primary(&rhs->v.op.args[i], type == TYPE_FLOAT);
+		    val = promote(val, type);
+		    val->dump();
+		    args.push_back(val);
+		}
 		return builder->CreateCall(func, args.begin(), args.end());
 	    }
 
@@ -292,6 +349,8 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		break;
 
 	    case STMT_ASSIGN :
+		compiler_print_assign_statement(stmt);
+		printf("\n");
 		if (stmt->v.assign.rhs->kind == RHS_OP
 		    && stmt->v.assign.rhs->v.op.op->index == OP_OUTPUT_TUPLE)
 		    builder->CreateRet(emit_primary(&stmt->v.assign.rhs->v.op.args[0]));
@@ -327,7 +386,7 @@ gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_f
     assert(module != NULL);
     delete buffer;
 
-    emitter = new code_emitter (module, filter_codes[0]);
+    emitter = new code_emitter (module, mathmap->main_filter, filter_codes[0]);
     emitter->emit();
     filter_function = emitter->get_filter_function();
     delete emitter;

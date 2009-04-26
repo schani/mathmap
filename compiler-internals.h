@@ -295,9 +295,11 @@ extern rhs_t* make_primary_rhs (primary_t primary);
 extern rhs_t* make_value_rhs (value_t *val);
 #define compiler_make_value_rhs make_value_rhs
 
+extern void compiler_print_assign_statement (statement_t *stmt);
+
 extern int compiler_num_filter_args (filter_t *filter);
 
-extern char* compiler_function_name_for_op_rhs (rhs_t *rhs);
+extern char* compiler_function_name_for_op_rhs (rhs_t *rhs, type_t *promotion_type);
 
 extern statement_t** compiler_emit_stmt_before (statement_t *stmt, statement_t **loc, statement_t *parent);
 
