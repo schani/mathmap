@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2004-2008 Mark Probst
+;; Copyright (C) 2004-2009 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -483,7 +483,7 @@
   (labels ((print-op (op type)
 	     (let ((op-type (op-instantiation-type op type))
 		   (arg-types (op-instantiation-arg-types op type)))
-	       (format t "~A~%builtin_~A (mathmap_invocation_t *invocation, pools_t *pools, float **return_tuple~{, ~A arg_~A~})~%{~%return ~A(~{arg_~A~^, ~});~%}~%"
+	       (format t "~A~%builtin_~A (mathmap_invocation_t *invocation, pools_t *pools~{, ~A arg_~A~})~%{~%return ~A(~{arg_~A~^, ~});~%}~%"
 		       (rt-type-c-type op-type)
 		       (op-instantiation-name op type)
 		       (mappend #'(lambda (i)
@@ -498,6 +498,13 @@
 	  (dolist (type (op-instantiation-type-prop-types op))
 	    (print-op op type)))))))
 
+(defun make-op-names-switch ()
+  (make-rhs-op-switch #'(lambda (op)
+			  (format nil "return \"builtin_~A\";" (op-instantiation-name op nil)))
+		      #'(lambda (op arg-types)
+			  (format nil "return \"builtin_~A\";" (op-instantiation-name op (max-type arg-types))))
+		      nil))
+
 (defun make-ops-file ()
   (with-open-file (out "opdefs.h" :direction :output :if-exists :supersede)
     (let ((*standard-output* out))
@@ -505,7 +512,8 @@
   (with-open-file (out "opfuncs.h" :direction :output :if-exists :supersede)
     (let ((*standard-output* out))
       (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
-      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%" (make-op-folders))
+      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-folders))
+      (format t "char* compiler_function_name_for_op_rhs (rhs_t *rhs)~%{switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-names-switch))
       (dolist (op (reverse *operators*))
 	(print-op-builtins op))
-      (format t "static builtin_func_t~%get_builtin (rhs_t *rhs)~%{~%switch (rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%" (make-builtin-getter)))))
+      (format t "static builtin_func_t~%get_builtin (rhs_t *rhs)~%{~%switch (rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-builtin-getter)))))

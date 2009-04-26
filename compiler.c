@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2008 Mark Probst
+ * Copyright (C) 2002-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -1979,10 +1979,10 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 	    {
 		compvar_t **left_result;
 
-		left_result = (compvar_t**)alloca(tree->val.operator.left->result.length * sizeof(compvar_t*));
-		gen_code(filter, tree->val.operator.left, left_result, 0);
+		left_result = (compvar_t**)alloca(tree->val.op.left->result.length * sizeof(compvar_t*));
+		gen_code(filter, tree->val.op.left, left_result, 0);
 
-		gen_code(filter, tree->val.operator.right, dest, is_alloced);
+		gen_code(filter, tree->val.op.right, dest, is_alloced);
 	    }
 	    break;
 

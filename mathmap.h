@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -103,6 +103,7 @@ typedef struct _mathmap_t
     unsigned int flags;
 
     initfunc_t initfunc;
+    filter_func_t filter_func;
     void *module_info;
 
     interpreter_insn_t *interpreter_insns;
@@ -256,7 +257,7 @@ void finish_parsing_filter (mathmap_t *mathmap);
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression, gboolean report_error);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
-mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template,
+mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template_invocation,
 				      int img_width, int img_height);
 
 mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, userval_t *arguments,
@@ -278,7 +279,7 @@ void join_invocation_call (gpointer *_call);
 void kill_invocation_call (gpointer *_call);
 gboolean invocation_call_is_done (gpointer *_call);
 
-void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
+void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template_invocation);
 
 void update_image_internals (mathmap_frame_t *frame);
 
@@ -288,7 +289,7 @@ typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *direct
 
 void drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y);
 
-void process_template (mathmap_t *mathmap, const char *template,
+void process_template (mathmap_t *mathmap, const char *template_filename,
 		       FILE *out, template_processor_func_t template_processor, void *user_data);
 gboolean process_template_file (mathmap_t *mathmap, char *template_filename,
 				FILE *out, template_processor_func_t template_processor, void *user_data);

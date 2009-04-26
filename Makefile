@@ -36,9 +36,9 @@ PREFIX = /usr
 
 VERSION = 1.3.4
 
-OPT_CFLAGS := -O2
-COMPILER_C_OPT_CFLAGS := -O1
-#OPT_CFLAGS := -g -DDEBUG_OUTPUT -DDONT_UNLINK_C #-fgnu89-inline
+#OPT_CFLAGS := -O2
+#COMPILER_C_OPT_CFLAGS := -O1
+OPT_CFLAGS := -O0 -g -DDEBUG_OUTPUT -DDONT_UNLINK_C #-fgnu89-inline
 
 #PROF_FLAGS := -pg
 
@@ -67,7 +67,9 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-CFLAGS = -std=gnu99 -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS)
+C_CXX_FLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS) -DUSE_LLVM
+CFLAGS = $(C_CXX_FLAGS) -std=gnu99
+CXXFLAGS = $(C_CXX_FLAGS) `llvm-config --cxxflags`
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS)
 
 ifeq ($(MOVIES),YES)
@@ -90,10 +92,11 @@ MOS = fr.mo ru.mo
 CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
 
 CC = gcc
+CXX = g++
 
 export CFLAGS CC FORMATDEFS
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/convolve.o compopt/dce.o compopt/resize.o backends/cc.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/convolve.o compopt/dce.o compopt/resize.o backends/cc.o backends/llvm.o
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -103,8 +106,8 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h noise.h
 
-mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c
-	$(CC) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) lispreader/liblispreader.a $(LDFLAGS)
+mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c llvm_template.o
+	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) `llvm-config --ldflags --libs engine bitreader ipo` lispreader/liblispreader.a $(LDFLAGS)
 
 librwimg :
 	$(MAKE) -C rwimg
@@ -134,6 +137,9 @@ compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 	$(CC) $(CFLAGS) $(COMPILER_C_OPT_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
 backends/cc.o : compiler_types.h
+
+backends/llvm.o : backends/llvm.cpp compiler_types.h
+	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/llvm.cpp
 
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp

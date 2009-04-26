@@ -35,8 +35,10 @@ make two different filter_XXX functions: one for calling in closure, one without
 crashes compiler: in/2
 
 ** Packaging
+Put all external files into strings in the binary - single binary install
 Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
+libgsl0 dependency problem on Ubuntu
 
 ** Rendering
 combine render code with calc_lines

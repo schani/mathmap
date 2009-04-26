@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -481,8 +481,12 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 		JUMP(1);
 	    }
 
+#ifdef USE_LLVM
+	    mathmap->filter_func = gen_and_load_llvm_code(mathmap, NULL, "/home/schani/Work/unix/mathmap/mathmap/llvm_template.o");
+#else
 	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
-	    if (mathmap->initfunc == 0)
+#endif
+	    if (mathmap->initfunc == 0 && mathmap->filter_func == 0)
 	    {
 		char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"
 						  "release does not provide a fallback interpreter that\n"
@@ -497,7 +501,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 	    }
 	}
 
-	if (!try_compiler || mathmap->initfunc == 0)
+	if (!try_compiler || (mathmap->initfunc == 0 && mathmap->filter_func == 0))
 	{
 	    mathmap = parse_mathmap(expression, TRUE);
 
@@ -528,10 +532,111 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 }
 
 static void
+filter_func_init_frame (mathmap_frame_t *mmframe)
+{
+}
+
+static void
+filter_func_init_slice (mathmap_slice_t *slice)
+{
+}
+
+static void
+filter_func_calc_lines (mathmap_slice_t *slice, int first_row, int last_row, void *q, int floatmap)
+{
+    mathmap_frame_t *mmframe = slice->frame;
+    mathmap_invocation_t *invocation = mmframe->invocation;
+    int row, col;
+    float t = mmframe->current_t;
+    float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
+    int output_bpp = invocation->output_bpp;
+    int is_bw = output_bpp == 1 || output_bpp == 2;
+    int need_alpha = output_bpp == 2 || output_bpp == 4;
+    int alpha_index = output_bpp - 1;
+    pools_t pixel_pools;
+    pools_t *pools;
+    int region_x = slice->region_x;
+    int frame_render_width = mmframe->frame_render_width;
+    int frame_render_height = mmframe->frame_render_height;
+
+    printf("doing llvm calc\n");
+
+    init_pools(&pixel_pools);
+    pools = &pixel_pools;
+
+    first_row = MAX(0, first_row);
+    last_row = MIN(last_row, slice->region_y + slice->region_height);
+
+    for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
+    {
+	float y = CALC_VIRTUAL_Y(row + slice->region_y, frame_render_height, sampling_offset_y);
+	unsigned char *p = q;
+	float *fp = q;
+
+	for (col = 0; col < slice->region_width; ++col)
+	{
+	    float x = CALC_VIRTUAL_X(col + region_x, frame_render_width, sampling_offset_x);
+	    float *return_tuple;
+
+	    reset_pools(pools);
+
+	    /* FIXME: we need a closure! */
+	    return_tuple = invocation->mathmap->filter_func(invocation, NULL, x, y, t, pools);
+
+	    if (floatmap)
+	    {
+		int i;
+
+		for (i = 0; i < NUM_FLOATMAP_CHANNELS; ++i)
+		    fp[i] = return_tuple[i];
+	    }
+	    else
+	    {
+		if (is_bw)
+		    p[0] = (TUPLE_RED(return_tuple) * 0.299
+			    + TUPLE_GREEN(return_tuple) * 0.587
+			    + TUPLE_BLUE(return_tuple) * 0.114) * 255.0;
+		else
+		{
+		    p[0] = TUPLE_RED(return_tuple) * 255.0;
+		    p[1] = TUPLE_GREEN(return_tuple) * 255.0;
+		    p[2] = TUPLE_BLUE(return_tuple) * 255.0;
+		}
+		if (need_alpha)
+		    p[alpha_index] = TUPLE_ALPHA(return_tuple) * 255.0;
+	    }
+
+	    p += output_bpp;
+	    fp += NUM_FLOATMAP_CHANNELS;
+	}
+
+	if (floatmap)
+	    q = (float*)q + frame_render_width * NUM_FLOATMAP_CHANNELS;
+	else
+	    q = (unsigned char*)q + invocation->row_stride;
+
+	if (!invocation->supersampling)
+	    invocation->rows_finished[row] = 1;
+    }
+
+    free_pools(&pixel_pools);
+}
+
+static void
 init_invocation (mathmap_invocation_t *invocation)
 {
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
+    {
+	if (invocation->mathmap->initfunc)
+	    invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
+	else
+	{
+	    assert(invocation->mathmap->filter_func);
+	    invocation->mathfuncs.init_frame = filter_func_init_frame;
+	    invocation->mathfuncs.init_slice = filter_func_init_slice;
+	    invocation->mathfuncs.calc_lines = filter_func_calc_lines;
+	}
+    }
     else
     {
 	/*

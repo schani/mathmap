@@ -148,4 +148,50 @@ extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int co
 #undef OUTPUT_TUPLE
 #define OUTPUT_TUPLE(t)			((*return_tuple = (t)), 0)
 
+complex float
+make_complex (float r, float i)
+{
+    return COMPLEX(r, i);
+}
+
+color_t
+make_color (int r, int g, int b, int a)
+{
+    return MAKE_RGBA_COLOR(r, g, b, a);
+}
+
+mm_v2_t
+make_v2 (float x, float y)
+{
+    return MAKE_V2(x, y);
+}
+
+mm_v3_t
+make_v3 (float x, float y, float z)
+{
+    return MAKE_V3(x, y, z);
+}
+
+mm_m2x2_t
+make_m2x2 (float a00, float a01,
+	   float a10, float a11)
+{
+    return MAKE_M2X2(a00, a01, a10, a11);
+}
+
+float*
+alloc_tuple (pools_t *pools, int n)
+{
+    return ALLOC_TUPLE(n);
+}
+
+void
+tuple_set (float *tuple, int n, float x)
+{
+    TUPLE_SET(tuple, n, x);
+}
+
+#undef OUTPUT_TUPLE
+#define OUTPUT_TUPLE(x) 0
+
 #include "llvm-ops.h"

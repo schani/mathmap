@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2008 Mark Probst
+ * Copyright (C) 2002-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -22,6 +22,10 @@
 
 #ifndef __COMPILER_INTERNALS_H__
 #define __COMPILER_INTERNALS_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "mathmap.h"
 #include "vars.h"
@@ -293,6 +297,8 @@ extern rhs_t* make_value_rhs (value_t *val);
 
 extern int compiler_num_filter_args (filter_t *filter);
 
+extern char* compiler_function_name_for_op_rhs (rhs_t *rhs);
+
 extern statement_t** compiler_emit_stmt_before (statement_t *stmt, statement_t **loc, statement_t *parent);
 
 extern gboolean compiler_rhs_is_pure (rhs_t *rhs);
@@ -303,8 +309,8 @@ extern primary_t compiler_stmt_op_assign_arg (statement_t *stmt, int arg_index);
 
 extern void compiler_remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt);
 
-extern void compiler_replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt);
-extern void compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary_t new);
+extern void compiler_replace_rhs (rhs_t **rhs, rhs_t *replacement, statement_t *stmt);
+extern void compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary_t replacement);
 
 extern value_set_t* compiler_new_value_set (void);
 extern void compiler_value_set_add (value_set_t *set, value_t *val);
@@ -333,5 +339,9 @@ extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
 #define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
 #define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)
 #define COMPILER_SLICE_CODE(stmt,flag,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

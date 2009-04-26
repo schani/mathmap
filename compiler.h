@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -76,6 +76,9 @@ int compiler_template_processor (struct _mathmap_t *mathmap, const char *directi
 initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
 				char *template_filename, char *include_path);
 void unload_c_code (void *module_info);
+
+filter_func_t gen_and_load_llvm_code (struct _mathmap_t *mathmap, void **module_info,
+				      char *template_filename);
 
 void generate_interpreter_code (struct _mathmap_t *mathmap);
 
