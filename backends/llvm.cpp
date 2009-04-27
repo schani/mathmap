@@ -337,6 +337,20 @@ code_emitter::emit_rhs (rhs_t *rhs)
     }
 }
 
+static const Type*
+llvm_type_for_type (type_t type)
+{
+    switch (type)
+    {
+	case TYPE_INT :
+	    return Type::Int32Ty;
+	case TYPE_FLOAT :
+	    return Type::FloatTy;
+	default :
+	    g_assert_not_reached();
+    }
+}
+
 void
 code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb)
 {
@@ -351,20 +365,11 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 		{
 		    Value *left = emit_rhs(stmt->v.assign.rhs);
 		    Value *right = emit_rhs(stmt->v.assign.rhs2);
-		    const Type *left_type = left->getType();
-		    const Type *right_type = right->getType();
-		    const Type *type;
+		    int compvar_type = stmt->v.assign.lhs->compvar->type;
+		    const Type *type = llvm_type_for_type(compvar_type);
 
-		    if (left_type == right_type)
-			type = left_type;
-		    else
-		    {
-			g_assert((left_type == Type::Int32Ty && right_type == Type::FloatTy)
-				 || (left_type == Type::FloatTy && right_type == Type::Int32Ty));
-			left = promote(left, TYPE_FLOAT);
-			right = promote(right, TYPE_FLOAT);
-			type = Type::FloatTy;
-		    }
+		    left = promote(left, compvar_type);
+		    right = promote(right, compvar_type);
 
 		    PHINode *phi = builder->CreatePHI(type);
 
