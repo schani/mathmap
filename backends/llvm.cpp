@@ -20,8 +20,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <assert.h>
-
 #include <iostream>
 #include <map>
 
@@ -80,6 +78,7 @@ private:
     Value* promote (Value *val, int type);
 
     void emit_stmts (statement_t *stmt, unsigned int slice_flag);
+    void emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb);
     Value* emit_rhs (rhs_t *rhs);
     Value* emit_primary (primary_t *primary, bool need_float = false);
 };
@@ -339,9 +338,55 @@ code_emitter::emit_rhs (rhs_t *rhs)
 }
 
 void
+code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb)
+{
+    while (stmt != NULL)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN:
+		{
+		    Value *left = emit_rhs(stmt->v.assign.rhs);
+		    Value *right = emit_rhs(stmt->v.assign.rhs2);
+		    const Type *left_type = left->getType();
+		    const Type *right_type = right->getType();
+		    const Type *type;
+
+		    if (left_type == right_type)
+			type = left_type;
+		    else
+		    {
+			g_assert((left_type == Type::Int32Ty && right_type == Type::FloatTy)
+				 || (left_type == Type::FloatTy && right_type == Type::Int32Ty));
+			left = promote(left, TYPE_FLOAT);
+			right = promote(right, TYPE_FLOAT);
+			type = Type::FloatTy;
+		    }
+
+		    PHINode *phi = builder->CreatePHI(type);
+
+		    phi->addIncoming(left, left_bb);
+		    phi->addIncoming(right, right_bb);
+
+		    set_value(stmt->v.assign.lhs, phi);
+		}
+		break;
+
+	    default:
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+void
 code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 {
-    while (stmt != 0)
+    while (stmt != NULL)
     {
 	switch (stmt->kind)
 	{
@@ -358,7 +403,43 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		    set_value(stmt->v.assign.lhs, emit_rhs(stmt->v.assign.rhs));
 		break;
 
-	    case STMT_PHI_ASSIGN :
+	    case STMT_IF_COND :
+		{
+		    Value *condition_number = emit_rhs(stmt->v.if_cond.condition);
+		    Value *condition;
+
+		    if (condition_number->getType() == Type::Int32Ty)
+			condition = builder->CreateICmpNE(condition_number, make_int_const(0));
+		    else if (condition_number->getType() == Type::FloatTy)
+			condition = builder->CreateFCmpONE(condition_number, make_float_const(0.0));
+		    else
+			g_assert_not_reached();
+
+		    BasicBlock *then_bb = BasicBlock::Create("then", filter_function);
+		    BasicBlock *else_bb = BasicBlock::Create("else");
+		    BasicBlock *merge_bb = BasicBlock::Create("ifcont");
+
+		    builder->CreateCondBr(condition, then_bb, else_bb);
+
+		    builder->SetInsertPoint(then_bb);
+		    emit_stmts(stmt->v.if_cond.consequent, slice_flag);
+		    builder->CreateBr(merge_bb);
+		    then_bb = builder->GetInsertBlock();
+
+		    filter_function->getBasicBlockList().push_back(else_bb);
+		    builder->SetInsertPoint(else_bb);
+		    emit_stmts(stmt->v.if_cond.alternative, slice_flag);
+		    builder->CreateBr(merge_bb);
+		    else_bb = builder->GetInsertBlock();
+
+		    filter_function->getBasicBlockList().push_back(merge_bb);
+		    builder->SetInsertPoint(merge_bb);
+
+		    emit_phis(stmt->v.if_cond.exit, then_bb, else_bb);
+		}
+		break;
+
+	    default:
 		g_assert_not_reached();
 		break;
 	}

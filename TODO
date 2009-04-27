@@ -38,6 +38,7 @@ crashes compiler: in/2
 ** LLVM
 antialiasing must work, too
 make LLVM optimize
+don't require CC template files
 
 ** Packaging
 Put all external files into strings in the binary - single binary install
