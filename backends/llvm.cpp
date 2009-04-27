@@ -363,20 +363,35 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 
 	    case STMT_PHI_ASSIGN:
 		{
-		    Value *left = emit_rhs(stmt->v.assign.rhs);
-		    Value *right = emit_rhs(stmt->v.assign.rhs2);
+		    Value *left = NULL;
+		    Value *right = NULL;
 		    int compvar_type = stmt->v.assign.lhs->compvar->type;
 		    const Type *type = llvm_type_for_type(compvar_type);
 
-		    left = promote(left, compvar_type);
-		    right = promote(right, compvar_type);
+		    if (left_bb)
+		    {
+			left = emit_rhs(stmt->v.assign.rhs);
+			left = promote(left, compvar_type);
+		    }
+		    if (right_bb)
+		    {
+			right = emit_rhs(stmt->v.assign.rhs2);
+			right = promote(right, compvar_type);
+		    }
 
-		    PHINode *phi = builder->CreatePHI(type);
+		    PHINode *phi;
 
-		    phi->addIncoming(left, left_bb);
-		    phi->addIncoming(right, right_bb);
+		    if (left_bb)
+		    {
+			phi = builder->CreatePHI(type);
+			phi->addIncoming(left, left_bb);
+			set_value(stmt->v.assign.lhs, phi);
+		    }
+		    else
+			phi = cast<PHINode>(lookup_value(stmt->v.assign.lhs));
 
-		    set_value(stmt->v.assign.lhs, phi);
+		    if (right_bb)
+			phi->addIncoming(right, right_bb);
 		}
 		break;
 
@@ -441,6 +456,43 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		    builder->SetInsertPoint(merge_bb);
 
 		    emit_phis(stmt->v.if_cond.exit, then_bb, else_bb);
+		}
+		break;
+
+	    case STMT_WHILE_LOOP:
+		{
+		    BasicBlock *start_bb = builder->GetInsertBlock();
+		    BasicBlock *entry_bb = BasicBlock::Create("entry", filter_function);
+		    BasicBlock *body_bb = BasicBlock::Create("body");
+		    BasicBlock *exit_bb = BasicBlock::Create("exit");
+
+		    builder->CreateBr(entry_bb);
+
+		    builder->SetInsertPoint(entry_bb);
+
+		    emit_phis(stmt->v.while_loop.entry, start_bb, NULL);
+
+		    Value *invariant_number = emit_rhs(stmt->v.while_loop.invariant);
+		    Value *invariant;
+
+		    if (invariant_number->getType() == Type::Int32Ty)
+			invariant = builder->CreateICmpNE(invariant_number, make_int_const(0));
+		    else if (invariant_number->getType() == Type::FloatTy)
+			invariant = builder->CreateFCmpONE(invariant_number, make_float_const(0.0));
+		    else
+			g_assert_not_reached();
+
+		    builder->CreateCondBr(invariant, body_bb, exit_bb);
+
+		    filter_function->getBasicBlockList().push_back(body_bb);
+		    builder->SetInsertPoint(body_bb);
+		    emit_stmts(stmt->v.while_loop.body, slice_flag);
+		    body_bb = builder->GetInsertBlock();
+		    emit_phis(stmt->v.while_loop.entry, NULL, body_bb);
+		    builder->CreateBr(entry_bb);
+
+		    filter_function->getBasicBlockList().push_back(exit_bb);
+		    builder->SetInsertPoint(exit_bb);
 		}
 		break;
 

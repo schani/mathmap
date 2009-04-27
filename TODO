@@ -39,6 +39,7 @@ crashes compiler: in/2
 antialiasing must work, too
 make LLVM optimize
 don't require CC template files
+why do we compare against floats in simple counting loops?
 
 ** Packaging
 Put all external files into strings in the binary - single binary install
