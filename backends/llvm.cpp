@@ -89,14 +89,6 @@ code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *c
     filter_code = code;
     filter = _filter;
 
-    /*
-    TypeSymbolTable &tst = module->getTypeSymbolTable ();
-
-    for (TypeSymbolTable::iterator iter = tst.begin(); iter != tst.end(); ++iter) {
-	std::cout << "type " << iter->first << endl;
-    }
-    */
-
     const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
     const Type *image_type = module->getTypeByName(string("struct._image_t"));
     const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
