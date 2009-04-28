@@ -214,6 +214,21 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
     switch (primary->kind)
     {
 	case PRIMARY_VALUE :
+	    if (primary->v.value->index < 0)
+	    {
+		switch (primary->v.value->compvar->type)
+		{
+		    case TYPE_INT :
+			return make_int_const(0);
+		    case TYPE_FLOAT :
+			return make_float_const(0.0);
+		    case TYPE_IMAGE :
+			return builder->CreateCall(module->getFunction(string("get_uninited_image")));
+		    default :
+			g_assert_not_reached();
+		}
+	    }
+	    else
 	    {
 		Value *val = lookup_value(primary->v.value);
 

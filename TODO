@@ -40,6 +40,8 @@ antialiasing must work, too
 make LLVM optimize
 don't require CC template files
 why do we compare against floats in simple counting loops?
+remove pre-native code
+remove interpreter
 
 ** Packaging
 Put all external files into strings in the binary - single binary install
