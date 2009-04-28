@@ -78,7 +78,8 @@ private:
     Value* promote (Value *val, int type);
 
     void emit_stmts (statement_t *stmt, unsigned int slice_flag);
-    void emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb);
+    void emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *rhs_map);
+    void emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb, map<rhs_t*, Value*> &rhs_map);
     Value* emit_rhs (rhs_t *rhs);
     Value* emit_primary (primary_t *primary, bool need_float = false);
 };
@@ -344,7 +345,7 @@ llvm_type_for_type (type_t type)
 }
 
 void
-code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb)
+code_emitter::emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *rhs_map)
 {
     while (stmt != NULL)
     {
@@ -353,7 +354,38 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 	    case STMT_NIL :
 		break;
 
-	    case STMT_PHI_ASSIGN:
+	    case STMT_PHI_ASSIGN :
+		{
+		    int type = stmt->v.assign.lhs->compvar->type;
+		    Value *val;
+		    rhs_t *rhs = left ? stmt->v.assign.rhs : stmt->v.assign.rhs2;
+
+		    val = emit_rhs(rhs);
+		    val = promote(val, type);
+
+		    (*rhs_map)[rhs] = val;
+		}
+		break;
+
+	    default :
+		g_assert_not_reached();
+	}
+
+	stmt = stmt->next;
+    }
+}
+
+void
+code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb, map<rhs_t*, Value*> &rhs_map)
+{
+    while (stmt != NULL)
+    {
+	switch (stmt->kind)
+	{
+	    case STMT_NIL :
+		break;
+
+	    case STMT_PHI_ASSIGN :
 		{
 		    Value *left = NULL;
 		    Value *right = NULL;
@@ -362,13 +394,13 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 
 		    if (left_bb)
 		    {
-			left = emit_rhs(stmt->v.assign.rhs);
-			left = promote(left, compvar_type);
+			left = rhs_map[stmt->v.assign.rhs];
+			g_assert(left != NULL);
 		    }
 		    if (right_bb)
 		    {
-			right = emit_rhs(stmt->v.assign.rhs2);
-			right = promote(right, compvar_type);
+			right = rhs_map[stmt->v.assign.rhs2];
+			g_assert(right != NULL);
 		    }
 
 		    PHINode *phi;
@@ -419,6 +451,7 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		{
 		    Value *condition_number = emit_rhs(stmt->v.if_cond.condition);
 		    Value *condition;
+		    map<rhs_t*, Value*> rhs_map;
 
 		    if (condition_number->getType() == Type::Int32Ty)
 			condition = builder->CreateICmpNE(condition_number, make_int_const(0));
@@ -435,19 +468,21 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 
 		    builder->SetInsertPoint(then_bb);
 		    emit_stmts(stmt->v.if_cond.consequent, slice_flag);
+		    emit_phi_rhss(stmt->v.if_cond.exit, true, &rhs_map);
 		    builder->CreateBr(merge_bb);
 		    then_bb = builder->GetInsertBlock();
 
 		    filter_function->getBasicBlockList().push_back(else_bb);
 		    builder->SetInsertPoint(else_bb);
 		    emit_stmts(stmt->v.if_cond.alternative, slice_flag);
+		    emit_phi_rhss(stmt->v.if_cond.exit, false, &rhs_map);
 		    builder->CreateBr(merge_bb);
 		    else_bb = builder->GetInsertBlock();
 
 		    filter_function->getBasicBlockList().push_back(merge_bb);
 		    builder->SetInsertPoint(merge_bb);
 
-		    emit_phis(stmt->v.if_cond.exit, then_bb, else_bb);
+		    emit_phis(stmt->v.if_cond.exit, then_bb, else_bb, rhs_map);
 		}
 		break;
 
@@ -457,12 +492,15 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		    BasicBlock *entry_bb = BasicBlock::Create("entry", filter_function);
 		    BasicBlock *body_bb = BasicBlock::Create("body");
 		    BasicBlock *exit_bb = BasicBlock::Create("exit");
+		    map<rhs_t*, Value*> rhs_map;
+
+		    emit_phi_rhss(stmt->v.while_loop.entry, true, &rhs_map);
 
 		    builder->CreateBr(entry_bb);
 
 		    builder->SetInsertPoint(entry_bb);
 
-		    emit_phis(stmt->v.while_loop.entry, start_bb, NULL);
+		    emit_phis(stmt->v.while_loop.entry, start_bb, NULL, rhs_map);
 
 		    Value *invariant_number = emit_rhs(stmt->v.while_loop.invariant);
 		    Value *invariant;
@@ -480,7 +518,8 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		    builder->SetInsertPoint(body_bb);
 		    emit_stmts(stmt->v.while_loop.body, slice_flag);
 		    body_bb = builder->GetInsertBlock();
-		    emit_phis(stmt->v.while_loop.entry, NULL, body_bb);
+		    emit_phi_rhss(stmt->v.while_loop.entry, false, &rhs_map);
+		    emit_phis(stmt->v.while_loop.entry, NULL, body_bb, rhs_map);
 		    builder->CreateBr(entry_bb);
 
 		    filter_function->getBasicBlockList().push_back(exit_bb);
