@@ -798,8 +798,6 @@ cmdline_main (int argc, char *argv[])
 	    mathmap_frame_t *frame = invocation_new_frame(invocation, closure,
 							  current_frame, current_t);
 
-	    update_image_internals(frame);
-
 	    call_invocation_parallel_and_join(frame, closure, 0, 0, img_width, img_height, output, 1);
 
 	    invocation_free_frame(frame);

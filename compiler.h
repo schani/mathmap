@@ -60,14 +60,6 @@ typedef mathfuncs_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
 #define MAX_OP_ARGS          9
 
-typedef void (*builtin_func_t) (struct _mathmap_invocation_t*, int*);
-
-struct _interpreter_insn_t
-{
-    builtin_func_t func;
-    int arg_indexes[MAX_OP_ARGS + 1]; /* the lhs is an argument, too */
-};
-
 void init_compiler (void);
 
 void set_opmacros_filename (const char *filename);
@@ -80,7 +72,5 @@ void unload_c_code (void *module_info);
 filter_func_t gen_and_load_llvm_code (struct _mathmap_t *mathmap, void **module_info,
 				      char *template_filename);
 void unload_llvm_code (void *module_info);
-
-void generate_interpreter_code (struct _mathmap_t *mathmap);
 
 #endif

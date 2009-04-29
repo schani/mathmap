@@ -1085,7 +1085,6 @@ do_mathmap (int frame_num, float current_t)
 
 	frame = invocation_new_frame(invocation, closure,
 				     frame_num, current_t);
-	update_image_internals(frame);
 
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
@@ -2048,8 +2047,6 @@ recalculate_preview (void)
 
 	frame->frame_render_width = preview_width;
 	frame->frame_render_height = preview_height;
-
-	update_image_internals(frame);
 
 	if (previewing)
 	    call_invocation_parallel_and_join(frame, closure, 0, 0, preview_width, preview_height,

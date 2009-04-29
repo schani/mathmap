@@ -396,10 +396,6 @@
 				     "0"
 				     (format nil "\"~A\"" c-type)))))
 		     *types*))
-    (dolist (type *types*)
-      (unless (null (rt-type-c-type type))
-	(format out "#define BUILTIN_~A_ARG(i) (g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, arg_indexes[(i)]).~A_value)~%"
-		(ucs (rt-type-name type)) (dcs (rt-type-name type)))))
     (format out "#define MAKE_CONST_PRIMARY_FUNCS \\~%~{MAKE_CONST_PRIMARY(~A, ~A, ~A)~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
 			 (if (null (rt-type-c-type type))
@@ -462,23 +458,6 @@
       '(nil)
       (max-type-prop-types (op-type-prop op))))
 
-(defun print-op-builtins (op)
-  (labels ((function-header (name)
-	     (format nil "static void~%builtin_~A (mathmap_invocation_t *invocation, int *arg_indexes)"
-		     name))
-	   (print-function (name op type arg-types)
-	     (format t "~A~%{~%BUILTIN_~A_ARG(0) = ~A(~{BUILTIN_~A_ARG(~A)~^, ~});~%}~%"
-		     (function-header name)
-		     (ucs (rt-type-name type))
-		     (op-interpreter-c-name op)
-		     (mappend #'(lambda (i)
-				  (list (ucs (rt-type-name (nth i arg-types)))
-					(1+ i)))
-			      (integers-upto (op-arity op))))))
-    (dolist (type (op-instantiation-type-prop-types op))
-      (print-function (op-instantiation-name op type)
-		      op (op-instantiation-type op type) (op-instantiation-arg-types op type)))))
-
 (defun make-llvm-ops-file ()
   (labels ((print-op (op type)
 	     (let ((op-type (op-instantiation-type op type))
@@ -516,7 +495,4 @@
     (let ((*standard-output* out))
       (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
       (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-folders))
-      (format t "char* compiler_function_name_for_op_rhs (rhs_t *rhs, type_t *promotion_type)~%{switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-names-switch))
-      (dolist (op (reverse *operators*))
-	(print-op-builtins op))
-      (format t "static builtin_func_t~%get_builtin (rhs_t *rhs)~%{~%switch (rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-builtin-getter)))))
+      (format t "char* compiler_function_name_for_op_rhs (rhs_t *rhs, type_t *promotion_type)~%{switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-names-switch)))))

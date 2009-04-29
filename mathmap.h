@@ -53,10 +53,6 @@
 #define IMAGE_FLAG_UNIT		0x0001 /* unit coordinate system (vs. pixel) */
 #define IMAGE_FLAG_SQUARE	0x0002 /* square pixels */
 
-#define MATHMAP_FLAG_NATIVE	0x0100
-
-typedef struct _interpreter_insn_t interpreter_insn_t;
-
 #define FILTER_MATHMAP		1
 #define FILTER_NATIVE		2
 
@@ -106,10 +102,6 @@ typedef struct _mathmap_t
     /* FIXME: remove */
     filter_func_t filter_func;
     void *module_info;
-
-    interpreter_insn_t *interpreter_insns;
-    // FIXME: This should be in the invocation!
-    GArray *interpreter_values;
 
     struct _mathmap_t *next;
 } mathmap_t;
@@ -183,9 +175,6 @@ typedef struct _mathmap_invocation_t
     int do_debug;
     int num_debug_tuples;
     tuple_t *debug_tuples[MAX_DEBUG_TUPLES];
-
-    int interpreter_ip;
-    color_t interpreter_output_color;
 } mathmap_invocation_t;
 
 typedef struct _mathmap_frame_t
@@ -286,8 +275,6 @@ void kill_invocation_call (gpointer *_call);
 gboolean invocation_call_is_done (gpointer *_call);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template_invocation);
-
-void update_image_internals (mathmap_frame_t *frame);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 

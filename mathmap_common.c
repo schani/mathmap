@@ -258,7 +258,7 @@ free_filters (filter_t *filter)
 void
 unload_mathmap (mathmap_t *mathmap)
 {
-    if ((mathmap->flags & MATHMAP_FLAG_NATIVE) && mathmap->module_info != 0)
+    if (mathmap->module_info != 0)
     {
 #ifdef USE_LLVM
 	unload_llvm_code(mathmap->module_info);
@@ -274,10 +274,6 @@ free_mathmap (mathmap_t *mathmap)
 {
     if (mathmap->filters != 0)
 	free_filters(mathmap->filters);
-    if (mathmap->interpreter_insns != 0)
-	free(mathmap->interpreter_insns);
-    if (mathmap->interpreter_values != 0)
-	g_array_free(mathmap->interpreter_values, 1);
     unload_mathmap(mathmap);
 
     free(mathmap);
@@ -469,59 +465,33 @@ mathmap_t*
 compile_mathmap (char *expression, char *template_filename, char *include_path)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-#ifdef DONT_TRY_COMPILER
-    static int try_compiler = 0;
-#else
-    static int try_compiler = 1;
-#endif
 
     DO_JUMP_CODE {
-	if (try_compiler)
-	{
-	    mathmap = parse_mathmap(expression, TRUE);
+	mathmap = parse_mathmap(expression, TRUE);
 
-	    if (mathmap == 0)
-	    {
-		JUMP(1);
-	    }
+	if (mathmap == 0)
+	{
+	    JUMP(1);
+	}
 
 #ifdef USE_LLVM
-	    mathmap->filter_func = gen_and_load_llvm_code(mathmap, NULL, "/home/schani/Work/unix/mathmap/mathmap/llvm_template.o");
+	mathmap->filter_func = gen_and_load_llvm_code(mathmap, NULL, "/home/schani/Work/unix/mathmap/mathmap/llvm_template.o");
 #else
-	    mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
+	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 #endif
-	    if (mathmap->initfunc == 0 && mathmap->filter_func == 0)
-	    {
-		char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"
-						  "release does not provide a fallback interpreter that\n"
-						  "means that MathMap won't work.\n"
-						  "This is the reason why the compiler failed:\n%s"), error_string);
-
-		strcpy(error_string, message);
-
-		g_free(message);
-
-		JUMP(1);
-	    }
-	}
-
-	if (!try_compiler || (mathmap->initfunc == 0 && mathmap->filter_func == 0))
+	if (mathmap->initfunc == 0 && mathmap->filter_func == 0)
 	{
-	    mathmap = parse_mathmap(expression, TRUE);
+	    char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"
+					      "release does not provide a fallback interpreter that\n"
+					      "means that MathMap won't work.\n"
+					      "This is the reason why the compiler failed:\n%s"), error_string);
 
-	    if (mathmap == 0)
-	    {
-		JUMP(1);
-	    }
+	    strcpy(error_string, message);
 
-	    generate_interpreter_code(mathmap);
+	    g_free(message);
 
-	    mathmap->flags &= ~MATHMAP_FLAG_NATIVE;
-
-	    try_compiler = 0;
+	    JUMP(1);
 	}
-	else
-	    mathmap->flags |= MATHMAP_FLAG_NATIVE;
 
 	delete_expression_marker();
     } WITH_JUMP_HANDLER {
@@ -626,29 +596,14 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 static void
 init_invocation (mathmap_invocation_t *invocation)
 {
-    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-    {
-	if (invocation->mathmap->initfunc)
-	    invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
-	else
-	{
-	    assert(invocation->mathmap->filter_func);
-	    invocation->mathfuncs.init_frame = llvm_filter_init_frame;
-	    invocation->mathfuncs.init_slice = llvm_filter_init_slice;
-	    invocation->mathfuncs.calc_lines = llvm_filter_calc_lines;
-	}
-    }
+    if (invocation->mathmap->initfunc)
+	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
     else
     {
-	/*
-	int i;
-
-	invocation->interpreter_values = g_array_new(FALSE, TRUE, sizeof(runtime_value_t));
-	g_array_set_size(invocation->interpreter_values, invocation->mathmap->interpreter_values->len);
-	for (i = 0; i < invocation->mathmap->interpreter_values->len; ++i)
-	    g_array_index(invocation->interpreter_values, runtime_value_t, i)
-		= g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, i);
-	*/
+	assert(invocation->mathmap->filter_func);
+	invocation->mathfuncs.init_frame = llvm_filter_init_frame;
+	invocation->mathfuncs.init_slice = llvm_filter_init_slice;
+	invocation->mathfuncs.calc_lines = llvm_filter_calc_lines;
     }
 }
 
@@ -709,8 +664,7 @@ invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
 
     init_pools(&frame->pools);
 
-    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	closure->v.closure.funcs->init_frame(frame, closure);
+    closure->v.closure.funcs->init_frame(frame, closure);
 
     return frame;
 }
@@ -735,74 +689,6 @@ disable_debugging (mathmap_invocation_t *invocation)
 }
 
 static void
-set_float_internal (mathmap_invocation_t *invocation, int index, float value)
-{
-    g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, index).float_value = value;
-}
-
-void
-update_image_internals (mathmap_frame_t *frame)
-{
-    mathmap_invocation_t *invocation = frame->invocation;
-    internal_t *internal;
-
-    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	return;
-
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "frame", 1);
-    set_float_internal(invocation, internal->index, frame->current_frame);
-
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "t", 1);
-    set_float_internal(invocation, internal->index, frame->current_t);
-
-    /* FIXME: add __canvasPixelW/H */
-
-    internal = lookup_internal(invocation->mathmap->main_filter->v.mathmap.internals, "R", 1);
-    set_float_internal(invocation, internal->index, invocation->image_R);
-}
-
-static void
-update_pixel_internals (mathmap_invocation_t *invocation, float x, float y, float r, float a)
-{
-    set_float_internal(invocation, X_INTERNAL_INDEX, x);
-    set_float_internal(invocation, Y_INTERNAL_INDEX, y);
-
-    set_float_internal(invocation, R_INTERNAL_INDEX, r);
-    set_float_internal(invocation, A_INTERNAL_INDEX, a);
-}
-
-static void
-write_color_to_pixel (color_t color, guchar *dest, int output_bpp)
-{
-    if (output_bpp == 1 || output_bpp == 2)
-	dest[0] = (RED(color) * 299 + GREEN(color) * 587 + BLUE(color) * 114) / 1000;
-    else if (output_bpp == 3 || output_bpp == 4)
-    {
-	dest[0] = RED(color);
-	dest[1] = GREEN(color);
-	dest[2] = BLUE(color);
-    }
-    else
-	assert(0);
-
-    if (output_bpp == 2 || output_bpp == 4)
-	dest[output_bpp - 1] = ALPHA(color);
-}
-
-static void
-run_interpreter (mathmap_invocation_t *invocation)
-{
-    invocation->interpreter_ip = 0;
-    do
-    {
-	interpreter_insn_t *insn = &invocation->mathmap->interpreter_insns[invocation->interpreter_ip];
-
-	++invocation->interpreter_ip;
-	insn->func(invocation, insn->arg_indexes);
-    } while (invocation->interpreter_ip >= 0);
-}
-
-static void
 calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, unsigned char *q)
 {
     mathmap_frame_t *frame = slice->frame;
@@ -810,55 +696,7 @@ calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row, int last_ro
 
     assert(first_row >= 0 && last_row <= invocation->img_height + 1 && first_row <= last_row);
 
-    if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	closure->v.closure.funcs->calc_lines(slice, closure, first_row, last_row, q, 0);
-    else
-    {
-	int row, col;
-	int output_bpp = invocation->output_bpp;
-	float sampling_offset_x = slice->sampling_offset_x, sampling_offset_y = slice->sampling_offset_y;
-	int uses_ra = does_filter_use_ra(invocation->mathmap->main_filter);
-	int img_width = invocation->img_width, img_height = invocation->img_height;
-
-	for (row = first_row; row < last_row; ++row)
-	{
-	    float y = CALC_VIRTUAL_Y(row, img_height, sampling_offset_y);
-	    unsigned char *p = q;
-
-	    for (col = 0; col < slice->region_width; ++col)
-	    {
-		float x = CALC_VIRTUAL_X(col, img_width, sampling_offset_x);
-		float r, a;
-
-		if (uses_ra)
-		{
-		    r = hypot(x, y);
-		    if (r == 0.0)
-			a = 0.0;
-		    else
-			a = acos(x / r);
-
-		    if (y < 0)
-			a = 2 * M_PI - a;
-		}
-		else
-		    r = a = 0.0; /* to make the compiler happy */
-
-		update_pixel_internals(invocation, x, y, r, a);
-
-		run_interpreter(invocation);
-
-		write_color_to_pixel(invocation->interpreter_output_color, p, output_bpp);
-
-		p += output_bpp;
-	    }
-
-	    q += invocation->row_stride;
-
-	    if (!invocation->supersampling)
-		invocation->rows_finished[row] = 1;
-	}
-    }
+    closure->v.closure.funcs->calc_lines(slice, closure, first_row, last_row, q, 0);
 }
 
 void
@@ -877,8 +715,7 @@ invocation_init_slice (mathmap_slice_t *slice, image_t *closure, mathmap_frame_t
 
     init_pools(&slice->pools);
 
-    if (frame->invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	closure->v.closure.funcs->init_slice(slice, closure);
+    closure->v.closure.funcs->init_slice(slice, closure);
 }
 
 void
@@ -999,9 +836,6 @@ call_invocation_parallel (mathmap_frame_t *frame, image_t *closure,
     g_assert(first_row >= 0 && last_row <= invocation->img_height && first_row <= last_row);
 
     memset(invocation->rows_finished + first_row, 0, last_row - first_row);
-
-    if (!(invocation->mathmap->flags & MATHMAP_FLAG_NATIVE))
-	num_threads = 1;
 
     call = g_malloc(sizeof(invocation_call_t) + sizeof(thread_data_t) * num_threads);
 

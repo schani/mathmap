@@ -65,8 +65,6 @@ typedef struct _compvar_t
 
 struct _statement_list_t;
 struct _statement_t;
-struct _native_register_t;
-struct _pre_native_insn_t;
 
 typedef struct _value_t
 {
@@ -75,9 +73,6 @@ typedef struct _value_t
     int index;			/* SSA index */
     struct _statement_t *def;
     struct _statement_list_t *uses;
-    struct _pre_native_insn_t *live_start;
-    struct _pre_native_insn_t *live_end;
-    struct _native_register_t *allocated_register;
     unsigned int const_type : 3; /* defined in internals.h */
     unsigned int least_const_type_directly_used_in : 3;
     unsigned int least_const_type_multiply_used_in : 3;
@@ -231,30 +226,10 @@ typedef struct _statement_list_t
     struct _statement_list_t *next;
 } statement_list_t;
 
-#define PRE_NATIVE_INSN_LABEL                  0
-#define PRE_NATIVE_INSN_GOTO                   1
-#define PRE_NATIVE_INSN_ASSIGN                 2
-#define PRE_NATIVE_INSN_PHI_ASSIGN             3
-#define PRE_NATIVE_INSN_IF_COND_FALSE_GOTO     4
-
-typedef struct _pre_native_insn_t
-{
-    int kind;
-    int index;
-    statement_t *stmt;
-    union
-    {
-	struct _pre_native_insn_t *target;
-	int phi_rhs;
-    } v;
-    struct _pre_native_insn_t *next;
-} pre_native_insn_t;
-
 typedef struct
 {
     filter_t *filter;
     statement_t *first_stmt;
-    pre_native_insn_t *first_pre_native_insn;
 } filter_code_t;
 
 typedef struct
