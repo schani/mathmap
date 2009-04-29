@@ -45,6 +45,12 @@
 using namespace std;
 using namespace llvm;
 
+struct compiler_error
+{
+    string info;
+    compiler_error (string _info) { info = _info; }
+};
+
 class code_emitter
 {
 public:
@@ -467,7 +473,9 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
 		    return emit_closure(rhs->v.closure.filter, rhs->v.closure.args);
 		else
-		    g_assert_not_reached();
+		{
+		    throw compiler_error(string("Native filters don't work with the LLVM backend, yet."));
+		}
 	    }
 
 	case RHS_TUPLE :
@@ -792,7 +800,18 @@ gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_f
 	g_assert(code->filter == filter);
 
 	emitter = new code_emitter (module, filter, code);
-	emitter->emit();
+	try
+	{
+	    emitter->emit();
+	}
+	catch (compiler_error error)
+	{
+	    delete emitter;
+	    delete module;
+
+	    strcpy(error_string, error.info.c_str());
+	    return NULL;
+	}
 	delete emitter;
     }
 
