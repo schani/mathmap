@@ -362,6 +362,32 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
     return closure;
 }
 
+static bool
+is_complex_return_type (const Type *type)
+{
+    if (sizeof(gpointer) == 4)
+	return type == Type::Int64Ty;
+    else if (sizeof(gpointer) == 8)
+    {
+	static Type *ret_type;
+
+	if (!ret_type)
+	{
+	    vector<const Type*> elems;
+
+	    elems.push_back(Type::DoubleTy);
+
+	    ret_type = StructType::get(elems);
+	}
+
+	g_assert(ret_type);
+
+	return type == ret_type;
+    }
+    else
+	g_assert_not_reached();
+}
+
 Value*
 code_emitter::emit_rhs (rhs_t *rhs)
 {
@@ -396,14 +422,25 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		}
 		func->dump();
 		Value *result = builder->CreateCall(func, args.begin(), args.end());
-		if (result->getType() == Type::Int64Ty)
+		/* FIXME: this is ugly - we should check for the type
+		   of the operation or resulting value */
+		if (is_complex_return_type(result->getType()))
 		{
-		    /* The result is complex and we need to transform
-		       it into a struct */
-		    Value *local = builder->CreateAlloca(llvm_type_for_type(TYPE_COMPLEX));
-		    Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
-		    builder->CreateStore(result, local_ptr);
-		    result = local;
+		    /* The result is complex, whose representation
+		       differs between archs, and we need to transform
+		       it into another arch-dependent
+		       representation. */
+		    if (sizeof(gpointer) == 4)
+		    {
+			Value *local = builder->CreateAlloca(llvm_type_for_type(TYPE_COMPLEX));
+			Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
+			builder->CreateStore(result, local_ptr);
+			result = local;
+		    }
+		    else if (sizeof(gpointer) == 8)
+			result = builder->CreateExtractValue(result, 0);
+		    else
+			g_assert_not_reached();
 		}
 		return result;
 	    }
@@ -467,6 +504,7 @@ code_emitter::llvm_type_for_type (type_t type)
 	case TYPE_FLOAT :
 	    return Type::FloatTy;
 	case TYPE_COMPLEX :
+	    if (sizeof(gpointer) == 4)
 	    {
 		static const Type *result;
 
@@ -483,6 +521,10 @@ code_emitter::llvm_type_for_type (type_t type)
 		g_assert(result != NULL);
 		return result;
 	    }
+	    else if (sizeof(gpointer) == 8)
+		return Type::DoubleTy;
+	    else
+		g_assert_not_reached();
 	default :
 	    g_assert_not_reached();
     }
