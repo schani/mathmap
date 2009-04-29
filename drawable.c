@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007-2008 Mark Probst
+ * Copyright (C) 2007-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -21,6 +21,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#include <string.h>
 
 #include "drawable.h"
 #include "mathmap.h"
@@ -216,4 +218,22 @@ make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pool
     resize->v.resize.y_factor = y_factor;
 
     return resize;
+}
+
+image_t*
+closure_image_alloc (mathfuncs_t *mathfuncs, filter_func_t filter_func,
+		     int num_uservals, userval_t *uservals,
+		     int pixel_width, int pixel_height)
+{
+    image_t *image = g_malloc0(sizeof(image_t) + num_uservals * sizeof(userval_t));
+
+    image->type = IMAGE_CLOSURE;
+    image->pixel_width = pixel_width;
+    image->pixel_height = pixel_height;
+    image->v.closure.funcs = mathfuncs;
+    image->v.closure.func = filter_func;
+    image->v.closure.num_args = num_uservals;
+    memcpy(image->v.closure.args, uservals, num_uservals * sizeof(userval_t));
+
+    return image;
 }

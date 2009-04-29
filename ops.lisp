@@ -483,7 +483,7 @@
   (labels ((print-op (op type)
 	     (let ((op-type (op-instantiation-type op type))
 		   (arg-types (op-instantiation-arg-types op type)))
-	       (format t "~A~%builtin_~A (mathmap_invocation_t *invocation, pools_t *pools~{, ~A arg_~A~})~%{~%return ~A(~{arg_~A~^, ~});~%}~%"
+	       (format t "~A~%builtin_~A (mathmap_invocation_t *invocation, image_t *closure, pools_t *pools~{, ~A arg_~A~})~%{~%return ~A(~{arg_~A~^, ~});~%}~%"
 		       (rt-type-c-type op-type)
 		       (op-instantiation-name op type)
 		       (mappend #'(lambda (i)

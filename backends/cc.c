@@ -201,13 +201,11 @@ output_make_mathmap_filter_closure (FILE *out, const char *var_name,
 
     fprintf(out,
 	    "({ image_t *%s = ALLOC_CLOSURE_IMAGE(%d);"
-	    "%s->type = IMAGE_CLOSURE;"
 	    "%s->v.closure.pools = pools;"
 	    "%s->v.closure.xy_vars = 0;"
 	    "%s->v.closure.funcs = &mathfuncs_%s;"
 	    "%s->v.closure.func = filter_%s;",
 	    var_name, num_args,
-	    var_name,
 	    var_name,
 	    var_name,
 	    var_name, filter->name,

@@ -239,9 +239,88 @@ promote_float_to_complex (float x)
     return x;
 }
 
+image_t*
+get_uninited_image (void)
+{
+    return UNINITED_IMAGE;
+}
+
+$def_llvm_mathfuncs
+
+image_t*
+alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_args, filter_func_t filter_func)
+{
+    static mathfuncs_t funcs = { llvm_filter_init_frame, llvm_filter_init_slice, llvm_filter_calc_lines };
+
+    image_t *image = ALLOC_CLOSURE_IMAGE(num_args);
+
+    image->v.closure.pools = pools;
+    image->v.closure.xy_vars = 0;
+    image->v.closure.funcs = &funcs;
+    image->v.closure.func = filter_func;
+
+    return image;
+}
+
+void
+set_closure_arg_int (image_t *image, int index, int arg)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.int_const = arg;
+}
+
+void
+set_closure_arg_float (image_t *image, int index, float arg)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.float_const = arg;
+}
+
+void
+set_closure_arg_bool (image_t *image, int index, float arg)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.bool_const = arg;
+}
+
+void
+set_closure_arg_color (image_t *image, int index, color_t arg)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.color.value = arg;
+}
+
+void
+set_closure_arg_curve (image_t *image, int index, curve_t *arg)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.curve = arg;
+}
+
+void
+set_closure_arg_gradient (image_t *image, int index, gradient_t *arg)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.gradient = arg;
+}
+
+void
+set_closure_arg_image (image_t *image, int index, image_t *arg, int take_size)
+{
+    CLOSURE_IMAGE_ARGS(image)[index].v.image = arg;
+    if (take_size)
+    {
+	image->pixel_width = IMAGE_PIXEL_WIDTH(arg);
+	image->pixel_height = IMAGE_PIXEL_HEIGHT(arg);
+    }
+}
+
+void
+set_closure_pixel_size (image_t *image, int width, int height)
+{
+    image->pixel_width = width;
+    image->pixel_height = height;
+}
+
 #undef OUTPUT_TUPLE
 #define OUTPUT_TUPLE(x) 0
 
 #define get_orig_val_pixel_func get_orig_val_pixel
+
+#define ARG(n) (closure->v.closure.args[(n)])
 
 #include "llvm-ops.h"

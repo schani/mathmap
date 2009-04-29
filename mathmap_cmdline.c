@@ -790,12 +790,17 @@ cmdline_main (int argc, char *argv[])
 	for (current_frame = 0; current_frame < num_frames; ++current_frame)
 	{
 	    float current_t = (float)current_frame / (float)num_frames;
-	    mathmap_frame_t *frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
+	    image_t *closure = closure_image_alloc(&invocation->mathfuncs,
+						   invocation->mathmap->filter_func,
+						   invocation->mathmap->main_filter->num_uservals,
+						   invocation->uservals,
+						   img_width, img_height);
+	    mathmap_frame_t *frame = invocation_new_frame(invocation, closure,
 							  current_frame, current_t);
 
 	    update_image_internals(frame);
 
-	    call_invocation_parallel_and_join(frame, 0, 0, img_width, img_height, output, 1);
+	    call_invocation_parallel_and_join(frame, closure, 0, 0, img_width, img_height, output, 1);
 
 	    invocation_free_frame(frame);
 
@@ -806,6 +811,8 @@ cmdline_main (int argc, char *argv[])
 		assert(quicktime_encode_video(output_movie, rows, 0) == 0);
 	    }
 #endif
+
+	    g_free(closure);
 	}
 
 #ifdef MOVIES

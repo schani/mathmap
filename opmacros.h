@@ -134,8 +134,6 @@ typedef struct
 #define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
 
-#define ARG(i)	(invocation->uservals[(i)])
-
 #define USERVAL_INT_ACCESS(x)        (ARG((x)).v.int_const)
 #define USERVAL_FLOAT_ACCESS(x)      (ARG((x)).v.float_const)
 #define USERVAL_BOOL_ACCESS(x)       (ARG((x)).v.bool_const)
@@ -166,7 +164,11 @@ typedef struct
 #define CALC_VIRTUAL_Y(pxl,size,sampl_off)	((-(pxl) + ((size)-1)/2.0 - (sampl_off)) / (((size)-1)/2.0))
 
 #define POOLS_ALLOC(s)			(pools_alloc(pools, (s)))
-#define ALLOC_CLOSURE_IMAGE(n)		((image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))))
+#define ALLOC_CLOSURE_IMAGE(n)		({ image_t *image = (image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))); \
+	    				   image->type = IMAGE_CLOSURE; \
+					   image->v.closure.num_args = (n); \
+					   image; })
+
 #define CLOSURE_IMAGE_ARGS(i)		((userval_t*)(i)->v.closure.args)
 
 #define IMAGE_PIXEL_WIDTH(i)		((i)->pixel_width)

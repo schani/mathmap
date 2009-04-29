@@ -285,13 +285,13 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 
 	g_print("image is closure\n");
 
-	frame = invocation_new_frame(invocation, image->v.closure.funcs, image->v.closure.args, 0, 0.0);
+	frame = invocation_new_frame(invocation, image, 0, 0.0);
 	frame->frame_render_width = width;
 	frame->frame_render_height = height;
 
-	invocation_init_slice(&slice, frame, 0, 0, width, height, 0.0, 0.0);
+	invocation_init_slice(&slice, image, frame, 0, 0, width, height, 0.0, 0.0);
 
-	image->v.closure.funcs->calc_lines(&slice, 0, height, new_image->v.floatmap.data, 1);
+	image->v.closure.funcs->calc_lines(&slice, image, 0, height, new_image->v.floatmap.data, 1);
 
 	invocation_deinit_slice(&slice);
 

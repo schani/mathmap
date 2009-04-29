@@ -103,6 +103,7 @@ typedef struct _mathmap_t
     unsigned int flags;
 
     initfunc_t initfunc;
+    /* FIXME: remove */
     filter_func_t filter_func;
     void *module_info;
 
@@ -176,6 +177,7 @@ typedef struct _mathmap_invocation_t
 
     unsigned char * volatile rows_finished;
 
+    /* FIXME: remove - it's in the closure */
     mathfuncs_t mathfuncs;
 
     int do_debug;
@@ -189,9 +191,6 @@ typedef struct _mathmap_invocation_t
 typedef struct _mathmap_frame_t
 {
     mathmap_invocation_t *invocation;
-
-    mathfuncs_t *mathfuncs;
-    userval_t *arguments;
 
     int frame_render_width, frame_render_height;
 
@@ -231,6 +230,13 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
+/* TEMPLATE llvm_mathfuncs */
+void llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure);
+void llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure);
+void llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, void *q, int floatmap);
+/* END */
+
+
 #ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
@@ -260,18 +266,18 @@ mathmap_t* compile_mathmap (char *expression, char *template_filename, char *inc
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template_invocation,
 				      int img_width, int img_height);
 
-mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, userval_t *arguments,
+mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
 				       int current_frame, float current_t);
 void invocation_free_frame (mathmap_frame_t *frame);
 
-void invocation_init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int region_y,
+void invocation_init_slice (mathmap_slice_t *slice, image_t *image, mathmap_frame_t *frame, int region_x, int region_y,
 			    int region_width, int region_height, float sampling_offset_x, float sampling_offset_y);
 void invocation_deinit_slice (mathmap_slice_t *slice);
 
-gpointer call_invocation_parallel (mathmap_frame_t *frame,
+gpointer call_invocation_parallel (mathmap_frame_t *frame, image_t *closure,
 				   int region_x, int region_y, int region_width, int region_height,
 				   unsigned char *q, int num_threads);
-void call_invocation_parallel_and_join (mathmap_frame_t *frame,
+void call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
 					int region_x, int region_y, int region_width, int region_height,
 					unsigned char *q, int num_threads);
 

@@ -535,18 +535,18 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
     return mathmap;
 }
 
-static void
-filter_func_init_frame (mathmap_frame_t *mmframe)
+void
+llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure)
 {
 }
 
-static void
-filter_func_init_slice (mathmap_slice_t *slice)
+void
+llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure)
 {
 }
 
-static void
-filter_func_calc_lines (mathmap_slice_t *slice, int first_row, int last_row, void *q, int floatmap)
+void
+llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, void *q, int floatmap)
 {
     mathmap_frame_t *mmframe = slice->frame;
     mathmap_invocation_t *invocation = mmframe->invocation;
@@ -562,8 +562,6 @@ filter_func_calc_lines (mathmap_slice_t *slice, int first_row, int last_row, voi
     int region_x = slice->region_x;
     int frame_render_width = mmframe->frame_render_width;
     int frame_render_height = mmframe->frame_render_height;
-
-    printf("doing llvm calc\n");
 
     init_pools(&pixel_pools);
     pools = &pixel_pools;
@@ -584,8 +582,7 @@ filter_func_calc_lines (mathmap_slice_t *slice, int first_row, int last_row, voi
 
 	    reset_pools(pools);
 
-	    /* FIXME: we need a closure! */
-	    return_tuple = invocation->mathmap->filter_func(invocation, NULL, x, y, t, pools);
+	    return_tuple = invocation->mathmap->filter_func(invocation, closure, x, y, t, pools);
 
 	    if (floatmap)
 	    {
@@ -636,9 +633,9 @@ init_invocation (mathmap_invocation_t *invocation)
 	else
 	{
 	    assert(invocation->mathmap->filter_func);
-	    invocation->mathfuncs.init_frame = filter_func_init_frame;
-	    invocation->mathfuncs.init_slice = filter_func_init_slice;
-	    invocation->mathfuncs.calc_lines = filter_func_calc_lines;
+	    invocation->mathfuncs.init_frame = llvm_filter_init_frame;
+	    invocation->mathfuncs.init_slice = llvm_filter_init_slice;
+	    invocation->mathfuncs.calc_lines = llvm_filter_calc_lines;
 	}
     }
     else
@@ -697,15 +694,12 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 }
 
 mathmap_frame_t*
-invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, userval_t *arguments,
+invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
 		      int current_frame, float current_t)
 {
     mathmap_frame_t *frame = g_new0(mathmap_frame_t, 1);
 
     frame->invocation = invocation;
-
-    frame->mathfuncs = mathfuncs;
-    frame->arguments = arguments;
 
     frame->frame_render_width = invocation->render_width;
     frame->frame_render_height = invocation->render_height;
@@ -716,7 +710,7 @@ invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, 
     init_pools(&frame->pools);
 
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	mathfuncs->init_frame(frame);
+	closure->v.closure.funcs->init_frame(frame, closure);
 
     return frame;
 }
@@ -809,7 +803,7 @@ run_interpreter (mathmap_invocation_t *invocation)
 }
 
 static void
-calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *q)
+calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, unsigned char *q)
 {
     mathmap_frame_t *frame = slice->frame;
     mathmap_invocation_t *invocation = frame->invocation;
@@ -817,7 +811,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
     assert(first_row >= 0 && last_row <= invocation->img_height + 1 && first_row <= last_row);
 
     if (invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	frame->mathfuncs->calc_lines(slice, first_row, last_row, q, 0);
+	closure->v.closure.funcs->calc_lines(slice, closure, first_row, last_row, q, 0);
     else
     {
 	int row, col;
@@ -868,7 +862,7 @@ calc_lines (mathmap_slice_t *slice, int first_row, int last_row, unsigned char *
 }
 
 void
-invocation_init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int region_y,
+invocation_init_slice (mathmap_slice_t *slice, image_t *closure, mathmap_frame_t *frame, int region_x, int region_y,
 		       int region_width, int region_height, float sampling_offset_x, float sampling_offset_y)
 {
     memset(slice, 0, sizeof(mathmap_slice_t));
@@ -884,7 +878,7 @@ invocation_init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int regio
     init_pools(&slice->pools);
 
     if (frame->invocation->mathmap->flags & MATHMAP_FLAG_NATIVE)
-	frame->mathfuncs->init_slice(slice);
+	closure->v.closure.funcs->init_slice(slice, closure);
 }
 
 void
@@ -894,7 +888,8 @@ invocation_deinit_slice (mathmap_slice_t *slice)
 }
 
 static void
-call_invocation (mathmap_frame_t *frame, int region_x, int region_y, int region_width, int region_height,
+call_invocation (mathmap_frame_t *frame, image_t *closure,
+		 int region_x, int region_y, int region_width, int region_height,
 		 unsigned char *q)
 {
     mathmap_invocation_t *invocation = frame->invocation;
@@ -909,17 +904,17 @@ call_invocation (mathmap_frame_t *frame, int region_x, int region_y, int region_
 	line2 = (guchar*)malloc(region_width * invocation->output_bpp);
 	line3 = (guchar*)malloc((region_width + 1) * invocation->output_bpp);
 
-	invocation_init_slice(&short_slice, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
-	invocation_init_slice(&long_slice, frame, region_x, region_y, region_width + 1, region_height, -0.5, -0.5);
+	invocation_init_slice(&short_slice, closure, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
+	invocation_init_slice(&long_slice, closure, frame, region_x, region_y, region_width + 1, region_height, -0.5, -0.5);
 
-	calc_lines(&long_slice, region_y, region_y + 1, line1);
+	calc_lines(&long_slice, closure, region_y, region_y + 1, line1);
 
 	for (row = region_y; row < region_y + region_height; ++row)
 	{
 	    unsigned char *p = q;
 
-	    calc_lines(&short_slice, row, row + 1, line2);
-	    calc_lines(&long_slice, row + 1, row + 2, line3);
+	    calc_lines(&short_slice, closure, row, row + 1, line2);
+	    calc_lines(&long_slice, closure, row + 1, row + 2, line3);
 
 	    for (col = 0; col < region_width; ++col)
 	    {
@@ -951,8 +946,8 @@ call_invocation (mathmap_frame_t *frame, int region_x, int region_y, int region_
     {
 	mathmap_slice_t slice;
 
-	invocation_init_slice(&slice, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
-	calc_lines(&slice, region_y, region_y + region_height, q);
+	invocation_init_slice(&slice, closure, frame, region_x, region_y, region_width, region_height, 0.0, 0.0);
+	calc_lines(&slice, closure, region_y, region_y + region_height, q);
 	invocation_deinit_slice(&slice);
     }
 }
@@ -961,6 +956,7 @@ typedef struct
 {
     thread_handle_t thread_handle;
     mathmap_frame_t *frame;
+    image_t *closure;
     int region_x, region_y;
     int region_height, region_width;
     unsigned char *q;
@@ -983,14 +979,14 @@ call_invocation_thread_func (gpointer _data)
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 #endif
 
-    call_invocation(data->frame, data->region_x, data->region_y,
+    call_invocation(data->frame, data->closure, data->region_x, data->region_y,
 		    data->region_width, data->region_height, data->q);
 
     data->is_done = TRUE;
 }
 
 gpointer
-call_invocation_parallel (mathmap_frame_t *frame,
+call_invocation_parallel (mathmap_frame_t *frame, image_t *closure,
 			  int region_x, int region_y, int region_width, int region_height,
 			  unsigned char *q, int num_threads)
 {
@@ -1014,6 +1010,7 @@ call_invocation_parallel (mathmap_frame_t *frame,
     for (i = 0; i < num_threads; ++i)
     {
 	call->datas[i].frame = frame;
+	call->datas[i].closure = closure;
 	call->datas[i].region_x = region_x;
 	call->datas[i].region_width = region_width;
 	call->datas[i].region_y = first_row + (last_row - first_row) * i / num_threads;
@@ -1064,11 +1061,11 @@ invocation_call_is_done (gpointer *_call)
 }
 
 void
-call_invocation_parallel_and_join (mathmap_frame_t *frame,
+call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
 				   int region_x, int region_y, int region_width, int region_height,
 				   unsigned char *q, int num_threads)
 {
-    gpointer call = call_invocation_parallel(frame, region_x, region_y,
+    gpointer call = call_invocation_parallel(frame, closure, region_x, region_y,
 					     region_width, region_height, q, num_threads);
 
     join_invocation_call(call);

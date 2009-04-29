@@ -1066,6 +1066,9 @@ do_mathmap (int frame_num, float current_t)
     if (generate_code())
     {
 	mathmap_frame_t *frame;
+	image_t *closure = closure_image_alloc(&invocation->mathfuncs, invocation->mathmap->filter_func,
+					       invocation->mathmap->main_filter->num_uservals, invocation->uservals,
+					       sel_width, sel_height);
 
 	/* Initialize pixel region */
 	gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
@@ -1080,7 +1083,7 @@ do_mathmap (int frame_num, float current_t)
 	    strcpy(progress_info, _("Mathmapping..."));
 	gimp_progress_init(progress_info);
 
-	frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
+	frame = invocation_new_frame(invocation, closure,
 				     frame_num, current_t);
 	update_image_internals(frame);
 
@@ -1095,7 +1098,7 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->row_stride = dest_rgn.rowstride;
 	    invocation->output_bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(output_drawable));
 
-	    call_invocation_parallel_and_join(frame, region_x, region_y, region_width, region_height,
+	    call_invocation_parallel_and_join(frame, closure, region_x, region_y, region_width, region_height,
 					      dest_rgn.data, NUM_FINAL_RENDER_CPUS);
 
 	    /* Update progress */
@@ -1110,6 +1113,8 @@ do_mathmap (int frame_num, float current_t)
 	gimp_drawable_flush(output_drawable);
 	gimp_drawable_merge_shadow(GIMP_DRAWABLE_ID(output_drawable), TRUE);
 	gimp_drawable_update(GIMP_DRAWABLE_ID(output_drawable), sel_x1, sel_y1, sel_width, sel_height);
+
+	g_free(closure);
     }
 } /* mathmap */
 
@@ -1997,7 +2002,9 @@ recalculate_preview (void)
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
 	int old_render_width, old_render_height;
 	mathmap_frame_t *frame;
-
+	image_t *closure = closure_image_alloc(&invocation->mathfuncs, invocation->mathmap->filter_func,
+					       invocation->mathmap->main_filter->num_uservals, invocation->uservals,
+					       preview_width, preview_height);
 	assert(buf != 0);
 
 	update_uservals(mathmap->main_filter->userval_infos, invocation->uservals);
@@ -2037,8 +2044,7 @@ recalculate_preview (void)
 	if (previewing)
 	    for_each_input_drawable(build_fast_image_source);
 
-	frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
-				     0, mmvals.param_t);
+	frame = invocation_new_frame(invocation, closure, 0, mmvals.param_t);
 
 	frame->frame_render_width = preview_width;
 	frame->frame_render_height = preview_height;
@@ -2046,9 +2052,11 @@ recalculate_preview (void)
 	update_image_internals(frame);
 
 	if (previewing)
-	    call_invocation_parallel_and_join(frame, 0, 0, preview_width, preview_height, buf, get_num_cpus());
+	    call_invocation_parallel_and_join(frame, closure, 0, 0, preview_width, preview_height,
+					      buf, get_num_cpus());
 	else
-	    call_invocation_parallel_and_join(frame, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
+	    call_invocation_parallel_and_join(frame, closure, 0, 0, preview_width, preview_height,
+					      buf, NUM_FINAL_RENDER_CPUS);
 
 	invocation_free_frame(frame);
 
@@ -2105,6 +2113,7 @@ recalculate_preview (void)
 	}
 
 	free(buf);
+	g_free(closure);
 
 	--in_recalculate;
 

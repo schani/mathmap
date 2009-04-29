@@ -8,10 +8,12 @@ make preview input drawables to be floatmaps
 make first input drawable chooseable, too
 
 ** General
-why is bool_const a float in userval_t
+why is bool_const a float in userval_t?
 move everything from invocation to frame that belongs there
 pass through frame and t everwhere
 use -O3
+do we need uservals, image size in invocation when we have them in the closure?
+verify that the closure pools are the ones the closure is allocated from
 
 ** Language
 HSL color space (for color gimp layer mode)
@@ -21,6 +23,7 @@ real gamma function buggy
 implement markers - points on the image that the user can set (should probably be user values of type point (xy:2)
 
 ** Compiler
+add an optimization timeout (~2sec) after which the compiler won't optimize anymore
 do we still use the X,Y,W,H,R internals?  if so, where are they declared in the template?
 compiler crashes for Tom Test with -O2
 use real vectors for tuples which are accessed with non-constant index
@@ -36,6 +39,11 @@ make two different filter_XXX functions: one for calling in closure, one without
 crashes compiler: in/2
 
 ** LLVM
+build and pass a closure in filter_func_calc_lines()
+take the arguments from the closure, not the invocation
+pass a closure to init_frame, init_slice, calc_lines
+domain coloring crashes
+declare gsl_sf_gamma in template file
 antialiasing must work, too
 make LLVM optimize
 don't require CC template files

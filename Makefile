@@ -151,7 +151,7 @@ llvm_template.c : make_template.pl llvm_template.c.in $(TEMPLATE_INPUTS)
 	./make_template.pl $(TEMPLATE_INPUTS) llvm_template.c.in >llvm_template.c
 
 llvm_template.o : llvm_template.c opmacros.h
-	llvm-gcc -emit-llvm -O3 -c llvm_template.c
+	llvm-gcc -emit-llvm -Wall -O3 -c llvm_template.c
 
 blender.o : generators/blender/blender.c
 
@@ -183,7 +183,7 @@ realclean : clean
 	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
 
 TAGS :
-	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp'`
+	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp' -o -name '*.cpp'`
 
 dist : new_builtins.c parser.c scanner.c new_template.c clean
 	rm -rf mathmap-$(VERSION)

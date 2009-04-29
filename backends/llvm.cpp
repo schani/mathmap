@@ -53,8 +53,6 @@ public:
 
     void emit ();
 
-    Function* get_filter_function ();
-
 private:
     filter_t *filter;
     filter_code_t *filter_code;
@@ -63,7 +61,7 @@ private:
     IRBuilder<> *builder;
     Function *filter_function;
     map<value_t*, Value*> value_map;
-    map<internal_t*, Value*> internal_map;
+    map<string, Value*> internal_map;
 
     Value *invocation_arg;
     Value *closure_arg;
@@ -74,6 +72,7 @@ private:
 
     void set_internal (internal_t *internal, Value *llvm_value);
     Value* lookup_internal (internal_t *internal);
+    Value* lookup_internal (const char *name);
 
     Value* promote (Value *val, int type);
 
@@ -82,7 +81,24 @@ private:
     void emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb, map<rhs_t*, Value*> &rhs_map);
     Value* emit_rhs (rhs_t *rhs);
     Value* emit_primary (primary_t *primary, bool need_float = false);
+    Value* emit_closure (filter_t *filter, primary_t *args);
 };
+
+string
+filter_function_name (filter_t *filter)
+{
+    return string("filter_") + string(filter->name);
+}
+
+Function*
+lookup_filter_function (Module *module, filter_t *filter)
+{
+    Function *func = module->getFunction(filter_function_name(filter));
+
+    g_assert(func != NULL);
+
+    return func;
+}
 
 code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *code)
 {
@@ -90,20 +106,9 @@ code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *c
     filter_code = code;
     filter = _filter;
 
-    const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
-    const Type *image_type = module->getTypeByName(string("struct._image_t"));
-    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
-    assert(invocation_type && image_type && pools_type);
-    Constant *function_const = module->getOrInsertFunction("filter_func",
-							   PointerType::getUnqual(Type::FloatTy), // ret type
-							   PointerType::getUnqual(invocation_type), // invocation
-							   PointerType::getUnqual(image_type), // closure
-							   Type::FloatTy, // x
-							   Type::FloatTy, // y
-							   Type::FloatTy, // t
-							   PointerType::getUnqual(pools_type), // pools
-							   NULL);
-    filter_function = cast<Function>(function_const);
+    filter_function = lookup_filter_function(module, filter);
+    g_assert(filter_function != NULL);
+
     Function::arg_iterator args = filter_function->arg_begin();
 
     invocation_arg = args++;
@@ -137,16 +142,11 @@ code_emitter::~code_emitter ()
     delete builder;
 }
 
-Function*
-code_emitter::get_filter_function ()
-{
-    return filter_function;
-}
-
 void
 code_emitter::set_value (value_t *value, Value *llvm_value)
 {
     g_assert(value);
+    g_assert(llvm_value);
     g_assert(value_map.find(value) == value_map.end());
     value_map[value] = llvm_value;
 }
@@ -162,16 +162,26 @@ void
 code_emitter::set_internal (internal_t *internal, Value *llvm_value)
 {
     g_assert(internal);
-    g_assert(internal_map.find(internal) == internal_map.end());
-    internal_map[internal] = llvm_value;
+    g_assert(llvm_value);
+    g_assert(internal_map.find(string(internal->name)) == internal_map.end());
+    internal_map[string(internal->name)] = llvm_value;
     llvm_value->setName(internal->name);
+}
+
+Value*
+code_emitter::lookup_internal (const char *internal_name)
+{
+    string name(internal_name);
+
+    g_assert(internal_map.find(name) != internal_map.end());
+
+    return internal_map[name];
 }
 
 Value*
 code_emitter::lookup_internal (internal_t *internal)
 {
-    g_assert(internal_map.find(internal) != internal_map.end());
-    return internal_map[internal];
+    return lookup_internal(internal->name);
 }
 
 static Value*
@@ -285,6 +295,71 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
     }
 }
 
+static const char*
+get_closure_set_arg_func_name (int type)
+{
+    switch (type)
+    {
+	case USERVAL_INT_CONST :
+	    return "set_closure_arg_int";
+	case USERVAL_FLOAT_CONST :
+	    return "set_closure_arg_float";
+	case USERVAL_BOOL_CONST :
+	    return "set_closure_arg_bool";
+	case USERVAL_COLOR :
+	    return "set_closure_arg_color";
+	case USERVAL_CURVE :
+	    return "set_closure_arg_curve";
+	case USERVAL_GRADIENT :
+	    return "set_closure_arg_gradient";
+	case USERVAL_IMAGE :
+	    return "set_closure_arg_image";
+	default :
+	    g_assert_not_reached();
+    }
+}
+
+Value*
+code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
+{
+    int num_args = compiler_num_filter_args(closure_filter) - 3;
+    Value *closure;
+    bool have_size;
+    userval_info_t *info;
+    int i;
+
+    g_assert(closure_filter->kind == FILTER_MATHMAP);
+
+    closure = builder->CreateCall4(module->getFunction(string("alloc_closure_image")),
+				   invocation_arg, pools_arg, make_int_const(num_args),
+				   lookup_filter_function(module, closure_filter));
+
+    have_size = FALSE;
+    for (i = 0, info = closure_filter->userval_infos;
+	 info != 0;
+	 ++i, info = info->next)
+    {
+	const char *set_func_name = get_closure_set_arg_func_name(info->type);
+
+	if (info->type == USERVAL_IMAGE)
+	{
+	    builder->CreateCall4(module->getFunction(string(set_func_name)),
+				 closure, make_int_const(i), emit_primary(&args[i]), make_int_const(!have_size));
+	    have_size = true;
+	}
+	else
+	    builder->CreateCall3(module->getFunction(string(set_func_name)),
+				 closure, make_int_const(i), emit_primary(&args[i]));
+    }
+    g_assert(i == num_args);
+
+    if (!have_size)
+	builder->CreateCall3(module->getFunction(string("set_closure_pixel_size")),
+			     closure, lookup_internal("__canvasPixelW"), lookup_internal("__canvasPixelH"));
+
+    return closure;
+}
+
 Value*
 code_emitter::emit_rhs (rhs_t *rhs)
 {
@@ -306,8 +381,9 @@ code_emitter::emit_rhs (rhs_t *rhs)
 
 		Function *func = module->getFunction(string(function_name));
 		g_assert(func);
-		std::vector<Value*> args;
+		vector<Value*> args;
 		args.push_back(invocation_arg);
+		args.push_back(closure_arg);
 		args.push_back(pools_arg);
 		for (int i = 0; i < rhs->v.op.op->num_args; ++i) {
 		    type_t type = promotion_type == TYPE_NIL ? op->arg_types[i] : promotion_type;
@@ -320,7 +396,30 @@ code_emitter::emit_rhs (rhs_t *rhs)
 	    }
 
 	case RHS_FILTER :
+	    {
+		int num_args = compiler_num_filter_args(rhs->v.filter.filter);
+		Value *closure = emit_closure(rhs->v.filter.filter, rhs->v.filter.args);
+		Function *func = lookup_filter_function(module, rhs->v.filter.filter);
+		vector<Value*> args;
+
+		args.push_back(invocation_arg);
+		args.push_back(closure);
+		args.push_back(emit_primary(&rhs->v.filter.args[num_args - 3]));
+		args.push_back(emit_primary(&rhs->v.filter.args[num_args - 2]));
+		args.push_back(emit_primary(&rhs->v.filter.args[num_args - 1]));
+		args.push_back(pools_arg);
+
+		return builder->CreateCall(func, args.begin(), args.end());
+	    }
+
 	case RHS_CLOSURE :
+	    {
+		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
+		    return emit_closure(rhs->v.closure.filter, rhs->v.closure.args);
+		else
+		    g_assert_not_reached();
+	    }
+
 	case RHS_TUPLE :
 	    {
 		Function *set_func = module->getFunction(string("tuple_set"));
@@ -341,7 +440,7 @@ code_emitter::emit_rhs (rhs_t *rhs)
 	    }
 
 	default :
-	    g_assert_not_reached ();
+	    g_assert_not_reached();
     }
 }
 
@@ -557,6 +656,25 @@ code_emitter::emit ()
     emit_stmts(filter_code->first_stmt, SLICE_IGNORE);
 }
 
+static Function*
+make_filter_function (Module *module, filter_t *filter)
+{
+    const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
+    const Type *image_type = module->getTypeByName(string("struct._image_t"));
+    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
+    assert(invocation_type && image_type && pools_type);
+    Constant *function_const = module->getOrInsertFunction(filter_function_name(filter),
+							   PointerType::getUnqual(Type::FloatTy), // ret type
+							   PointerType::getUnqual(invocation_type), // invocation
+							   PointerType::getUnqual(image_type), // closure
+							   Type::FloatTy, // x
+							   Type::FloatTy, // y
+							   Type::FloatTy, // t
+							   PointerType::getUnqual(pools_type), // pools
+							   NULL);
+    return cast<Function>(function_const);
+}
+
 static void*
 lazy_creator (const std::string &name)
 {
@@ -573,16 +691,38 @@ gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_f
     filter_code_t **filter_codes = compiler_compile_filters(mathmap);
     MemoryBuffer *buffer = MemoryBuffer::getFile(template_filename, NULL);
     Module *module = ParseBitcodeFile (buffer, NULL);
-    code_emitter *emitter;
-    Function *filter_function;
+    int i;
+    filter_t *filter;
 
     assert(module != NULL);
     delete buffer;
 
-    emitter = new code_emitter (module, mathmap->main_filter, filter_codes[0]);
-    emitter->emit();
-    filter_function = emitter->get_filter_function();
-    delete emitter;
+    for (i = 0, filter = mathmap->filters;
+	 filter != 0;
+	 ++i, filter = filter->next)
+    {
+	if (filter->kind != FILTER_MATHMAP)
+	    continue;
+
+	make_filter_function(module, filter);
+    }
+
+    for (i = 0, filter = mathmap->filters;
+	 filter != 0;
+	 ++i, filter = filter->next)
+    {
+	filter_code_t *code = filter_codes[i];
+	code_emitter *emitter;
+
+	if (filter->kind != FILTER_MATHMAP)
+	    continue;
+
+	g_assert(code->filter == filter);
+
+	emitter = new code_emitter (module, filter, code);
+	emitter->emit();
+	delete emitter;
+    }
 
     verifyModule(*module, PrintMessageAction);
 
@@ -597,7 +737,8 @@ gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_f
 
     ee->InstallLazyFunctionCreator(lazy_creator);
 
-    void *fptr = ee->getPointerToFunction (filter_function);
+    Function *main_filter_function = lookup_filter_function(module, mathmap->main_filter);
+    void *fptr = ee->getPointerToFunction (main_filter_function);
     assert(fptr);
 
     compiler_free_pools(mathmap);

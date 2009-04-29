@@ -57,9 +57,9 @@ struct _mathmap_frame_t;
 struct _mathmap_slice_t;
 
 /* TEMPLATE filter_funcs */
-typedef void (*init_frame_func_t) (struct _mathmap_frame_t*);
-typedef void (*init_slice_func_t) (struct _mathmap_slice_t*);
-typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, int, int, void*, int);
+typedef void (*init_frame_func_t) (struct _mathmap_frame_t*, struct _image_t*);
+typedef void (*init_slice_func_t) (struct _mathmap_slice_t*, struct _image_t*);
+typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, struct _image_t*, int, int, void*, int);
 
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _image_t*,
@@ -86,9 +86,11 @@ typedef struct _image_t
 	struct _input_drawable_t *drawable;
 	struct {
 	    struct _mathfuncs_t *funcs;
+	    /* FIXME: remove */
 	    filter_func_t func;
 	    pools_t *pools;
 	    void *xy_vars;
+	    int num_args;
 	    userval_t args[];
 	} closure;
 	struct {
@@ -201,5 +203,10 @@ void floatmap_set_column (image_t *img, int col, float *src);
 void floatmap_set_row (image_t *img, int row, float *src);
 
 void floatmap_write (image_t *img, const char *filename);
+
+/* FIXME: remove filter func */
+image_t* closure_image_alloc (struct _mathfuncs_t *mathfuncs, filter_func_t filter_func,
+			      int num_uservals, userval_t *uservals,
+			      int pixel_width, int pixel_height);
 
 #endif
