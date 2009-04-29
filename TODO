@@ -39,10 +39,7 @@ make two different filter_XXX functions: one for calling in closure, one without
 crashes compiler: in/2
 
 ** LLVM
-build and pass a closure in filter_func_calc_lines()
-take the arguments from the closure, not the invocation
-pass a closure to init_frame, init_slice, calc_lines
-domain coloring crashes
+implement native filters
 declare gsl_sf_gamma in template file
 antialiasing must work, too
 make LLVM optimize

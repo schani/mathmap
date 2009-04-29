@@ -74,6 +74,8 @@ private:
     Value* lookup_internal (internal_t *internal);
     Value* lookup_internal (const char *name);
 
+    const Type* llvm_type_for_type (type_t type);
+
     Value* promote (Value *val, int type);
 
     void emit_stmts (statement_t *stmt, unsigned int slice_flag);
@@ -392,7 +394,18 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		    val->dump();
 		    args.push_back(val);
 		}
-		return builder->CreateCall(func, args.begin(), args.end());
+		func->dump();
+		Value *result = builder->CreateCall(func, args.begin(), args.end());
+		if (result->getType() == Type::Int64Ty)
+		{
+		    /* The result is complex and we need to transform
+		       it into a struct */
+		    Value *local = builder->CreateAlloca(llvm_type_for_type(TYPE_COMPLEX));
+		    Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
+		    builder->CreateStore(result, local_ptr);
+		    result = local;
+		}
+		return result;
 	    }
 
 	case RHS_FILTER :
@@ -444,8 +457,8 @@ code_emitter::emit_rhs (rhs_t *rhs)
     }
 }
 
-static const Type*
-llvm_type_for_type (type_t type)
+const Type*
+code_emitter::llvm_type_for_type (type_t type)
 {
     switch (type)
     {
@@ -453,6 +466,23 @@ llvm_type_for_type (type_t type)
 	    return Type::Int32Ty;
 	case TYPE_FLOAT :
 	    return Type::FloatTy;
+	case TYPE_COMPLEX :
+	    {
+		static const Type *result;
+
+		vector<const Type*> elems;
+
+		if (result)
+		    return result;
+
+		elems.push_back(Type::FloatTy);
+		elems.push_back(Type::FloatTy);
+
+		result = StructType::get(elems);
+
+		g_assert(result != NULL);
+		return result;
+	    }
 	default :
 	    g_assert_not_reached();
     }
