@@ -246,7 +246,7 @@
 (defop 'v2-nth 2 "VECTOR_NTH" :arg-types '(int v2) :foldable nil)
 (defop 'v3-nth 2 "VECTOR_NTH" :arg-types '(int v3) :foldable nil)
 
-(defop 'solve-linear-2 2 "SOLVE_LINEAR_2" :type 'v2 :arg-types '(m2x2 v2) :pure nil)
+(defop 'solve-linear-2 2 "SOLVE_LINEAR_2" :type 'tuple :arg-types '(tuple tuple) :pure nil)
 (defop 'solve-linear-3 2 "SOLVE_LINEAR_3" :type 'v3 :arg-types '(gsl-matrix v3) :pure nil)
 
 (defop 'solve-poly-2 3 "SOLVE_POLY_2" :type 'v2 :pure nil)

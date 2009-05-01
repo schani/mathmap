@@ -148,6 +148,8 @@
 			       'primary)
 			      ((internal ?name)
 			       (values 'primary nil 'float))
+			      ((make-tuple . ?args)
+			       (values 'primary nil (rt-type-with-name 'tuple)))
 			      ((?op . ?args)
 			       (cond ((member op '(and or not))
 				      'primary)
@@ -224,6 +226,13 @@
 			      ((internal ?name)
 			       (format nil "~Aemit_assign(make_lhs(~A), make_value_rhs(get_internal_value(filter, \"~A\", TRUE)));~%"
 				       (make-allocated lval allocatedp) lval name))
+			      ((make-tuple . ?args)
+			       (let ((arg-names (mapcar #'(lambda (x) (make-tmp-name)) args)))
+				 (format nil "~A{~%compvar_t ~{*~A~^, ~};~%~{~A~}emit_assign(make_lhs(~A), make_tuple_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
+					 (make-allocated lval allocatedp :type (rt-type-with-name 'tuple))
+					 arg-names
+					 (mapcar #'(lambda (arg name) (gen-primary arg name nil)) args arg-names)
+					 lval (length args) arg-names)))
 			      ((?op . ?args)
 			       (let ((op-entry (lookup-op op (length args) *primops*)))
 				 (if (not (null op-entry))
@@ -610,10 +619,10 @@ matrices."
 			  (- (/ (* (nth 0 a) (nth 1 b)) tmp)))))))
 
 (defbuiltin "__div" div_v2m2x2 (v2 2) ((a (? 2)) (b (m2x2 4)))
-  (let ((m (make-m2x2 (nth 0 b) (nth 1 b) (nth 2 b) (nth 3 b)))
-	(v (make-v2 (nth 0 a) (nth 1 a))))
+  (let ((m (make-tuple (nth 0 b) (nth 1 b) (nth 2 b) (nth 3 b)))
+	(v (make-tuple (nth 0 a) (nth 1 a))))
     (let ((r (solve-linear-2 m v)))
-      (set result (make (v2 2) (v2-nth 0 r) (v2-nth 1 r))))))
+      (set result (make (v2 2) (tuple-nth r 0) (tuple-nth r 1))))))
 
 (defbuiltin "__div" div_v3m3x3 (v3 3) ((a (? 3)) (b (m3x3 9)))
   (let ((m (make-m3x3 (nth 0 b) (nth 1 b) (nth 2 b)

@@ -80,9 +80,9 @@ typedef struct
 
 // matrices
 #define MAKE_M2X2(a,b,c,d)	     ({ mm_m2x2_t m = { (a), (b), (c), (d) }; m; })
-#define MAKE_GSL_M2X2(m)             ({ mm_m2x2_t mm = (m); gsl_matrix *gm = gsl_matrix_alloc(2,2); \
-                                        gsl_matrix_set(gm,0,0,mm.a00); gsl_matrix_set(gm,0,1,mm.a01); \
-					gsl_matrix_set(gm,1,0,mm.a10); gsl_matrix_set(gm,1,1,mm.a11); gm; })
+#define MAKE_GSL_M2X2(m)             ({ float *mm = (m); gsl_matrix *gm = gsl_matrix_alloc(2,2); \
+                                        gsl_matrix_set(gm,0,0,mm[0]); gsl_matrix_set(gm,0,1,mm[1]); \
+					gsl_matrix_set(gm,1,0,mm[2]); gsl_matrix_set(gm,1,1,mm[3]); gm; })
 #define MAKE_M3X3(a,b,c,d,e,f,g,h,i) ({ gsl_matrix *m = gsl_matrix_alloc(3,3); \
                                         gsl_matrix_set(m,0,0,(a)); gsl_matrix_set(m,0,1,(b)); gsl_matrix_set(m,0,2,(c)); \
                                         gsl_matrix_set(m,1,0,(d)); gsl_matrix_set(m,1,1,(e)); gsl_matrix_set(m,1,2,(f)); \
@@ -93,8 +93,8 @@ typedef struct
 #define MAKE_V2(a,b)	      ({ mm_v2_t v = { { (a), (b) } }; v; })
 #define MAKE_V3(a,b,c)	      ({ mm_v3_t v = { { (a), (b), (c) } }; v; })
 
-#define MAKE_GSL_V2(_mv)      ({ mm_v2_t mv = (_mv); gsl_vector *gv = gsl_vector_alloc(2); \
-				 gsl_vector_set(gv,0,mv.v[0]); gsl_vector_set(gv,1,mv.v[1]); gv; })
+#define MAKE_GSL_V2(_mv)      ({ float *mv = (_mv); gsl_vector *gv = gsl_vector_alloc(2); \
+				 gsl_vector_set(gv,0,mv[0]); gsl_vector_set(gv,1,mv[1]); gv; })
 #define MAKE_GSL_V3(_mv)      ({ mm_v3_t mv = (_mv); gsl_vector *gv = gsl_vector_alloc(3); \
 				 gsl_vector_set(gv,0,mv.v[0]); gsl_vector_set(gv,1,mv.v[1]); gsl_vector_set(gv,2,mv.v[2]); gv; })
 #define FREE_GSL_VECTOR(gv)   (gsl_vector_free((gv)), 0)
@@ -103,7 +103,9 @@ typedef struct
 // solvers
 #define SOLVE_LINEAR_2(mm,mv) ({ gsl_vector *gv = MAKE_GSL_V2((mv)); gsl_matrix *gm = MAKE_GSL_M2X2((mm)); \
 	    			 gsl_vector *gr = gsl_vector_alloc(2); gsl_linalg_HH_solve(gm,gv,gr); \
-				 mm_v2_t r = { { gsl_vector_get(gr, 0), gsl_vector_get(gr, 1) } }; \
+				 float *r = ALLOC_TUPLE(2); \
+				 r[0] = gsl_vector_get(gr, 0); \
+				 r[1] = gsl_vector_get(gr, 1); \
 				 FREE_GSL_VECTOR(gv); FREE_GSL_VECTOR(gr); FREE_MATRIX(gm); r; })
 #define SOLVE_LINEAR_3(gm,mv) ({ gsl_vector *gv = MAKE_GSL_V3((mv)); \
 	    			 gsl_vector *gr = gsl_vector_alloc(3); gsl_linalg_HH_solve(gm,gv,gr); \

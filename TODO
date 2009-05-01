@@ -13,7 +13,8 @@ move everything from invocation to frame that belongs there
 pass through frame and t everwhere
 use -O3
 do we need uservals, image size in invocation when we have them in the closure?
-verify that the closure pools are the ones the closure is allocated from
+make cmdline non-optional
+use glib random functions for all cases (notably in noise.c)
 
 ** Language
 HSL color space (for color gimp layer mode)
