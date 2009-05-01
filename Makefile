@@ -239,3 +239,19 @@ dist : new_builtins.c parser.c scanner.c new_template.c clean
 	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)
+
+mingw-dist : mathmap llvm_template.o
+	rm -rf mathmap-$(VERSION)-mingw32
+	mkdir mathmap-$(VERSION)-mingw32
+	strip mathmap.exe
+	cp mathmap.exe llvm_template.o mathmap-$(VERSION)-mingw32/
+	cp -a examples mathmap-$(VERSION)-mingw32/expressions
+	cp /mingw/bin/libgimp-2.0-0.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/libgimpui-2.0-0.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/libglib-2.0-0.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/libpango-1.0-0.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/libcairo-2.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/jpeg62.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/libpng12-0.dll mathmap-$(VERSION)-mingw32/
+	cp /mingw/bin/intl.dll mathmap-$(VERSION)-mingw32/
+	cp /usr/local/bin/libgsl-0.dll mathmap-$(VERSION)-mingw32/
