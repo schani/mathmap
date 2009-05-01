@@ -23,7 +23,7 @@ real gamma function buggy
 implement markers - points on the image that the user can set (should probably be user values of type point (xy:2)
 
 ** Compiler
-add an optimization timeout (~2sec) after which the compiler won't optimize anymore
+check which optimization order is better
 do we still use the X,Y,W,H,R internals?  if so, where are they declared in the template?
 compiler crashes for Tom Test with -O2
 use real vectors for tuples which are accessed with non-constant index

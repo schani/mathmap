@@ -30,6 +30,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <glib.h>
+#include <sys/time.h>
 #ifndef OPENSTEP
 #include <gmodule.h>
 #else
@@ -4328,14 +4329,33 @@ compiler_slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate
 #define CHECK_SSA	do ; while (0)
 #endif
 
+#define OPTIMIZATION_TIMEOUT	2
+
+static gboolean
+optimization_time_out (struct timeval *start)
+{
+    struct timeval now;
+
+    gettimeofday(&now, NULL);
+
+    if (start->tv_sec + OPTIMIZATION_TIMEOUT < now.tv_sec)
+	return TRUE;
+    if (start->tv_sec + OPTIMIZATION_TIMEOUT == now.tv_sec && start->tv_usec <= now.tv_usec)
+	return TRUE;
+    return FALSE;
+}
+
 filter_code_t*
 compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
 {
-    int changed;
+    gboolean changed;
     filter_code_t *code;
     compvar_t *tuple_tmp, *dummy;
+    struct timeval tv;
 
     g_assert(filter->kind == FILTER_MATHMAP);
+
+    gettimeofday(&tv, NULL);
 
     next_temp_number = 1;
     next_compvar_number = 1;
@@ -4352,7 +4372,8 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 
     emit_loc = NULL;
 
-    do
+    changed = TRUE;
+    while (changed && !optimization_time_out(&tv))
     {
 #ifdef DEBUG_OUTPUT
 	check_ssa(first_stmt);
@@ -4366,7 +4387,7 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	optimize_closure_application(first_stmt);
 	CHECK_SSA;
 
-	changed = 0;
+	changed = TRUE;
 
 	changed = do_inlining() || changed;
 	CHECK_SSA;
@@ -4404,7 +4425,7 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	changed = remove_dead_branches() || changed;
 	CHECK_SSA;
 	changed = remove_dead_controls() || changed;
-    } while (changed);
+    }
 
     CHECK_SSA;
     propagate_types();
