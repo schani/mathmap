@@ -188,16 +188,19 @@ init_internals (filter_t *filter)
     register_internal(&filter->v.mathmap.internals, "r", CONST_T);
     register_internal(&filter->v.mathmap.internals, "a", CONST_T);
     register_internal(&filter->v.mathmap.internals, "t", CONST_X | CONST_Y);
-    register_internal(&filter->v.mathmap.internals, "X", CONST_X | CONST_Y | CONST_T);
-    register_internal(&filter->v.mathmap.internals, "Y", CONST_X | CONST_Y | CONST_T);
-    register_internal(&filter->v.mathmap.internals, "W", CONST_X | CONST_Y | CONST_T);
-    register_internal(&filter->v.mathmap.internals, "H", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "R", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "__canvasPixelW", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "__canvasPixelH", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "__renderPixelW", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "__renderPixelH", CONST_X | CONST_Y | CONST_T);
     register_internal(&filter->v.mathmap.internals, "frame", CONST_X | CONST_Y);
+
+    /* These are resolved by the compiler as bindings, i.e. calculated
+       in the filter code */
+    register_internal(&filter->v.mathmap.internals, "X", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "Y", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "W", CONST_X | CONST_Y | CONST_T);
+    register_internal(&filter->v.mathmap.internals, "H", CONST_X | CONST_Y | CONST_T);
 }
 
 void

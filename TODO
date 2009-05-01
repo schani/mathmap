@@ -24,7 +24,6 @@ implement markers - points on the image that the user can set (should probably b
 
 ** Compiler
 check which optimization order is better
-do we still use the X,Y,W,H,R internals?  if so, where are they declared in the template?
 compiler crashes for Tom Test with -O2
 use real vectors for tuples which are accessed with non-constant index
   http://flickr.com/groups/mathmap/discuss/72157606694646848/
