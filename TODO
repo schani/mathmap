@@ -2,6 +2,11 @@
 
 * 1.3.5
 
+** Windows
+multi-threading
+FFTW
+why does auto bw crash?
+
 ** GIMP Plug-In
 speed up rendering of GIMP drawables by processing tile for tile
 make preview input drawables to be floatmaps

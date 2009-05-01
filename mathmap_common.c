@@ -28,7 +28,9 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#ifdef USE_PTHREADS
 #include <pthread.h>
+#endif
 #include <locale.h>
 
 #include "internals.h"
@@ -803,6 +805,7 @@ call_invocation (mathmap_frame_t *frame, image_t *closure,
     }
 }
 
+#ifdef USE_PTHREADS
 typedef struct
 {
     thread_handle_t thread_handle;
@@ -825,10 +828,8 @@ call_invocation_thread_func (gpointer _data)
 {
     thread_data_t *data = (thread_data_t*)_data;
 
-#ifdef USE_PTHREADS
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-#endif
 
     call_invocation(data->frame, data->closure, data->region_x, data->region_y,
 		    data->region_width, data->region_height, data->q);
@@ -919,7 +920,6 @@ call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
     join_invocation_call(call);
 }
 
-#ifdef USE_PTHREADS
 static void
 sigusr2_handler (int signum)
 {
@@ -958,6 +958,14 @@ mathmap_thread_kill (thread_handle_t thread)
     pthread_cancel(thread);
     pthread_kill(thread, SIGUSR2);
     pthread_join(thread, NULL);
+}
+#else
+void
+call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
+				   int region_x, int region_y, int region_width, int region_height,
+				   unsigned char *q, int num_threads)
+{
+    call_invocation(frame, closure, region_x, region_y, region_width, region_height, q);
 }
 #endif
 
@@ -1069,7 +1077,7 @@ process_template (mathmap_t *mathmap, const char *template, FILE *out,
 
 		g_assert(j >= 0);
 
-		arg = strndup(template + i, j);
+		arg = g_strndup(template + i, j);
 
 		i += j + 1 + strlen(end_name);
 

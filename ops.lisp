@@ -42,7 +42,7 @@
 		 :print-info '("%d" "%d" ("~A")))
    (make-rt-type 'float "float"
 		 :print-info '("%f" "%f" ("~A")))
-   (make-rt-type 'complex "complex float"
+   (make-rt-type 'complex "float _Complex"
 		 :print-info '("%f + %f i"
 			       "COMPLEX(%f,%f)"
 			       ("crealf(~A)" "cimagf(~A)")))

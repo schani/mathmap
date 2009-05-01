@@ -405,10 +405,14 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		    type_t type = promotion_type == TYPE_NIL ? op->arg_types[i] : promotion_type;
 		    Value *val = emit_primary(&rhs->v.op.args[i], type == TYPE_FLOAT);
 		    val = promote(val, type);
+#ifdef DEBUG_OUTPUT
 		    val->dump();
+#endif
 		    args.push_back(val);
 		}
+#ifdef DEBUG_OUTPUT
 		func->dump();
+#endif
 		Value *result = builder->CreateCall(func, args.begin(), args.end());
 		/* FIXME: this is ugly - we should check for the type
 		   of the operation or resulting value */
@@ -423,7 +427,11 @@ code_emitter::emit_rhs (rhs_t *rhs)
 			Value *local = builder->CreateAlloca(llvm_type_for_type(TYPE_COMPLEX));
 			Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
 			builder->CreateStore(result, local_ptr);
+#ifdef __MINGW32__
+			result = builder->CreateLoad(local);
+#else
 			result = local;
+#endif
 		    }
 		    else if (sizeof(gpointer) == 8)
 			result = builder->CreateExtractValue(result, 0);
@@ -471,9 +479,6 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		for (i = 0; i < rhs->v.tuple.length; ++i)
 		{
 		    Value *val = emit_primary(&rhs->v.tuple.args[i], true);
-		    std::cout << "setting tuple elem to type ";
-		    val->getType()->print(std::cout);
-		    std::cout << endl;
 		    builder->CreateCall3(set_func, tuple, make_int_const(i), val);
 		}
 		return tuple;
@@ -614,8 +619,10 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		break;
 
 	    case STMT_ASSIGN :
+#ifdef DEBUG_OUTPUT
 		compiler_print_assign_statement(stmt);
 		printf("\n");
+#endif
 		if (stmt->v.assign.rhs->kind == RHS_OP
 		    && stmt->v.assign.rhs->v.op.op->index == OP_OUTPUT_TUPLE)
 		    builder->CreateRet(emit_primary(&stmt->v.assign.rhs->v.op.args[0]));
@@ -737,14 +744,7 @@ make_filter_function (Module *module, filter_t *filter)
     return cast<Function>(function_const);
 }
 
-static void*
-lazy_creator (const std::string &name)
-{
-    std::cout << "resolving func " << name << endl;
-    if (name == "get_orig_val_pixel")
-	return (void*)get_orig_val_pixel;
-    g_assert_not_reached ();
-}
+void* lazy_creator (const std::string &name);
 
 extern "C"
 filter_func_t
@@ -752,6 +752,9 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 {
     filter_code_t **filter_codes = compiler_compile_filters(mathmap);
     MemoryBuffer *buffer = MemoryBuffer::getFile(template_filename, NULL);
+
+    g_assert(buffer != NULL);
+
     Module *module = ParseBitcodeFile (buffer, NULL);
     int i;
     filter_t *filter;
@@ -797,14 +800,14 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	delete emitter;
     }
 
-    verifyModule(*module, PrintMessageAction);
+    //verifyModule(*module, PrintMessageAction);
 
     PassManager pm;
     pm.add (new TargetData (module));
     pm.add (createFunctionInliningPass ());
     pm.run(*module);
 
-    module->dump();
+    //module->dump();
 
     ExecutionEngine *ee = ExecutionEngine::create (module);
 
@@ -826,8 +829,6 @@ void
 unload_llvm_code (void *module_info)
 {
     ExecutionEngine *ee = (ExecutionEngine*)module_info;
-
-    std::cout << "deleting execution engine" << endl;
 
     delete ee;
 }

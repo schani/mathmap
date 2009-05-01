@@ -37,8 +37,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#ifdef THREADED_FINAL_RENDER
 #include <pthread.h>
+#endif
 
+#include <glib.h>
+#include <glib/gstdio.h>
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
@@ -2563,8 +2567,8 @@ save_dialog (const char *title, const char *filename, const char *default_filena
 
 	/* We try to create the directory just in case.  If it already
 	   exists, nothing happens and it doesn't hurt. */
-	mkdir(mathmap_path, 0777);
-	mkdir(default_path, 0777);
+	g_mkdir(mathmap_path, 0777);
+	g_mkdir(default_path, 0777);
 
 	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), default_path);
 	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), default_filename);

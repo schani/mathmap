@@ -20,6 +20,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <glib.h>
+
 #include <math.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -111,7 +113,7 @@ init_noise (void)
 	p[i] = i;
     for (i = 0; i < G_SIZE; ++i)
     {
-	int j = random() % G_SIZE;
+	int j = g_random_int_range(0, G_SIZE);
 	int t;
 
 	t = p[i];

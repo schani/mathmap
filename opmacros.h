@@ -29,8 +29,8 @@
 
 #define INT2FLOAT(x)          ((float)(x))
 #define FLOAT2INT(x)	      ((int)(x))
-#define INT2COMPLEX(x)        ((complex float)(x))
-#define FLOAT2COMPLEX(x)      ((complex float)(x))
+#define INT2COMPLEX(x)        ((float _Complex)(x))
+#define FLOAT2COMPLEX(x)      ((float _Complex)(x))
 
 #define ADD(a,b)              ((a)+(b))
 #define SUB(a,b)              ((a)-(b))

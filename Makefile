@@ -10,8 +10,9 @@ CMDLINE = YES
 #GIMP_BIN = /usr/bin/
 
 # Choose which gif library you have.
-GIFLIB = -lgif
+#GIFLIB = -lgif
 #GIFLIB = -lungif
+#GIF_CFLAGS = -DRWIMG_GIF
 
 # If you are building on MacOS X, uncomment the following line
 #MACOSX = YES
@@ -31,14 +32,24 @@ GIFLIB = -lgif
 # Prefix for the software installation
 PREFIX = /usr
 
+# Enable these two lines if you have fftw3 installed
+#FFTW = fftw3
+#FFTW_OBJECTS = native-filters/convolve.o
+#FFTW_CFLAGS = -DHAVE_FFTW
+
+#LLVM_GCC = llvm-gcc
+LLVM_GCC = /usr/local/llvm-gcc-4.2/bin/llvm-gcc
+
+MINGW_LDFLAGS = -lpsapi -limagehlp
+
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
 VERSION = 1.3.4
 
-#OPT_CFLAGS := -O2
+OPT_CFLAGS := -O2
 #COMPILER_C_OPT_CFLAGS := -O1
-OPT_CFLAGS := -O0 -g -DDEBUG_OUTPUT -DDONT_UNLINK_C #-fgnu89-inline
+#OPT_CFLAGS := -O0 -g -DDEBUG_OUTPUT -DDONT_UNLINK_C #-fgnu89-inline
 
 #PROF_FLAGS := -pg
 
@@ -58,8 +69,8 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 GIMPDATADIR := $(PREFIX)/share/gimp/2.0
-GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0 fftw3)
-GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0 fftw3)
+GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0 $(FFTW))
+GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0 $(FFTW))
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
@@ -67,10 +78,11 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) -DUSE_PTHREADS $(THREADED) $(PROF_FLAGS) -DUSE_LLVM
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) -DUSE_LLVM $(FFTW_CFLAGS) #-DUSE_PTHREADS
 CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 CXXFLAGS = $(C_CXX_FLAGS) `llvm-config --cxxflags`
-LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS)
+LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS) $(MINGW_LDFLAGS)
+LLVM_LDFLAGS = $(shell llvm-config --ldflags --libs engine bitreader ipo)
 
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -81,7 +93,7 @@ ifeq ($(CMDLINE),YES)
 CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
-FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
+FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG $(GIF_CFLAGS)
 CFLAGS += -DMATHMAP_CMDLINE -DGIMPDATADIR=\"$(GIMPDATADIR)\"
 LDFLAGS += -ljpeg -lpng $(GIFLIB)
 endif
@@ -94,9 +106,9 @@ CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
 CC = gcc
 CXX = g++
 
-export CFLAGS CC FORMATDEFS
+export CFLAGS CC
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/convolve.o compopt/dce.o compopt/resize.o backends/cc.o backends/llvm.o
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/llvm.o backends/lazy_creator.o $(FFTW_OBJECTS)
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -107,10 +119,13 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h noise.h
 
 mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c llvm_template.o
-	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) `llvm-config --ldflags --libs engine bitreader ipo` lispreader/liblispreader.a $(LDFLAGS)
+	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(LDFLAGS)
+
+llvmtest : llvmtest.o llvm_template.o Makefile
+	$(CXX) -o llvmtest llvmtest.o $(LLVM_LDFLAGS) $(LDFLAGS)
 
 librwimg :
-	$(MAKE) -C rwimg
+	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)"
 
 liblispreader :
 	$(MAKE) -C lispreader -f Makefile.dist
@@ -141,17 +156,26 @@ backends/cc.o : compiler_types.h
 backends/llvm.o : backends/llvm.cpp compiler_types.h
 	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/llvm.cpp
 
+backends/lazy_creator.cpp : exported_symbols
+	perl -- make_lazy_creator.pl exported_symbols >$@
+
+backends/lazy_creator.o : backends/lazy_creator.cpp
+	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/lazy_creator.cpp
+
+llvmtest.o : llvmtest.cc
+	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c llvmtest.cc
+
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
 
 new_template.c : make_template.pl new_template.c.in $(TEMPLATE_INPUTS)
-	./make_template.pl $(TEMPLATE_INPUTS) new_template.c.in >new_template.c
+	perl -- make_template.pl $(TEMPLATE_INPUTS) new_template.c.in >new_template.c
 
 llvm_template.c : make_template.pl llvm_template.c.in $(TEMPLATE_INPUTS)
-	./make_template.pl $(TEMPLATE_INPUTS) llvm_template.c.in >llvm_template.c
+	perl -- make_template.pl $(TEMPLATE_INPUTS) llvm_template.c.in >llvm_template.c
 
 llvm_template.o : llvm_template.c opmacros.h
-	llvm-gcc -emit-llvm -Wall -O3 -c llvm_template.c
+	$(LLVM_GCC) -emit-llvm -Wall -O3 -c llvm_template.c
 
 blender.o : generators/blender/blender.c
 
@@ -174,7 +198,7 @@ install : mathmap new_template.c $(MOS)
 
 clean :
 	rm -f *.o designer/*.o native-filters/*.o compopt/*.o backends/*.o generators/blender/*.o mathmap compiler parser.output core
-	find . -name '*~' | xargs -r -d '\n' rm
+	find . -name '*~' -exec rm {} ';'
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
 	rm -rf debian/mathmap debian/mathmap.substvars
