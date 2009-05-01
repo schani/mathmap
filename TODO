@@ -39,12 +39,9 @@ crashes compiler: in/2
 
 ** LLVM
 implement native filters
-declare gsl_sf_gamma in template file
 antialiasing must work, too
 make LLVM optimize
 why do we compare against floats in simple counting loops?
-remove pre-native code
-remove interpreter
 
 ** Packaging
 Put all external files into strings in the binary - single binary install
