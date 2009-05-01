@@ -98,6 +98,8 @@ $def_mathmap
 
 $def_mathfuncs
 
+$def_orig_val_pixel_func
+
 $def_invocation_frame_slice
 
 $def_builtins
@@ -320,7 +322,7 @@ set_closure_pixel_size (image_t *image, int width, int height)
 #undef OUTPUT_TUPLE
 #define OUTPUT_TUPLE(x) 0
 
-#define get_orig_val_pixel_func get_orig_val_pixel
+#define get_orig_val_pixel_func (invocation->orig_val_func)
 
 #define ARG(n) (closure->v.closure.args[(n)])
 

@@ -146,6 +146,10 @@ extern int fast_image_source_scale;
 #define MAX_DEBUG_TUPLES              8
 /* END */
 
+/* TEMPLATE orig_val_pixel_func */
+typedef color_t (*orig_val_pixel_func_t) (struct _mathmap_invocation_t*, float, float, image_t*, int);
+/* END */
+
 /* TEMPLATE invocation_frame_slice */
 typedef struct _mathmap_invocation_t
 {
@@ -153,7 +157,10 @@ typedef struct _mathmap_invocation_t
 
     userval_t *uservals;
 
+    /* FIXME: These should eventually go into image_t */
     int antialiasing;
+    orig_val_pixel_func_t orig_val_func;
+
     int supersampling;
 
     int output_bpp;
@@ -266,6 +273,8 @@ void invocation_free_frame (mathmap_frame_t *frame);
 void invocation_init_slice (mathmap_slice_t *slice, image_t *image, mathmap_frame_t *frame, int region_x, int region_y,
 			    int region_width, int region_height, float sampling_offset_x, float sampling_offset_y);
 void invocation_deinit_slice (mathmap_slice_t *slice);
+
+void invocation_set_antialiasing (mathmap_invocation_t *invocation, gboolean antialising);
 
 gpointer call_invocation_parallel (mathmap_frame_t *frame, image_t *closure,
 				   int region_x, int region_y, int region_width, int region_height,

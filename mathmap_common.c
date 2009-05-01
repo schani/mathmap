@@ -610,6 +610,16 @@ init_invocation (mathmap_invocation_t *invocation)
     }
 }
 
+void
+invocation_set_antialiasing (mathmap_invocation_t *invocation, gboolean antialiasing)
+{
+    invocation->antialiasing = antialiasing;
+    if (antialiasing)
+	invocation->orig_val_func = get_orig_val_intersample_pixel;
+    else
+	invocation->orig_val_func = get_orig_val_pixel;
+}
+
 mathmap_invocation_t*
 invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height)
 {
@@ -622,7 +632,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     //invocation->variables = instantiate_variables(mathmap->variables);
 
-    invocation->antialiasing = 0;
+    invocation_set_antialiasing(invocation, FALSE);
+
     invocation->supersampling = 0;
 
     invocation->output_bpp = 4;

@@ -38,8 +38,8 @@ make two different filter_XXX functions: one for calling in closure, one without
 crashes compiler: in/2
 
 ** LLVM
-implement native filters
-antialiasing must work, too
+implement const slices
+implement native filters - requires const
 make LLVM optimize
 why do we compare against floats in simple counting loops?
 

@@ -763,7 +763,7 @@ cmdline_main (int argc, char *argv[])
 	    }
 #endif
 
-	invocation->antialiasing = antialiasing;
+	invocation_set_antialiasing(invocation, antialiasing);
 	invocation->supersampling = supersampling;
 
 	invocation->output_bpp = 4;

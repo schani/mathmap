@@ -107,6 +107,8 @@ $def_mathmap
 
 $def_mathfuncs
 
+$def_orig_val_pixel_func
+
 $def_invocation_frame_slice
 
 $def_builtins
@@ -221,10 +223,7 @@ calc_lines_$name (mathmap_slice_t *slice, image_t *closure, int first_row, int l
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
@@ -313,10 +312,7 @@ init_frame_$name (mathmap_frame_t *mmframe, image_t *closure)
     pools_t *pools = &mmframe->pools;
     userval_t *arguments = closure->v.closure.args;
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     mmframe->xy_vars = xy_vars = (xy_const_vars_t_$name*)pools_alloc(pools, sizeof(xy_const_vars_t_$name));
 
@@ -341,10 +337,7 @@ init_slice_$name (mathmap_slice_t *slice, image_t *closure)
     pools_t *pools = &slice->pools;
     userval_t *arguments = closure->v.closure.args;
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     slice->y_vars = (y_const_vars_t_$name*)pools_alloc(pools, sizeof(y_const_vars_t_$name) * slice->region_width);
 
@@ -380,10 +373,7 @@ filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float
     y_const_vars_t_$name *y_vars = &_y_vars;
     userval_t *arguments = closure->v.closure.args;
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     if (closure->v.closure.xy_vars == 0)
     {

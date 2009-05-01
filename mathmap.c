@@ -992,7 +992,7 @@ generate_code (void)
 
     if (invocation != 0)
     {
-	invocation->antialiasing = mmvals.flags & FLAG_ANTIALIASING;
+	invocation_set_antialiasing(invocation, mmvals.flags & FLAG_ANTIALIASING);
 	invocation->supersampling = mmvals.flags & FLAG_SUPERSAMPLING;
 
 	invocation->edge_behaviour_x = edge_behaviour_x_mode;
