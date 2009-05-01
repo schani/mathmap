@@ -34,7 +34,7 @@ optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
 replace resize with a simple internal filter
 don't use x_consts and y_consts in filter_func
-make two different filter_XXX functions: one for calling in closure, one without closure
+make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
 crashes compiler: in/2
 
 ** LLVM
@@ -42,7 +42,6 @@ implement native filters
 declare gsl_sf_gamma in template file
 antialiasing must work, too
 make LLVM optimize
-don't require CC template files
 why do we compare against floats in simple counting loops?
 remove pre-native code
 remove interpreter

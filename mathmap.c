@@ -909,7 +909,8 @@ generate_code (void)
     if (expression_changed)
     {
 	mathmap_t *new_mathmap;
-	char *template_filename;
+	char *template_filename = NULL;
+	char *include_path = NULL;
 
 	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
@@ -918,30 +919,35 @@ generate_code (void)
 	    unload_mathmap(mathmap);
 
 	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME);
-	if (template_filename == 0)
+	if (template_filename == NULL)
 	{
 	    sprintf(error_string, _("Cannot find template file `%s'.  MathMap is not installed correctly."), MAIN_TEMPLATE_FILENAME);
 	    new_mathmap = 0;
+	    goto failed;
 	}
-	else
+
+#ifndef USE_LLVM
 	{
 	    char *opmacros_name = lookup_rc_file(OPMACROS_FILENAME);
 
-	    if (opmacros_name == 0)
+	    if (opmacros_name == NULL)
 	    {
 		sprintf(error_string, _("Support file `%s' does not exist.  MathMap is not installed correctly."), OPMACROS_FILENAME);
 		new_mathmap = 0;
+		goto failed;
 	    }
-	    else
-	    {
-		char *include_path = g_path_get_dirname(opmacros_name);
 
-		new_mathmap = compile_mathmap(mmvals.expression, template_filename, include_path);
-
-		g_free(include_path);
-	    }
+	    include_path = g_path_get_dirname(opmacros_name);
 	}
+#endif
 
+	new_mathmap = compile_mathmap(mmvals.expression, template_filename, include_path);
+
+#ifndef USE_LLVM
+	g_free(include_path);
+#endif
+
+    failed:
 	if (new_mathmap == 0)
 	{
 	    g_print(_("Error: %s\n"), error_string);

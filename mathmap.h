@@ -47,8 +47,12 @@
 
 #define MATHMAP_DATE		"January 2008"
 
+#ifdef USE_LLVM
+#define MAIN_TEMPLATE_FILENAME  "llvm_template.o"
+#else
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"
+#endif
 
 #define IMAGE_FLAG_UNIT		0x0001 /* unit coordinate system (vs. pixel) */
 #define IMAGE_FLAG_SQUARE	0x0002 /* square pixels */

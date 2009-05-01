@@ -766,7 +766,7 @@ lazy_creator (const std::string &name)
 
 extern "C"
 filter_func_t
-gen_and_load_llvm_code (mathmap_t *mathmap, void **module_info, char *template_filename)
+gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 {
     filter_code_t **filter_codes = compiler_compile_filters(mathmap);
     MemoryBuffer *buffer = MemoryBuffer::getFile(template_filename, NULL);

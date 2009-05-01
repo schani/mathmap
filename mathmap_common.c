@@ -478,7 +478,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 	}
 
 #ifdef USE_LLVM
-	mathmap->filter_func = gen_and_load_llvm_code(mathmap, NULL, "/home/schani/Work/unix/mathmap/mathmap/llvm_template.o");
+	mathmap->filter_func = gen_and_load_llvm_code(mathmap, template_filename);
 #else
 	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 #endif
