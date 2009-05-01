@@ -163,25 +163,6 @@ make_color (int r, int g, int b, int a)
     return MAKE_RGBA_COLOR(r, g, b, a);
 }
 
-mm_v2_t
-make_v2 (float x, float y)
-{
-    return MAKE_V2(x, y);
-}
-
-mm_v3_t
-make_v3 (float x, float y, float z)
-{
-    return MAKE_V3(x, y, z);
-}
-
-mm_m2x2_t
-make_m2x2 (float a00, float a01,
-	   float a10, float a11)
-{
-    return MAKE_M2X2(a00, a01, a10, a11);
-}
-
 float*
 alloc_tuple (pools_t *pools, int n)
 {

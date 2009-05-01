@@ -62,19 +62,7 @@
 		 :printer "print_tuple"
 		 :comparer "tuples_equal")
    (make-rt-type 'gsl-matrix "gsl_matrix *"
-		 :print-info '("***MATRIX***" "***MATRIX***" ()))
-   (make-rt-type 'v2 "mm_v2_t"
-		 :print-info '("[%f,%f]" "MAKE_V2(%f,%f)"
-			       ("~A.v[0]" "~A.v[1]"))
-		 :elements '("v[0]" "v[1]"))
-   (make-rt-type 'v3 "mm_v3_t"
-		 :print-info '("[%f,%f,%f]" "MAKE_V3(%f,%f,%f)"
-			       ("~A.v[0]" "~A.v[1]" "~A.v[2]"))
-		 :elements '("v[0]" "v[1]" "v[2]"))
-   (make-rt-type 'm2x2 "mm_m2x2_t"
-		 :print-info '("[[%f,%f],[%f,%f]]" "MAKE_M2X2(%f,%f,%f,%f)"
-			       ("~A.a00" "~A.a01" "~A.a10" "~A.a11"))
-		 :elements '("a00" "a01" "a10" "a11"))))
+		 :print-info '("***MATRIX***" "***MATRIX***" ()))))
 
 (defun rt-type-with-name (name)
   (find name *types* :key #'rt-type-name))
@@ -235,22 +223,13 @@
 (defop 'ell-int-rf 3 "ELL_INT_RF")
 (defop 'ell-int-rj 4 "ELL_INT_RJ")
 
-(defop 'ell-jac 2 "ELL_JAC" :type 'v3)
+(defop 'ell-jac 2 "ELL_JAC" :type 'tuple :foldable nil)
 
-(defop 'make-m2x2 4 "MAKE_M2X2" :type 'm2x2)
-(defop 'make-m3x3 9 "MAKE_M3X3" :type 'gsl-matrix :pure nil)
-(defop 'free-matrix 1 "FREE_MATRIX" :type 'int :arg-type 'gsl-matrix :pure nil)
+(defop 'solve-linear-2 2 "SOLVE_LINEAR_2" :type 'tuple :arg-types '(tuple tuple) :foldable nil)
+(defop 'solve-linear-3 2 "SOLVE_LINEAR_3" :type 'tuple :arg-types '(tuple tuple) :foldable nil)
 
-(defop 'make-v2 2 "MAKE_V2" :type 'v2)
-(defop 'make-v3 3 "MAKE_V3" :type 'v3)
-(defop 'v2-nth 2 "VECTOR_NTH" :arg-types '(int v2) :foldable nil)
-(defop 'v3-nth 2 "VECTOR_NTH" :arg-types '(int v3) :foldable nil)
-
-(defop 'solve-linear-2 2 "SOLVE_LINEAR_2" :type 'tuple :arg-types '(tuple tuple) :pure nil)
-(defop 'solve-linear-3 2 "SOLVE_LINEAR_3" :type 'v3 :arg-types '(gsl-matrix v3) :pure nil)
-
-(defop 'solve-poly-2 3 "SOLVE_POLY_2" :type 'v2 :pure nil)
-(defop 'solve-poly-3 4 "SOLVE_POLY_3" :type 'v3 :pure nil)
+(defop 'solve-poly-2 3 "SOLVE_POLY_2" :type 'tuple :foldable nil)
+(defop 'solve-poly-3 4 "SOLVE_POLY_3" :type 'tuple :foldable nil)
 
 (defop 'noise 3 "noise")
 (defop 'rand 2 "RAND" :pure nil)

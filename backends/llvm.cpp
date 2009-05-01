@@ -276,24 +276,6 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
 						make_int_const(GREEN(primary->v.constant.color_value)),
 						make_int_const(BLUE(primary->v.constant.color_value)),
 						make_int_const(ALPHA(primary->v.constant.color_value)));
-		case TYPE_V2 :
-		    assert(!need_float);
-		    return builder->CreateCall2(module->getFunction(string("make_v2")),
-						make_float_const(primary->v.constant.v2_value.v[0]),
-						make_float_const(primary->v.constant.v2_value.v[1]));
-		case TYPE_V3 :
-		    assert(!need_float);
-		    return builder->CreateCall3(module->getFunction(string("make_v3")),
-						make_float_const(primary->v.constant.v2_value.v[0]),
-						make_float_const(primary->v.constant.v2_value.v[1]),
-						make_float_const(primary->v.constant.v2_value.v[2]));
-		case TYPE_M2X2 :
-		    assert(!need_float);
-		    return builder->CreateCall4(module->getFunction(string("make_m2x2")),
-						make_float_const(primary->v.constant.m2x2_value.a00),
-						make_float_const(primary->v.constant.m2x2_value.a01),
-						make_float_const(primary->v.constant.m2x2_value.a10),
-						make_float_const(primary->v.constant.m2x2_value.a11));
 		default :
 		    g_assert_not_reached();
 	    }

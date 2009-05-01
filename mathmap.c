@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -2766,7 +2766,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "translator-credits", translators,
 			   "comments", _("An image generation and manipulation system"),
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
-			   "copyright", "Copyright © 1997-2008 Mark Probst, Herbert Poetzl",
+			   "copyright", "Copyright © 1997-2009 Mark Probst, Herbert Poetzl",
 			   "license", gpl,
 			   "logo", mathmap_logo,
 			   NULL);

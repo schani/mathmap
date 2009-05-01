@@ -37,6 +37,7 @@ replace resize with a simple internal filter
 don't use x_consts and y_consts in filter_func
 make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
 crashes compiler: in/2
+make solve ops and ell-jac foldable
 
 ** LLVM
 implement const slices
