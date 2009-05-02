@@ -1,3 +1,9 @@
+# If you're building on MinGW32, uncomment the following line
+#MINGW32 = YES
+
+# Uncomment this line if you want to use the LLVM backend
+USE_LLVM = -DUSE_LLVM
+
 # If you want MathMap to provide a command line interface as well,
 # uncomment the following line.  Note that compiling it requires
 # libjpeg, libpng and giflib.
@@ -10,9 +16,8 @@ CMDLINE = YES
 #GIMP_BIN = /usr/bin/
 
 # Choose which gif library you have.
-#GIFLIB = -lgif
+GIFLIB = -lgif
 #GIFLIB = -lungif
-#GIF_CFLAGS = -DRWIMG_GIF
 
 # If you are building on MacOS X, uncomment the following line
 #MACOSX = YES
@@ -26,21 +31,8 @@ CMDLINE = YES
 # been maintained for quite some time and probably doesn't work.
 #MOVIES = YES
 
-# The settings for the following directories doesn't affect anything
-# because MathMap cannot install system-wide yet.
-
 # Prefix for the software installation
 PREFIX = /usr
-
-# Enable these two lines if you have fftw3 installed
-#FFTW = fftw3
-#FFTW_OBJECTS = native-filters/convolve.o
-#FFTW_CFLAGS = -DHAVE_FFTW
-
-#LLVM_GCC = llvm-gcc
-LLVM_GCC = /usr/local/llvm-gcc-4.2/bin/llvm-gcc
-
-MINGW_LDFLAGS = -lpsapi -limagehlp
 
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
@@ -63,6 +55,19 @@ CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 endif
 
+ifeq ($(MINGW32),YES)
+MINGW_LDFLAGS = -lpsapi -limagehlp
+LLVM_GCC = /usr/local/llvm-gcc-4.2/bin/llvm-gcc
+else
+GIF_CFLAGS = -DRWIMG_GIF
+GIF_LDFLAGS = $(GIFLIB)
+FFTW = fftw3
+FFTW_OBJECTS = native-filters/convolve.o
+FFTW_CFLAGS = -DHAVE_FFTW
+PTHREADS = -DUSE_PTHREADS
+LLVM_GCC = llvm-gcc
+endif
+
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
 
@@ -78,7 +83,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) -DUSE_LLVM $(FFTW_CFLAGS) #-DUSE_PTHREADS
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(USE_LLVM) $(FFTW_CFLAGS) $(PTHREADS)
 CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 CXXFLAGS = $(C_CXX_FLAGS) `llvm-config --cxxflags`
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS) $(MINGW_LDFLAGS)
@@ -95,7 +100,7 @@ CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG $(GIF_CFLAGS)
 CFLAGS += -DMATHMAP_CMDLINE -DGIMPDATADIR=\"$(GIMPDATADIR)\"
-LDFLAGS += -ljpeg -lpng $(GIFLIB)
+LDFLAGS += -ljpeg -lpng $(GIF_LDFLAGS)
 endif
 
 NLS_CFLAGS = -DENABLE_NLS
