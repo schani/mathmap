@@ -347,22 +347,31 @@ get_rc_file_name (char *name, int global)
 }
 
 static char*
-lookup_rc_file (char *name)
+lookup_rc_file (char *name, gboolean report_error)
 {
-    gchar *filename;
+    gchar *local_filename, *global_filename, *filename;
 
-    filename = get_rc_file_name(name, 0);
+    local_filename = get_rc_file_name(name, 0);
 
-    if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+    if (g_file_test(local_filename, G_FILE_TEST_EXISTS))
+	filename = local_filename;
+    else
     {
-	g_free(filename);
+	global_filename = get_rc_file_name(name, 1);
 
-	filename = get_rc_file_name(name, 1);
-
-	if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+	if (g_file_test(global_filename, G_FILE_TEST_EXISTS))
 	{
-	    g_free(filename);
-	    filename = 0;
+	    g_free(local_filename);
+	    filename = global_filename;
+	}
+	else
+	{
+	    if (report_error)
+		g_warning(_("Could not find file `%s' - should be either `%s' or `%s'."),
+			  name, local_filename, global_filename);
+	    g_free(local_filename);
+	    g_free(global_filename);
+	    filename = NULL;
 	}
     }
 
@@ -922,7 +931,7 @@ generate_code (void)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME);
+	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME, FALSE);
 	if (template_filename == NULL)
 	{
 	    sprintf(error_string, _("Cannot find template file `%s'.  MathMap is not installed correctly."), MAIN_TEMPLATE_FILENAME);
@@ -932,7 +941,7 @@ generate_code (void)
 
 #ifndef USE_LLVM
 	{
-	    char *opmacros_name = lookup_rc_file(OPMACROS_FILENAME);
+	    char *opmacros_name = lookup_rc_file(OPMACROS_FILENAME, FALSE);
 
 	    if (opmacros_name == NULL)
 	    {
@@ -1588,7 +1597,22 @@ make_save_table (GtkWidget *content, GtkSignalFunc save_callback, GtkSignalFunc 
     return table;
 }
 
-#define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
+static GdkPixbuf*
+load_pixbuf (char *name)
+{
+    char *filename = lookup_rc_file(name, TRUE);
+    GdkPixbuf *pixbuf;
+
+    if (!filename)
+	return NULL;
+
+    pixbuf = gdk_pixbuf_new_from_file(filename, NULL);
+    if (!pixbuf)
+	g_warning("Could not load image file `%s'.", filename);
+    g_free(filename);
+
+    return pixbuf;
+}
 
 #define NOTEBOOK_PAGE_EXPRESSION	0
 #define NOTEBOOK_PAGE_SETTINGS		1
@@ -1703,13 +1727,11 @@ mathmap_dialog (int mutable_expression)
 
 	    gtk_source_view_set_show_line_markers(GTK_SOURCE_VIEW(expression_entry), TRUE);
 
-	    if ((pixbuf = gdk_pixbuf_new_from_file(ERROR_PIXMAP_NAME, NULL)))
+	    if ((pixbuf = load_pixbuf("error.png")))
 	    {
 		gtk_source_view_set_marker_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
 		g_object_unref (pixbuf);
 	    }
-	    else
-		g_warning("Could not find image file `%s'.", ERROR_PIXMAP_NAME);
 
 	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
@@ -2731,8 +2753,6 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 
 /*****/
 
-#define MATHMAP_PIXMAP_NAME	PIXMAP_DIR "/mathmap.png"
-
 static void
 dialog_about_callback (GtkWidget *widget, gpointer data)
 {
@@ -2758,7 +2778,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
     char *translators = "Laurent Despeyroux <not@fgrev.no>\nYury Aliaev <mutabor@altlinux.org>";
 
     if (mathmap_logo == NULL)
-	mathmap_logo = gdk_pixbuf_new_from_file(MATHMAP_PIXMAP_NAME, NULL);
+	mathmap_logo = load_pixbuf("mathmap.png");
 
     gtk_show_about_dialog (NULL,
 			   "name", "MathMap",
