@@ -270,6 +270,15 @@ extern rhs_t* make_primary_rhs (primary_t primary);
 extern rhs_t* make_value_rhs (value_t *val);
 #define compiler_make_value_rhs make_value_rhs
 
+extern void compiler_reset_have_defined (statement_t *stmt);
+
+extern gboolean compiler_is_permanent_const_value (value_t *value);
+extern gboolean compiler_is_temporary_const_value (value_t *value);
+extern gboolean compiler_is_const_type_within (int const_type, int lower_bound, int upper_bound);
+extern gboolean compiler_is_value_needed_for_const (value_t *value, int const_type);
+
+extern char* compiler_get_value_name (value_t *val);
+extern void compiler_print_value (value_t *val);
 extern void compiler_print_assign_statement (statement_t *stmt);
 
 extern int compiler_num_filter_args (filter_t *filter);
@@ -308,6 +317,9 @@ extern filter_code_t* compiler_generate_ir_code (filter_t *filter, int constant_
 extern filter_code_t** compiler_compile_filters (mathmap_t *mathmap);
 
 extern void compiler_free_pools (mathmap_t *mathmap);
+
+extern unsigned int compiler_slice_flag_for_const_type (int const_type);
+extern void compiler_slice_code_for_const (statement_t *stmt, int const_type);
 
 extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
 extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);

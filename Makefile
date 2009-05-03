@@ -1,7 +1,8 @@
 # If you're building on MinGW32, uncomment the following line
 #MINGW32 = YES
 
-# Uncomment this line if you want to use the LLVM backend
+# Uncomment this line if you want to use the LLVM backend.  This is
+# compulsory for MinGW32!
 USE_LLVM = -DUSE_LLVM
 
 # If you want MathMap to provide a command line interface as well,
@@ -64,7 +65,7 @@ GIF_LDFLAGS = $(GIFLIB)
 FFTW = fftw3
 FFTW_OBJECTS = native-filters/convolve.o
 FFTW_CFLAGS = -DHAVE_FFTW
-PTHREADS = -DUSE_PTHREADS
+#PTHREADS = -DUSE_PTHREADS
 LLVM_GCC = llvm-gcc
 endif
 

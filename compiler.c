@@ -132,8 +132,6 @@ static int stmt_stackp = 0;
     ({ (s)->parent = CURRENT_STACK_TOP; \
        (s)->next = (l); (l) = (s); })
 
-static filter_code_t **filter_codes;
-
 /*** hash tables ***/
 
 static void
@@ -776,6 +774,55 @@ last_stmt_of_block (statement_t *stmt)
     return stmt;
 }
 
+static void
+_reset_value_have_defined (value_t *value, statement_t *stmt, void *info)
+{
+    value->have_defined = 0;
+}
+
+void
+compiler_reset_have_defined (statement_t *stmt)
+{
+    COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt, &_reset_value_have_defined);
+}
+
+/* permanent const values must be calculated once and then be
+ * available for the calculation of all less const values */
+gboolean
+compiler_is_permanent_const_value (value_t *value)
+{
+    return (value->least_const_type_multiply_used_in | CONST_T) == (value->const_type | CONST_T)
+	&& (value->least_const_type_directly_used_in | CONST_T) != (value->const_type | CONST_T);
+}
+
+/* temporary const values must be defined for the calculation of all const
+ * types up to the least const type they are used in */
+gboolean
+compiler_is_temporary_const_value (value_t *value)
+{
+    return !compiler_is_permanent_const_value(value);
+}
+
+/* returns whether const_type is at least as const as lower_bound but not more
+ * const than upper_bound */
+gboolean
+compiler_is_const_type_within (int const_type, int lower_bound, int upper_bound)
+{
+    assert((lower_bound & upper_bound) == lower_bound);
+
+    return (const_type & lower_bound) == lower_bound
+	&& (const_type & upper_bound) == const_type;
+}
+
+gboolean
+compiler_is_value_needed_for_const (value_t *value, int const_type)
+{
+    return (value->const_type | CONST_T) == (const_type | CONST_T)
+	|| (compiler_is_const_type_within(const_type | CONST_T,
+					  value->least_const_type_multiply_used_in,
+					  value->const_type | CONST_T));
+}
+
 /* assumes that old is used at least once in stmt */
 static void
 rewrite_use (statement_t *stmt, value_t *old, primary_t new)
@@ -1351,8 +1398,17 @@ print_tuple (float *tuple)
     g_assert_not_reached();
 }
 
-static void
-print_value (value_t *val)
+char*
+compiler_get_value_name (value_t *val)
+{
+    if (val->compvar->var != 0)
+	return g_strdup_printf("%s[%d]_%d", val->compvar->var->name, val->compvar->n, val->index);
+    else
+	return g_strdup_printf("__t%d_%d", val->compvar->temp->number, val->index);
+}
+
+void
+compiler_print_value (value_t *val)
 {
     if (val->compvar->var != 0)
 	printf("%s[%d]_%d", val->compvar->var->name, val->compvar->n, val->index);
@@ -1368,7 +1424,7 @@ print_primary (primary_t *primary)
     switch (primary->kind)
     {
 	case PRIMARY_VALUE :
-	    print_value(primary->v.value);
+	    compiler_print_value(primary->v.value);
 	    break;
 
 	case PRIMARY_CONST :
@@ -1489,7 +1545,7 @@ compiler_print_assign_statement (statement_t *stmt)
     switch (stmt->kind)
     {
 	case STMT_ASSIGN :
-	    print_value(stmt->v.assign.lhs);
+	    compiler_print_value(stmt->v.assign.lhs);
 	    printf(" (%s  uses %d) = ", type_c_type_name(stmt->v.assign.lhs->compvar->type), count_uses(stmt->v.assign.lhs));
 	    print_rhs(stmt->v.assign.rhs);
 	    printf("   ");
@@ -1501,7 +1557,7 @@ compiler_print_assign_statement (statement_t *stmt)
 	    break;
 
 	case STMT_PHI_ASSIGN :
-	    print_value(stmt->v.assign.lhs);
+	    compiler_print_value(stmt->v.assign.lhs);
 	    printf(" (%s  uses %d) = phi(", type_c_type_name(stmt->v.assign.lhs->compvar->type), count_uses(stmt->v.assign.lhs));
 	    print_rhs(stmt->v.assign.rhs);
 	    printf(", ");
@@ -4313,7 +4369,36 @@ compiler_slice_code (statement_t *stmt, unsigned int slice_flag, int (*predicate
     return non_empty;
 }
 
-#define COMPILER_SLICE_CODE(stmt,flag,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
+unsigned int
+compiler_slice_flag_for_const_type (int const_type)
+{
+    if (const_type == (CONST_X | CONST_Y))
+	return SLICE_XY_CONST;
+    else if (const_type == CONST_Y)
+	return SLICE_Y_CONST;
+    else if (const_type == CONST_X)
+	return SLICE_X_CONST;
+    else
+	return SLICE_NO_CONST;
+}
+
+static int
+_const_predicate (statement_t *stmt, void *info)
+{
+    CLOSURE_VAR(int, const_type, 0);
+
+    assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
+
+    return compiler_is_value_needed_for_const(stmt->v.assign.lhs, const_type);
+}
+
+void
+compiler_slice_code_for_const (statement_t *stmt, int const_type)
+{
+    unsigned int slice_flag = compiler_slice_flag_for_const_type(const_type);
+
+    COMPILER_SLICE_CODE(stmt, slice_flag, &_const_predicate, (void*)const_type);
+}
 
 /*** compiling and loading ***/
 
@@ -4387,7 +4472,7 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	optimize_closure_application(first_stmt);
 	CHECK_SSA;
 
-	changed = TRUE;
+	changed = FALSE;
 
 	changed = do_inlining() || changed;
 	CHECK_SSA;

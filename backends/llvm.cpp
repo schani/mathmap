@@ -62,43 +62,85 @@ public:
 private:
     filter_t *filter;
     filter_code_t *filter_code;
-
     Module *module;
-    IRBuilder<> *builder;
+
+    Function *init_frame_function;
     Function *filter_function;
-    map<value_t*, Value*> value_map;
-    map<string, Value*> internal_map;
+    Function *current_function;
+
+    IRBuilder<> *builder;
 
     Value *invocation_arg;
     Value *closure_arg;
     Value *pools_arg;
 
-    void set_value (value_t *value, Value *llvm_value);
+    StructType *x_vars_type;
+    StructType *y_vars_type;
+    StructType *xy_vars_type;
+
+    Value *x_vars_var;
+    Value *y_vars_var;
+    Value *xy_vars_var;
+
+    Value *complex_copy_var;
+
+    map<value_t*, Value*> value_map;
+    map<string, Value*> internal_map;
+    map<value_t*, int> const_value_index_map;
+    int next_const_value_index;
+
+    map<value_t*, Value*> saved_set_values;
+
+    void set_value (value_t *value, Value *llvm_value, bool commit = true);
+    void commit_set_const_value (value_t *value, Value *llvm_value);
+    void commit_set_const_values ();
     Value* lookup_value (value_t *value);
 
     void set_internal (internal_t *internal, Value *llvm_value);
     Value* lookup_internal (internal_t *internal);
     Value* lookup_internal (const char *name);
 
-    const Type* llvm_type_for_type (type_t type);
-
     Value* promote (Value *val, int type);
 
+    void alloc_complex_copy_var ();
+
+    void build_const_value_info (value_t *value, statement_t *stmt, int const_type,
+				 vector<const Type*> *struct_elems);
+    static void _build_const_value_info (value_t *value, statement_t *stmt, void *info);
+    StructType* build_const_value_infos (int const_type);
+
+    Value* emit_const_value_addr (value_t *value);
+
+    Value* emit_sizeof (Type *type);
+
     void emit_stmts (statement_t *stmt, unsigned int slice_flag);
-    void emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *rhs_map);
-    void emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb, map<rhs_t*, Value*> &rhs_map);
+    void emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *rhs_map, int slice_flag);
+    void emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb,
+		    map<rhs_t*, Value*> &rhs_map, int slice_flag);
     Value* emit_rhs (rhs_t *rhs);
     Value* emit_primary (primary_t *primary, bool need_float = false);
     Value* emit_closure (filter_t *filter, primary_t *args);
+
+    void emit_init_frame_function ();
+
+    void setup_filter_function ();
+    void setup_init_frame_function ();
+    void finish_function ();
 };
 
-string
+static string
 filter_function_name (filter_t *filter)
 {
     return string("filter_") + string(filter->name);
 }
 
-Function*
+static string
+init_frame_function_name (filter_t *filter)
+{
+    return string("init_frame_") + string(filter->name);
+}
+
+static Function*
 lookup_filter_function (Module *module, filter_t *filter)
 {
     Function *func = module->getFunction(filter_function_name(filter));
@@ -108,62 +150,148 @@ lookup_filter_function (Module *module, filter_t *filter)
     return func;
 }
 
+static Function*
+lookup_init_frame_function (Module *module, filter_t *filter)
+{
+    Function *func = module->getFunction(init_frame_function_name(filter));
+
+    g_assert(func != NULL);
+
+    return func;
+}
+
+static Value*
+make_int_const (int x)
+{
+    return ConstantInt::get(Type::Int32Ty, x, true);
+}
+
+static Value*
+make_float_const (float x)
+{
+    return ConstantFP::get(Type::FloatTy, x);
+}
+
 code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *code)
 {
     module = _module;
     filter_code = code;
     filter = _filter;
 
+    x_vars_type = y_vars_type = xy_vars_type = NULL;
+    x_vars_var = y_vars_var = xy_vars_var = NULL;
+
+    init_frame_function = lookup_init_frame_function(module, filter);
     filter_function = lookup_filter_function(module, filter);
-    g_assert(filter_function != NULL);
-
-    Function::arg_iterator args = filter_function->arg_begin();
-
-    invocation_arg = args++;
-    invocation_arg->setName("invocation");
-    closure_arg = args++;
-    closure_arg->setName("closure");
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "x", true), args++);
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "y", true), args++);
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
-    pools_arg = args++;
-    pools_arg->setName("pools");
-
-    BasicBlock *block = BasicBlock::Create("entry", filter_function);
-
-    builder = new IRBuilder<> (block);
-
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_img_width")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelH", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_img_height")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelW", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_render_width")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelH", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_render_height")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "R", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_image_R")), invocation_arg));
+    g_assert(init_frame_function && filter_function);
 }
 
 code_emitter::~code_emitter ()
 {
-    delete builder;
+}
+
+Value*
+code_emitter::emit_const_value_addr (value_t *value)
+{
+    g_assert(const_value_index_map.find(value) != const_value_index_map.end());
+
+    int index = const_value_index_map[value];
+    vector<Value*> indices;
+
+    indices.push_back(make_int_const(0));
+    indices.push_back(make_int_const(index));
+
+    Value *const_var = NULL;
+
+    if ((value->const_type | CONST_T) == (CONST_X | CONST_Y | CONST_T))
+	const_var = xy_vars_var;
+    else if ((value->const_type | CONST_T) == (CONST_X | CONST_T))
+	const_var = x_vars_var;
+    else if ((value->const_type | CONST_T) == (CONST_Y | CONST_T))
+	const_var = y_vars_var;
+    else
+	g_assert_not_reached();
+
+    return builder->CreateGEP(const_var, indices.begin(), indices.end());
+}
+
+static void
+set_value_name (Value *llvm_value, value_t *value)
+{
+    char *name = compiler_get_value_name(value);
+
+    llvm_value->setName(name);
+
+    g_free(name);
 }
 
 void
-code_emitter::set_value (value_t *value, Value *llvm_value)
+code_emitter::set_value (value_t *value, Value *llvm_value, bool commit)
 {
     g_assert(value);
     g_assert(llvm_value);
     g_assert(value_map.find(value) == value_map.end());
-    value_map[value] = llvm_value;
+    g_assert(value->index >= 0);
+
+    if (compiler_is_permanent_const_value(value))
+    {
+	if (commit)
+	    commit_set_const_value(value, llvm_value);
+	else
+	    saved_set_values[value] = llvm_value;
+    }
+    else
+    {
+	value_map[value] = llvm_value;
+	set_value_name(llvm_value, value);
+    }
+}
+
+void
+code_emitter::commit_set_const_value (value_t *value, Value *llvm_value)
+{
+    Value *addr = emit_const_value_addr(value);
+    llvm_value = promote(llvm_value, value->compvar->type);
+
+#ifdef DEBUG_OUTPUT
+    printf("storing value ");
+    compiler_print_value(value);
+    printf(" with llvm value ");
+    llvm_value->dump();
+    printf(" at addr ");
+    addr->dump();
+#endif
+
+    // FIXME: put this into value_map, too
+    builder->CreateStore(llvm_value, addr);
+    set_value_name(llvm_value, value);
+}
+
+void
+code_emitter::commit_set_const_values ()
+{
+    map<value_t*, Value*>::iterator iter;
+
+    for (iter = saved_set_values.begin(); iter != saved_set_values.end(); ++iter)
+	commit_set_const_value((*iter).first, (*iter).second);
+
+    saved_set_values.clear();
 }
 
 Value*
 code_emitter::lookup_value (value_t *value)
 {
-    g_assert(value_map.find(value) != value_map.end());
-    return value_map[value];
+    g_assert(value->index >= 0);
+
+    if (compiler_is_permanent_const_value(value))
+	// FIXME: put this into value_map again so that it only has to
+	// be fetched once.
+	return builder->CreateLoad(emit_const_value_addr(value));
+    else
+    {
+	g_assert(value_map.find(value) != value_map.end());
+	return value_map[value];
+    }
 }
 
 void
@@ -190,18 +318,6 @@ Value*
 code_emitter::lookup_internal (internal_t *internal)
 {
     return lookup_internal(internal->name);
-}
-
-static Value*
-make_int_const (int x)
-{
-    return ConstantInt::get(Type::Int32Ty, x, true);
-}
-
-static Value*
-make_float_const (float x)
-{
-    return ConstantFP::get(Type::FloatTy, x);
 }
 
 Value*
@@ -376,6 +492,52 @@ is_complex_return_type (const Type *type)
 	g_assert_not_reached();
 }
 
+static const Type*
+llvm_type_for_type (Module *module, type_t type)
+{
+    switch (type)
+    {
+	case TYPE_INT :
+	    return Type::Int32Ty;
+	case TYPE_FLOAT :
+	    return Type::FloatTy;
+	case TYPE_COMPLEX :
+	    if (sizeof(gpointer) == 4)
+	    {
+		static const Type *result;
+
+		vector<const Type*> elems;
+
+		if (result)
+		    return result;
+
+		elems.push_back(Type::FloatTy);
+		elems.push_back(Type::FloatTy);
+
+		result = StructType::get(elems);
+
+		g_assert(result != NULL);
+		return result;
+	    }
+	    else if (sizeof(gpointer) == 8)
+		return Type::DoubleTy;
+	    else
+		g_assert_not_reached();
+	case TYPE_IMAGE :
+	    return PointerType::getUnqual(module->getTypeByName(string("struct._image_t")));
+	case TYPE_TUPLE :
+	    return PointerType::getUnqual(Type::FloatTy);
+	default :
+	    g_assert_not_reached();
+    }
+}
+
+void
+code_emitter::alloc_complex_copy_var ()
+{
+    complex_copy_var = builder->CreateAlloca(llvm_type_for_type(module, TYPE_COMPLEX));
+}
+
 Value*
 code_emitter::emit_rhs (rhs_t *rhs)
 {
@@ -405,6 +567,16 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		    type_t type = promotion_type == TYPE_NIL ? op->arg_types[i] : promotion_type;
 		    Value *val = emit_primary(&rhs->v.op.args[i], type == TYPE_FLOAT);
 		    val = promote(val, type);
+
+#ifndef __MINGW32__
+		    if (sizeof(gpointer) == 4 && val->getType() == llvm_type_for_type(module, TYPE_COMPLEX))
+		    {
+			Value *copy = complex_copy_var;
+			builder->CreateStore(val, copy);
+			val = copy;
+		    }
+#endif
+
 #ifdef DEBUG_OUTPUT
 		    val->dump();
 #endif
@@ -424,14 +596,10 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		       representation. */
 		    if (sizeof(gpointer) == 4)
 		    {
-			Value *local = builder->CreateAlloca(llvm_type_for_type(TYPE_COMPLEX));
+			Value *local = complex_copy_var;
 			Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
 			builder->CreateStore(result, local_ptr);
-#ifdef __MINGW32__
 			result = builder->CreateLoad(local);
-#else
-			result = local;
-#endif
 		    }
 		    else if (sizeof(gpointer) == 8)
 			result = builder->CreateExtractValue(result, 0);
@@ -489,50 +657,24 @@ code_emitter::emit_rhs (rhs_t *rhs)
     }
 }
 
-const Type*
-code_emitter::llvm_type_for_type (type_t type)
+static gboolean
+must_emit_stmt (statement_t *stmt, int slice_flag)
 {
-    switch (type)
-    {
-	case TYPE_INT :
-	    return Type::Int32Ty;
-	case TYPE_FLOAT :
-	    return Type::FloatTy;
-	case TYPE_COMPLEX :
-	    if (sizeof(gpointer) == 4)
-	    {
-		static const Type *result;
-
-		vector<const Type*> elems;
-
-		if (result)
-		    return result;
-
-		elems.push_back(Type::FloatTy);
-		elems.push_back(Type::FloatTy);
-
-		result = StructType::get(elems);
-
-		g_assert(result != NULL);
-		return result;
-	    }
-	    else if (sizeof(gpointer) == 8)
-		return Type::DoubleTy;
-	    else
-		g_assert_not_reached();
-	default :
-	    g_assert_not_reached();
-    }
+    return slice_flag == SLICE_IGNORE || (stmt->slice_flags & slice_flag);
 }
 
 void
-code_emitter::emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *rhs_map)
+code_emitter::emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *rhs_map, int slice_flag)
 {
-    while (stmt != NULL)
+    for (; stmt != NULL; stmt = stmt->next)
     {
+	if (!must_emit_stmt(stmt, slice_flag))
+	    continue;
+
 	switch (stmt->kind)
 	{
 	    case STMT_NIL :
+		g_assert(slice_flag == SLICE_IGNORE);
 		break;
 
 	    case STMT_PHI_ASSIGN :
@@ -551,19 +693,22 @@ code_emitter::emit_phi_rhss (statement_t *stmt, bool left, map<rhs_t*, Value*> *
 	    default :
 		g_assert_not_reached();
 	}
-
-	stmt = stmt->next;
     }
 }
 
 void
-code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb, map<rhs_t*, Value*> &rhs_map)
+code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *right_bb,
+			 map<rhs_t*, Value*> &rhs_map, int slice_flag)
 {
-    while (stmt != NULL)
+    for (; stmt != NULL; stmt = stmt->next)
     {
+	if (!must_emit_stmt(stmt, slice_flag))
+	    continue;
+
 	switch (stmt->kind)
 	{
 	    case STMT_NIL :
+		g_assert(slice_flag == SLICE_IGNORE);
 		break;
 
 	    case STMT_PHI_ASSIGN :
@@ -571,7 +716,7 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 		    Value *left = NULL;
 		    Value *right = NULL;
 		    int compvar_type = stmt->v.assign.lhs->compvar->type;
-		    const Type *type = llvm_type_for_type(compvar_type);
+		    const Type *type = llvm_type_for_type(module, compvar_type);
 
 		    if (left_bb)
 		    {
@@ -590,7 +735,7 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 		    {
 			phi = builder->CreatePHI(type);
 			phi->addIncoming(left, left_bb);
-			set_value(stmt->v.assign.lhs, phi);
+			set_value(stmt->v.assign.lhs, phi, false);
 		    }
 		    else
 			phi = cast<PHINode>(lookup_value(stmt->v.assign.lhs));
@@ -603,19 +748,23 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 	    default:
 		g_assert_not_reached();
 	}
-
-	stmt = stmt->next;
     }
+
+    commit_set_const_values();
 }
 
 void
 code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 {
-    while (stmt != NULL)
+    for (; stmt != NULL; stmt = stmt->next)
     {
+	if (!must_emit_stmt(stmt, slice_flag))
+	    continue;
+
 	switch (stmt->kind)
 	{
 	    case STMT_NIL :
+		g_assert(slice_flag == SLICE_IGNORE);
 		break;
 
 	    case STMT_ASSIGN :
@@ -643,7 +792,7 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		    else
 			g_assert_not_reached();
 
-		    BasicBlock *then_bb = BasicBlock::Create("then", filter_function);
+		    BasicBlock *then_bb = BasicBlock::Create("then", current_function);
 		    BasicBlock *else_bb = BasicBlock::Create("else");
 		    BasicBlock *merge_bb = BasicBlock::Create("ifcont");
 
@@ -651,39 +800,39 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 
 		    builder->SetInsertPoint(then_bb);
 		    emit_stmts(stmt->v.if_cond.consequent, slice_flag);
-		    emit_phi_rhss(stmt->v.if_cond.exit, true, &rhs_map);
+		    emit_phi_rhss(stmt->v.if_cond.exit, true, &rhs_map, slice_flag);
 		    builder->CreateBr(merge_bb);
 		    then_bb = builder->GetInsertBlock();
 
-		    filter_function->getBasicBlockList().push_back(else_bb);
+		    current_function->getBasicBlockList().push_back(else_bb);
 		    builder->SetInsertPoint(else_bb);
 		    emit_stmts(stmt->v.if_cond.alternative, slice_flag);
-		    emit_phi_rhss(stmt->v.if_cond.exit, false, &rhs_map);
+		    emit_phi_rhss(stmt->v.if_cond.exit, false, &rhs_map, slice_flag);
 		    builder->CreateBr(merge_bb);
 		    else_bb = builder->GetInsertBlock();
 
-		    filter_function->getBasicBlockList().push_back(merge_bb);
+		    current_function->getBasicBlockList().push_back(merge_bb);
 		    builder->SetInsertPoint(merge_bb);
 
-		    emit_phis(stmt->v.if_cond.exit, then_bb, else_bb, rhs_map);
+		    emit_phis(stmt->v.if_cond.exit, then_bb, else_bb, rhs_map, slice_flag);
 		}
 		break;
 
 	    case STMT_WHILE_LOOP:
 		{
 		    BasicBlock *start_bb = builder->GetInsertBlock();
-		    BasicBlock *entry_bb = BasicBlock::Create("entry", filter_function);
+		    BasicBlock *entry_bb = BasicBlock::Create("entry", current_function);
 		    BasicBlock *body_bb = BasicBlock::Create("body");
 		    BasicBlock *exit_bb = BasicBlock::Create("exit");
 		    map<rhs_t*, Value*> rhs_map;
 
-		    emit_phi_rhss(stmt->v.while_loop.entry, true, &rhs_map);
+		    emit_phi_rhss(stmt->v.while_loop.entry, true, &rhs_map, slice_flag);
 
 		    builder->CreateBr(entry_bb);
 
 		    builder->SetInsertPoint(entry_bb);
 
-		    emit_phis(stmt->v.while_loop.entry, start_bb, NULL, rhs_map);
+		    emit_phis(stmt->v.while_loop.entry, start_bb, NULL, rhs_map, slice_flag);
 
 		    Value *invariant_number = emit_rhs(stmt->v.while_loop.invariant);
 		    Value *invariant;
@@ -697,15 +846,15 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 
 		    builder->CreateCondBr(invariant, body_bb, exit_bb);
 
-		    filter_function->getBasicBlockList().push_back(body_bb);
+		    current_function->getBasicBlockList().push_back(body_bb);
 		    builder->SetInsertPoint(body_bb);
 		    emit_stmts(stmt->v.while_loop.body, slice_flag);
 		    body_bb = builder->GetInsertBlock();
-		    emit_phi_rhss(stmt->v.while_loop.entry, false, &rhs_map);
-		    emit_phis(stmt->v.while_loop.entry, NULL, body_bb, rhs_map);
+		    emit_phi_rhss(stmt->v.while_loop.entry, false, &rhs_map, slice_flag);
+		    emit_phis(stmt->v.while_loop.entry, NULL, body_bb, rhs_map, slice_flag);
 		    builder->CreateBr(entry_bb);
 
-		    filter_function->getBasicBlockList().push_back(exit_bb);
+		    current_function->getBasicBlockList().push_back(exit_bb);
 		    builder->SetInsertPoint(exit_bb);
 		}
 		break;
@@ -714,32 +863,263 @@ code_emitter::emit_stmts (statement_t *stmt, unsigned int slice_flag)
 		g_assert_not_reached();
 		break;
 	}
-
-	stmt = stmt->next;
     }
+}
+
+void
+code_emitter::build_const_value_info (value_t *value, statement_t *stmt, int const_type,
+				      vector<const Type*> *struct_elems)
+{
+    if ((value->const_type | CONST_T) == (const_type | CONST_T)
+	&& compiler_is_permanent_const_value(value))
+    {
+	if (!value->have_defined && value->index >= 0)
+	{
+	    compiler_print_value(value);
+	    printf("   %d\n", next_const_value_index);
+
+	    g_assert(const_value_index_map.find(value) == const_value_index_map.end());
+	    const_value_index_map[value] = next_const_value_index++;
+
+	    struct_elems->push_back(llvm_type_for_type(module, value->compvar->type));
+
+	    value->have_defined = 1;
+	}
+    }
+}
+
+void
+code_emitter::_build_const_value_info (value_t *value, statement_t *stmt, void *info)
+{
+    CLOSURE_VAR(code_emitter*, emitter, 0);
+    CLOSURE_VAR(int, const_type, 1);
+    CLOSURE_VAR(vector<const Type*>*, struct_elems, 2);
+
+    emitter->build_const_value_info(value, stmt, const_type, struct_elems);
+}
+
+void
+code_emitter::setup_filter_function ()
+{
+    Function::arg_iterator args = filter_function->arg_begin();
+
+    invocation_arg = args++;
+    invocation_arg->setName("invocation");
+    closure_arg = args++;
+    closure_arg->setName("closure");
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "x", true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "y", true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
+    pools_arg = args++;
+    pools_arg->setName("pools");
+
+    BasicBlock *block = BasicBlock::Create("entry", filter_function);
+
+    builder = new IRBuilder<> (block);
+
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_img_width")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelH", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_img_height")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelW", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_render_width")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelH", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_render_height")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "R", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_image_R")), invocation_arg));
+
+    Value *xy_vars_untyped = builder->CreateCall3(module->getFunction(string("calc_closure_xy_vars")),
+						  invocation_arg, closure_arg, init_frame_function);
+
+    xy_vars_var = builder->CreateBitCast(xy_vars_untyped, PointerType::getUnqual(xy_vars_type));
+
+    alloc_complex_copy_var();
+
+    current_function = filter_function;
+}
+
+Value*
+code_emitter::emit_sizeof (Type *type)
+{
+    Value *size = builder->CreateGEP(ConstantPointerNull::get(PointerType::getUnqual(type)),
+				     make_int_const(1));
+
+    return builder->CreatePtrToInt(size, Type::Int32Ty);
+}
+
+void
+code_emitter::setup_init_frame_function ()
+{
+    Function::arg_iterator args = init_frame_function->arg_begin();
+    //Value *frame_arg;
+
+    invocation_arg = args++;
+    invocation_arg->setName("invocation");
+    //frame_arg = args++;
+    //frame_arg->setName("frame");
+    closure_arg = args++;
+    closure_arg->setName("closure");
+
+    BasicBlock *block = BasicBlock::Create("entry", init_frame_function);
+
+    builder = new IRBuilder<> (block);
+
+    //invocation_arg = builder->CreateCall(module->getFunction(string("get_frame_invocation")), frame_arg);
+    //pools_arg = builder->CreateCall(module->getFunction(string("get_frame_pools")), frame_arg);
+    pools_arg = builder->CreateCall(module->getFunction(string("get_closure_pools")), closure_arg);
+
+    //set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true),
+    //builder->CreateCall(module->getFunction(string("get_frame_t")), frame_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), make_float_const(0.0));
+
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_img_width")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelH", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_img_height")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelW", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_render_width")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelH", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_render_height")), invocation_arg));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "R", true),
+		 builder->CreateCall(module->getFunction(string("get_invocation_image_R")), invocation_arg));
+
+    Value *xy_vars_untyped = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
+						  pools_arg, emit_sizeof(xy_vars_type));
+
+    //builder->CreateCall2(module->getFunction(string("set_frame_xy_vars")), frame_arg, xy_vars_untyped);
+    builder->CreateCall2(module->getFunction(string("set_closure_xy_vars")), closure_arg, xy_vars_untyped);
+
+    xy_vars_var = builder->CreateBitCast(xy_vars_untyped, PointerType::getUnqual(xy_vars_type));
+
+    alloc_complex_copy_var();
+
+    current_function = init_frame_function;
+}
+
+void
+code_emitter::finish_function ()
+{
+    current_function = NULL;
+
+    invocation_arg = NULL;
+    closure_arg = NULL;
+    pools_arg = NULL;
+
+    xy_vars_var = NULL;
+
+    complex_copy_var = NULL;
+
+    value_map.clear();
+    internal_map.clear();
+
+    if (builder)
+    {
+	delete builder;
+	builder = NULL;
+    }
+}
+
+StructType*
+code_emitter::build_const_value_infos (int const_type)
+{
+    vector<const Type*> struct_elems;
+
+    compiler_reset_have_defined(filter_code->first_stmt);
+    next_const_value_index = 0;
+    COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(filter_code->first_stmt, &_build_const_value_info,
+					  this, (void*)const_type, &struct_elems);
+
+    return StructType::get(struct_elems);
+}
+
+void
+code_emitter::emit_init_frame_function ()
+{
+    xy_vars_type = build_const_value_infos(CONST_X | CONST_Y);
+
+    setup_init_frame_function();
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_X | CONST_Y);
+    emit_stmts(filter_code->first_stmt, SLICE_XY_CONST);
+    builder->CreateRetVoid();
+    finish_function();
 }
 
 void
 code_emitter::emit ()
 {
-    emit_stmts(filter_code->first_stmt, SLICE_IGNORE);
+    emit_init_frame_function();
+
+    std::cout << "done with init frame" << endl;
+
+    setup_filter_function();
+
+    x_vars_type = build_const_value_infos(CONST_X);
+    x_vars_var = builder->CreateAlloca(x_vars_type);
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_X);
+    emit_stmts(filter_code->first_stmt, SLICE_X_CONST);
+    value_map.clear();
+
+    y_vars_type = build_const_value_infos(CONST_Y);
+    y_vars_var = builder->CreateAlloca(y_vars_type);
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_Y);
+    emit_stmts(filter_code->first_stmt, SLICE_Y_CONST);
+    value_map.clear();
+
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_NONE);
+    emit_stmts(filter_code->first_stmt, SLICE_NO_CONST);
+
+    finish_function();
+
+    std::cout << "done with filter func" << endl;
+}
+
+static const Type*
+get_invocation_ptr_type (Module *module)
+{
+    const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
+    g_assert(invocation_type);
+    return PointerType::getUnqual(invocation_type);
+}
+
+static const Type*
+get_frame_ptr_type (Module *module)
+{
+    const Type *frame_type = module->getTypeByName(string("struct.mathmap_frame_t"));
+    g_assert(frame_type);
+    return PointerType::getUnqual(frame_type);
+}
+
+static const Type*
+get_pools_ptr_type (Module *module)
+{
+    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
+    g_assert(pools_type);
+    return PointerType::getUnqual(pools_type);
 }
 
 static Function*
 make_filter_function (Module *module, filter_t *filter)
 {
-    const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
-    const Type *image_type = module->getTypeByName(string("struct._image_t"));
-    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
-    assert(invocation_type && image_type && pools_type);
     Constant *function_const = module->getOrInsertFunction(filter_function_name(filter),
-							   PointerType::getUnqual(Type::FloatTy), // ret type
-							   PointerType::getUnqual(invocation_type), // invocation
-							   PointerType::getUnqual(image_type), // closure
+							   llvm_type_for_type(module, TYPE_TUPLE), // ret type
+							   get_invocation_ptr_type(module), // invocation
+							   llvm_type_for_type(module, TYPE_IMAGE), // closure
 							   Type::FloatTy, // x
 							   Type::FloatTy, // y
 							   Type::FloatTy, // t
-							   PointerType::getUnqual(pools_type), // pools
+							   get_pools_ptr_type(module), // pools
+							   NULL);
+    return cast<Function>(function_const);
+}
+
+static Function*
+make_init_frame_function (Module *module, filter_t *filter)
+{
+    Constant *function_const = module->getOrInsertFunction(init_frame_function_name(filter),
+							   Type::VoidTy, // ret type
+							   //get_frame_ptr_type(module), // frame
+							   get_invocation_ptr_type(module), // invocation
+							   llvm_type_for_type(module, TYPE_IMAGE), // closure
 							   NULL);
     return cast<Function>(function_const);
 }
@@ -769,6 +1149,7 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	if (filter->kind != FILTER_MATHMAP)
 	    continue;
 
+	make_init_frame_function(module, filter);
 	make_filter_function(module, filter);
     }
 
@@ -800,14 +1181,16 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	delete emitter;
     }
 
-    //verifyModule(*module, PrintMessageAction);
+#ifdef DEBUG_OUTPUT
+    module->dump();
+
+    verifyModule(*module, PrintMessageAction);
+#endif
 
     PassManager pm;
     pm.add (new TargetData (module));
     pm.add (createFunctionInliningPass ());
     pm.run(*module);
-
-    //module->dump();
 
     ExecutionEngine *ee = ExecutionEngine::create (module);
 

@@ -175,6 +175,36 @@ tuple_set (float *tuple, int n, float x)
     TUPLE_SET(tuple, n, x);
 }
 
+mathmap_invocation_t*
+get_frame_invocation (mathmap_frame_t *frame)
+{
+    return frame->invocation;
+}
+
+void
+set_frame_xy_vars (mathmap_frame_t *frame, void *xy_vars)
+{
+    frame->xy_vars = xy_vars;
+}
+
+void*
+get_frame_xy_vars (mathmap_frame_t *frame)
+{
+    return frame->xy_vars;
+}
+
+float
+get_frame_t (mathmap_frame_t *frame)
+{
+    return frame->current_t;
+}
+
+pools_t*
+get_frame_pools (mathmap_frame_t *frame)
+{
+    return &frame->pools;
+}
+
 int
 get_invocation_img_width (mathmap_invocation_t *invocation)
 {
@@ -203,6 +233,33 @@ float
 get_invocation_image_R (mathmap_invocation_t *invocation)
 {
     return invocation->image_R;
+}
+
+void
+set_closure_xy_vars (image_t *closure, void *xy_vars)
+{
+    closure->v.closure.xy_vars = xy_vars;
+}
+
+void*
+get_closure_xy_vars (image_t *closure)
+{
+    return closure->v.closure.xy_vars;
+}
+
+pools_t*
+get_closure_pools (image_t *closure)
+{
+    return closure->v.closure.pools;
+}
+
+void*
+calc_closure_xy_vars (mathmap_invocation_t *invocation, image_t *closure,
+		      void (*init_frame) (mathmap_invocation_t*, image_t*))
+{
+    if (!closure->v.closure.xy_vars)
+	init_frame(invocation, closure);
+    return closure->v.closure.xy_vars;
 }
 
 float

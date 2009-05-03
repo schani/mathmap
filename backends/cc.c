@@ -59,34 +59,6 @@ print_tuple (float *tuple)
     g_assert_not_reached();
 }
 
-/* permanent const values must be calculated once and then available for the
- * calculation of all less const values */
-static int
-is_permanent_const_value (value_t *value)
-{
-    return (value->least_const_type_multiply_used_in | CONST_T) == (value->const_type | CONST_T)
-	&& (value->least_const_type_directly_used_in | CONST_T) != (value->const_type | CONST_T);
-}
-
-/* temporary const values must be defined for the calculation of all const
- * types up to the least const type they are used in */
-static int
-is_temporary_const_value (value_t *value)
-{
-    return !is_permanent_const_value(value);
-}
-
-/* returns whether const_type is at least as const as lower_bound but not more
- * const than upper_bound */
-static int
-is_const_type_within (int const_type, int lower_bound, int upper_bound)
-{
-    assert((lower_bound & upper_bound) == lower_bound);
-
-    return (const_type & lower_bound) == lower_bound
-	&& (const_type & upper_bound) == const_type;
-}
-
 static void
 output_value_name (FILE *out, value_t *value, int for_decl)
 {
@@ -100,7 +72,7 @@ output_value_name (FILE *out, value_t *value, int for_decl)
     else
     {
 #ifndef NO_CONSTANTS_ANALYSIS
-	if (!for_decl && is_permanent_const_value(value))
+	if (!for_decl && compiler_is_permanent_const_value(value))
 	{
 	    if ((value->const_type | CONST_T) == (CONST_X | CONST_Y | CONST_T))
 		fprintf(out, "xy_vars->");
@@ -126,18 +98,6 @@ output_value_decl (FILE *out, value_t *value)
 	fputs(";\n", out);
 	value->have_defined = 1;
     }
-}
-
-static void
-_reset_value_have_defined (value_t *value, statement_t *stmt, void *info)
-{
-    value->have_defined = 0;
-}
-
-static void
-reset_have_defined (statement_t *stmt)
-{
-    COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt, &_reset_value_have_defined);
 }
 
 static void
@@ -433,25 +393,16 @@ _output_value_if_needed_decl (value_t *value, statement_t *stmt, void *info)
     CLOSURE_VAR(int, const_type, 1);
 
     if ((value->const_type | CONST_T) == (const_type | CONST_T)
-	&& is_permanent_const_value(value))
+	&& compiler_is_permanent_const_value(value))
 	output_value_decl(out, value);
 }
 
 static void
 output_permanent_const_declarations (filter_code_t *code, FILE *out, int const_type)
 {
-    reset_have_defined(code->first_stmt);
+    compiler_reset_have_defined(code->first_stmt);
 
     COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(code->first_stmt, &_output_value_if_needed_decl, out, (void*)const_type);
-}
-
-static int
-_is_value_needed (value_t *value, int const_type)
-{
-    return (value->const_type | CONST_T) == (const_type | CONST_T)
-	|| (is_const_type_within(const_type | CONST_T,
-				 value->least_const_type_multiply_used_in,
-				 value->const_type | CONST_T));
 }
 
 static void
@@ -460,42 +411,22 @@ _output_value_if_needed_code (value_t *value, statement_t *stmt, void *info)
     CLOSURE_VAR(FILE*, out, 0);
     CLOSURE_VAR(int, const_type, 1);
 
-    if ((is_temporary_const_value(value) || const_type == 0)
-	 && (const_type == CONST_IGNORE || _is_value_needed(value, const_type)))
+    if ((compiler_is_temporary_const_value(value) || const_type == 0)
+	 && (const_type == CONST_IGNORE || compiler_is_value_needed_for_const(value, const_type)))
 	output_value_decl(out, value);
-}
-
-static int
-_const_predicate (statement_t *stmt, void *info)
-{
-    CLOSURE_VAR(int, const_type, 0);
-
-    assert(stmt->kind == STMT_ASSIGN || stmt->kind == STMT_PHI_ASSIGN);
-
-    return _is_value_needed(stmt->v.assign.lhs, const_type);
 }
 
 static void
 output_permanent_const_code (filter_code_t *code, FILE *out, int const_type)
 {
-    unsigned int slice_flag;
+    unsigned int slice_flag = compiler_slice_flag_for_const_type(const_type);
 
     /* declarations */
-    reset_have_defined(code->first_stmt);
+    compiler_reset_have_defined(code->first_stmt);
     COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(code->first_stmt, &_output_value_if_needed_code, out, (void*)const_type);
 
     /* code */
-    if (const_type == (CONST_X | CONST_Y))
-	slice_flag = SLICE_XY_CONST;
-    else if (const_type == CONST_Y)
-	slice_flag = SLICE_Y_CONST;
-    else if (const_type == CONST_X)
-	slice_flag = SLICE_X_CONST;
-    else
-	slice_flag = SLICE_NO_CONST;
-
-    COMPILER_SLICE_CODE(code->first_stmt, slice_flag, &_const_predicate, (void*)const_type);
-
+    compiler_slice_code_for_const(code->first_stmt, const_type);
     output_stmts(out, code->first_stmt, slice_flag);
 }
 
