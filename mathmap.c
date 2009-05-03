@@ -1123,7 +1123,7 @@ do_mathmap (int frame_num, float current_t)
 	gimp_drawable_merge_shadow(GIMP_DRAWABLE_ID(output_drawable), TRUE);
 	gimp_drawable_update(GIMP_DRAWABLE_ID(output_drawable), sel_x1, sel_y1, sel_width, sel_height);
 
-	g_free(closure);
+	closure_image_free(closure);
     }
 } /* mathmap */
 
@@ -2120,7 +2120,7 @@ recalculate_preview (void)
 	}
 
 	free(buf);
-	g_free(closure);
+	closure_image_free(closure);
 
 	--in_recalculate;
 

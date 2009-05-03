@@ -208,5 +208,6 @@ void floatmap_write (image_t *img, const char *filename);
 image_t* closure_image_alloc (struct _mathfuncs_t *mathfuncs, filter_func_t filter_func,
 			      int num_uservals, userval_t *uservals,
 			      int pixel_width, int pixel_height);
+void closure_image_free (image_t *closure);
 
 #endif

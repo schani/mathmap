@@ -233,7 +233,16 @@ closure_image_alloc (mathfuncs_t *mathfuncs, filter_func_t filter_func,
     image->v.closure.funcs = mathfuncs;
     image->v.closure.func = filter_func;
     image->v.closure.num_args = num_uservals;
+    image->v.closure.pools = g_new(pools_t, 1);
+    init_pools(image->v.closure.pools);
     memcpy(image->v.closure.args, uservals, num_uservals * sizeof(userval_t));
 
     return image;
+}
+
+void
+closure_image_free (image_t *closure)
+{
+    free_pools(closure->v.closure.pools);
+    g_free(closure);
 }

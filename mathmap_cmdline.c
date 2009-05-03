@@ -810,7 +810,7 @@ cmdline_main (int argc, char *argv[])
 	    }
 #endif
 
-	    g_free(closure);
+	    closure_image_free(closure);
 	}
 
 #ifdef MOVIES
