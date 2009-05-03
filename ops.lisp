@@ -60,9 +60,7 @@
 		 :comparer "images_equal")
    (make-rt-type 'tuple "float *"
 		 :printer "print_tuple"
-		 :comparer "tuples_equal")
-   (make-rt-type 'gsl-matrix "gsl_matrix *"
-		 :print-info '("***MATRIX***" "***MATRIX***" ()))))
+		 :comparer "tuples_equal")))
 
 (defun rt-type-with-name (name)
   (find name *types* :key #'rt-type-name))
