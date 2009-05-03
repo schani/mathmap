@@ -52,6 +52,7 @@ re-enable threads when proper mathfuncs work
 remove pools in root closure image once mathfuncs work
 
 ** Packaging
+add mathmap.png and error.png
 Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
 make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
