@@ -2,8 +2,11 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  * schani@complang.tuwien.ac.at
+ *
+ * Copyright (C) 2008 Serge van Thillo
+ * nulleke@hotmail.com
  *
  * Plug-In structure based on:
  *   Whirl plug-in --- distort an image into a whirlpool
@@ -45,7 +48,7 @@
 #include <gsl/gsl_errno.h>
 #include <gtksourceview/gtksourceview.h>
 #include <gtksourceview/gtksourcelanguage.h>
-#include <gtksourceview/gtksourcelanguagesmanager.h>
+#include <gtksourceview/gtksourcelanguagemanager.h>
 
 #include "exprtree.h"
 #include "builtins.h"
@@ -192,7 +195,7 @@ static gboolean ignore_designer_tree_changes = FALSE;
 //static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkSourceBuffer *source_buffer;
-GtkSourceMarker *source_marker = NULL;
+GtkSourceMark *source_marker = NULL;
 GtkWidget *mathmap_dialog_window,
     *expression_entry,
     *animation_table,
@@ -239,6 +242,41 @@ static designer_design_t *the_current_design = NULL;
 /***** Functions *****/
 
 /*****/
+
+static GtkSourceLanguage*
+get_language_from_mime_type (GtkSourceLanguageManager *manager, const gchar *mime_type)
+{
+    const gchar* const* ids = gtk_source_language_manager_get_language_ids(manager);
+    const gchar* const* id;
+
+    if (ids == NULL)
+	return NULL;
+
+    for (id = ids; *id != NULL; ++ id)
+    {
+        GtkSourceLanguage* language = gtk_source_language_manager_get_language(manager, *id);
+        gchar** mime_types;
+
+        g_assert(language != NULL);
+	mime_types = gtk_source_language_get_mime_types(GTK_SOURCE_LANGUAGE(language));
+
+        if (mime_types != NULL)
+        {
+	    gchar **type;
+
+            for (type = mime_types; *type != NULL; ++type)
+            {
+                if (strcmp(mime_type, *type) == 0)
+                {
+                    g_strfreev(mime_types);
+                    return language;
+                }
+            }
+            g_strfreev(mime_types);
+        }
+    }
+    return NULL;
+}
 
 static void
 expression_copy (gchar *dest, const gchar *src)
@@ -1664,18 +1702,18 @@ mathmap_dialog (int mutable_expression)
 	{
 	    PangoFontDescription *font_desc;
 	    GtkWidget *scrolled_window;
-	    GtkSourceLanguagesManager *manager;
+	    GtkSourceLanguageManager *manager;
 	    GtkSourceLanguage *language;
 
 	    /* Language */
-	    manager = gtk_source_languages_manager_new();
-	    language = gtk_source_languages_manager_get_language_from_mime_type(manager, "application/x-mathmap");
+	    manager = gtk_source_language_manager_new();
+	    language = get_language_from_mime_type(manager, "application/x-mathmap");
 
 	    /* Source Buffer */
 	    source_buffer = gtk_source_buffer_new(NULL);
 	    if (language != NULL)
 		gtk_source_buffer_set_language(source_buffer, language);
-	    gtk_source_buffer_set_highlight(source_buffer, TRUE);
+	    gtk_source_buffer_set_highlight_syntax(source_buffer, TRUE);
 
 	    /* Scrolled Window */
 	    scrolled_window = gtk_scrolled_window_new(NULL, NULL);
@@ -1687,11 +1725,11 @@ mathmap_dialog (int mutable_expression)
 	    expression_entry = gtk_source_view_new_with_buffer(source_buffer);
 	    gtk_widget_show(expression_entry);
 
-	    gtk_source_view_set_show_line_markers(GTK_SOURCE_VIEW(expression_entry), TRUE);
+	    gtk_source_view_set_show_line_marks(GTK_SOURCE_VIEW(expression_entry), TRUE);
 
 	    if ((pixbuf = gdk_pixbuf_new_from_file(ERROR_PIXMAP_NAME, NULL)))
 	    {
-		gtk_source_view_set_marker_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
+		gtk_source_view_set_mark_category_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
 		g_object_unref (pixbuf);
 	    }
 	    else
@@ -2177,7 +2215,7 @@ delete_expression_marker (void)
 {
     if (source_marker != NULL)
     {
-	gtk_source_buffer_delete_marker(source_buffer, source_marker);
+        gtk_text_buffer_delete_mark(GTK_TEXT_BUFFER(source_buffer), GTK_TEXT_MARK(source_marker));
 	source_marker = 0;
     }
 }
@@ -2196,7 +2234,7 @@ set_expression_marker (int line, int column)
 #endif
 
 	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &iter, line, 0);
-	source_marker = gtk_source_buffer_create_marker(source_buffer, NULL, "one", &iter);
+	source_marker = gtk_source_buffer_create_source_mark(source_buffer, NULL, "one", &iter);
     }
 }
 
