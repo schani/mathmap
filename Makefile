@@ -57,7 +57,7 @@ CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 endif
 
 ifeq ($(MINGW32),YES)
-MINGW_LDFLAGS = -lpsapi -limagehlp
+MINGW_LDFLAGS = -lpsapi -limagehlp -mwindows
 LLVM_GCC = /usr/local/llvm-gcc-4.2/bin/llvm-gcc
 else
 GIF_CFLAGS = -DRWIMG_GIF
