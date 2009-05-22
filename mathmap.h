@@ -102,9 +102,15 @@ typedef struct _mathmap_t
 
     unsigned int flags;
 
+    /* for CC */
     initfunc_t initfunc;
-    /* FIXME: remove */
+
+    /* for LLVM - remove eventually */
     filter_func_t filter_func;
+    llvm_filter_func_t main_filter_func;
+    init_x_or_y_func_t init_x_func;
+    init_x_or_y_func_t init_y_func;
+
     void *module_info;
 
     struct _mathmap_t *next;

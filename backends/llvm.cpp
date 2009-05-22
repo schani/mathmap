@@ -57,7 +57,10 @@ public:
     code_emitter (Module *module, filter_t *filter, filter_code_t *code);
     ~code_emitter ();
 
-    void emit ();
+    // must be called in this order - the last one is optional
+    void emit_init_frame_function ();
+    void emit_filter_function ();
+    void emit_main_filter_funcs ();
 
 private:
     filter_t *filter;
@@ -65,7 +68,6 @@ private:
     Module *module;
 
     Function *init_frame_function;
-    Function *filter_function;
     Function *current_function;
 
     IRBuilder<> *builder;
@@ -121,23 +123,49 @@ private:
     Value* emit_primary (primary_t *primary, bool need_float = false);
     Value* emit_closure (filter_t *filter, primary_t *args);
 
-    void emit_init_frame_function ();
+    void set_internals_from_invocation (Value *invocation_arg);
+    void setup_xy_vars_from_closure ();
 
-    void setup_filter_function ();
+    void setup_filter_function (bool is_main_filter_function);
     void setup_init_frame_function ();
+    Value* setup_init_x_or_y_function (string function_name, const char *internal_name, StructType *vars_type);
     void finish_function ();
 };
 
 static string
+filter_prefix_name (filter_t *filter, const char *prefix)
+{
+    return string(prefix) + string("_") + string(filter->name);
+}
+
+static string
 filter_function_name (filter_t *filter)
 {
-    return string("filter_") + string(filter->name);
+    return filter_prefix_name(filter, "filter");
+}
+
+static string
+main_filter_function_name (filter_t *filter)
+{
+    return filter_prefix_name(filter, "main_filter");
 }
 
 static string
 init_frame_function_name (filter_t *filter)
 {
-    return string("init_frame_") + string(filter->name);
+    return filter_prefix_name(filter, "init_frame");
+}
+
+static string
+init_x_function_name (filter_t *filter)
+{
+    return filter_prefix_name(filter, "init_x");
+}
+
+static string
+init_y_function_name (filter_t *filter)
+{
+    return filter_prefix_name(filter, "init_y");
 }
 
 static Function*
@@ -151,9 +179,39 @@ lookup_filter_function (Module *module, filter_t *filter)
 }
 
 static Function*
+lookup_main_filter_function (Module *module, filter_t *filter)
+{
+    Function *func = module->getFunction(main_filter_function_name(filter));
+
+    g_assert(func != NULL);
+
+    return func;
+}
+
+static Function*
 lookup_init_frame_function (Module *module, filter_t *filter)
 {
     Function *func = module->getFunction(init_frame_function_name(filter));
+
+    g_assert(func != NULL);
+
+    return func;
+}
+
+static Function*
+lookup_init_x_function (Module *module, filter_t *filter)
+{
+    Function *func = module->getFunction(init_x_function_name(filter));
+
+    g_assert(func != NULL);
+
+    return func;
+}
+
+static Function*
+lookup_init_y_function (Module *module, filter_t *filter)
+{
+    Function *func = module->getFunction(init_y_function_name(filter));
 
     g_assert(func != NULL);
 
@@ -172,6 +230,30 @@ make_float_const (float x)
     return ConstantFP::get(Type::FloatTy, x);
 }
 
+static const Type*
+get_invocation_ptr_type (Module *module)
+{
+    const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
+    g_assert(invocation_type);
+    return PointerType::getUnqual(invocation_type);
+}
+
+static const Type*
+get_frame_ptr_type (Module *module)
+{
+    const Type *frame_type = module->getTypeByName(string("struct.mathmap_frame_t"));
+    g_assert(frame_type);
+    return PointerType::getUnqual(frame_type);
+}
+
+static const Type*
+get_pools_ptr_type (Module *module)
+{
+    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
+    g_assert(pools_type);
+    return PointerType::getUnqual(pools_type);
+}
+
 code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *code)
 {
     module = _module;
@@ -182,8 +264,7 @@ code_emitter::code_emitter (Module *_module, filter_t *_filter, filter_code_t *c
     x_vars_var = y_vars_var = xy_vars_var = NULL;
 
     init_frame_function = lookup_init_frame_function(module, filter);
-    filter_function = lookup_filter_function(module, filter);
-    g_assert(init_frame_function && filter_function);
+    g_assert(init_frame_function);
 }
 
 code_emitter::~code_emitter ()
@@ -527,6 +608,8 @@ llvm_type_for_type (Module *module, type_t type)
 	    return PointerType::getUnqual(module->getTypeByName(string("struct._image_t")));
 	case TYPE_TUPLE :
 	    return PointerType::getUnqual(Type::FloatTy);
+	case TYPE_COLOR :
+	    return Type::Int32Ty;
 	default :
 	    g_assert_not_reached();
     }
@@ -899,24 +982,8 @@ code_emitter::_build_const_value_info (value_t *value, statement_t *stmt, void *
 }
 
 void
-code_emitter::setup_filter_function ()
+code_emitter::set_internals_from_invocation (Value *invocation_arg)
 {
-    Function::arg_iterator args = filter_function->arg_begin();
-
-    invocation_arg = args++;
-    invocation_arg->setName("invocation");
-    closure_arg = args++;
-    closure_arg->setName("closure");
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "x", true), args++);
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "y", true), args++);
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
-    pools_arg = args++;
-    pools_arg->setName("pools");
-
-    BasicBlock *block = BasicBlock::Create("entry", filter_function);
-
-    builder = new IRBuilder<> (block);
-
     set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
 		 builder->CreateCall(module->getFunction(string("get_invocation_img_width")), invocation_arg));
     set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelH", true),
@@ -927,11 +994,49 @@ code_emitter::setup_filter_function ()
 		 builder->CreateCall(module->getFunction(string("get_invocation_render_height")), invocation_arg));
     set_internal(::lookup_internal(filter->v.mathmap.internals, "R", true),
 		 builder->CreateCall(module->getFunction(string("get_invocation_image_R")), invocation_arg));
+}
 
+void
+code_emitter::setup_xy_vars_from_closure ()
+{
     Value *xy_vars_untyped = builder->CreateCall3(module->getFunction(string("calc_closure_xy_vars")),
 						  invocation_arg, closure_arg, init_frame_function);
 
     xy_vars_var = builder->CreateBitCast(xy_vars_untyped, PointerType::getUnqual(xy_vars_type));
+}
+
+void
+code_emitter::setup_filter_function (bool is_main_filter_function)
+{
+    Function *filter_function = is_main_filter_function
+	? lookup_main_filter_function(module, filter)
+	: lookup_filter_function(module, filter);
+    Function::arg_iterator args = filter_function->arg_begin();
+
+    invocation_arg = args++;
+    invocation_arg->setName("invocation");
+    closure_arg = args++;
+    closure_arg->setName("closure");
+    if (is_main_filter_function)
+    {
+	x_vars_var = args++;
+	x_vars_var->setName("x_vars");
+	y_vars_var = args++;
+	y_vars_var->setName("y_vars");
+    }
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "x", true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "y", true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
+    pools_arg = args++;
+    pools_arg->setName("pools");
+
+    BasicBlock *block = BasicBlock::Create("entry", filter_function);
+
+    builder = new IRBuilder<> (block);
+
+    set_internals_from_invocation(invocation_arg);
+
+    setup_xy_vars_from_closure ();
 
     alloc_complex_copy_var();
 
@@ -944,7 +1049,7 @@ code_emitter::emit_sizeof (Type *type)
     Value *size = builder->CreateGEP(ConstantPointerNull::get(PointerType::getUnqual(type)),
 				     make_int_const(1));
 
-    return builder->CreatePtrToInt(size, Type::Int32Ty);
+    return builder->CreatePtrToInt(size, sizeof(gpointer) == 4 ? Type::Int32Ty : Type::Int64Ty);
 }
 
 void
@@ -972,16 +1077,7 @@ code_emitter::setup_init_frame_function ()
     //builder->CreateCall(module->getFunction(string("get_frame_t")), frame_arg));
     set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), make_float_const(0.0));
 
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_img_width")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelH", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_img_height")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelW", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_render_width")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "__renderPixelH", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_render_height")), invocation_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "R", true),
-		 builder->CreateCall(module->getFunction(string("get_invocation_image_R")), invocation_arg));
+    set_internals_from_invocation(invocation_arg);
 
     Value *xy_vars_untyped = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
 						  pools_arg, emit_sizeof(xy_vars_type));
@@ -996,6 +1092,47 @@ code_emitter::setup_init_frame_function ()
     current_function = init_frame_function;
 }
 
+Value*
+code_emitter::setup_init_x_or_y_function (string function_name, const char *internal_name, StructType *vars_type)
+{
+    Constant *function_const = module->getOrInsertFunction(function_name,
+							   PointerType::getUnqual(vars_type),	// ret type
+							   get_invocation_ptr_type(module), // invocation
+							   llvm_type_for_type(module, TYPE_IMAGE), // closure
+							   Type::FloatTy, // x/y
+							   Type::FloatTy, // t
+							   get_pools_ptr_type(module), // pools
+							   NULL);
+    current_function = cast<Function>(function_const);
+
+    Function::arg_iterator args = current_function->arg_begin();
+
+    invocation_arg = args++;
+    invocation_arg->setName("invocation");
+    closure_arg = args++;
+    closure_arg->setName("closure");
+    set_internal(::lookup_internal(filter->v.mathmap.internals, internal_name, true), args++);
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
+    pools_arg = args++;
+    pools_arg->setName("pools");
+
+    BasicBlock *block = BasicBlock::Create("entry", current_function);
+
+    builder = new IRBuilder<> (block);
+
+    set_internals_from_invocation(invocation_arg);
+
+    setup_xy_vars_from_closure();
+
+    Value *vars_untyped = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
+						 pools_arg, emit_sizeof(vars_type));
+    Value *vars_var = builder->CreateBitCast(vars_untyped, PointerType::getUnqual(vars_type));
+
+    alloc_complex_copy_var();
+
+    return vars_var;
+}
+
 void
 code_emitter::finish_function ()
 {
@@ -1005,6 +1142,8 @@ code_emitter::finish_function ()
     closure_arg = NULL;
     pools_arg = NULL;
 
+    x_vars_var = NULL;
+    y_vars_var = NULL;
     xy_vars_var = NULL;
 
     complex_copy_var = NULL;
@@ -1027,7 +1166,7 @@ code_emitter::build_const_value_infos (int const_type)
     compiler_reset_have_defined(filter_code->first_stmt);
     next_const_value_index = 0;
     COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(filter_code->first_stmt, &_build_const_value_info,
-					  this, (void*)const_type, &struct_elems);
+					  CLOSURE_ARG(this), CLOSURE_ARG((void*)const_type), CLOSURE_ARG(&struct_elems));
 
     return StructType::get(struct_elems);
 }
@@ -1035,6 +1174,10 @@ code_emitter::build_const_value_infos (int const_type)
 void
 code_emitter::emit_init_frame_function ()
 {
+#ifdef DEBUG_OUTPUT
+    printf("emitting init frame for %s\n", filter->name);
+#endif
+
     xy_vars_type = build_const_value_infos(CONST_X | CONST_Y);
 
     setup_init_frame_function();
@@ -1045,13 +1188,13 @@ code_emitter::emit_init_frame_function ()
 }
 
 void
-code_emitter::emit ()
+code_emitter::emit_filter_function ()
 {
-    emit_init_frame_function();
+#ifdef DEBUG_OUTPUT
+    printf("emitting filter func for %s\n", filter->name);
+#endif
 
-    std::cout << "done with init frame" << endl;
-
-    setup_filter_function();
+    setup_filter_function(false);
 
     x_vars_type = build_const_value_infos(CONST_X);
     x_vars_var = builder->CreateAlloca(x_vars_type);
@@ -1069,32 +1212,50 @@ code_emitter::emit ()
     emit_stmts(filter_code->first_stmt, SLICE_NO_CONST);
 
     finish_function();
-
-    std::cout << "done with filter func" << endl;
 }
 
-static const Type*
-get_invocation_ptr_type (Module *module)
+void
+code_emitter::emit_main_filter_funcs ()
 {
-    const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
-    g_assert(invocation_type);
-    return PointerType::getUnqual(invocation_type);
-}
+    // init x
+#ifdef DEBUG_OUTPUT
+    printf("emitting init x for %s\n", filter->name);
+#endif
+    x_vars_var = setup_init_x_or_y_function(init_x_function_name(filter), "y", x_vars_type);
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_X);
+    emit_stmts(filter_code->first_stmt, SLICE_X_CONST);
+    builder->CreateRet(x_vars_var);
+    finish_function();
 
-static const Type*
-get_frame_ptr_type (Module *module)
-{
-    const Type *frame_type = module->getTypeByName(string("struct.mathmap_frame_t"));
-    g_assert(frame_type);
-    return PointerType::getUnqual(frame_type);
-}
+    // init y
+#ifdef DEBUG_OUTPUT
+    printf("emitting init y for %s\n", filter->name);
+#endif
+    y_vars_var = setup_init_x_or_y_function(init_y_function_name(filter), "x", y_vars_type);
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_Y);
+    emit_stmts(filter_code->first_stmt, SLICE_Y_CONST);
+    builder->CreateRet(y_vars_var);
+    finish_function();
 
-static const Type*
-get_pools_ptr_type (Module *module)
-{
-    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
-    g_assert(pools_type);
-    return PointerType::getUnqual(pools_type);
+    // filter
+#ifdef DEBUG_OUTPUT
+    printf("emitting main filter func for %s\n", filter->name);
+#endif
+    module->getOrInsertFunction(main_filter_function_name(filter),
+				llvm_type_for_type(module, TYPE_TUPLE), // ret type
+				get_invocation_ptr_type(module), // invocation
+				llvm_type_for_type(module, TYPE_IMAGE), // closure
+				PointerType::getUnqual(x_vars_type), // x_vars
+				PointerType::getUnqual(y_vars_type), // y_vars
+				Type::FloatTy, // x
+				Type::FloatTy, // y
+				Type::FloatTy, // t
+				get_pools_ptr_type(module), // pools
+				NULL);
+    setup_filter_function(true);
+    compiler_slice_code_for_const(filter_code->first_stmt, CONST_NONE);
+    emit_stmts(filter_code->first_stmt, SLICE_NO_CONST);
+    finish_function();
 }
 
 static Function*
@@ -1127,7 +1288,7 @@ make_init_frame_function (Module *module, filter_t *filter)
 void* lazy_creator (const std::string &name);
 
 extern "C"
-filter_func_t
+void
 gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 {
     filter_code_t **filter_codes = compiler_compile_filters(mathmap);
@@ -1168,7 +1329,10 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	emitter = new code_emitter (module, filter, code);
 	try
 	{
-	    emitter->emit();
+	    emitter->emit_init_frame_function();
+	    emitter->emit_filter_function();
+	    if (filter == mathmap->main_filter)
+		emitter->emit_main_filter_funcs();
 	}
 	catch (compiler_error error)
 	{
@@ -1176,10 +1340,12 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	    delete module;
 
 	    strcpy(error_string, error.info.c_str());
-	    return NULL;
+	    return;
 	}
 	delete emitter;
     }
+
+    compiler_free_pools(mathmap);
 
 #ifdef DEBUG_OUTPUT
     module->dump();
@@ -1196,15 +1362,18 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 
     ee->InstallLazyFunctionCreator(lazy_creator);
 
-    Function *main_filter_function = lookup_filter_function(module, mathmap->main_filter);
-    void *fptr = ee->getPointerToFunction (main_filter_function);
-    assert(fptr);
+    void *filter_fptr = ee->getPointerToFunction(lookup_filter_function(module, mathmap->main_filter));
+    void *main_filter_fptr = ee->getPointerToFunction(lookup_main_filter_function(module, mathmap->main_filter));
+    void *init_x_fptr = ee->getPointerToFunction(lookup_init_x_function(module, mathmap->main_filter));
+    void *init_y_fptr = ee->getPointerToFunction(lookup_init_y_function(module, mathmap->main_filter));
+    g_assert(main_filter_fptr && init_x_fptr && init_y_fptr);
 
-    compiler_free_pools(mathmap);
+    mathmap->filter_func = (filter_func_t)filter_fptr;
+    mathmap->main_filter_func = (llvm_filter_func_t)main_filter_fptr;
+    mathmap->init_x_func = (init_x_or_y_func_t)init_x_fptr;
+    mathmap->init_y_func = (init_x_or_y_func_t)init_y_fptr;
 
     mathmap->module_info = ee;
-
-    return (filter_func_t)fptr;
 }
 
 extern "C"

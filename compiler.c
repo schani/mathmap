@@ -695,7 +695,7 @@ for_each_assign_statement (statement_t *stmts, void (*func) (statement_t *stmt, 
     }
 }
 
-#define FOR_EACH_ASSIGN_STATEMENT(stmts,func,...) do { void *__clos[] = { __VA_ARGS__ }; for_each_assign_statement((stmts),(func),__clos); } while (0)
+#define FOR_EACH_ASSIGN_STATEMENT(stmts,func,...) do { long __clos[] = { __VA_ARGS__ }; for_each_assign_statement((stmts),(func),__clos); } while (0)
 
 static void
 _call_func (value_t *value, void *info)
@@ -2498,7 +2498,7 @@ perform_worklist_dfa (statement_t *stmts,
     } while (worklist != 0);
 }
 
-#define PERFORM_WORKLIST_DFA(stmts,build,work,...) do { void *__clos[] = { __VA_ARGS__ }; perform_worklist_dfa((stmts),(build),(work),__clos); } while (0)
+#define PERFORM_WORKLIST_DFA(stmts,build,work,...) do { long __clos[] = { __VA_ARGS__ }; perform_worklist_dfa((stmts),(build),(work),__clos); } while (0)
 
 
 /*** type propagation ***/

@@ -480,7 +480,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 	}
 
 #ifdef USE_LLVM
-	mathmap->filter_func = gen_and_load_llvm_code(mathmap, template_filename);
+	gen_and_load_llvm_code(mathmap, template_filename);
 #else
 	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 #endif
@@ -518,6 +518,21 @@ llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure)
 void
 llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure)
 {
+    mathmap_frame_t *mmframe = slice->frame;
+    mathmap_invocation_t *invocation = mmframe->invocation;
+    float t = mmframe->current_t;
+    pools_t *pools = &slice->pools;
+    int col;
+
+    slice->y_vars = pools_alloc(pools, sizeof(void*) * slice->region_width);
+
+    for (col = 0; col < slice->region_width; ++col)
+    {
+	float x = CALC_VIRTUAL_X(col + slice->region_x, mmframe->frame_render_width, slice->sampling_offset_x);
+	void *y_vars = invocation->mathmap->init_y_func(invocation, closure, x, t, &slice->pools);
+
+	((void**)slice->y_vars)[col] = y_vars;
+    }
 }
 
 void
@@ -549,15 +564,19 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 	float y = CALC_VIRTUAL_Y(row + slice->region_y, frame_render_height, sampling_offset_y);
 	unsigned char *p = q;
 	float *fp = q;
+	void *x_vars;
+
+	x_vars = invocation->mathmap->init_x_func(invocation, closure, y, t, &slice->pools);
 
 	for (col = 0; col < slice->region_width; ++col)
 	{
+	    void *y_vars = ((void**)slice->y_vars)[col];
 	    float x = CALC_VIRTUAL_X(col + region_x, frame_render_width, sampling_offset_x);
 	    float *return_tuple;
 
 	    reset_pools(pools);
 
-	    return_tuple = invocation->mathmap->filter_func(invocation, closure, x, y, t, pools);
+	    return_tuple = invocation->mathmap->main_filter_func(invocation, closure, x_vars, y_vars, x, y, t, pools);
 
 	    if (floatmap)
 	    {

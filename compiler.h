@@ -69,7 +69,7 @@ initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
 				char *template_filename, char *include_path);
 void unload_c_code (void *module_info);
 
-filter_func_t gen_and_load_llvm_code (struct _mathmap_t *mathmap, char *template_filename);
+void gen_and_load_llvm_code (struct _mathmap_t *mathmap, char *template_filename);
 void unload_llvm_code (void *module_info);
 
 #endif

@@ -34,7 +34,8 @@ extern "C" {
 
 #include "opdefs.h"
 
-#define CLOSURE_GET(n,t)		(t)(((void**)info)[(n)])
+#define CLOSURE_ARG(x)			((long)(x))
+#define CLOSURE_GET(n,t)		(t)(((long*)info)[(n)])
 #define CLOSURE_VAR(t,name,n)		t name = CLOSURE_GET((n),t)
 
 struct _value_t;
@@ -325,9 +326,9 @@ extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
 extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);
 extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
 
-#define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
-#define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)
-#define COMPILER_SLICE_CODE(stmt,flag,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
+#define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
+#define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)
+#define COMPILER_SLICE_CODE(stmt,flag,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
 
 #ifdef __cplusplus
 }
