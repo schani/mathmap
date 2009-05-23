@@ -127,9 +127,6 @@ TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h 
 mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c llvm_template.o
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(LDFLAGS)
 
-llvmtest : llvmtest.o llvm_template.o Makefile
-	$(CXX) -o llvmtest llvmtest.o $(LLVM_LDFLAGS) $(LDFLAGS)
-
 librwimg :
 	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)"
 
@@ -167,9 +164,6 @@ backends/lazy_creator.cpp : exported_symbols
 
 backends/lazy_creator.o : backends/lazy_creator.cpp
 	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/lazy_creator.cpp
-
-llvmtest.o : llvmtest.cc
-	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c llvmtest.cc
 
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
@@ -210,12 +204,12 @@ clean :
 	rm -rf debian/mathmap debian/mathmap.substvars
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c backends/lazy_creator.cpp compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
 
 TAGS :
 	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp' -o -name '*.cpp'`
 
-dist : new_builtins.c parser.c scanner.c new_template.c clean
+dist : new_builtins.c parser.c scanner.c new_template.c backends/lazy_creator.cpp clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
 	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl make_template.pl *.po mathmap.lang mathmap-$(VERSION)
@@ -233,6 +227,7 @@ dist : new_builtins.c parser.c scanner.c new_template.c clean
 	cp compopt/*.[ch] mathmap-$(VERSION)/compopt
 	mkdir mathmap-$(VERSION)/backends
 	cp backends/*.[ch] mathmap-$(VERSION)/backends
+	cp backends/*.cpp mathmap-$(VERSION)/backends
 	mkdir mathmap-$(VERSION)/doc
 	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
 	mkdir mathmap-$(VERSION)/pixmaps
