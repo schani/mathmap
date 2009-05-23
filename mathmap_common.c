@@ -515,6 +515,10 @@ llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure)
 {
     mathmap_invocation_t *invocation = mmframe->invocation;
 
+#ifdef POOLS_DEBUG_OUTPUT
+    printf("initing frame %p (pools %p)\n", mmframe, &mmframe->pools);
+#endif
+
     mmframe->xy_vars = invocation->mathmap->llvm_init_frame_func(invocation, closure, mmframe->current_t, &mmframe->pools);
 }
 
@@ -526,6 +530,10 @@ llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure)
     float t = mmframe->current_t;
     pools_t *pools = &slice->pools;
     int col;
+
+#ifdef POOLS_DEBUG_OUTPUT
+    printf("initing slice %p (pools %p)\n", slice, pools);
+#endif
 
     slice->y_vars = pools_alloc(pools, sizeof(void*) * slice->region_width);
 
@@ -559,6 +567,10 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
     init_pools(&pixel_pools);
     pools = &pixel_pools;
 
+#ifdef POOLS_DEBUG_OUTPUT
+    printf("calcing lines in slice %p with pools %p\n", slice, pools);
+#endif
+
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
 
@@ -569,6 +581,9 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 	float *fp = q;
 	void *x_vars;
 
+#ifdef POOLS_DEBUG_OUTPUT
+	printf("calcing x_vars for row %d\n", row);
+#endif
 	x_vars = invocation->mathmap->init_x_func(slice, closure, y, t);
 
 	for (col = 0; col < slice->region_width; ++col)
@@ -579,7 +594,13 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 
 	    reset_pools(pools);
 
+#ifdef POOLS_DEBUG_OUTPUT
+	    printf("calcing row %d col %d\n", row, col);
+#endif
 	    return_tuple = invocation->mathmap->main_filter_func(slice, closure, x_vars, y_vars, x, y, t, pools);
+#ifdef POOLS_DEBUG_OUTPUT
+	    printf("got return tuple %p\n", return_tuple);
+#endif
 
 	    if (floatmap)
 	    {

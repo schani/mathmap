@@ -252,7 +252,15 @@ calc_closure_xy_vars (mathmap_invocation_t *invocation, image_t *closure, float 
 		      void* (*init_frame) (mathmap_invocation_t*, image_t*, float, pools_t*))
 {
     if (!closure->v.closure.xy_vars)
+    {
+#ifdef POOLS_DEBUG_OUTPUT
+	printf("calcing xy_vars of closure %p with pools %p\n", closure, closure->v.closure.pools);
+#endif
 	closure->v.closure.xy_vars = init_frame(invocation, closure, t, closure->v.closure.pools);
+#ifdef POOLS_DEBUG_OUTPUT
+	printf("done calcing xy_vars of closure %p\n", closure);
+#endif
+    }
     return closure->v.closure.xy_vars;
 }
 
@@ -289,9 +297,15 @@ alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_a
 
     image_t *image = ALLOC_CLOSURE_IMAGE(num_args);
 
+#ifdef POOLS_DEBUG_OUTPUT
+    printf("alloced closure %p from pools %p\n", image, pools);
+#endif
+
+    image->v.closure.funcs = NULL;
     image->v.closure.pools = pools;
     image->v.closure.funcs = &funcs;
     image->v.closure.func = filter_func;
+    image->v.closure.xy_vars = NULL;
 
     return image;
 }
