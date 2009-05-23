@@ -311,6 +311,12 @@ alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_a
 }
 
 userval_t*
+alloc_uservals (pools_t *pools, int num)
+{
+    return (userval_t*)pools_alloc(pools, sizeof(userval_t) * num);
+}
+
+userval_t*
 get_closure_uservals (image_t *image)
 {
     return image->v.closure.args;
@@ -370,6 +376,32 @@ set_closure_pixel_size (image_t *image, int width, int height)
 {
     image->pixel_width = width;
     image->pixel_height = height;
+}
+
+$def_native_filters
+
+image_t*
+llvm_native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+{
+    return native_filter_gaussian_blur(invocation, args, pools);
+}
+
+image_t*
+llvm_native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+{
+    return native_filter_convolve(invocation, args, pools);
+}
+
+image_t*
+llvm_native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+{
+    return native_filter_half_convolve(invocation, args, pools);
+}
+
+image_t*
+llvm_native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+{
+    return native_filter_visualize_fft(invocation, args, pools);
 }
 
 #undef OUTPUT_TUPLE

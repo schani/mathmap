@@ -527,17 +527,24 @@ Value*
 code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 {
     int num_args = compiler_num_filter_args(closure_filter) - 3;
-    Value *closure, *uservals;
+    Value *closure = NULL, *uservals;
     bool have_size;
     userval_info_t *info;
     int i;
 
-    g_assert(closure_filter->kind == FILTER_MATHMAP);
+    g_assert(closure_filter->kind == FILTER_MATHMAP || closure_filter->kind == FILTER_NATIVE);
 
-    closure = builder->CreateCall4(module->getFunction(string("alloc_closure_image")),
-				   invocation_arg, pools_arg, make_int_const(num_args),
-				   lookup_filter_function(module, closure_filter));
-    uservals = builder->CreateCall(module->getFunction(string("get_closure_uservals")), closure);
+    if (closure_filter->kind == FILTER_MATHMAP)
+    {
+	closure = builder->CreateCall4(module->getFunction(string("alloc_closure_image")),
+				       invocation_arg, pools_arg, make_int_const(num_args),
+				       lookup_filter_function(module, closure_filter));
+	uservals = builder->CreateCall(module->getFunction(string("get_closure_uservals")), closure);
+    }
+    else
+	uservals = builder->CreateCall2(module->getFunction(string("alloc_uservals")),
+					pools_arg,
+					make_int_const(compiler_num_filter_args(closure_filter) - 3));
 
     have_size = FALSE;
     for (i = 0, info = closure_filter->userval_infos;
@@ -547,9 +554,15 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 	const char *set_func_name = get_userval_set_func_name(info->type);
 	Value *arg = emit_primary(&args[i]);
 
+	/* FIXME: remove this eventually - bool needs to be an int */
+	if (info->type == USERVAL_BOOL_CONST)
+	    arg = promote(arg, TYPE_FLOAT);
+
 	builder->CreateCall3(module->getFunction(string(set_func_name)), uservals, make_int_const(i), arg);
 
-	if (info->type == USERVAL_IMAGE && !have_size)
+	if (closure_filter->kind == FILTER_MATHMAP
+	    && info->type == USERVAL_IMAGE
+	    && !have_size)
 	{
 	    builder->CreateCall2(module->getFunction(string("set_closure_size_from_image")), closure, arg);
 	    have_size = true;
@@ -557,11 +570,20 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
     }
     g_assert(i == num_args);
 
-    if (!have_size)
-	builder->CreateCall3(module->getFunction(string("set_closure_pixel_size")),
-			     closure, lookup_internal("__canvasPixelW"), lookup_internal("__canvasPixelH"));
+    if (closure_filter->kind == FILTER_MATHMAP)
+    {
+	if (!have_size)
+	    builder->CreateCall3(module->getFunction(string("set_closure_pixel_size")),
+				 closure, lookup_internal("__canvasPixelW"), lookup_internal("__canvasPixelH"));
 
-    return closure;
+	return closure;
+    }
+    else
+    {
+	string filter_func_name = string("llvm_") + string(closure_filter->v.native.func_name);
+	return builder->CreateCall3(module->getFunction(filter_func_name),
+				    invocation_arg, uservals, pools_arg);
+    }
 }
 
 static bool
@@ -731,14 +753,7 @@ code_emitter::emit_rhs (rhs_t *rhs)
 	    }
 
 	case RHS_CLOSURE :
-	    {
-		if (rhs->v.closure.filter->kind == FILTER_MATHMAP)
-		    return emit_closure(rhs->v.closure.filter, rhs->v.closure.args);
-		else
-		{
-		    throw compiler_error(string("Native filters don't work with the LLVM backend, yet."));
-		}
-	    }
+	    return emit_closure(rhs->v.closure.filter, rhs->v.closure.args);
 
 	case RHS_TUPLE :
 	    {

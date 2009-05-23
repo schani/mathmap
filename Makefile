@@ -122,7 +122,7 @@ GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h noise.h
+TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h noise.h native-filters/native-filters.h
 
 mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c llvm_template.o
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(LDFLAGS)
