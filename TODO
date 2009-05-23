@@ -16,6 +16,7 @@ make preview input drawables to be floatmaps
 ** General
 why is bool_const a float in userval_t?
 move everything from invocation to frame that belongs there
+xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 pass through frame and t everwhere
 use -O3
 do we need uservals, image size in invocation when we have them in the closure?
@@ -43,7 +44,7 @@ make internals typed
 don't put easy to produce constants in slices
 
 ** LLVM
-implement const slices
+pass t properly
 implement native filters - requires const
 make LLVM optimize
 why do we compare against floats in simple counting loops?

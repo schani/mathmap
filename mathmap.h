@@ -107,6 +107,7 @@ typedef struct _mathmap_t
 
     /* for LLVM - remove eventually */
     filter_func_t filter_func;
+    llvm_init_frame_func_t llvm_init_frame_func;
     llvm_filter_func_t main_filter_func;
     init_x_or_y_func_t init_x_func;
     init_x_or_y_func_t init_y_func;

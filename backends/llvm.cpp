@@ -73,6 +73,7 @@ private:
     IRBuilder<> *builder;
 
     Value *invocation_arg;
+    Value *frame_arg;
     Value *closure_arg;
     Value *pools_arg;
 
@@ -83,6 +84,7 @@ private:
     Value *x_vars_var;
     Value *y_vars_var;
     Value *xy_vars_var;
+    Value *ret_var;
 
     Value *complex_copy_var;
 
@@ -125,6 +127,7 @@ private:
 
     void set_internals_from_invocation (Value *invocation_arg);
     void setup_xy_vars_from_closure ();
+    void set_xy_vars_from_frame ();
 
     void setup_filter_function (bool is_main_filter_function);
     void setup_init_frame_function ();
@@ -231,6 +234,12 @@ make_float_const (float x)
 }
 
 static const Type*
+get_void_ptr_type ()
+{
+    return PointerType::getUnqual(Type::Int8Ty);
+}
+
+static const Type*
 get_invocation_ptr_type (Module *module)
 {
     const Type *invocation_type = module->getTypeByName(string("struct.mathmap_invocation_t"));
@@ -244,6 +253,14 @@ get_frame_ptr_type (Module *module)
     const Type *frame_type = module->getTypeByName(string("struct.mathmap_frame_t"));
     g_assert(frame_type);
     return PointerType::getUnqual(frame_type);
+}
+
+static const Type*
+get_slice_ptr_type (Module *module)
+{
+    const Type *slice_type = module->getTypeByName(string("struct._mathmap_slice_t"));
+    g_assert(slice_type);
+    return PointerType::getUnqual(slice_type);
 }
 
 static const Type*
@@ -610,6 +627,10 @@ llvm_type_for_type (Module *module, type_t type)
 	    return PointerType::getUnqual(Type::FloatTy);
 	case TYPE_COLOR :
 	    return Type::Int32Ty;
+	case TYPE_CURVE :
+	    return PointerType::getUnqual(module->getTypeByName(string("struct.curve_t")));
+	case TYPE_GRADIENT :
+	    return PointerType::getUnqual(module->getTypeByName(string("struct.gradient_t")));
 	default :
 	    g_assert_not_reached();
     }
@@ -997,11 +1018,18 @@ code_emitter::set_internals_from_invocation (Value *invocation_arg)
 }
 
 void
+code_emitter::set_xy_vars_from_frame ()
+{
+    Value *xy_vars_untyped = builder->CreateCall(module->getFunction(string("get_frame_xy_vars")), frame_arg);
+    xy_vars_var = builder->CreateBitCast(xy_vars_untyped, PointerType::getUnqual(xy_vars_type));
+}
+
+void
 code_emitter::setup_xy_vars_from_closure ()
 {
-    Value *xy_vars_untyped = builder->CreateCall3(module->getFunction(string("calc_closure_xy_vars")),
-						  invocation_arg, closure_arg, init_frame_function);
-
+    Value *t_var = lookup_internal(::lookup_internal(filter->v.mathmap.internals, "t", true));
+    Value *xy_vars_untyped = builder->CreateCall4(module->getFunction(string("calc_closure_xy_vars")),
+						  invocation_arg, closure_arg, t_var, init_frame_function);
     xy_vars_var = builder->CreateBitCast(xy_vars_untyped, PointerType::getUnqual(xy_vars_type));
 }
 
@@ -1012,9 +1040,18 @@ code_emitter::setup_filter_function (bool is_main_filter_function)
 	? lookup_main_filter_function(module, filter)
 	: lookup_filter_function(module, filter);
     Function::arg_iterator args = filter_function->arg_begin();
+    Value *slice_arg = NULL;
 
-    invocation_arg = args++;
-    invocation_arg->setName("invocation");
+    if (is_main_filter_function)
+    {
+	slice_arg = args++;
+	slice_arg->setName("slice");
+    }
+    else
+    {
+	invocation_arg = args++;
+	invocation_arg->setName("invocation");
+    }
     closure_arg = args++;
     closure_arg->setName("closure");
     if (is_main_filter_function)
@@ -1034,9 +1071,18 @@ code_emitter::setup_filter_function (bool is_main_filter_function)
 
     builder = new IRBuilder<> (block);
 
+    if (is_main_filter_function)
+    {
+	frame_arg = builder->CreateCall(module->getFunction(string("get_slice_frame")), slice_arg);
+	invocation_arg = builder->CreateCall(module->getFunction(string("get_frame_invocation")), frame_arg);
+    }
+
     set_internals_from_invocation(invocation_arg);
 
-    setup_xy_vars_from_closure ();
+    if (is_main_filter_function)
+	set_xy_vars_from_frame ();
+    else
+	setup_xy_vars_from_closure ();
 
     alloc_complex_copy_var();
 
@@ -1055,8 +1101,8 @@ code_emitter::emit_sizeof (Type *type)
 void
 code_emitter::setup_init_frame_function ()
 {
+    Value *t_arg;
     Function::arg_iterator args = init_frame_function->arg_begin();
-    //Value *frame_arg;
 
     invocation_arg = args++;
     invocation_arg->setName("invocation");
@@ -1064,6 +1110,10 @@ code_emitter::setup_init_frame_function ()
     //frame_arg->setName("frame");
     closure_arg = args++;
     closure_arg->setName("closure");
+    t_arg = args++;
+    t_arg->setName("t");
+    pools_arg = args++;
+    pools_arg->setName("pools");
 
     BasicBlock *block = BasicBlock::Create("entry", init_frame_function);
 
@@ -1071,21 +1121,14 @@ code_emitter::setup_init_frame_function ()
 
     //invocation_arg = builder->CreateCall(module->getFunction(string("get_frame_invocation")), frame_arg);
     //pools_arg = builder->CreateCall(module->getFunction(string("get_frame_pools")), frame_arg);
-    pools_arg = builder->CreateCall(module->getFunction(string("get_closure_pools")), closure_arg);
 
-    //set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true),
-    //builder->CreateCall(module->getFunction(string("get_frame_t")), frame_arg));
-    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), make_float_const(0.0));
+    set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), t_arg);
 
     set_internals_from_invocation(invocation_arg);
 
-    Value *xy_vars_untyped = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
-						  pools_arg, emit_sizeof(xy_vars_type));
-
-    //builder->CreateCall2(module->getFunction(string("set_frame_xy_vars")), frame_arg, xy_vars_untyped);
-    builder->CreateCall2(module->getFunction(string("set_closure_xy_vars")), closure_arg, xy_vars_untyped);
-
-    xy_vars_var = builder->CreateBitCast(xy_vars_untyped, PointerType::getUnqual(xy_vars_type));
+    ret_var = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
+				   pools_arg, emit_sizeof(xy_vars_type));
+    xy_vars_var = builder->CreateBitCast(ret_var, PointerType::getUnqual(xy_vars_type));
 
     alloc_complex_copy_var();
 
@@ -1097,32 +1140,35 @@ code_emitter::setup_init_x_or_y_function (string function_name, const char *inte
 {
     Constant *function_const = module->getOrInsertFunction(function_name,
 							   PointerType::getUnqual(vars_type),	// ret type
-							   get_invocation_ptr_type(module), // invocation
+							   get_slice_ptr_type(module), // slice
 							   llvm_type_for_type(module, TYPE_IMAGE), // closure
 							   Type::FloatTy, // x/y
 							   Type::FloatTy, // t
-							   get_pools_ptr_type(module), // pools
 							   NULL);
     current_function = cast<Function>(function_const);
 
+    Value *slice_arg;
+
     Function::arg_iterator args = current_function->arg_begin();
 
-    invocation_arg = args++;
-    invocation_arg->setName("invocation");
+    slice_arg = args++;
+    slice_arg->setName("slice");
     closure_arg = args++;
     closure_arg->setName("closure");
     set_internal(::lookup_internal(filter->v.mathmap.internals, internal_name, true), args++);
     set_internal(::lookup_internal(filter->v.mathmap.internals, "t", true), args++);
-    pools_arg = args++;
-    pools_arg->setName("pools");
 
     BasicBlock *block = BasicBlock::Create("entry", current_function);
 
     builder = new IRBuilder<> (block);
 
+    frame_arg = builder->CreateCall(module->getFunction(string("get_slice_frame")), slice_arg);
+    invocation_arg = builder->CreateCall(module->getFunction(string("get_frame_invocation")), frame_arg);
+    pools_arg = builder->CreateCall(module->getFunction("get_slice_pools"), slice_arg);
+
     set_internals_from_invocation(invocation_arg);
 
-    setup_xy_vars_from_closure();
+    set_xy_vars_from_frame();
 
     Value *vars_untyped = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
 						 pools_arg, emit_sizeof(vars_type));
@@ -1140,11 +1186,13 @@ code_emitter::finish_function ()
 
     invocation_arg = NULL;
     closure_arg = NULL;
+    frame_arg = NULL;
     pools_arg = NULL;
 
     x_vars_var = NULL;
     y_vars_var = NULL;
     xy_vars_var = NULL;
+    ret_var = NULL;
 
     complex_copy_var = NULL;
 
@@ -1183,7 +1231,7 @@ code_emitter::emit_init_frame_function ()
     setup_init_frame_function();
     compiler_slice_code_for_const(filter_code->first_stmt, CONST_X | CONST_Y);
     emit_stmts(filter_code->first_stmt, SLICE_XY_CONST);
-    builder->CreateRetVoid();
+    builder->CreateRet(ret_var);
     finish_function();
 }
 
@@ -1243,7 +1291,7 @@ code_emitter::emit_main_filter_funcs ()
 #endif
     module->getOrInsertFunction(main_filter_function_name(filter),
 				llvm_type_for_type(module, TYPE_TUPLE), // ret type
-				get_invocation_ptr_type(module), // invocation
+				get_slice_ptr_type(module), // invocation
 				llvm_type_for_type(module, TYPE_IMAGE), // closure
 				PointerType::getUnqual(x_vars_type), // x_vars
 				PointerType::getUnqual(y_vars_type), // y_vars
@@ -1277,10 +1325,11 @@ static Function*
 make_init_frame_function (Module *module, filter_t *filter)
 {
     Constant *function_const = module->getOrInsertFunction(init_frame_function_name(filter),
-							   Type::VoidTy, // ret type
-							   //get_frame_ptr_type(module), // frame
+							   get_void_ptr_type(), // ret type
 							   get_invocation_ptr_type(module), // invocation
 							   llvm_type_for_type(module, TYPE_IMAGE), // closure
+							   Type::FloatTy, // t
+							   get_pools_ptr_type(module), // pools
 							   NULL);
     return cast<Function>(function_const);
 }
@@ -1362,12 +1411,14 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 
     ee->InstallLazyFunctionCreator(lazy_creator);
 
+    void *init_frame_fptr = ee->getPointerToFunction(lookup_init_frame_function(module, mathmap->main_filter));
     void *filter_fptr = ee->getPointerToFunction(lookup_filter_function(module, mathmap->main_filter));
     void *main_filter_fptr = ee->getPointerToFunction(lookup_main_filter_function(module, mathmap->main_filter));
     void *init_x_fptr = ee->getPointerToFunction(lookup_init_x_function(module, mathmap->main_filter));
     void *init_y_fptr = ee->getPointerToFunction(lookup_init_y_function(module, mathmap->main_filter));
     g_assert(main_filter_fptr && init_x_fptr && init_y_fptr);
 
+    mathmap->llvm_init_frame_func = (llvm_init_frame_func_t)init_frame_fptr;
     mathmap->filter_func = (filter_func_t)filter_fptr;
     mathmap->main_filter_func = (llvm_filter_func_t)main_filter_fptr;
     mathmap->init_x_func = (init_x_or_y_func_t)init_x_fptr;

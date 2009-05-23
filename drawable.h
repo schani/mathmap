@@ -67,15 +67,18 @@ typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 pools_t*);
 
 /* FIXME: just for LLVM - remove eventually */
-typedef float* (*llvm_filter_func_t) (struct _mathmap_invocation_t*,
+typedef void* (*llvm_init_frame_func_t) (struct _mathmap_invocation_t*,
+					 struct _image_t*,
+					 float,
+					 pools_t*);
+typedef float* (*llvm_filter_func_t) (struct _mathmap_slice_t*,
 				      struct _image_t*,
 				      void*, void*,
 				      float, float, float,
 				      pools_t*);
-typedef void* (*init_x_or_y_func_t) (struct _mathmap_invocation_t*,
+typedef void* (*init_x_or_y_func_t) (struct _mathmap_slice_t*,
 				     struct _image_t*,
-				     float, float,
-				     pools_t*);
+				     float, float);
 /* END */
 
 struct _input_drawable_t;
