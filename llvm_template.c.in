@@ -310,51 +310,59 @@ alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_a
     return image;
 }
 
-void
-set_closure_arg_int (image_t *image, int index, int arg)
+userval_t*
+get_closure_uservals (image_t *image)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.int_const = arg;
+    return image->v.closure.args;
 }
 
 void
-set_closure_arg_float (image_t *image, int index, float arg)
+set_userval_int (userval_t *uservals, int index, int arg)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.float_const = arg;
+    uservals[index].v.int_const = arg;
 }
 
 void
-set_closure_arg_bool (image_t *image, int index, float arg)
+set_userval_float (userval_t *uservals, int index, float arg)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.bool_const = arg;
+    uservals[index].v.float_const = arg;
 }
 
 void
-set_closure_arg_color (image_t *image, int index, color_t arg)
+set_userval_bool (userval_t *uservals, int index, float arg)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.color.value = arg;
+    uservals[index].v.bool_const = arg;
 }
 
 void
-set_closure_arg_curve (image_t *image, int index, curve_t *arg)
+set_userval_color (userval_t *uservals, int index, color_t arg)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.curve = arg;
+    uservals[index].v.color.value = arg;
 }
 
 void
-set_closure_arg_gradient (image_t *image, int index, gradient_t *arg)
+set_userval_curve (userval_t *uservals, int index, curve_t *arg)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.gradient = arg;
+    uservals[index].v.curve = arg;
 }
 
 void
-set_closure_arg_image (image_t *image, int index, image_t *arg, int take_size)
+set_userval_gradient (userval_t *uservals, int index, gradient_t *arg)
 {
-    CLOSURE_IMAGE_ARGS(image)[index].v.image = arg;
-    if (take_size)
-    {
-	image->pixel_width = IMAGE_PIXEL_WIDTH(arg);
-	image->pixel_height = IMAGE_PIXEL_HEIGHT(arg);
-    }
+    uservals[index].v.gradient = arg;
+}
+
+void
+set_userval_image (userval_t *uservals, int index, image_t *arg)
+{
+    uservals[index].v.image = arg;
+}
+
+void
+set_closure_size_from_image (image_t *image, image_t *arg)
+{
+    image->pixel_width = IMAGE_PIXEL_WIDTH(arg);
+    image->pixel_height = IMAGE_PIXEL_HEIGHT(arg);
 }
 
 void

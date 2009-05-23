@@ -500,24 +500,24 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
 }
 
 static const char*
-get_closure_set_arg_func_name (int type)
+get_userval_set_func_name (int type)
 {
     switch (type)
     {
 	case USERVAL_INT_CONST :
-	    return "set_closure_arg_int";
+	    return "set_userval_int";
 	case USERVAL_FLOAT_CONST :
-	    return "set_closure_arg_float";
+	    return "set_userval_float";
 	case USERVAL_BOOL_CONST :
-	    return "set_closure_arg_bool";
+	    return "set_userval_bool";
 	case USERVAL_COLOR :
-	    return "set_closure_arg_color";
+	    return "set_userval_color";
 	case USERVAL_CURVE :
-	    return "set_closure_arg_curve";
+	    return "set_userval_curve";
 	case USERVAL_GRADIENT :
-	    return "set_closure_arg_gradient";
+	    return "set_userval_gradient";
 	case USERVAL_IMAGE :
-	    return "set_closure_arg_image";
+	    return "set_userval_image";
 	default :
 	    g_assert_not_reached();
     }
@@ -527,7 +527,7 @@ Value*
 code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 {
     int num_args = compiler_num_filter_args(closure_filter) - 3;
-    Value *closure;
+    Value *closure, *uservals;
     bool have_size;
     userval_info_t *info;
     int i;
@@ -537,23 +537,23 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
     closure = builder->CreateCall4(module->getFunction(string("alloc_closure_image")),
 				   invocation_arg, pools_arg, make_int_const(num_args),
 				   lookup_filter_function(module, closure_filter));
+    uservals = builder->CreateCall(module->getFunction(string("get_closure_uservals")), closure);
 
     have_size = FALSE;
     for (i = 0, info = closure_filter->userval_infos;
 	 info != 0;
 	 ++i, info = info->next)
     {
-	const char *set_func_name = get_closure_set_arg_func_name(info->type);
+	const char *set_func_name = get_userval_set_func_name(info->type);
+	Value *arg = emit_primary(&args[i]);
 
-	if (info->type == USERVAL_IMAGE)
+	builder->CreateCall3(module->getFunction(string(set_func_name)), uservals, make_int_const(i), arg);
+
+	if (info->type == USERVAL_IMAGE && !have_size)
 	{
-	    builder->CreateCall4(module->getFunction(string(set_func_name)),
-				 closure, make_int_const(i), emit_primary(&args[i]), make_int_const(!have_size));
+	    builder->CreateCall2(module->getFunction(string("set_closure_size_from_image")), closure, arg);
 	    have_size = true;
 	}
-	else
-	    builder->CreateCall3(module->getFunction(string(set_func_name)),
-				 closure, make_int_const(i), emit_primary(&args[i]));
     }
     g_assert(i == num_args);
 
