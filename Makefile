@@ -65,7 +65,7 @@ GIF_LDFLAGS = $(GIFLIB)
 FFTW = fftw3
 FFTW_OBJECTS = native-filters/convolve.o
 FFTW_CFLAGS = -DHAVE_FFTW
-#PTHREADS = -DUSE_PTHREADS
+PTHREADS = -DUSE_GTHREADS
 LLVM_GCC = llvm-gcc
 endif
 

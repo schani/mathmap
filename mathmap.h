@@ -323,9 +323,11 @@ designer_design_type_t* design_type_from_expression_db (expression_db_t **edb);
 #define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)
 #endif
 
-#ifdef USE_PTHREADS
+#if defined(USE_PTHREADS)
 #include <pthread.h>
 typedef pthread_t thread_handle_t;
+#elif defined(USE_GTHREADS)
+typedef GThread* thread_handle_t;
 #else
 typedef gpointer thread_handle_t;
 #endif

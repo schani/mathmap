@@ -827,7 +827,7 @@ call_invocation (mathmap_frame_t *frame, image_t *closure,
     }
 }
 
-#ifdef USE_PTHREADS
+#if defined(USE_PTHREADS) || defined(USE_GTHREADS)
 typedef struct
 {
     thread_handle_t thread_handle;
@@ -850,8 +850,10 @@ call_invocation_thread_func (gpointer _data)
 {
     thread_data_t *data = (thread_data_t*)_data;
 
+#ifdef USE_PTHREADS
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+#endif
 
     call_invocation(data->frame, data->closure, data->region_x, data->region_y,
 		    data->region_width, data->region_height, data->q);
@@ -907,6 +909,7 @@ join_invocation_call (gpointer *_call)
     g_free(call);
 }
 
+#ifdef USE_PTHREADS
 void
 kill_invocation_call (gpointer *_call)
 {
@@ -918,6 +921,7 @@ kill_invocation_call (gpointer *_call)
 
     g_free(call);
 }
+#endif
 
 gboolean
 invocation_call_is_done (gpointer *_call)
@@ -942,18 +946,21 @@ call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
     join_invocation_call(call);
 }
 
+#ifdef USE_PTHREAD
 static void
 sigusr2_handler (int signum)
 {
     pthread_testcancel();
 }
+#endif
 
 thread_handle_t
 mathmap_thread_start (void (*func) (gpointer), gpointer data)
 {
+#ifdef USE_PTHREAD
     static gboolean signal_handler_set = FALSE;
 
-    pthread_t pthread;
+    pthread_t thread;
     int result;
 
     if (!signal_handler_set)
@@ -962,18 +969,32 @@ mathmap_thread_start (void (*func) (gpointer), gpointer data)
 	signal_handler_set = TRUE;
     }
 
-    result = pthread_create(&pthread, NULL, (gpointer (*) (gpointer))func, data);
+    result = pthread_create(&thread, NULL, (gpointer (*) (gpointer))func, data);
     g_assert(result == 0);
+#else
+    GThread *thread;
 
-    return pthread;
+    if (!g_thread_supported())
+	g_thread_init (NULL);
+
+    thread = g_thread_create((gpointer (*) (gpointer))func, data, TRUE, NULL);
+    g_assert(thread != NULL);
+#endif
+
+    return thread;
 }
 
 void
 mathmap_thread_join (thread_handle_t thread)
 {
+#ifdef USE_PTHREAD
     pthread_join(thread, NULL);
+#else
+    g_thread_join(thread);
+#endif
 }
 
+#ifdef USE_PTHREAD
 void
 mathmap_thread_kill (thread_handle_t thread)
 {
@@ -981,6 +1002,7 @@ mathmap_thread_kill (thread_handle_t thread)
     pthread_kill(thread, SIGUSR2);
     pthread_join(thread, NULL);
 }
+#endif
 #else
 void
 call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,

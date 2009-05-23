@@ -3,7 +3,6 @@
 * 1.3.5
 
 ** Windows
-multi-threading (might be easiest to use gthreads)
 FFTW
 why does auto bw crash?
 .lang file
@@ -49,7 +48,6 @@ implement native filters - requires const
 make LLVM optimize
 why do we compare against floats in simple counting loops?
 don't compile LLVM code when we're using CC
-re-enable threads when proper mathfuncs work
 remove pools in root closure image once mathfuncs work
 
 ** Packaging
