@@ -48,7 +48,6 @@ pass t properly
 implement native filters - requires const
 make LLVM optimize
 why do we compare against floats in simple counting loops?
-don't compile LLVM code when we're using CC
 remove pools in root closure image once mathfuncs work
 
 ** Packaging

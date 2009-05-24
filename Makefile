@@ -3,7 +3,7 @@
 
 # Uncomment this line if you want to use the LLVM backend.  This is
 # compulsory for MinGW32!
-USE_LLVM = -DUSE_LLVM
+USE_LLVM = YES
 
 # If you want MathMap to provide a command line interface as well,
 # uncomment the following line.  Note that compiling it requires
@@ -69,6 +69,14 @@ PTHREADS = -DUSE_GTHREADS
 LLVM_GCC = llvm-gcc
 endif
 
+ifeq ($(USE_LLVM),YES)
+LLVM_CFLAGS = -DUSE_LLVM
+LLVM_LDFLAGS = $(shell llvm-config --ldflags --libs engine bitreader ipo)
+LLVM_CXXFLAGS = `llvm-config --cxxflags`
+LLVM_OBJECTS = backends/llvm.o
+LLVM_TARGETS = llvm_template.o
+endif
+
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
 
@@ -84,11 +92,10 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(USE_LLVM) $(FFTW_CFLAGS) $(PTHREADS)
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS)
 CFLAGS = $(C_CXX_FLAGS) -std=gnu99
-CXXFLAGS = $(C_CXX_FLAGS) `llvm-config --cxxflags`
+CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS)
 LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS) $(MINGW_LDFLAGS)
-LLVM_LDFLAGS = $(shell llvm-config --ldflags --libs engine bitreader ipo)
 
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -114,7 +121,7 @@ CXX = g++
 
 export CFLAGS CC
 
-COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/llvm.o backends/lazy_creator.o $(FFTW_OBJECTS)
+COMMON_OBJECTS = mathmap_common.o builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o noise.o spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -124,7 +131,7 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins.h noise.h native-filters/native-filters.h
 
-mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c llvm_template.o
+mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(LDFLAGS)
 
 librwimg :
