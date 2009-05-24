@@ -83,8 +83,8 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 GIMPDATADIR := $(PREFIX)/share/gimp/2.0
-GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-1.0 $(FFTW))
-GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-1.0 $(FFTW))
+GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-2.0 $(FFTW))
+GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-2.0 $(FFTW))
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
@@ -190,12 +190,12 @@ install : mathmap new_template.c $(MOS)
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -d $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins
 	install -d $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap
-	install -d $(DESTDIR)$(PREFIX)/share/gtksourceview-1.0/language-specs
+	install -d $(DESTDIR)$(PREFIX)/share/gtksourceview-2.0/language-specs
 	install mathmap $(DESTDIR)$(PREFIX)/bin/mathmap
 	ln -s $(PREFIX)/bin/mathmap $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins/mathmap
 	cp new_template.c opmacros.h lispreader/pools.h $(DESTDIR)$(TEMPLATE_DIR)
 	cp pixmaps/*.png $(DESTDIR)$(PIXMAP_DIR)
-	cp mathmap.lang $(DESTDIR)$(PREFIX)/share/gtksourceview-1.0/language-specs
+	cp mathmap.lang $(DESTDIR)$(PREFIX)/share/gtksourceview-2.0/language-specs
 	cp -r examples $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap/expressions
 	for i in $(MOS); do	\
 		lng=`echo $$i | sed "s/\.mo//"`;	\

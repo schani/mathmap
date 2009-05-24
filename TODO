@@ -59,6 +59,7 @@ make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oli
 give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
 give credit to filter developers
 check out Robin Norwood's spec file changes (for Fedora)
+changes for gtksourceview 2.0
 
 ** Rendering
 combine render code with calc_lines
