@@ -536,9 +536,18 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 
     if (closure_filter->kind == FILTER_MATHMAP)
     {
-	closure = builder->CreateCall4(module->getFunction(string("alloc_closure_image")),
-				       invocation_arg, pools_arg, make_int_const(num_args),
-				       lookup_filter_function(module, closure_filter));
+	vector<Value*> args;
+
+	args.push_back(invocation_arg);
+	args.push_back(pools_arg);
+	args.push_back(make_int_const(num_args));
+	args.push_back(lookup_filter_function(module, closure_filter));
+	args.push_back(lookup_init_frame_function(module, closure_filter));
+	args.push_back(lookup_main_filter_function(module, closure_filter));
+	args.push_back(lookup_init_x_function(module, closure_filter));
+	args.push_back(lookup_init_y_function(module, closure_filter));
+
+	closure = builder->CreateCall(module->getFunction(string("alloc_closure_image")), args.begin(), args.end());
 	uservals = builder->CreateCall(module->getFunction(string("get_closure_uservals")), closure);
     }
     else

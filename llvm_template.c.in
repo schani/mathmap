@@ -291,19 +291,28 @@ get_uninited_image (void)
 $def_llvm_mathfuncs
 
 image_t*
-alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_args, filter_func_t filter_func)
+alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_args, filter_func_t filter_func,
+		     llvm_init_frame_func_t init_frame_func, llvm_filter_func_t main_filter_func,
+		     init_x_or_y_func_t init_x_func, init_x_or_y_func_t init_y_func)
 {
-    static mathfuncs_t funcs = { llvm_filter_init_frame, llvm_filter_init_slice, llvm_filter_calc_lines };
-
     image_t *image = ALLOC_CLOSURE_IMAGE(num_args);
+    mathfuncs_t *funcs = (mathfuncs_t*)pools_alloc(pools, sizeof(mathfuncs_t));
 
 #ifdef POOLS_DEBUG_OUTPUT
     printf("alloced closure %p from pools %p\n", image, pools);
 #endif
 
+    funcs->init_frame = llvm_filter_init_frame;
+    funcs->init_slice = llvm_filter_init_slice;
+    funcs->calc_lines = llvm_filter_calc_lines;
+    funcs->llvm_init_frame_func = init_frame_func;
+    funcs->main_filter_func = main_filter_func;
+    funcs->init_x_func = init_x_func;
+    funcs->init_y_func = init_y_func;
+
     image->v.closure.funcs = NULL;
     image->v.closure.pools = pools;
-    image->v.closure.funcs = &funcs;
+    image->v.closure.funcs = funcs;
     image->v.closure.func = filter_func;
     image->v.closure.xy_vars = NULL;
 
