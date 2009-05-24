@@ -1085,7 +1085,7 @@ do_mathmap (int frame_num, float current_t)
     if (generate_code())
     {
 	mathmap_frame_t *frame;
-	image_t *closure = closure_image_alloc(&invocation->mathfuncs, invocation->mathmap->filter_func,
+	image_t *closure = closure_image_alloc(&invocation->mathfuncs, NULL,
 					       invocation->mathmap->main_filter->num_uservals, invocation->uservals,
 					       sel_width, sel_height);
 
@@ -2033,7 +2033,7 @@ recalculate_preview (void)
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
 	int old_render_width, old_render_height;
 	mathmap_frame_t *frame;
-	image_t *closure = closure_image_alloc(&invocation->mathfuncs, invocation->mathmap->filter_func,
+	image_t *closure = closure_image_alloc(&invocation->mathfuncs, NULL,
 					       invocation->mathmap->main_filter->num_uservals, invocation->uservals,
 					       preview_width, preview_height);
 	assert(buf != 0);

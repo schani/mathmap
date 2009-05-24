@@ -791,7 +791,7 @@ cmdline_main (int argc, char *argv[])
 	{
 	    float current_t = (float)current_frame / (float)num_frames;
 	    image_t *closure = closure_image_alloc(&invocation->mathfuncs,
-						   invocation->mathmap->filter_func,
+						   NULL,
 						   invocation->mathmap->main_filter->num_uservals,
 						   invocation->uservals,
 						   img_width, img_height);

@@ -1351,6 +1351,12 @@ make_init_frame_function (Module *module, filter_t *filter)
 
 void* lazy_creator (const std::string &name);
 
+typedef struct
+{
+    ExecutionEngine *ee;
+    mathfuncs_t mathfuncs;
+} module_info_t;
+
 extern "C"
 void
 gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
@@ -1426,27 +1432,34 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 
     ee->InstallLazyFunctionCreator(lazy_creator);
 
+    module_info_t *module_info = g_new0(module_info_t, 1);
+
+    module_info->ee = ee;
+
     void *init_frame_fptr = ee->getPointerToFunction(lookup_init_frame_function(module, mathmap->main_filter));
-    void *filter_fptr = ee->getPointerToFunction(lookup_filter_function(module, mathmap->main_filter));
     void *main_filter_fptr = ee->getPointerToFunction(lookup_main_filter_function(module, mathmap->main_filter));
     void *init_x_fptr = ee->getPointerToFunction(lookup_init_x_function(module, mathmap->main_filter));
     void *init_y_fptr = ee->getPointerToFunction(lookup_init_y_function(module, mathmap->main_filter));
     g_assert(main_filter_fptr && init_x_fptr && init_y_fptr);
 
-    mathmap->llvm_init_frame_func = (llvm_init_frame_func_t)init_frame_fptr;
-    mathmap->filter_func = (filter_func_t)filter_fptr;
-    mathmap->main_filter_func = (llvm_filter_func_t)main_filter_fptr;
-    mathmap->init_x_func = (init_x_or_y_func_t)init_x_fptr;
-    mathmap->init_y_func = (init_x_or_y_func_t)init_y_fptr;
+    module_info->mathfuncs.llvm_init_frame_func = (llvm_init_frame_func_t)init_frame_fptr;
+    module_info->mathfuncs.main_filter_func = (llvm_filter_func_t)main_filter_fptr;
+    module_info->mathfuncs.init_x_func = (init_x_or_y_func_t)init_x_fptr;
+    module_info->mathfuncs.init_y_func = (init_x_or_y_func_t)init_y_fptr;
 
-    mathmap->module_info = ee;
+    mathmap->module_info = module_info;
+
+    mathmap->mathfuncs = &module_info->mathfuncs;
 }
 
 extern "C"
 void
-unload_llvm_code (void *module_info)
+unload_llvm_code (mathmap_t *mathmap)
 {
-    ExecutionEngine *ee = (ExecutionEngine*)module_info;
+    module_info_t *info = (module_info_t*)mathmap->module_info;
 
-    delete ee;
+    mathmap->module_info = NULL;
+
+    delete info->ee;
+    g_free(info);
 }

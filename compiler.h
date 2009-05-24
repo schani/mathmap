@@ -47,12 +47,18 @@ typedef union
 } runtime_value_t;
 
 /* TEMPLATE mathfuncs */
+/* All the functions required to render an image efficiently */
 typedef struct _mathfuncs_t
 {
-    /* new_template.c.in depends on the order of this struct! */
     init_frame_func_t init_frame;
     init_slice_func_t init_slice;
     calc_lines_func_t calc_lines;
+
+    /* FIXME: only used for LLVM - remove eventually */
+    llvm_init_frame_func_t llvm_init_frame_func;
+    llvm_filter_func_t main_filter_func;
+    init_x_or_y_func_t init_x_func;
+    init_x_or_y_func_t init_y_func;
 } mathfuncs_t;
 /* END */
 
@@ -70,6 +76,6 @@ initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
 void unload_c_code (void *module_info);
 
 void gen_and_load_llvm_code (struct _mathmap_t *mathmap, char *template_filename);
-void unload_llvm_code (void *module_info);
+void unload_llvm_code (struct _mathmap_t *mathmap);
 
 #endif

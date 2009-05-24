@@ -266,7 +266,7 @@ unload_mathmap (mathmap_t *mathmap)
     if (mathmap->module_info != 0)
     {
 #ifdef USE_LLVM
-	unload_llvm_code(mathmap->module_info);
+	unload_llvm_code(mathmap);
 #else
 	unload_c_code(mathmap->module_info);
 #endif
@@ -484,7 +484,7 @@ compile_mathmap (char *expression, char *template_filename, char *include_path)
 #else
 	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
 #endif
-	if (mathmap->initfunc == 0 && mathmap->filter_func == 0)
+	if (mathmap->initfunc == 0 && mathmap->mathfuncs == 0)
 	{
 	    char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"
 					      "release does not provide a fallback interpreter that\n"
@@ -519,14 +519,13 @@ llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure)
     printf("initing frame %p (pools %p)\n", mmframe, &mmframe->pools);
 #endif
 
-    mmframe->xy_vars = invocation->mathmap->llvm_init_frame_func(invocation, closure, mmframe->current_t, &mmframe->pools);
+    mmframe->xy_vars = closure->v.closure.funcs->llvm_init_frame_func(invocation, closure, mmframe->current_t, &mmframe->pools);
 }
 
 void
 llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure)
 {
     mathmap_frame_t *mmframe = slice->frame;
-    mathmap_invocation_t *invocation = mmframe->invocation;
     float t = mmframe->current_t;
     pools_t *pools = &slice->pools;
     int col;
@@ -540,7 +539,7 @@ llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure)
     for (col = 0; col < slice->region_width; ++col)
     {
 	float x = CALC_VIRTUAL_X(col + slice->region_x, mmframe->frame_render_width, slice->sampling_offset_x);
-	void *y_vars = invocation->mathmap->init_y_func(slice, closure, x, t);
+	void *y_vars = closure->v.closure.funcs->init_y_func(slice, closure, x, t);
 
 	((void**)slice->y_vars)[col] = y_vars;
     }
@@ -584,7 +583,7 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 #ifdef POOLS_DEBUG_OUTPUT
 	printf("calcing x_vars for row %d\n", row);
 #endif
-	x_vars = invocation->mathmap->init_x_func(slice, closure, y, t);
+	x_vars = closure->v.closure.funcs->init_x_func(slice, closure, y, t);
 
 	for (col = 0; col < slice->region_width; ++col)
 	{
@@ -597,7 +596,7 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 #ifdef POOLS_DEBUG_OUTPUT
 	    printf("calcing row %d col %d\n", row, col);
 #endif
-	    return_tuple = invocation->mathmap->main_filter_func(slice, closure, x_vars, y_vars, x, y, t, pools);
+	    return_tuple = closure->v.closure.funcs->main_filter_func(slice, closure, x_vars, y_vars, x, y, t, pools);
 #ifdef POOLS_DEBUG_OUTPUT
 	    printf("got return tuple %p\n", return_tuple);
 #endif
@@ -644,14 +643,22 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 static void
 init_invocation (mathmap_invocation_t *invocation)
 {
-    if (invocation->mathmap->initfunc)
-	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
-    else
+    if (invocation->mathmap->mathfuncs != NULL)
     {
-	assert(invocation->mathmap->filter_func);
+	invocation->mathfuncs = *invocation->mathmap->mathfuncs;
+#ifdef USE_LLVM
+	g_assert(invocation->mathfuncs.init_frame == NULL
+		 && invocation->mathfuncs.init_slice == NULL
+		 && invocation->mathfuncs.calc_lines == NULL);
 	invocation->mathfuncs.init_frame = llvm_filter_init_frame;
 	invocation->mathfuncs.init_slice = llvm_filter_init_slice;
 	invocation->mathfuncs.calc_lines = llvm_filter_calc_lines;
+#endif
+    }
+    else
+    {
+	g_assert(invocation->mathmap->initfunc != NULL);
+	invocation->mathfuncs = invocation->mathmap->initfunc(invocation);
     }
 }
 

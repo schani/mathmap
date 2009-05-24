@@ -99,8 +99,9 @@ typedef struct _image_t
     {
 	struct _input_drawable_t *drawable;
 	struct {
+	    /* for rendering */
 	    struct _mathfuncs_t *funcs;
-	    /* FIXME: remove */
+	    /* for getting single pixels - never called for the root closure */
 	    filter_func_t func;
 	    pools_t *pools;
 	    void *xy_vars;
