@@ -1154,7 +1154,7 @@ Value*
 code_emitter::setup_init_x_or_y_function (string function_name, const char *internal_name, StructType *vars_type)
 {
     Constant *function_const = module->getOrInsertFunction(function_name,
-							   PointerType::getUnqual(vars_type),	// ret type
+							   get_void_ptr_type(),	// ret type
 							   get_slice_ptr_type(module), // slice
 							   llvm_type_for_type(module, TYPE_IMAGE), // closure
 							   Type::FloatTy, // x/y
@@ -1185,9 +1185,10 @@ code_emitter::setup_init_x_or_y_function (string function_name, const char *inte
 
     set_xy_vars_from_frame();
 
-    Value *vars_untyped = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
-						 pools_arg, emit_sizeof(vars_type));
-    Value *vars_var = builder->CreateBitCast(vars_untyped, PointerType::getUnqual(vars_type));
+    ret_var = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
+				   pools_arg, emit_sizeof(vars_type));
+
+    Value *vars_var = builder->CreateBitCast(ret_var, PointerType::getUnqual(vars_type));
 
     alloc_complex_copy_var();
 
@@ -1287,7 +1288,7 @@ code_emitter::emit_main_filter_funcs ()
     x_vars_var = setup_init_x_or_y_function(init_x_function_name(filter), "y", x_vars_type);
     compiler_slice_code_for_const(filter_code->first_stmt, CONST_X);
     emit_stmts(filter_code->first_stmt, SLICE_X_CONST);
-    builder->CreateRet(x_vars_var);
+    builder->CreateRet(ret_var);
     finish_function();
 
     // init y
@@ -1297,7 +1298,7 @@ code_emitter::emit_main_filter_funcs ()
     y_vars_var = setup_init_x_or_y_function(init_y_function_name(filter), "x", y_vars_type);
     compiler_slice_code_for_const(filter_code->first_stmt, CONST_Y);
     emit_stmts(filter_code->first_stmt, SLICE_Y_CONST);
-    builder->CreateRet(y_vars_var);
+    builder->CreateRet(ret_var);
     finish_function();
 
     // filter
