@@ -1088,6 +1088,8 @@ code_emitter::setup_filter_function (bool is_main_filter_function)
 
     if (is_main_filter_function)
     {
+	x_vars_var = builder->CreateBitCast(x_vars_var, PointerType::getUnqual(x_vars_type));
+	y_vars_var = builder->CreateBitCast(y_vars_var, PointerType::getUnqual(y_vars_type));
 	frame_arg = builder->CreateCall(module->getFunction(string("get_slice_frame")), slice_arg);
 	invocation_arg = builder->CreateCall(module->getFunction(string("get_frame_invocation")), frame_arg);
     }
@@ -1153,14 +1155,7 @@ code_emitter::setup_init_frame_function ()
 Value*
 code_emitter::setup_init_x_or_y_function (string function_name, const char *internal_name, StructType *vars_type)
 {
-    Constant *function_const = module->getOrInsertFunction(function_name,
-							   get_void_ptr_type(),	// ret type
-							   get_slice_ptr_type(module), // slice
-							   llvm_type_for_type(module, TYPE_IMAGE), // closure
-							   Type::FloatTy, // x/y
-							   Type::FloatTy, // t
-							   NULL);
-    current_function = cast<Function>(function_const);
+    current_function = module->getFunction(function_name);
 
     Value *slice_arg;
 
@@ -1305,17 +1300,6 @@ code_emitter::emit_main_filter_funcs ()
 #ifdef DEBUG_OUTPUT
     printf("emitting main filter func for %s\n", filter->name);
 #endif
-    module->getOrInsertFunction(main_filter_function_name(filter),
-				llvm_type_for_type(module, TYPE_TUPLE), // ret type
-				get_slice_ptr_type(module), // invocation
-				llvm_type_for_type(module, TYPE_IMAGE), // closure
-				PointerType::getUnqual(x_vars_type), // x_vars
-				PointerType::getUnqual(y_vars_type), // y_vars
-				Type::FloatTy, // x
-				Type::FloatTy, // y
-				Type::FloatTy, // t
-				get_pools_ptr_type(module), // pools
-				NULL);
     setup_filter_function(true);
     compiler_slice_code_for_const(filter_code->first_stmt, CONST_NONE);
     emit_stmts(filter_code->first_stmt, SLICE_NO_CONST);
@@ -1344,6 +1328,36 @@ make_init_frame_function (Module *module, filter_t *filter)
 							   get_void_ptr_type(), // ret type
 							   get_invocation_ptr_type(module), // invocation
 							   llvm_type_for_type(module, TYPE_IMAGE), // closure
+							   Type::FloatTy, // t
+							   get_pools_ptr_type(module), // pools
+							   NULL);
+    return cast<Function>(function_const);
+}
+
+static Function*
+make_init_x_or_y_function (Module *module, filter_t *filter, string function_name)
+{
+    Constant *function_const = module->getOrInsertFunction(function_name,
+							   get_void_ptr_type(),	// ret type
+							   get_slice_ptr_type(module), // slice
+							   llvm_type_for_type(module, TYPE_IMAGE), // closure
+							   Type::FloatTy, // x/y
+							   Type::FloatTy, // t
+							   NULL);
+    return cast<Function>(function_const);
+}
+
+static Function*
+make_main_filter_function (Module *module, filter_t *filter)
+{
+    Constant *function_const = module->getOrInsertFunction(main_filter_function_name(filter),
+							   llvm_type_for_type(module, TYPE_TUPLE), // ret type
+							   get_slice_ptr_type(module), // invocation
+							   llvm_type_for_type(module, TYPE_IMAGE), // closure
+							   get_void_ptr_type(), // x_vars
+							   get_void_ptr_type(), // y_vars
+							   Type::FloatTy, // x
+							   Type::FloatTy, // y
 							   Type::FloatTy, // t
 							   get_pools_ptr_type(module), // pools
 							   NULL);
@@ -1382,6 +1396,9 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	    continue;
 
 	make_init_frame_function(module, filter);
+	make_init_x_or_y_function(module, filter, init_x_function_name(filter));
+	make_init_x_or_y_function(module, filter, init_y_function_name(filter));
+	make_main_filter_function(module, filter);
 	make_filter_function(module, filter);
     }
 
@@ -1402,8 +1419,7 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	{
 	    emitter->emit_init_frame_function();
 	    emitter->emit_filter_function();
-	    if (filter == mathmap->main_filter)
-		emitter->emit_main_filter_funcs();
+	    emitter->emit_main_filter_funcs();
 	}
 	catch (compiler_error error)
 	{

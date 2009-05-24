@@ -35,12 +35,13 @@ calculate R in the filter code
 optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
 replace resize with a simple internal filter
-don't use x_consts and y_consts in filter_func
+don't use x_consts and y_consts structs in filter_func
 make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
 make solve ops and ell-jac foldable (requires pools in the folders)
 loops which don't compute anything are still emitted for sliced code.  this shouldn't be.
 make internals typed
 don't put easy to produce constants in slices
+don't produce functions for filters which have been optimized away
 
 ** LLVM
 pass t properly
