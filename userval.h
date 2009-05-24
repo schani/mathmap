@@ -34,8 +34,10 @@
 #include "exprtree.h"
 #include "color.h"
 
+/* TEMPLATE userval_points */
 #define USER_CURVE_POINTS       1024
 #define USER_GRADIENT_POINTS    1024
+/* END */
 
 #define USERVAL_INT_CONST   1
 #define USERVAL_FLOAT_CONST 2

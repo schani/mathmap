@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,15 +47,15 @@
 
 #define MATHMAP_DATE		"January 2008"
 
+#ifdef USE_LLVM
+#define MAIN_TEMPLATE_FILENAME  "llvm_template.o"
+#else
 #define MAIN_TEMPLATE_FILENAME	"new_template.c"
 #define OPMACROS_FILENAME	"opmacros.h"
+#endif
 
 #define IMAGE_FLAG_UNIT		0x0001 /* unit coordinate system (vs. pixel) */
 #define IMAGE_FLAG_SQUARE	0x0002 /* square pixels */
-
-#define MATHMAP_FLAG_NATIVE	0x0100
-
-typedef struct _interpreter_insn_t interpreter_insn_t;
 
 #define FILTER_MATHMAP		1
 #define FILTER_NATIVE		2
@@ -102,12 +102,12 @@ typedef struct _mathmap_t
 
     unsigned int flags;
 
+    /* for CC */
     initfunc_t initfunc;
-    void *module_info;
+    /* FIXME: for LLVM - remove eventually */
+    struct _mathfuncs_t *mathfuncs;
 
-    interpreter_insn_t *interpreter_insns;
-    // FIXME: This should be in the invocation!
-    GArray *interpreter_values;
+    void *module_info;
 
     struct _mathmap_t *next;
 } mathmap_t;
@@ -144,7 +144,13 @@ extern int fast_image_source_scale;
 #define EDGE_BEHAVIOUR_X_FLAG	      0x0100
 #define EDGE_BEHAVIOUR_Y_FLAG	      0x0200
 
+/* TEMPLATE max_debug_tuples */
 #define MAX_DEBUG_TUPLES              8
+/* END */
+
+/* TEMPLATE orig_val_pixel_func */
+typedef color_t (*orig_val_pixel_func_t) (struct _mathmap_invocation_t*, float, float, image_t*, int);
+/* END */
 
 /* TEMPLATE invocation_frame_slice */
 typedef struct _mathmap_invocation_t
@@ -153,7 +159,10 @@ typedef struct _mathmap_invocation_t
 
     userval_t *uservals;
 
+    /* FIXME: These should eventually go into image_t */
     int antialiasing;
+    orig_val_pixel_func_t orig_val_func;
+
     int supersampling;
 
     int output_bpp;
@@ -173,22 +182,17 @@ typedef struct _mathmap_invocation_t
 
     unsigned char * volatile rows_finished;
 
+    /* FIXME: remove - it's in the closure */
     mathfuncs_t mathfuncs;
 
     int do_debug;
     int num_debug_tuples;
     tuple_t *debug_tuples[MAX_DEBUG_TUPLES];
-
-    int interpreter_ip;
-    color_t interpreter_output_color;
 } mathmap_invocation_t;
 
 typedef struct _mathmap_frame_t
 {
     mathmap_invocation_t *invocation;
-
-    mathfuncs_t *mathfuncs;
-    userval_t *arguments;
 
     int frame_render_width, frame_render_height;
 
@@ -228,6 +232,13 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
+/* TEMPLATE llvm_mathfuncs */
+void llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure);
+void llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure);
+void llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, void *q, int floatmap);
+/* END */
+
+
 #ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
@@ -254,21 +265,23 @@ void finish_parsing_filter (mathmap_t *mathmap);
 int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression, gboolean report_error);
 mathmap_t* compile_mathmap (char *expression, char *template_filename, char *include_path);
-mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template,
+mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template_invocation,
 				      int img_width, int img_height);
 
-mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, mathfuncs_t *mathfuncs, userval_t *arguments,
+mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
 				       int current_frame, float current_t);
 void invocation_free_frame (mathmap_frame_t *frame);
 
-void invocation_init_slice (mathmap_slice_t *slice, mathmap_frame_t *frame, int region_x, int region_y,
+void invocation_init_slice (mathmap_slice_t *slice, image_t *image, mathmap_frame_t *frame, int region_x, int region_y,
 			    int region_width, int region_height, float sampling_offset_x, float sampling_offset_y);
 void invocation_deinit_slice (mathmap_slice_t *slice);
 
-gpointer call_invocation_parallel (mathmap_frame_t *frame,
+void invocation_set_antialiasing (mathmap_invocation_t *invocation, gboolean antialising);
+
+gpointer call_invocation_parallel (mathmap_frame_t *frame, image_t *closure,
 				   int region_x, int region_y, int region_width, int region_height,
 				   unsigned char *q, int num_threads);
-void call_invocation_parallel_and_join (mathmap_frame_t *frame,
+void call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
 					int region_x, int region_y, int region_width, int region_height,
 					unsigned char *q, int num_threads);
 
@@ -276,9 +289,7 @@ void join_invocation_call (gpointer *_call);
 void kill_invocation_call (gpointer *_call);
 gboolean invocation_call_is_done (gpointer *_call);
 
-void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template);
-
-void update_image_internals (mathmap_frame_t *frame);
+void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template_invocation);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 
@@ -286,7 +297,7 @@ typedef int (*template_processor_func_t) (mathmap_t *mathmap, const char *direct
 
 void drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y);
 
-void process_template (mathmap_t *mathmap, const char *template,
+void process_template (mathmap_t *mathmap, const char *template_filename,
 		       FILE *out, template_processor_func_t template_processor, void *user_data);
 gboolean process_template_file (mathmap_t *mathmap, char *template_filename,
 				FILE *out, template_processor_func_t template_processor, void *user_data);
@@ -307,9 +318,11 @@ designer_design_type_t* design_type_from_expression_db (expression_db_t **edb);
 #define GIMP_DRAWABLE_ID(d)     ((d)->drawable_id)
 #endif
 
-#ifdef USE_PTHREADS
+#if defined(USE_PTHREADS)
 #include <pthread.h>
 typedef pthread_t thread_handle_t;
+#elif defined(USE_GTHREADS)
+typedef GThread* thread_handle_t;
 #else
 typedef gpointer thread_handle_t;
 #endif

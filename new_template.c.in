@@ -1,9 +1,9 @@
 /*
- * new_template.c
+ * new_template.c.in
  *
  * MathMap
  *
- * Copyright (C) 2002-2008 Mark Probst
+ * Copyright (C) 2002-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,8 +23,6 @@
 /*
  * $$g -> GIMP ? 1 : 0
  * $$m -> mathmap code
- * $$p -> USER_CURVE_POINTS
- * $$q -> USER_GRADIENT_POINTS
  * $$xy_decls         -> declarations for xy-constant variables
  * $$xy_code          -> code for xy-constant variables
  * $$x_decls          -> declarations for x-constant variables
@@ -32,7 +30,6 @@
  * $$y_decls          -> declarations for y-constant variables
  * $$y_code           -> code for y-constant variables
  * $$opmacros_h       -> full name of opmacros.h file
- * $$max_debug_tuples -> MAX_DEBUG_TUPLES
  */
 
 #include <stdlib.h>
@@ -63,10 +60,9 @@ $def_userval_image
 
 $def_num_floatmap_channels
 
-#define USER_CURVE_POINTS             $p
-#define USER_GRADIENT_POINTS          $q
+$def_userval_points
 
-#define MAX_DEBUG_TUPLES              $max_debug_tuples
+$def_max_debug_tuples
 
 $def_tuple
 
@@ -110,6 +106,8 @@ typedef void* initfunc_t;
 $def_mathmap
 
 $def_mathfuncs
+
+$def_orig_val_pixel_func
 
 $def_invocation_frame_slice
 
@@ -155,6 +153,7 @@ int gsl_sf_elljac_e (double u, double m, double *sn, double *cn, double *dn);
 complex float cgamma (complex float z);
 
 double gsl_sf_beta (double a, double b);
+double gsl_sf_gamma (double x);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
@@ -163,13 +162,13 @@ $native_filter_decls
 
 $filter_begin
 static void
-calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, void *q, int floatmap);
+calc_lines_$name (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, void *q, int floatmap);
 
 static void
-init_frame_$name (mathmap_frame_t *mmframe);
+init_frame_$name (mathmap_frame_t *mmframe, image_t *closure);
 
 static void
-init_slice_$name (mathmap_slice_t *slice);
+init_slice_$name (mathmap_slice_t *slice, image_t *closure);
 
 static float*
 filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, pools_t *pools);
@@ -192,7 +191,7 @@ typedef struct
 } y_const_vars_t_$name;
 
 static void
-calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, void *q, int floatmap)
+calc_lines_$name (mathmap_slice_t *slice, image_t *closure, int first_row, int last_row, void *q, int floatmap)
 {
     mathmap_frame_t *mmframe = slice->frame;
     mathmap_invocation_t *invocation = mmframe->invocation;
@@ -217,17 +216,14 @@ calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, void *q, 
     int region_x = slice->region_x;
     int frame_render_width = mmframe->frame_render_width;
     int frame_render_height = mmframe->frame_render_height;
-    userval_t *arguments = mmframe->arguments;
+    userval_t *arguments = closure->v.closure.args;
 
     init_pools(&pixel_pools);
 
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     for (row = first_row - slice->region_y; row < last_row - slice->region_y; ++row)
     {
@@ -301,7 +297,7 @@ calc_lines_$name (mathmap_slice_t *slice, int first_row, int last_row, void *q, 
 }
 
 static void
-init_frame_$name (mathmap_frame_t *mmframe)
+init_frame_$name (mathmap_frame_t *mmframe, image_t *closure)
 {
     mathmap_invocation_t *invocation = mmframe->invocation;
     xy_const_vars_t_$name *xy_vars;
@@ -314,12 +310,9 @@ init_frame_$name (mathmap_frame_t *mmframe)
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
     pools_t *pools = &mmframe->pools;
-    userval_t *arguments = mmframe->arguments;
+    userval_t *arguments = closure->v.closure.args;
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     mmframe->xy_vars = xy_vars = (xy_const_vars_t_$name*)pools_alloc(pools, sizeof(xy_const_vars_t_$name));
 
@@ -329,7 +322,7 @@ init_frame_$name (mathmap_frame_t *mmframe)
 }
 
 static void
-init_slice_$name (mathmap_slice_t *slice)
+init_slice_$name (mathmap_slice_t *slice, image_t *closure)
 {
     mathmap_frame_t *mmframe = slice->frame;
     mathmap_invocation_t *invocation = mmframe->invocation;
@@ -342,12 +335,9 @@ init_slice_$name (mathmap_slice_t *slice)
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
     pools_t *pools = &slice->pools;
-    userval_t *arguments = mmframe->arguments;
+    userval_t *arguments = closure->v.closure.args;
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     slice->y_vars = (y_const_vars_t_$name*)pools_alloc(pools, sizeof(y_const_vars_t_$name) * slice->region_width);
 
@@ -383,10 +373,7 @@ filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float
     y_const_vars_t_$name *y_vars = &_y_vars;
     userval_t *arguments = closure->v.closure.args;
 
-    if (invocation->antialiasing)
-	get_orig_val_pixel_func = get_orig_val_intersample_pixel;
-    else
-	get_orig_val_pixel_func = get_orig_val_pixel;
+    get_orig_val_pixel_func = invocation->orig_val_func;
 
     if (closure->v.closure.xy_vars == 0)
     {

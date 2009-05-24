@@ -2,7 +2,7 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  * schani@complang.tuwien.ac.at
  *
  * Plug-In structure based on:
@@ -37,8 +37,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#ifdef THREADED_FINAL_RENDER
 #include <pthread.h>
+#endif
 
+#include <glib.h>
+#include <glib/gstdio.h>
 #include <gtk/gtk.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
@@ -343,22 +347,31 @@ get_rc_file_name (char *name, int global)
 }
 
 static char*
-lookup_rc_file (char *name)
+lookup_rc_file (char *name, gboolean report_error)
 {
-    gchar *filename;
+    gchar *local_filename, *global_filename, *filename;
 
-    filename = get_rc_file_name(name, 0);
+    local_filename = get_rc_file_name(name, 0);
 
-    if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+    if (g_file_test(local_filename, G_FILE_TEST_EXISTS))
+	filename = local_filename;
+    else
     {
-	g_free(filename);
+	global_filename = get_rc_file_name(name, 1);
 
-	filename = get_rc_file_name(name, 1);
-
-	if (!g_file_test(filename, G_FILE_TEST_EXISTS))
+	if (g_file_test(global_filename, G_FILE_TEST_EXISTS))
 	{
-	    g_free(filename);
-	    filename = 0;
+	    g_free(local_filename);
+	    filename = global_filename;
+	}
+	else
+	{
+	    if (report_error)
+		g_warning(_("Could not find file `%s' - should be either `%s' or `%s'."),
+			  name, local_filename, global_filename);
+	    g_free(local_filename);
+	    g_free(global_filename);
+	    filename = NULL;
 	}
     }
 
@@ -909,7 +922,8 @@ generate_code (void)
     if (expression_changed)
     {
 	mathmap_t *new_mathmap;
-	char *template_filename;
+	char *template_filename = NULL;
+	char *include_path = NULL;
 
 	if (run_mode == GIMP_RUN_INTERACTIVE && expression_entry != 0)
 	    dialog_text_update();
@@ -917,31 +931,36 @@ generate_code (void)
 	if (mathmap != 0)
 	    unload_mathmap(mathmap);
 
-	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME);
-	if (template_filename == 0)
+	template_filename = lookup_rc_file(MAIN_TEMPLATE_FILENAME, FALSE);
+	if (template_filename == NULL)
 	{
 	    sprintf(error_string, _("Cannot find template file `%s'.  MathMap is not installed correctly."), MAIN_TEMPLATE_FILENAME);
 	    new_mathmap = 0;
+	    goto failed;
 	}
-	else
-	{
-	    char *opmacros_name = lookup_rc_file(OPMACROS_FILENAME);
 
-	    if (opmacros_name == 0)
+#ifndef USE_LLVM
+	{
+	    char *opmacros_name = lookup_rc_file(OPMACROS_FILENAME, FALSE);
+
+	    if (opmacros_name == NULL)
 	    {
 		sprintf(error_string, _("Support file `%s' does not exist.  MathMap is not installed correctly."), OPMACROS_FILENAME);
 		new_mathmap = 0;
+		goto failed;
 	    }
-	    else
-	    {
-		char *include_path = g_path_get_dirname(opmacros_name);
 
-		new_mathmap = compile_mathmap(mmvals.expression, template_filename, include_path);
-
-		g_free(include_path);
-	    }
+	    include_path = g_path_get_dirname(opmacros_name);
 	}
+#endif
 
+	new_mathmap = compile_mathmap(mmvals.expression, template_filename, include_path);
+
+#ifndef USE_LLVM
+	g_free(include_path);
+#endif
+
+    failed:
 	if (new_mathmap == 0)
 	{
 	    g_print(_("Error: %s\n"), error_string);
@@ -986,7 +1005,7 @@ generate_code (void)
 
     if (invocation != 0)
     {
-	invocation->antialiasing = mmvals.flags & FLAG_ANTIALIASING;
+	invocation_set_antialiasing(invocation, mmvals.flags & FLAG_ANTIALIASING);
 	invocation->supersampling = mmvals.flags & FLAG_SUPERSAMPLING;
 
 	invocation->edge_behaviour_x = edge_behaviour_x_mode;
@@ -1066,6 +1085,9 @@ do_mathmap (int frame_num, float current_t)
     if (generate_code())
     {
 	mathmap_frame_t *frame;
+	image_t *closure = closure_image_alloc(&invocation->mathfuncs, NULL,
+					       invocation->mathmap->main_filter->num_uservals, invocation->uservals,
+					       sel_width, sel_height);
 
 	/* Initialize pixel region */
 	gimp_pixel_rgn_init(&dest_rgn, output_drawable, sel_x1, sel_y1, sel_width, sel_height,
@@ -1080,9 +1102,8 @@ do_mathmap (int frame_num, float current_t)
 	    strcpy(progress_info, _("Mathmapping..."));
 	gimp_progress_init(progress_info);
 
-	frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
+	frame = invocation_new_frame(invocation, closure,
 				     frame_num, current_t);
-	update_image_internals(frame);
 
 	for (pr = gimp_pixel_rgns_register(1, &dest_rgn);
 	     pr != NULL; pr = gimp_pixel_rgns_process(pr))
@@ -1095,7 +1116,7 @@ do_mathmap (int frame_num, float current_t)
 	    invocation->row_stride = dest_rgn.rowstride;
 	    invocation->output_bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(output_drawable));
 
-	    call_invocation_parallel_and_join(frame, region_x, region_y, region_width, region_height,
+	    call_invocation_parallel_and_join(frame, closure, region_x, region_y, region_width, region_height,
 					      dest_rgn.data, NUM_FINAL_RENDER_CPUS);
 
 	    /* Update progress */
@@ -1110,6 +1131,8 @@ do_mathmap (int frame_num, float current_t)
 	gimp_drawable_flush(output_drawable);
 	gimp_drawable_merge_shadow(GIMP_DRAWABLE_ID(output_drawable), TRUE);
 	gimp_drawable_update(GIMP_DRAWABLE_ID(output_drawable), sel_x1, sel_y1, sel_width, sel_height);
+
+	closure_image_free(closure);
     }
 } /* mathmap */
 
@@ -1574,7 +1597,22 @@ make_save_table (GtkWidget *content, GtkSignalFunc save_callback, GtkSignalFunc 
     return table;
 }
 
-#define ERROR_PIXMAP_NAME	PIXMAP_DIR "/error.png"
+static GdkPixbuf*
+load_pixbuf (char *name)
+{
+    char *filename = lookup_rc_file(name, TRUE);
+    GdkPixbuf *pixbuf;
+
+    if (!filename)
+	return NULL;
+
+    pixbuf = gdk_pixbuf_new_from_file(filename, NULL);
+    if (!pixbuf)
+	g_warning("Could not load image file `%s'.", filename);
+    g_free(filename);
+
+    return pixbuf;
+}
 
 #define NOTEBOOK_PAGE_EXPRESSION	0
 #define NOTEBOOK_PAGE_SETTINGS		1
@@ -1689,13 +1727,11 @@ mathmap_dialog (int mutable_expression)
 
 	    gtk_source_view_set_show_line_markers(GTK_SOURCE_VIEW(expression_entry), TRUE);
 
-	    if ((pixbuf = gdk_pixbuf_new_from_file(ERROR_PIXMAP_NAME, NULL)))
+	    if ((pixbuf = load_pixbuf("error.png")))
 	    {
 		gtk_source_view_set_marker_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
 		g_object_unref (pixbuf);
 	    }
-	    else
-		g_warning("Could not find image file `%s'.", ERROR_PIXMAP_NAME);
 
 	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
@@ -1997,7 +2033,9 @@ recalculate_preview (void)
 	guchar *buf = (guchar*)malloc(4 * preview_width * preview_height);
 	int old_render_width, old_render_height;
 	mathmap_frame_t *frame;
-
+	image_t *closure = closure_image_alloc(&invocation->mathfuncs, NULL,
+					       invocation->mathmap->main_filter->num_uservals, invocation->uservals,
+					       preview_width, preview_height);
 	assert(buf != 0);
 
 	update_uservals(mathmap->main_filter->userval_infos, invocation->uservals);
@@ -2037,18 +2075,17 @@ recalculate_preview (void)
 	if (previewing)
 	    for_each_input_drawable(build_fast_image_source);
 
-	frame = invocation_new_frame(invocation, &invocation->mathfuncs, invocation->uservals,
-				     0, mmvals.param_t);
+	frame = invocation_new_frame(invocation, closure, 0, mmvals.param_t);
 
 	frame->frame_render_width = preview_width;
 	frame->frame_render_height = preview_height;
 
-	update_image_internals(frame);
-
 	if (previewing)
-	    call_invocation_parallel_and_join(frame, 0, 0, preview_width, preview_height, buf, get_num_cpus());
+	    call_invocation_parallel_and_join(frame, closure, 0, 0, preview_width, preview_height,
+					      buf, get_num_cpus());
 	else
-	    call_invocation_parallel_and_join(frame, 0, 0, preview_width, preview_height, buf, NUM_FINAL_RENDER_CPUS);
+	    call_invocation_parallel_and_join(frame, closure, 0, 0, preview_width, preview_height,
+					      buf, NUM_FINAL_RENDER_CPUS);
 
 	invocation_free_frame(frame);
 
@@ -2105,6 +2142,7 @@ recalculate_preview (void)
 	}
 
 	free(buf);
+	closure_image_free(closure);
 
 	--in_recalculate;
 
@@ -2551,8 +2589,8 @@ save_dialog (const char *title, const char *filename, const char *default_filena
 
 	/* We try to create the directory just in case.  If it already
 	   exists, nothing happens and it doesn't hurt. */
-	mkdir(mathmap_path, 0777);
-	mkdir(default_path, 0777);
+	g_mkdir(mathmap_path, 0777);
+	g_mkdir(default_path, 0777);
 
 	gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), default_path);
 	gtk_file_chooser_set_current_name (GTK_FILE_CHOOSER (dialog), default_filename);
@@ -2715,8 +2753,6 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
 
 /*****/
 
-#define MATHMAP_PIXMAP_NAME	PIXMAP_DIR "/mathmap.png"
-
 static void
 dialog_about_callback (GtkWidget *widget, gpointer data)
 {
@@ -2742,7 +2778,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
     char *translators = "Laurent Despeyroux <not@fgrev.no>\nYury Aliaev <mutabor@altlinux.org>";
 
     if (mathmap_logo == NULL)
-	mathmap_logo = gdk_pixbuf_new_from_file(MATHMAP_PIXMAP_NAME, NULL);
+	mathmap_logo = load_pixbuf("mathmap.png");
 
     gtk_show_about_dialog (NULL,
 			   "name", "MathMap",
@@ -2754,7 +2790,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "translator-credits", translators,
 			   "comments", _("An image generation and manipulation system"),
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
-			   "copyright", "Copyright © 1997-2008 Mark Probst, Herbert Poetzl",
+			   "copyright", "Copyright © 1997-2009 Mark Probst, Herbert Poetzl",
 			   "license", gpl,
 			   "logo", mathmap_logo,
 			   NULL);

@@ -88,8 +88,7 @@
 
 (defun c-type (type)
   (second (assoc type '((nil "float") (float "float") (int "int")
-			(color "color_t") (complex "complex float") (m2x2 "mm_m2x2_t")
-			(m3x3 "gsl_matrix *") (v2 "mm_v2_t") (v3 "mm_v3_t")))))
+			(color "color_t") (complex "complex float")))))
 
 (defun gen-builtin (overloaded-name name type args body)
   (labels ((length-of-arg-pos (pos)
@@ -148,6 +147,8 @@
 			       'primary)
 			      ((internal ?name)
 			       (values 'primary nil 'float))
+			      ((make-tuple . ?args)
+			       (values 'primary nil (rt-type-with-name 'tuple)))
 			      ((?op . ?args)
 			       (cond ((member op '(and or not))
 				      'primary)
@@ -224,6 +225,13 @@
 			      ((internal ?name)
 			       (format nil "~Aemit_assign(make_lhs(~A), make_value_rhs(get_internal_value(filter, \"~A\", TRUE)));~%"
 				       (make-allocated lval allocatedp) lval name))
+			      ((make-tuple . ?args)
+			       (let ((arg-names (mapcar #'(lambda (x) (make-tmp-name)) args)))
+				 (format nil "~A{~%compvar_t ~{*~A~^, ~};~%~{~A~}emit_assign(make_lhs(~A), make_tuple_rhs(~A~{, make_compvar_primary(~A)~}));~%}~%"
+					 (make-allocated lval allocatedp :type (rt-type-with-name 'tuple))
+					 arg-names
+					 (mapcar #'(lambda (arg name) (gen-primary arg name nil)) args arg-names)
+					 lval (length args) arg-names)))
 			      ((?op . ?args)
 			       (let ((op-entry (lookup-op op (length args) *primops*)))
 				 (if (not (null op-entry))
@@ -610,19 +618,18 @@ matrices."
 			  (- (/ (* (nth 0 a) (nth 1 b)) tmp)))))))
 
 (defbuiltin "__div" div_v2m2x2 (v2 2) ((a (? 2)) (b (m2x2 4)))
-  (let ((m (make-m2x2 (nth 0 b) (nth 1 b) (nth 2 b) (nth 3 b)))
-	(v (make-v2 (nth 0 a) (nth 1 a))))
+  (let ((m (make-tuple (nth 0 b) (nth 1 b) (nth 2 b) (nth 3 b)))
+	(v (make-tuple (nth 0 a) (nth 1 a))))
     (let ((r (solve-linear-2 m v)))
-      (set result (make (v2 2) (v2-nth 0 r) (v2-nth 1 r))))))
+      (set result (make (v2 2) (tuple-nth r 0) (tuple-nth r 1))))))
 
 (defbuiltin "__div" div_v3m3x3 (v3 3) ((a (? 3)) (b (m3x3 9)))
-  (let ((m (make-m3x3 (nth 0 b) (nth 1 b) (nth 2 b)
-		      (nth 3 b) (nth 4 b) (nth 5 b)
-		      (nth 6 b) (nth 7 b) (nth 8 b)))
-	(v (make-v3 (nth 0 a) (nth 1 a) (nth 2 a))))
+  (let ((m (make-tuple (nth 0 b) (nth 1 b) (nth 2 b)
+		       (nth 3 b) (nth 4 b) (nth 5 b)
+		       (nth 6 b) (nth 7 b) (nth 8 b)))
+	(v (make-tuple (nth 0 a) (nth 1 a) (nth 2 a))))
     (let ((r (solve-linear-3 m v)))
-      (set result (make (v3 3) (v3-nth 0 r) (v3-nth 1 r) (v3-nth 2 r)))
-      (forget (free-matrix m)))))
+      (set result (make (v3 3) (tuple-nth r 0) (tuple-nth r 1) (tuple-nth r 2))))))
 
 (defbuiltin "__div" div_1 (?T 1) ((a (?T 1)) (b (?T 1)))
   (if (= (nth 0 b) 0)
@@ -972,28 +979,28 @@ numbers."
 (defbuiltin "ell_jac_sn" ell_jac_sn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
   "Jacobian elliptic function sn for real and complex arguments."
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
-    (set result (make (?T 1) (v3-nth 0 v)))))
+    (set result (make (?T 1) (tuple-nth v 0)))))
 
 (defbuiltin "ell_jac_cn" ell_jac_cn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
   "Jacobian elliptic function cn for real and complex arguments."
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
-    (set result (make (?T 1) (v3-nth 1 v)))))
+    (set result (make (?T 1) (tuple-nth v 1)))))
 
 (defbuiltin "ell_jac_dn" ell_jac_dn_1 (?T 1) ((u (?T 1)) (m (?T 1)))
   "Jacobian elliptic function dn for real and complex arguments."
   (let ((v (ell-jac (nth 0 u) (nth 0 m))))
-    (set result (make (?T 1) (v3-nth 2 v)))))
+    (set result (make (?T 1) (tuple-nth v 2)))))
 
 (defmacro def-complex-ell-jac (overloaded-name name r-nom i-nom)
   `(defbuiltin ,overloaded-name ,name (ri 2) ((u (ri 2)) (m (? 1)))
     (let ((v (ell-jac (nth 0 u) (nth 0 m)))
 	  (v1 (ell-jac (nth 1 u) (- 1 (nth 0 m)))))
-      (let ((s (v3-nth 0 v))
-	    (c (v3-nth 1 v))
-	    (d (v3-nth 2 v))
-	    (s1 (v3-nth 0 v1))
-	    (c1 (v3-nth 1 v1))
-	    (d1 (v3-nth 2 v1)))
+      (let ((s (tuple-nth v 0))
+	    (c (tuple-nth v 1))
+	    (d (tuple-nth v 2))
+	    (s1 (tuple-nth v1 0))
+	    (c1 (tuple-nth v1 1))
+	    (d1 (tuple-nth v1 2)))
 	(let ((denom (+ (* c1 c1)
 			(* (nth 0 m) (* (* s s) (* s1 s1))))))
 	  (set (nth 0 result) (/ ,r-nom denom))
@@ -1425,3 +1432,4 @@ values lie between -1 and 1."
 
 (make-types-file)
 (make-ops-file)
+(make-llvm-ops-file)

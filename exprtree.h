@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -173,7 +173,7 @@ typedef struct _exprtree
 	{
 	    struct _exprtree *left;
 	    struct _exprtree *right;
-	} operator;
+	} op;
 	struct
 	{
 	    variable_t *var;

@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2008 Mark Probst
+ * Copyright (C) 2002-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,10 @@
 #ifndef __COMPILER_INTERNALS_H__
 #define __COMPILER_INTERNALS_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "mathmap.h"
 #include "vars.h"
 #include "compiler.h"
@@ -30,7 +34,8 @@
 
 #include "opdefs.h"
 
-#define CLOSURE_GET(n,t)		(t)(((void**)info)[(n)])
+#define CLOSURE_ARG(x)			((long)(x))
+#define CLOSURE_GET(n,t)		(t)(((long*)info)[(n)])
 #define CLOSURE_VAR(t,name,n)		t name = CLOSURE_GET((n),t)
 
 struct _value_t;
@@ -61,8 +66,6 @@ typedef struct _compvar_t
 
 struct _statement_list_t;
 struct _statement_t;
-struct _native_register_t;
-struct _pre_native_insn_t;
 
 typedef struct _value_t
 {
@@ -71,9 +74,6 @@ typedef struct _value_t
     int index;			/* SSA index */
     struct _statement_t *def;
     struct _statement_list_t *uses;
-    struct _pre_native_insn_t *live_start;
-    struct _pre_native_insn_t *live_end;
-    struct _native_register_t *allocated_register;
     unsigned int const_type : 3; /* defined in internals.h */
     unsigned int least_const_type_directly_used_in : 3;
     unsigned int least_const_type_multiply_used_in : 3;
@@ -227,30 +227,10 @@ typedef struct _statement_list_t
     struct _statement_list_t *next;
 } statement_list_t;
 
-#define PRE_NATIVE_INSN_LABEL                  0
-#define PRE_NATIVE_INSN_GOTO                   1
-#define PRE_NATIVE_INSN_ASSIGN                 2
-#define PRE_NATIVE_INSN_PHI_ASSIGN             3
-#define PRE_NATIVE_INSN_IF_COND_FALSE_GOTO     4
-
-typedef struct _pre_native_insn_t
-{
-    int kind;
-    int index;
-    statement_t *stmt;
-    union
-    {
-	struct _pre_native_insn_t *target;
-	int phi_rhs;
-    } v;
-    struct _pre_native_insn_t *next;
-} pre_native_insn_t;
-
 typedef struct
 {
     filter_t *filter;
     statement_t *first_stmt;
-    pre_native_insn_t *first_pre_native_insn;
 } filter_code_t;
 
 typedef struct
@@ -291,6 +271,21 @@ extern rhs_t* make_primary_rhs (primary_t primary);
 extern rhs_t* make_value_rhs (value_t *val);
 #define compiler_make_value_rhs make_value_rhs
 
+extern void compiler_reset_have_defined (statement_t *stmt);
+
+extern gboolean compiler_is_permanent_const_value (value_t *value);
+extern gboolean compiler_is_temporary_const_value (value_t *value);
+extern gboolean compiler_is_const_type_within (int const_type, int lower_bound, int upper_bound);
+extern gboolean compiler_is_value_needed_for_const (value_t *value, int const_type);
+
+extern char* compiler_get_value_name (value_t *val);
+extern void compiler_print_value (value_t *val);
+extern void compiler_print_assign_statement (statement_t *stmt);
+
+extern int compiler_num_filter_args (filter_t *filter);
+
+extern char* compiler_function_name_for_op_rhs (rhs_t *rhs, type_t *promotion_type);
+
 extern statement_t** compiler_emit_stmt_before (statement_t *stmt, statement_t **loc, statement_t *parent);
 
 extern gboolean compiler_rhs_is_pure (rhs_t *rhs);
@@ -301,8 +296,8 @@ extern primary_t compiler_stmt_op_assign_arg (statement_t *stmt, int arg_index);
 
 extern void compiler_remove_uses_in_rhs (rhs_t *rhs, statement_t *stmt);
 
-extern void compiler_replace_rhs (rhs_t **rhs, rhs_t *new, statement_t *stmt);
-extern void compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary_t new);
+extern void compiler_replace_rhs (rhs_t **rhs, rhs_t *replacement, statement_t *stmt);
+extern void compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary_t replacement);
 
 extern value_set_t* compiler_new_value_set (void);
 extern void compiler_value_set_add (value_set_t *set, value_t *val);
@@ -311,11 +306,32 @@ extern void compiler_free_value_set (value_set_t *set);
 
 extern void compiler_for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info),
 					    void *info);
+extern void compiler_for_each_value_in_statements (statement_t *stmt,
+						   void (*func) (value_t *value, statement_t *stmt, void *info),
+						   void *info);
+
+extern int compiler_slice_code (statement_t *stmt, unsigned int slice_flag,
+				int (*predicate) (statement_t *stmt, void *info), void *info);
+
+extern filter_code_t* compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types);
+
+extern filter_code_t** compiler_compile_filters (mathmap_t *mathmap);
+
+extern void compiler_free_pools (mathmap_t *mathmap);
+
+extern unsigned int compiler_slice_flag_for_const_type (int const_type);
+extern void compiler_slice_code_for_const (statement_t *stmt, int const_type);
 
 extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
 extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);
 extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
 
-#define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { void *__clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
+#define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
+#define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)
+#define COMPILER_SLICE_CODE(stmt,flag,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

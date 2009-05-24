@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2004-2008 Mark Probst
+;; Copyright (C) 2004-2009 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 		 :print-info '("%d" "%d" ("~A")))
    (make-rt-type 'float "float"
 		 :print-info '("%f" "%f" ("~A")))
-   (make-rt-type 'complex "complex float"
+   (make-rt-type 'complex "float _Complex"
 		 :print-info '("%f + %f i"
 			       "COMPLEX(%f,%f)"
 			       ("crealf(~A)" "cimagf(~A)")))
@@ -60,21 +60,7 @@
 		 :comparer "images_equal")
    (make-rt-type 'tuple "float *"
 		 :printer "print_tuple"
-		 :comparer "tuples_equal")
-   (make-rt-type 'gsl-matrix "gsl_matrix *"
-		 :print-info '("***MATRIX***" "***MATRIX***" ()))
-   (make-rt-type 'v2 "mm_v2_t"
-		 :print-info '("[%f,%f]" "MAKE_V2(%f,%f)"
-			       ("~A.v[0]" "~A.v[1]"))
-		 :elements '("v[0]" "v[1]"))
-   (make-rt-type 'v3 "mm_v3_t"
-		 :print-info '("[%f,%f,%f]" "MAKE_V3(%f,%f,%f)"
-			       ("~A.v[0]" "~A.v[1]" "~A.v[2]"))
-		 :elements '("v[0]" "v[1]" "v[2]"))
-   (make-rt-type 'm2x2 "mm_m2x2_t"
-		 :print-info '("[[%f,%f],[%f,%f]]" "MAKE_M2X2(%f,%f,%f,%f)"
-			       ("~A.a00" "~A.a01" "~A.a10" "~A.a11"))
-		 :elements '("a00" "a01" "a10" "a11"))))
+		 :comparer "tuples_equal")))
 
 (defun rt-type-with-name (name)
   (find name *types* :key #'rt-type-name))
@@ -235,22 +221,13 @@
 (defop 'ell-int-rf 3 "ELL_INT_RF")
 (defop 'ell-int-rj 4 "ELL_INT_RJ")
 
-(defop 'ell-jac 2 "ELL_JAC" :type 'v3)
+(defop 'ell-jac 2 "ELL_JAC" :type 'tuple :foldable nil)
 
-(defop 'make-m2x2 4 "MAKE_M2X2" :type 'm2x2)
-(defop 'make-m3x3 9 "MAKE_M3X3" :type 'gsl-matrix :pure nil)
-(defop 'free-matrix 1 "FREE_MATRIX" :type 'int :arg-type 'gsl-matrix :pure nil)
+(defop 'solve-linear-2 2 "SOLVE_LINEAR_2" :type 'tuple :arg-types '(tuple tuple) :foldable nil)
+(defop 'solve-linear-3 2 "SOLVE_LINEAR_3" :type 'tuple :arg-types '(tuple tuple) :foldable nil)
 
-(defop 'make-v2 2 "MAKE_V2" :type 'v2)
-(defop 'make-v3 3 "MAKE_V3" :type 'v3)
-(defop 'v2-nth 2 "VECTOR_NTH" :arg-types '(int v2) :foldable nil)
-(defop 'v3-nth 2 "VECTOR_NTH" :arg-types '(int v3) :foldable nil)
-
-(defop 'solve-linear-2 2 "SOLVE_LINEAR_2" :type 'v2 :arg-types '(m2x2 v2) :pure nil)
-(defop 'solve-linear-3 2 "SOLVE_LINEAR_3" :type 'v3 :arg-types '(gsl-matrix v3) :pure nil)
-
-(defop 'solve-poly-2 3 "SOLVE_POLY_2" :type 'v2 :pure nil)
-(defop 'solve-poly-3 4 "SOLVE_POLY_3" :type 'v3 :pure nil)
+(defop 'solve-poly-2 3 "SOLVE_POLY_2" :type 'tuple :foldable nil)
+(defop 'solve-poly-3 4 "SOLVE_POLY_3" :type 'tuple :foldable nil)
 
 (defop 'noise 3 "noise")
 (defop 'rand 2 "RAND" :pure nil)
@@ -396,10 +373,6 @@
 				     "0"
 				     (format nil "\"~A\"" c-type)))))
 		     *types*))
-    (dolist (type *types*)
-      (unless (null (rt-type-c-type type))
-	(format out "#define BUILTIN_~A_ARG(i) (g_array_index(invocation->mathmap->interpreter_values, runtime_value_t, arg_indexes[(i)]).~A_value)~%"
-		(ucs (rt-type-name type)) (dcs (rt-type-name type)))))
     (format out "#define MAKE_CONST_PRIMARY_FUNCS \\~%~{MAKE_CONST_PRIMARY(~A, ~A, ~A)~^ \\~%~}~%~%"
 	    (mappend #'(lambda (type)
 			 (if (null (rt-type-c-type type))
@@ -442,24 +415,54 @@
       (printer "TYPE_DEBUG_PRINTER" #'first)
       (printer "TYPE_C_PRINTER" #'second))))
 
-(defun print-op-builtins (op)
-  (labels ((function-header (name)
-	     (format nil "static void~%builtin_~A (mathmap_invocation_t *invocation, int *arg_indexes)"
-		     name))
-	   (print-function (name op type arg-types)
-	     (format t "~A~%{~%BUILTIN_~A_ARG(0) = ~A(~{BUILTIN_~A_ARG(~A)~^, ~});~%}~%"
-		     (function-header name)
-		     (ucs (rt-type-name type))
-		     (op-interpreter-c-name op)
-		     (mappend #'(lambda (i)
-				  (list (ucs (rt-type-name (nth i arg-types)))
-					(1+ i)))
-			      (integers-upto (op-arity op))))))
+(defun op-instantiation-name (op type)
   (if (eq (op-type-prop op) 'const)
-      (print-function (string-downcase (op-c-define op)) op (op-type op) (op-arg-types op))
-      (dolist (type (max-type-prop-types (op-type-prop op)))
-	(print-function (format nil "~A_~A" (string-downcase (op-c-define op)) (dcs (rt-type-name type)))
-			op type (map-times (op-arity op) #'(lambda (i) type)))))))
+      (string-downcase (op-c-define op))
+      (format nil "~A_~A" (string-downcase (op-c-define op)) (dcs (rt-type-name type)))))
+
+(defun op-instantiation-arg-types (op type)
+  (if (eq (op-type-prop op) 'const)
+      (op-arg-types op)
+      (map-times (op-arity op) #'(lambda (i) type))))
+
+(defun op-instantiation-type (op type)
+  (if (eq (op-type-prop op) 'const)
+      (op-type op)
+      type))
+
+(defun op-instantiation-type-prop-types (op)
+  (if (eq (op-type-prop op) 'const)
+      '(nil)
+      (max-type-prop-types (op-type-prop op))))
+
+(defun make-llvm-ops-file ()
+  (labels ((print-op (op type)
+	     (let ((op-type (op-instantiation-type op type))
+		   (arg-types (op-instantiation-arg-types op type)))
+	       (format t "~A~%builtin_~A (mathmap_invocation_t *invocation, image_t *closure, pools_t *pools~{, ~A arg_~A~})~%{~%return ~A(~{arg_~A~^, ~});~%}~%"
+		       (rt-type-c-type op-type)
+		       (op-instantiation-name op type)
+		       (mappend #'(lambda (i)
+				    (list (rt-type-c-type (nth i arg-types))
+					  (1+ i)))
+				(integers-upto (op-arity op)))
+		       (op-c-name op)
+		       (mapcar #'1+ (integers-upto (op-arity op)))))))
+    (with-open-file (out "llvm-ops.h" :direction :output :if-exists :supersede)
+      (let ((*standard-output* out))
+	(dolist (op (reverse *operators*))
+	  (dolist (type (op-instantiation-type-prop-types op))
+	    (print-op op type)))))))
+
+(defun make-op-names-switch ()
+  (make-rhs-op-switch #'(lambda (op)
+			  (format nil "return \"builtin_~A\";" (op-instantiation-name op nil)))
+		      #'(lambda (op arg-types)
+			  (let ((max-type (max-type arg-types)))
+			    (format nil "*promotion_type = ~A; return \"builtin_~A\";"
+				    (rt-type-c-define max-type)
+				    (op-instantiation-name op max-type))))
+		      nil))
 
 (defun make-ops-file ()
   (with-open-file (out "opdefs.h" :direction :output :if-exists :supersede)
@@ -468,7 +471,5 @@
   (with-open-file (out "opfuncs.h" :direction :output :if-exists :supersede)
     (let ((*standard-output* out))
       (format t "static void~%init_ops (void)~%{~%~A}~%~%" (make-init-ops))
-      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%" (make-op-folders))
-      (dolist (op (reverse *operators*))
-	(print-op-builtins op))
-      (format t "static builtin_func_t~%get_builtin (rhs_t *rhs)~%{~%switch (rhs->v.op.op->index)~%{~%~Adefault : assert(0);~%}~%}~%" (make-builtin-getter)))))
+      (format t "static primary_t~%fold_rhs (rhs_t *rhs)~%{~%assert(rhs_is_foldable(rhs));~%switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-folders))
+      (format t "char* compiler_function_name_for_op_rhs (rhs_t *rhs, type_t *promotion_type)~%{switch(rhs->v.op.op->index)~%{~%~Adefault : g_assert_not_reached();~%}~%}~%" (make-op-names-switch)))))

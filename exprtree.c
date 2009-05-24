@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -938,8 +938,8 @@ make_sequence (exprtree *left, exprtree *right)
     exprtree *tree = alloc_exprtree();
 
     tree->type = EXPR_SEQUENCE;
-    tree->val.operator.left = left;
-    tree->val.operator.right = right;
+    tree->val.op.left = left;
+    tree->val.op.right = right;
     tree->result = right->result;
 
     return tree;

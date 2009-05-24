@@ -11,3 +11,7 @@ TAGS
 mathmap
 new_template.c
 opfuncs.h
+llvm-ops.h
+llvm_template.c
+backends/lazy_creator.cpp
+examples/Test

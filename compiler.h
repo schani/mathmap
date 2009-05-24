@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,26 +47,24 @@ typedef union
 } runtime_value_t;
 
 /* TEMPLATE mathfuncs */
+/* All the functions required to render an image efficiently */
 typedef struct _mathfuncs_t
 {
-    /* new_template.c.in depends on the order of this struct! */
     init_frame_func_t init_frame;
     init_slice_func_t init_slice;
     calc_lines_func_t calc_lines;
+
+    /* FIXME: only used for LLVM - remove eventually */
+    llvm_init_frame_func_t llvm_init_frame_func;
+    llvm_filter_func_t main_filter_func;
+    init_x_or_y_func_t init_x_func;
+    init_x_or_y_func_t init_y_func;
 } mathfuncs_t;
 /* END */
 
 typedef mathfuncs_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
 #define MAX_OP_ARGS          9
-
-typedef void (*builtin_func_t) (struct _mathmap_invocation_t*, int*);
-
-struct _interpreter_insn_t
-{
-    builtin_func_t func;
-    int arg_indexes[MAX_OP_ARGS + 1]; /* the lhs is an argument, too */
-};
 
 void init_compiler (void);
 
@@ -77,6 +75,7 @@ initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
 				char *template_filename, char *include_path);
 void unload_c_code (void *module_info);
 
-void generate_interpreter_code (struct _mathmap_t *mathmap);
+void gen_and_load_llvm_code (struct _mathmap_t *mathmap, char *template_filename);
+void unload_llvm_code (struct _mathmap_t *mathmap);
 
 #endif

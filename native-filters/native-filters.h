@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2008 Mark Probst
+ * Copyright (C) 2008-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,10 +27,12 @@
 
 #include "../mathmap.h"
 
+/* TEMPLATE native_filters */
 extern image_t* native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
 
 extern image_t* native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
 extern image_t* native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
 extern image_t* native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
+/* END */
 
 #endif
