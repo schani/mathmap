@@ -622,7 +622,8 @@ exec_cmd (char *log_filename, char *format, ...)
 #define TMP_PREFIX		"/tmp/mathfunc"
 
 initfunc_t
-gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename, char *include_path)
+gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_filename, char *include_path,
+		     filter_code_t **the_filter_codes)
 {
     static int last_mathfunc = 0;
 
@@ -635,7 +636,7 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     GModule *module = 0;
 #endif
 
-    filter_codes = compiler_compile_filters(mathmap);
+    filter_codes = the_filter_codes;
 
     c_filename = g_strdup_printf("%s%d_%d.c", TMP_PREFIX, pid, ++last_mathfunc);
     out = fopen(c_filename, "w");
@@ -743,8 +744,6 @@ gen_and_load_c_code (mathmap_t *mathmap, void **module_info, char *template_file
     unlink(log_filename);
     g_free(log_filename);
 
-    compiler_free_pools(mathmap);
-
     return initfunc;
 }
 
@@ -791,7 +790,7 @@ generate_plug_in (char *filter, char *output_filename,
 	return 0;
     }
 
-    compiler_generate_ir_code(mathmap->main_filter, analyze_constants, 0);
+    compiler_generate_ir_code(mathmap->main_filter, analyze_constants, 0, -1);
 
     out = fopen(output_filename, "w");
 

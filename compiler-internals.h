@@ -227,7 +227,7 @@ typedef struct _statement_list_t
     struct _statement_list_t *next;
 } statement_list_t;
 
-typedef struct
+typedef struct _filter_code_t
 {
     filter_t *filter;
     statement_t *first_stmt;
@@ -313,9 +313,10 @@ extern void compiler_for_each_value_in_statements (statement_t *stmt,
 extern int compiler_slice_code (statement_t *stmt, unsigned int slice_flag,
 				int (*predicate) (statement_t *stmt, void *info), void *info);
 
-extern filter_code_t* compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types);
+extern filter_code_t* compiler_generate_ir_code (filter_t *filter, int constant_analysis,
+						 int convert_types, int timeout);
 
-extern filter_code_t** compiler_compile_filters (mathmap_t *mathmap);
+extern filter_code_t** compiler_compile_filters (mathmap_t *mathmap, int timeout);
 
 extern void compiler_free_pools (mathmap_t *mathmap);
 

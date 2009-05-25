@@ -4414,24 +4414,25 @@ compiler_slice_code_for_const (statement_t *stmt, int const_type)
 #define CHECK_SSA	do ; while (0)
 #endif
 
-#define OPTIMIZATION_TIMEOUT	2
-
 static gboolean
-optimization_time_out (struct timeval *start)
+optimization_time_out (struct timeval *start, int timeout)
 {
     struct timeval now;
 
+    if (timeout < 0)
+	return FALSE;
+
     gettimeofday(&now, NULL);
 
-    if (start->tv_sec + OPTIMIZATION_TIMEOUT < now.tv_sec)
+    if (start->tv_sec + timeout < now.tv_sec)
 	return TRUE;
-    if (start->tv_sec + OPTIMIZATION_TIMEOUT == now.tv_sec && start->tv_usec <= now.tv_usec)
+    if (start->tv_sec + timeout == now.tv_sec && start->tv_usec <= now.tv_usec)
 	return TRUE;
     return FALSE;
 }
 
 filter_code_t*
-compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types)
+compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types, int timeout)
 {
     gboolean changed;
     filter_code_t *code;
@@ -4458,7 +4459,7 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
     emit_loc = NULL;
 
     changed = TRUE;
-    while (changed && !optimization_time_out(&tv))
+    while (changed && !optimization_time_out(&tv, timeout))
     {
 #ifdef DEBUG_OUTPUT
 	check_ssa(first_stmt);
@@ -4543,7 +4544,7 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 }
 
 filter_code_t**
-compiler_compile_filters (mathmap_t *mathmap)
+compiler_compile_filters (mathmap_t *mathmap, int timeout)
 {
     filter_code_t **filter_codes;
     int num_filters, i;
@@ -4567,7 +4568,7 @@ compiler_compile_filters (mathmap_t *mathmap)
 #ifdef DEBUG_OUTPUT
 	g_print("compiling filter %s\n", filter->name);
 #endif
-	filter_codes[i] = compiler_generate_ir_code(filter, 1, 0);
+	filter_codes[i] = compiler_generate_ir_code(filter, 1, 0, timeout);
     }
 
     return filter_codes;

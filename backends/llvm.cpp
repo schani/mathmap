@@ -1003,9 +1003,6 @@ code_emitter::build_const_value_info (value_t *value, statement_t *stmt, int con
     {
 	if (!value->have_defined && value->index >= 0)
 	{
-	    compiler_print_value(value);
-	    printf("   %d\n", next_const_value_index);
-
 	    g_assert(const_value_index_map.find(value) == const_value_index_map.end());
 	    const_value_index_map[value] = next_const_value_index++;
 
@@ -1383,9 +1380,8 @@ typedef struct
 
 extern "C"
 void
-gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
+gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename, filter_code_t **filter_codes)
 {
-    filter_code_t **filter_codes = compiler_compile_filters(mathmap);
     MemoryBuffer *buffer = MemoryBuffer::getFile(template_filename, NULL);
 
     g_assert(buffer != NULL);
@@ -1440,8 +1436,6 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename)
 	}
 	delete emitter;
     }
-
-    compiler_free_pools(mathmap);
 
 #ifdef DEBUG_OUTPUT
     module->dump();

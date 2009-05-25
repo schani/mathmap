@@ -64,7 +64,11 @@ typedef struct _mathfuncs_t
 
 typedef mathfuncs_t (*initfunc_t) (struct _mathmap_invocation_t*);
 
+#define DEFAULT_OPTIMIZATION_TIMEOUT	2
+
 #define MAX_OP_ARGS          9
+
+struct _filter_code_t;
 
 void init_compiler (void);
 
@@ -72,10 +76,12 @@ void set_opmacros_filename (const char *filename);
 int compiler_template_processor (struct _mathmap_t *mathmap, const char *directive, const char *arg, FILE *out, void *data);
 
 initfunc_t gen_and_load_c_code (struct _mathmap_t *mathmap, void **module_info,
-				char *template_filename, char *include_path);
+				char *template_filename, char *include_path,
+				struct _filter_code_t **filter_codes);
 void unload_c_code (void *module_info);
 
-void gen_and_load_llvm_code (struct _mathmap_t *mathmap, char *template_filename);
+void gen_and_load_llvm_code (struct _mathmap_t *mathmap, char *template_filename,
+			     struct _filter_code_t **filter_codes);
 void unload_llvm_code (struct _mathmap_t *mathmap);
 
 #endif

@@ -43,6 +43,7 @@
 #include "scanner.h"
 #include "compiler.h"
 #include "mathmap.h"
+#include "compiler-internals.h"
 
 int cmd_line_mode = 0;
 
@@ -471,10 +472,11 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, char **support_paths)
+compile_mathmap (char *expression, char **support_paths, int timeout, gboolean no_backend)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
 
+    filter_code_t **filter_codes;
     char *template_filename, *include_path;
     int i;
 
@@ -508,11 +510,23 @@ compile_mathmap (char *expression, char **support_paths)
 	    JUMP(1);
 	}
 
+	filter_codes = compiler_compile_filters(mathmap, timeout);
+
+	if (no_backend)
+	{
+	    compiler_free_pools(mathmap);
+	    return NULL;
+	}
+
 #ifdef USE_LLVM
-	gen_and_load_llvm_code(mathmap, template_filename);
+	gen_and_load_llvm_code(mathmap, template_filename, filter_codes);
 #else
-	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info, template_filename, include_path);
+	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info,
+						template_filename, include_path, filter_codes);
 #endif
+
+	compiler_free_pools(mathmap);
+
 	if (mathmap->initfunc == 0 && mathmap->mathfuncs == 0)
 	{
 	    char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"

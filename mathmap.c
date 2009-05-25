@@ -976,7 +976,7 @@ generate_code (void)
 	    support_paths[2] = NULL;
 	}
 
-	new_mathmap = compile_mathmap(mmvals.expression, support_paths);
+	new_mathmap = compile_mathmap(mmvals.expression, support_paths, DEFAULT_OPTIMIZATION_TIMEOUT, FALSE);
 
 	if (new_mathmap == 0)
 	{

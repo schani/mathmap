@@ -452,9 +452,14 @@ usage (void)
 	   cache_size);
 }
 
-#define OPTION_VERSION			256
-#define OPTION_HELP			257
-#define OPTION_HTMLDOC			258
+#define OPTION_VERSION				256
+#define OPTION_HELP				257
+#define OPTION_HTMLDOC				258
+#define OPTION_BENCH_NO_OUTPUT			259
+#define OPTION_BENCH_ONLY_COMPILE		260
+#define OPTION_BENCH_NO_COMPILE_TIME_LIMIT	261
+#define OPTION_BENCH_NO_BACKEND			262
+#define OPTION_BENCH_RENDER_COUNT		263
 
 int
 cmdline_main (int argc, char *argv[])
@@ -476,6 +481,11 @@ cmdline_main (int argc, char *argv[])
     char *output_filename;
     gboolean htmldoc = FALSE;
     define_t *defines = NULL;
+    int bench_render_count = 1;
+    int render_num;
+    gboolean bench_no_output = FALSE;
+    gboolean bench_no_backend = FALSE;
+    int compile_time_limit = DEFAULT_OPTIMIZATION_TIMEOUT;
 
     for (;;)
     {
@@ -490,6 +500,11 @@ cmdline_main (int argc, char *argv[])
 		{ "size", required_argument, 0, 's' },
 		{ "script-file", required_argument, 0, 'f' },
 		{ "htmldoc", no_argument, 0, OPTION_HTMLDOC },
+		{ "bench-no-output", no_argument, 0, OPTION_BENCH_NO_OUTPUT },
+		{ "bench-only-compile", no_argument, 0, OPTION_BENCH_ONLY_COMPILE },
+		{ "bench-no-compile-time-limit", no_argument, 0, OPTION_BENCH_NO_COMPILE_TIME_LIMIT },
+		{ "bench-no-backend", no_argument, 0, OPTION_BENCH_NO_BACKEND },
+		{ "bench-render-count", required_argument, 0, OPTION_BENCH_RENDER_COUNT },
 #ifdef MOVIES
 		{ "frames", required_argument, 0, 'F' },
 		{ "movie", required_argument, 0, 'M' },
@@ -582,6 +597,26 @@ cmdline_main (int argc, char *argv[])
 		size_is_set = 1;
 		break;
 
+	    case OPTION_BENCH_RENDER_COUNT :
+		bench_render_count = atoi(optarg);
+		break;
+
+	    case OPTION_BENCH_ONLY_COMPILE :
+		bench_render_count = 0;
+		break;
+
+	    case OPTION_BENCH_NO_OUTPUT :
+		bench_no_output = TRUE;
+		break;
+
+	    case OPTION_BENCH_NO_COMPILE_TIME_LIMIT :
+		compile_time_limit = -1;
+		break;
+
+	    case OPTION_BENCH_NO_BACKEND :
+		bench_no_backend = TRUE;
+		break;
+
 #ifdef MOVIES
 	    case 'F' :
 		generate_movie = 1;
@@ -667,12 +702,19 @@ cmdline_main (int argc, char *argv[])
 	support_paths[2] = g_strdup_printf("%s/.gimp-2.4/mathmap", getenv("HOME"));
 	support_paths[3] = NULL;
 
-	mathmap = compile_mathmap(script, support_paths);
+	mathmap = compile_mathmap(script, support_paths, compile_time_limit, bench_no_backend);
+
+	if (bench_no_backend)
+	    return 0;
+
 	if (mathmap == 0)
 	{
 	    fprintf(stderr, _("Error: %s\n"), error_string);
 	    exit(1);
 	}
+
+	if (bench_render_count == 0)
+	    return 0;
 
 	if (!size_is_set)
 	    for (userval_info = mathmap->main_filter->userval_infos;
@@ -755,72 +797,80 @@ cmdline_main (int argc, char *argv[])
 		}
 	}
 
+	for (render_num = 0; render_num < bench_render_count; ++render_num)
+	{
 #ifdef MOVIES
-	for (i = 0; i < num_input_drawables; ++i)
-	    if (input_drawables[i].type == DRAWABLE_MOVIE)
-	    {
-		assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
-		assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
-	    }
+	    for (i = 0; i < num_input_drawables; ++i)
+		if (input_drawables[i].type == DRAWABLE_MOVIE)
+		{
+		    assert(quicktime_video_width(input_drawables[i].v.movie, 0) == img_width);
+		    assert(quicktime_video_height(input_drawables[i].v.movie, 0) == img_height);
+		}
 #endif
 
-	invocation_set_antialiasing(invocation, antialiasing);
-	invocation->supersampling = supersampling;
+	    invocation_set_antialiasing(invocation, antialiasing);
+	    invocation->supersampling = supersampling;
 
-	invocation->output_bpp = 4;
+	    invocation->output_bpp = 4;
 
-	output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
-	assert(output != 0);
-
-#ifdef MOVIES
-	if (generate_movie)
-	{
-	    output_movie = quicktime_open(output_filename, 0, 1);
-	    assert(output_movie != 0);
-
-	    quicktime_set_video(output_movie, 1, img_width, img_height, 25, QUICKTIME_JPEG);
-	    assert(quicktime_supported_video(output_movie, 0));
-	    quicktime_seek_start(output_movie);
-
-	    rows = (guchar**)malloc(sizeof(guchar*) * img_height);
-	    for (i = 0; i < img_height; ++i)
-		rows[i] = output + img_width * invocation->output_bpp * i;
-	}
-#endif
-
-	for (current_frame = 0; current_frame < num_frames; ++current_frame)
-	{
-	    float current_t = (float)current_frame / (float)num_frames;
-	    image_t *closure = closure_image_alloc(&invocation->mathfuncs,
-						   NULL,
-						   invocation->mathmap->main_filter->num_uservals,
-						   invocation->uservals,
-						   img_width, img_height);
-	    mathmap_frame_t *frame = invocation_new_frame(invocation, closure,
-							  current_frame, current_t);
-
-	    call_invocation_parallel_and_join(frame, closure, 0, 0, img_width, img_height, output, 1);
-
-	    invocation_free_frame(frame);
+	    output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
+	    assert(output != 0);
 
 #ifdef MOVIES
 	    if (generate_movie)
 	    {
-		fprintf(stderr, _("writing frame %d\n"), current_frame);
-		assert(quicktime_encode_video(output_movie, rows, 0) == 0);
+		output_movie = quicktime_open(output_filename, 0, 1);
+		assert(output_movie != 0);
+
+		quicktime_set_video(output_movie, 1, img_width, img_height, 25, QUICKTIME_JPEG);
+		assert(quicktime_supported_video(output_movie, 0));
+		quicktime_seek_start(output_movie);
+
+		rows = (guchar**)malloc(sizeof(guchar*) * img_height);
+		for (i = 0; i < img_height; ++i)
+		    rows[i] = output + img_width * invocation->output_bpp * i;
 	    }
 #endif
 
-	    closure_image_free(closure);
-	}
+	    for (current_frame = 0; current_frame < num_frames; ++current_frame)
+	    {
+		float current_t = (float)current_frame / (float)num_frames;
+		image_t *closure = closure_image_alloc(&invocation->mathfuncs,
+						       NULL,
+						       invocation->mathmap->main_filter->num_uservals,
+						       invocation->uservals,
+						       img_width, img_height);
+		mathmap_frame_t *frame = invocation_new_frame(invocation, closure,
+							      current_frame, current_t);
+
+		call_invocation_parallel_and_join(frame, closure, 0, 0, img_width, img_height, output, 1);
+
+		invocation_free_frame(frame);
 
 #ifdef MOVIES
-	if (generate_movie)
-	    quicktime_close(output_movie);
-	else
+		if (generate_movie && !bench_no_output)
+		{
+		    fprintf(stderr, _("writing frame %d\n"), current_frame);
+		    assert(quicktime_encode_video(output_movie, rows, 0) == 0);
+		}
 #endif
-	    write_image(output_filename, img_width, img_height, output,
-			invocation->output_bpp, img_width * invocation->output_bpp, IMAGE_FORMAT_PNG);
+
+		closure_image_free(closure);
+	    }
+
+	    if (!bench_no_output)
+	    {
+#ifdef MOVIES
+		if (generate_movie)
+		    quicktime_close(output_movie);
+		else
+#endif
+		    write_image(output_filename, img_width, img_height, output,
+				invocation->output_bpp, img_width * invocation->output_bpp, IMAGE_FORMAT_PNG);
+	    }
+
+	    free(output);
+	}
     }
     else
     {
