@@ -469,7 +469,6 @@ cmdline_main (int argc, char *argv[])
     int antialiasing = 0, supersampling = 0;
     int img_width, img_height;
     char *generator = 0;
-    char *template_filename;
     userval_info_t *userval_info;
     int num_input_drawables = 0;
     gboolean size_is_set = FALSE;
@@ -658,15 +657,17 @@ cmdline_main (int argc, char *argv[])
     }
     else if (generator == 0)
     {
+	char *support_paths[4];
 	mathmap_t *mathmap;
 	mathmap_invocation_t *invocation;
 	int current_frame;
 
-	template_filename = g_strdup_printf("%s/mathmap/%s", GIMPDATADIR, MAIN_TEMPLATE_FILENAME);
+	support_paths[0] = g_strdup_printf("%s/mathmap", GIMPDATADIR);
+	support_paths[1] = g_strdup_printf("%s/.gimp-2.6/mathmap", getenv("HOME"));
+	support_paths[2] = g_strdup_printf("%s/.gimp-2.4/mathmap", getenv("HOME"));
+	support_paths[3] = NULL;
 
-	mathmap = compile_mathmap(script,
-				  GIMPDATADIR "/mathmap/" MAIN_TEMPLATE_FILENAME,
-				  GIMPDATADIR "/mathmap");
+	mathmap = compile_mathmap(script, support_paths);
 	if (mathmap == 0)
 	{
 	    fprintf(stderr, _("Error: %s\n"), error_string);

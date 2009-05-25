@@ -32,6 +32,10 @@
 #include <pthread.h>
 #endif
 #include <locale.h>
+#include <unistd.h>
+
+#include <glib.h>
+#include <glib/gstdio.h>
 
 #include "internals.h"
 #include "tags.h"
@@ -467,9 +471,34 @@ check_mathmap (char *expression)
 }
 
 mathmap_t*
-compile_mathmap (char *expression, char *template_filename, char *include_path)
+compile_mathmap (char *expression, char **support_paths)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
+
+    char *template_filename, *include_path;
+    int i;
+
+    for (i = 0; support_paths[i] != NULL; ++i)
+    {
+	template_filename = g_strdup_printf("%s/%s", support_paths[i], MAIN_TEMPLATE_FILENAME);
+	if (g_access(template_filename, R_OK) == 0)
+	    break;
+	g_free(template_filename);
+    }
+    if (support_paths[i] == NULL)
+    {
+	GString *str = g_string_new("Could not find template file ");
+	g_string_append_printf(str,
+			       "`%s'.\nMust be in one of the following paths:",
+			       MAIN_TEMPLATE_FILENAME);
+	for (i = 0; support_paths[i] != NULL; ++i)
+	    g_string_append_printf(str, "\n`%s'", support_paths[i]);
+	g_string_append(str, ".");
+	strcpy(error_string, str->str);
+	g_string_free(str, TRUE);
+	return NULL;
+    }
+    include_path = support_paths[i];
 
     DO_JUMP_CODE {
 	mathmap = parse_mathmap(expression, TRUE);
