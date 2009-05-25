@@ -1444,8 +1444,19 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename, filter_code
 #endif
 
     PassManager pm;
-    pm.add (new TargetData (module));
-    pm.add (createFunctionInliningPass ());
+
+    pm.add(new TargetData(module));
+    pm.add(createFunctionInliningPass());
+    pm.add(createInstructionCombiningPass());
+    pm.add(createReassociatePass());
+    pm.add(createLowerSetJmpPass());
+    pm.add(createRaiseAllocationsPass());
+    pm.add(createGVNPass());
+    pm.add(createCFGSimplificationPass());
+    pm.add(createPromoteMemoryToRegisterPass());
+    pm.add(createGlobalOptimizerPass());
+    pm.add(createGlobalDCEPass());
+
     pm.run(*module);
 
     ExecutionEngine *ee = ExecutionEngine::create (module);
