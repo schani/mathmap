@@ -142,7 +142,6 @@ typedef struct _exprtree
 	struct
 	{
 	    struct _userval_info_t *info;
-	    struct _exprtree *args;
 	} userval;
 	struct
 	{

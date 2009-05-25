@@ -12,6 +12,7 @@ speed up rendering of GIMP drawables by processing tile for tile
 make preview input drawables to be floatmaps
 
 ** General
+tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves
 why is bool_const a float in userval_t?
 move everything from invocation to frame that belongs there
 xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe

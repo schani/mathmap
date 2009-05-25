@@ -478,7 +478,7 @@ make_userval (userval_info_t *info, exprtree *args)
 	case USERVAL_COLOR :
 	    if (exprlist_length(args) != 0)
 	    {
-		sprintf(error_string, _("Integer inputs take no arguments."));
+		sprintf(error_string, _("Number, bool and color inputs take no arguments."));
 		JUMP(1);
 	    }
 
@@ -519,8 +519,6 @@ make_userval (userval_info_t *info, exprtree *args)
     switch (info->type)
     {
 	case USERVAL_CURVE :
-	    tree->val.userval.args = NULL;
-
 	    if (exprlist_length(args) == 1)
 		return make_function("__applyCurve", exprlist_append(tree, args));
 
@@ -532,8 +530,6 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	case USERVAL_GRADIENT :
-	    tree->val.userval.args = NULL;
-
 	    if (exprlist_length(args) == 1)
 		return make_function("__applyGradient", exprlist_append(tree, args));
 
@@ -545,8 +541,6 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	case USERVAL_IMAGE :
-	    tree->val.userval.args = NULL;
-
 	    if (exprlist_length(args) == 1 || exprlist_length(args) == 2)
 		return make_function("__origVal", exprlist_append(args, tree));
 
@@ -558,7 +552,7 @@ make_userval (userval_info_t *info, exprtree *args)
 	    break;
 
 	default :
-	    tree->val.userval.args = args;
+	    g_assert(args == NULL);
 	    break;
     }
 
