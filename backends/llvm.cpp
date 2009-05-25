@@ -115,6 +115,8 @@ private:
 
     Value* emit_const_value_addr (value_t *value);
 
+    void fetch_all_const_values ();
+
     Value* emit_sizeof (Type *type);
 
     void emit_stmts (statement_t *stmt, unsigned int slice_flag);
@@ -360,7 +362,6 @@ code_emitter::commit_set_const_value (value_t *value, Value *llvm_value)
     addr->dump();
 #endif
 
-    // FIXME: put this into value_map, too
     builder->CreateStore(llvm_value, addr);
     set_value_name(llvm_value, value);
 }
@@ -381,15 +382,11 @@ code_emitter::lookup_value (value_t *value)
 {
     g_assert(value->index >= 0);
 
-    if (compiler_is_permanent_const_value(value))
-	// FIXME: put this into value_map again so that it only has to
-	// be fetched once.
-	return builder->CreateLoad(emit_const_value_addr(value));
-    else
-    {
-	g_assert(value_map.find(value) != value_map.end());
+    if (value_map.find(value) != value_map.end())
 	return value_map[value];
-    }
+
+    g_assert(compiler_is_permanent_const_value(value));
+    return builder->CreateLoad(emit_const_value_addr(value));
 }
 
 void
@@ -1024,6 +1021,21 @@ code_emitter::_build_const_value_info (value_t *value, statement_t *stmt, void *
 }
 
 void
+code_emitter::fetch_all_const_values ()
+{
+    map<value_t*, int>::iterator iter;
+
+    for (iter = const_value_index_map.begin(); iter != const_value_index_map.end(); ++iter)
+    {
+	Value *value;
+	g_assert(compiler_is_permanent_const_value((*iter).first));
+	value = lookup_value((*iter).first);
+	g_assert(value != NULL);
+	value_map[(*iter).first] = value;
+    }
+}
+
+void
 code_emitter::set_internals_from_invocation (Value *invocation_arg)
 {
     set_internal(::lookup_internal(filter->v.mathmap.internals, "__canvasPixelW", true),
@@ -1308,6 +1320,7 @@ code_emitter::emit_main_filter_funcs ()
 #endif
     setup_filter_function(true);
     compiler_slice_code_for_const(filter_code->first_stmt, CONST_NONE);
+    //fetch_all_const_values();
     emit_stmts(filter_code->first_stmt, SLICE_NO_CONST);
     finish_function();
 }
@@ -1437,12 +1450,6 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename, filter_code
 	delete emitter;
     }
 
-#ifdef DEBUG_OUTPUT
-    module->dump();
-
-    verifyModule(*module, PrintMessageAction);
-#endif
-
     PassManager pm;
 
     pm.add(new TargetData(module));
@@ -1458,6 +1465,12 @@ gen_and_load_llvm_code (mathmap_t *mathmap, char *template_filename, filter_code
     pm.add(createGlobalDCEPass());
 
     pm.run(*module);
+
+#ifdef DEBUG_OUTPUT
+    module->dump();
+
+    verifyModule(*module, PrintMessageAction);
+#endif
 
     ExecutionEngine *ee = ExecutionEngine::create (module);
 

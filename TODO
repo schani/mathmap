@@ -44,9 +44,7 @@ don't put easy to produce constants in slices
 don't produce functions for filters which have been optimized away
 
 ** LLVM
-pass t properly
-implement native filters - requires const
-make LLVM optimize
+pass t properly (test with recursive filters)
 why do we compare against floats in simple counting loops?
 remove pools in root closure image once mathfuncs work
 
