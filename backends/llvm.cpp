@@ -90,6 +90,7 @@ private:
 
     map<value_t*, Value*> value_map;
     map<string, Value*> internal_map;
+    map<value_t*, PHINode*> phi_map;
     map<value_t*, int> const_value_index_map;
     int next_const_value_index;
 
@@ -843,15 +844,28 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 		    int compvar_type = stmt->v.assign.lhs->compvar->type;
 		    const Type *type = llvm_type_for_type(module, compvar_type);
 
+#ifdef DEBUG_OUTPUT
+		    compiler_print_assign_statement(stmt);
+		    printf("\n");
+#endif
+
 		    if (left_bb)
 		    {
 			left = rhs_map[stmt->v.assign.rhs];
 			g_assert(left != NULL);
+#ifdef DEBUG_OUTPUT
+			printf("left:\n");
+			left->dump();
+#endif
 		    }
 		    if (right_bb)
 		    {
 			right = rhs_map[stmt->v.assign.rhs2];
 			g_assert(right != NULL);
+#ifdef DEBUG_OUTPUT
+			printf("right:\n");
+			right->dump();
+#endif
 		    }
 
 		    PHINode *phi;
@@ -859,14 +873,23 @@ code_emitter::emit_phis (statement_t *stmt, BasicBlock *left_bb, BasicBlock *rig
 		    if (left_bb)
 		    {
 			phi = builder->CreatePHI(type);
-			phi->addIncoming(left, left_bb);
+			phi->addIncoming(promote(left, compvar_type), left_bb);
 			set_value(stmt->v.assign.lhs, phi, false);
+			phi_map[stmt->v.assign.lhs] = phi;
 		    }
 		    else
-			phi = cast<PHINode>(lookup_value(stmt->v.assign.lhs));
+		    {
+			g_assert(phi_map.find(stmt->v.assign.lhs) != phi_map.end());
+			phi = phi_map[stmt->v.assign.lhs];
+		    }
+
+#ifdef DEBUG_OUTPUT
+		    printf("phi:\n");
+		    phi->dump();
+#endif
 
 		    if (right_bb)
-			phi->addIncoming(right, right_bb);
+			phi->addIncoming(promote(right, compvar_type), right_bb);
 		}
 		break;
 
@@ -1227,6 +1250,7 @@ code_emitter::finish_function ()
 
     value_map.clear();
     internal_map.clear();
+    phi_map.clear();
 
     if (builder)
     {

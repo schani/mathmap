@@ -4,7 +4,6 @@
 
 ** Windows
 FFTW
-why does auto bw crash?
 .lang file
 get correct number of cpus
 
@@ -44,6 +43,7 @@ don't put easy to produce constants in slices
 don't produce functions for filters which have been optimized away
 
 ** LLVM
+implement mathfuncs
 pass t properly (test with recursive filters)
 why do we compare against floats in simple counting loops?
 remove pools in root closure image once mathfuncs work
@@ -60,7 +60,6 @@ check out Robin Norwood's spec file changes (for Fedora)
 changes for gtksourceview 2.0
 
 ** Rendering
-combine render code with calc_lines
 specifiable size
 antialiasing from rendered images
 do rendering multi-threaded if possible

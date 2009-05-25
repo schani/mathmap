@@ -276,14 +276,18 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 
     new_image = floatmap_alloc(width, height, pools);
 
+#ifdef DEBUG_OUTPUT
     g_print("rendering %dx%d\n", width, height);
+#endif
 
     if (image->type == IMAGE_CLOSURE)
     {
 	mathmap_frame_t *frame;
 	mathmap_slice_t slice;
 
+#ifdef DEBUG_OUTPUT
 	g_print("image is closure\n");
+#endif
 
 	frame = invocation_new_frame(invocation, image, 0, 0.0);
 	frame->frame_render_width = width;
@@ -305,7 +309,9 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 	float *p;
 	pools_t filter_pools;
 
+#ifdef DEBUG_OUTPUT
 	g_print("image is not closure: %d\n", image->type);
+#endif
 
 	ax = new_image->v.floatmap.ax;
 	bx = new_image->v.floatmap.bx;
