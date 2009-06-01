@@ -654,6 +654,8 @@ llvm_type_for_type (Module *module, type_t type)
 	    return PointerType::getUnqual(module->getTypeByName(string("struct._image_t")));
 	case TYPE_TUPLE :
 	    return PointerType::getUnqual(Type::FloatTy);
+	case TYPE_TREE_VECTOR :
+	    return PointerType::getUnqual(module->getTypeByName(string("struct.tree_vector_t")));
 	case TYPE_COLOR :
 	    return Type::Int32Ty;
 	case TYPE_CURVE :
@@ -763,6 +765,7 @@ code_emitter::emit_rhs (rhs_t *rhs)
 	    return emit_closure(rhs->v.closure.filter, rhs->v.closure.args);
 
 	case RHS_TUPLE :
+	case RHS_TREE_VECTOR :
 	    {
 		Function *set_func = module->getFunction(string("tuple_set"));
 		Value *tuple = builder->CreateCall2(module->getFunction(string("alloc_tuple")),
@@ -775,7 +778,16 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		    Value *val = emit_primary(&rhs->v.tuple.args[i], true);
 		    builder->CreateCall3(set_func, tuple, make_int_const(i), val);
 		}
-		return tuple;
+
+		if (rhs->kind == RHS_TREE_VECTOR)
+		{
+		    return builder->CreateCall3(module->getFunction(string("alloc_tree_vector")),
+						pools_arg,
+						make_int_const(rhs->v.tuple.length),
+						tuple);
+		}
+		else
+		    return tuple;
 	    }
 
 	default :
