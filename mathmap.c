@@ -146,6 +146,7 @@ static void dialog_preview_callback (GtkWidget *widget, gpointer data);
 /*static void dialog_preview_click (GtkWidget *widget, GdkEvent *event);*/
 static void refresh_preview (void);
 
+static void dialog_load_callback (GtkWidget *widget, gpointer data);
 static void dialog_save_callback (GtkWidget *widget, gpointer data);
 static void dialog_save_as_callback (GtkWidget *widget, gpointer data);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
@@ -1589,26 +1590,37 @@ make_tree_scrolled_window (void)
 }
 
 static GtkWidget*
-make_save_table (GtkWidget *content, GtkSignalFunc save_callback, GtkSignalFunc save_as_callback)
+make_load_save_table (GtkWidget *content, GtkSignalFunc load_callback, GtkSignalFunc save_callback, GtkSignalFunc save_as_callback)
 {
     GtkWidget *table, *button;
+    int x = 0;
 
-    table = gtk_table_new(2, 2, FALSE);
+    table = gtk_table_new(load_callback ? 3 : 2, 2, FALSE);
     gtk_container_border_width(GTK_CONTAINER(table), 0);
     gtk_table_set_col_spacings(GTK_TABLE(table), 4);
     gtk_widget_show(table);
 
-    gtk_table_attach(GTK_TABLE(table), content, 0, 2, 0, 1,
+    gtk_table_attach(GTK_TABLE(table), content, 0, load_callback ? 3 : 2, 0, 1,
 		     GTK_FILL | GTK_EXPAND, GTK_FILL | GTK_EXPAND, 0, 0);
+
+    if (load_callback)
+    {
+	button = gtk_button_new_with_label(_("Load..."));
+	gtk_signal_connect(GTK_OBJECT(button), "clicked", load_callback, 0);
+	gtk_table_attach(GTK_TABLE(table), button, x, x + 1, 1, 2, GTK_FILL, 0, 0, 0);
+	gtk_widget_show(button);
+	++x;
+    }
 
     button = gtk_button_new_with_label(_("Save"));
     gtk_signal_connect(GTK_OBJECT(button), "clicked", save_callback, 0);
-    gtk_table_attach(GTK_TABLE(table), button, 0, 1, 1, 2, GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table), button, x, x + 1, 1, 2, GTK_FILL, 0, 0, 0);
     gtk_widget_show(button);
+    ++x;
 
     button = gtk_button_new_with_label(_("Save As..."));
     gtk_signal_connect(GTK_OBJECT(button), "clicked", save_as_callback, 0);
-    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 1, 2, GTK_FILL, 0, 0, 0);
+    gtk_table_attach(GTK_TABLE(table), button, x, x + 1, 1, 2, GTK_FILL, 0, 0, 0);
     gtk_widget_show(button);
 
     return table;
@@ -1766,9 +1778,10 @@ mathmap_dialog (int mutable_expression)
 		pango_font_description_free(font_desc);
 	    }
 
-	    table = make_save_table(scrolled_window,
-				    (GtkSignalFunc)dialog_save_callback,
-				    (GtkSignalFunc)dialog_save_as_callback);
+	    table = make_load_save_table(scrolled_window,
+					 (GtkSignalFunc)dialog_load_callback,
+					 (GtkSignalFunc)dialog_save_callback,
+					 (GtkSignalFunc)dialog_save_as_callback);
 
 	    label = gtk_label_new(_("Expression"));
 	    gtk_widget_show(label);
@@ -1992,9 +2005,10 @@ mathmap_dialog (int mutable_expression)
 
 	    gtk_widget_show(hpaned);
 
-	    table = make_save_table(hpaned,
-				    (GtkSignalFunc)design_save_callback,
-				    (GtkSignalFunc)design_save_as_callback);
+	    table = make_load_save_table(hpaned,
+					 NULL,
+					 (GtkSignalFunc)design_save_callback,
+					 (GtkSignalFunc)design_save_as_callback);
 
 	    label = gtk_label_new(_("Composer"));
 	    gtk_widget_show(label);
@@ -2586,18 +2600,19 @@ save_expression (void)
 }
 
 static char*
-save_dialog (const char *title, const char *filename, const char *default_filename)
+load_save_dialog (gboolean is_load, const char *title, const char *filename, const char *default_filename)
 {
     GtkWidget *dialog;
     char *result;
 
     dialog = gtk_file_chooser_dialog_new (title,
 					  NULL,
-					  GTK_FILE_CHOOSER_ACTION_SAVE,
+					  is_load ? GTK_FILE_CHOOSER_ACTION_OPEN : GTK_FILE_CHOOSER_ACTION_SAVE,
 					  GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-					  GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+					  is_load ? GTK_STOCK_OPEN : GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 					  NULL);
-    gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+    if (!is_load)
+	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
 
     if (filename == NULL)
     {
@@ -2629,9 +2644,27 @@ save_dialog (const char *title, const char *filename, const char *default_filena
 }
 
 static void
+dialog_load_callback (GtkWidget *widget, gpointer data)
+{
+    char *filename = load_save_dialog(TRUE, _("Load Expression"), current_filename, NULL);
+    char *contents;
+    gsize length;
+
+    if (filename != NULL)
+    {
+	if (g_file_get_contents (filename, &contents, &length, NULL))
+	{
+	    set_filter_source(contents, filename);
+	    g_free(contents);
+	}
+	g_free(filename);
+    }
+}
+
+static void
 dialog_save_as_callback (GtkWidget *widget, gpointer data)
 {
-    char *filename = save_dialog(_("Save Expression"), current_filename, _("Untitled expression.mm"));
+    char *filename = load_save_dialog(FALSE, _("Save Expression"), current_filename, _("Untitled expression.mm"));
 
     if (filename != NULL)
     {
@@ -2700,7 +2733,7 @@ save_design (void)
 static void
 design_save_as_callback (GtkWidget *widget, gpointer data)
 {
-    char *filename = save_dialog(_("Save Composition"), current_design_filename, _("Untitled composition.mmc"));
+    char *filename = load_save_dialog(FALSE, _("Save Composition"), current_design_filename, _("Untitled composition.mmc"));
 
     if (filename != NULL)
     {
