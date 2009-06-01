@@ -178,6 +178,10 @@
 #define TUPLE_BLUE(t)		CLAMP01(TUPLE_NTH((t),2))
 #define TUPLE_ALPHA(t)		CLAMP01(TUPLE_NTH((t),3))
 
+#define ALLOC_TREE_VECTOR(n,v)		(new_tree_vector(pools, (n), (v)))
+#define TREE_VECTOR_NTH(n,tv)		(tree_vector_get((tv), (n)))
+#define SET_TREE_VECTOR_NTH(n,tv,v)	(tree_vector_set(pools, (tv), (n), (v)))
+
 #define APPLY_CURVE(c,p)	((c)->values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))])
 #define APPLY_GRADIENT(g,p)	({ color_t color = (g)->values[(int)(CLAMP01((p)) * (USER_CURVE_POINTS - 1))]; \
 	    			   TUPLE_FROM_COLOR(color); })

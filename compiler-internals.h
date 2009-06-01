@@ -145,6 +145,7 @@ typedef struct _inlining_history_t
 #define RHS_FILTER	     4
 #define RHS_CLOSURE	     5
 #define RHS_TUPLE	     6
+#define RHS_TREE_VECTOR      7
 
 typedef struct
 {
@@ -174,7 +175,7 @@ typedef struct
 	{
 	    int length;
 	    primary_t *args;
-	} tuple;
+	} tuple;		/* also for tree vectors */
     } v;
 } rhs_t;
 

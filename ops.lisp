@@ -60,7 +60,10 @@
 		 :comparer "images_equal")
    (make-rt-type 'tuple "float *"
 		 :printer "print_tuple"
-		 :comparer "tuples_equal")))
+		 :comparer "tuples_equal")
+   (make-rt-type 'tree-vector "tree_vector_t *"
+		 :printer "print_tree_vector"
+		 :comparer "tree_vectors_equal")))
 
 (defun rt-type-with-name (name)
   (find name *types* :key #'rt-type-name))
@@ -185,6 +188,9 @@
 (defop 'alpha 1 "ALPHA_FLOAT" :arg-type 'color :foldable nil)
 
 (defop 'tuple-nth 2 "TUPLE_NTH" :type 'float :arg-types '(tuple int) :foldable nil)
+
+(defop 'tree-vector-nth 2 "TREE_VECTOR_NTH" :type 'float :arg-types '(int tree-vector) :foldable nil)
+(defop 'set-tree-vector-nth 3 "SET_TREE_VECTOR_NTH" :type 'tree-vector :arg-types '(int tree-vector float) :foldable nil)
 
 (defop 'complex 2 "COMPLEX" :type 'complex)
 (defop 'c-real 1 "crealf" :arg-type 'complex)

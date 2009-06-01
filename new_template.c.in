@@ -117,6 +117,10 @@ $def_make_resize_image
 
 $def_noise
 
+typedef struct _tree_vector_t tree_vector_t;
+
+$def_tree_vector_funcs
+
 struct _gsl_vector;
 typedef struct _gsl_vector gsl_vector;
 struct _gsl_matrix;

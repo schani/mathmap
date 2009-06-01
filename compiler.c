@@ -122,6 +122,8 @@ static inlining_history_t *inlining_history = NULL;
 
 static binding_values_t *binding_values = NULL;
 
+static GHashTable *vector_variables = NULL;
+
 #define STMT_STACK_SIZE            64
 
 static statement_t *stmt_stack[STMT_STACK_SIZE];
@@ -259,6 +261,23 @@ make_variable (variable_t *var, int n)
     compvar->temp = 0;
     compvar->n = n;
     compvar->type = compiler_type_from_tuple_info(&var->type);
+    compvar->current = val;
+    compvar->values = val;
+
+    return compvar;
+}
+
+static compvar_t*
+make_tree_vector_variable (variable_t *var)
+{
+    compvar_t *compvar = alloc_compvar();
+    value_t *val = new_value(compvar);
+
+    compvar->index = next_compvar_number++;
+    compvar->var = var;
+    compvar->temp = 0;
+    compvar->n = 0;
+    compvar->type = TYPE_TREE_VECTOR;
     compvar->current = val;
     compvar->values = val;
 
@@ -498,6 +517,20 @@ make_tuple_rhs (int length, ...)
     return make_tuple_rhs_from_array(length, args);
 }
 
+static rhs_t*
+make_tree_vector_rhs (int length, primary_t *args)
+{
+    rhs_t *rhs = alloc_rhs();
+
+    rhs->kind = RHS_TREE_VECTOR;
+    rhs->v.tuple.length = length;
+    rhs->v.tuple.args = pools_alloc(&compiler_pools, sizeof(primary_t) * length);
+
+    memcpy(rhs->v.tuple.args, args, sizeof(primary_t) * length);
+
+    return rhs;
+}
+
 int
 compiler_num_filter_args (filter_t *filter)
 {
@@ -590,6 +623,7 @@ get_rhs_primaries (rhs_t *rhs, int *num_primaries)
 	    return rhs->v.closure.args;
 
 	case RHS_TUPLE :
+	case RHS_TREE_VECTOR :
 	    *num_primaries = rhs->v.tuple.length;
 	    return rhs->v.tuple.args;
 
@@ -1398,6 +1432,12 @@ print_tuple (float *tuple)
     g_assert_not_reached();
 }
 
+static void
+print_tree_vector (tree_vector_t *tree_vector)
+{
+    g_assert_not_reached ();
+}
+
 char*
 compiler_get_value_name (value_t *val)
 {
@@ -1497,10 +1537,11 @@ print_rhs (rhs_t *rhs)
 	    break;
 
 	case RHS_TUPLE :
+	case RHS_TREE_VECTOR :
 	    {
 		int i;
 
-		printf("tuple");
+		printf(rhs->kind == RHS_TUPLE ? "tuple" : "tree vector");
 		for (i = 0; i < rhs->v.tuple.length; ++i)
 		{
 		    printf(" ");
@@ -1699,8 +1740,15 @@ alloc_var_compvars_if_needed (variable_t *var)
 {
     int i;
 
+    if (g_hash_table_lookup(vector_variables, var))
+    {
+	if (var->compvar[0] == NULL)
+	    var->compvar[0] = make_tree_vector_variable(var);
+	return;
+    }
+
     for (i = 0; i < var->type.length; ++i)
-	if (var->compvar[i] == 0)
+	if (var->compvar[i] == NULL)
 	    var->compvar[i] = make_variable(var, i);
 }
 
@@ -1751,6 +1799,42 @@ gen_deconstruct_color (compvar_t *color, compvar_t **dest, gboolean is_alloced)
     }
 }
 
+static compvar_t*
+gen_tree_vector (filter_t *filter, exprtree *tree, compvar_t **dest, gboolean is_alloced)
+{
+    if (tree->type == EXPR_VARIABLE && g_hash_table_lookup(vector_variables, tree->val.var))
+    {
+	compvar_t *tree_vector = tree->val.var->compvar[0];
+	int i;
+
+	for (i = 0; i < tree->result.length; ++i)
+	{
+	    if (!is_alloced)
+		dest[i] = make_temporary(TYPE_FLOAT);
+	    emit_assign(make_lhs(dest[i]), make_op_rhs(OP_TREE_VECTOR_NTH,
+						       make_int_const_primary(i),
+						       make_compvar_primary(tree_vector)));
+	}
+
+	return tree_vector;
+    }
+    else
+    {
+	compvar_t *temp;
+	primary_t args[tree->result.length];
+	int i;
+
+	gen_code(filter, tree, dest, is_alloced);
+
+	for (i = 0; i < tree->result.length; ++i)
+	    args[i] = make_compvar_primary(dest[i]);
+	temp = make_temporary(TYPE_TREE_VECTOR);
+	emit_assign(make_lhs(temp), make_tree_vector_rhs(tree->result.length, args));
+
+	return temp;
+    }
+}
+
 static void
 gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 {
@@ -1793,8 +1877,12 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t *temps[tree->val.select.tuple->result.length];
 		exprtree *sub;
 		int i;
+		compvar_t *tree_vector = NULL;
 
-		gen_code(filter, tree->val.select.tuple, temps, 0);
+		if (g_hash_table_lookup(vector_variables, tree))
+		    tree_vector = gen_tree_vector(filter, tree->val.select.tuple, temps, FALSE);
+		else
+		    gen_code(filter, tree->val.select.tuple, temps, FALSE);
 
 		g_assert(tree->val.select.subscripts->type == EXPR_TUPLE);
 		for (sub = tree->val.select.subscripts->val.tuple.elems, i = 0; sub != 0; sub = sub->next, ++i)
@@ -1816,23 +1904,17 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 		    else
 		    {
 			compvar_t *subscript;
-			int length = tree->val.select.tuple->result.length;
-			int j;
+
+			g_assert(tree_vector);
 
 			if (!is_alloced)
 			    dest[i] = make_temporary(TYPE_INT);
 
-			gen_code(filter, sub, &subscript, 0);
+			gen_code(filter, sub, &subscript, FALSE);
 
-			for (j = 1; j < length; ++j)
-			{
-			    start_if_cond(make_op_rhs(OP_LESS_INT, make_compvar_primary(subscript), make_int_const_primary(j)));
-			    emit_assign(make_lhs(dest[i]), make_compvar_rhs(temps[j - 1]));
-			    switch_if_branch();
-			}
-			emit_assign(make_lhs(dest[i]), make_compvar_rhs(temps[length - 1]));
-			for (j = 0; j < length - 1; ++j)
-			    end_if_cond();
+			emit_assign(make_lhs(dest[i]), make_op_rhs(OP_TREE_VECTOR_NTH,
+								   make_compvar_primary(subscript),
+								   make_compvar_primary(tree_vector)));
 		    }
 		}
 	    }
@@ -1840,11 +1922,21 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 
 	case EXPR_VARIABLE :
 	    alloc_var_compvars_if_needed(tree->val.var);
-	    for (i = 0; i < tree->val.var->type.length; ++i)
-		if (!is_alloced)
-		    dest[i] = tree->val.var->compvar[i];
-		else
-		    emit_assign(make_lhs(dest[i]), make_compvar_rhs(tree->val.var->compvar[i]));
+	    if (g_hash_table_lookup(vector_variables, tree->val.var))
+		for (i = 0; i < tree->val.var->type.length; ++i)
+		{
+		    if (!is_alloced)
+			dest[i] = make_temporary(TYPE_INT);
+		    emit_assign(make_lhs(dest[i]), make_op_rhs(OP_TREE_VECTOR_NTH,
+							       make_int_const_primary(i),
+							       make_compvar_primary(tree->val.var->compvar[0])));
+		}
+	    else
+		for (i = 0; i < tree->val.var->type.length; ++i)
+		    if (!is_alloced)
+			dest[i] = tree->val.var->compvar[i];
+		    else
+			emit_assign(make_lhs(dest[i]), make_compvar_rhs(tree->val.var->compvar[i]));
 	    break;
 
 	case EXPR_INTERNAL :
@@ -1863,12 +1955,20 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 
 	case EXPR_ASSIGNMENT :
 	    alloc_var_compvars_if_needed(tree->val.assignment.var);
-	    gen_code(filter, tree->val.assignment.value, tree->val.assignment.var->compvar, 1);
-	    for (i = 0; i < tree->result.length; ++i)
-		if (is_alloced)
-		    emit_assign(make_lhs(dest[i]), make_compvar_rhs(tree->val.assignment.var->compvar[i]));
-		else
-		    dest[i] = tree->val.assignment.var->compvar[i];
+	    if (g_hash_table_lookup(vector_variables, tree->val.assignment.var))
+	    {
+		compvar_t *tree_vector = gen_tree_vector(filter, tree->val.assignment.value, dest, is_alloced);
+		emit_assign(make_lhs(tree->val.assignment.var->compvar[0]), make_compvar_rhs(tree_vector));
+	    }
+	    else
+	    {
+		gen_code(filter, tree->val.assignment.value, tree->val.assignment.var->compvar, TRUE);
+		for (i = 0; i < tree->result.length; ++i)
+		    if (is_alloced)
+			emit_assign(make_lhs(dest[i]), make_compvar_rhs(tree->val.assignment.var->compvar[i]));
+		    else
+			dest[i] = tree->val.assignment.var->compvar[i];
+	    }
 	    break;
 
 	case EXPR_SUB_ASSIGNMENT :
@@ -1876,17 +1976,30 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 		compvar_t *temps[tree->val.sub_assignment.value->result.length];
 		exprtree *sub;
 		int i;
+		gboolean is_tree_vector = g_hash_table_lookup(vector_variables, tree->val.sub_assignment.var) != NULL;
 
 		alloc_var_compvars_if_needed(tree->val.sub_assignment.var);
 
 		gen_code(filter, tree->val.sub_assignment.value, temps, 0);
-
 		g_assert(tree->val.sub_assignment.subscripts->type == EXPR_TUPLE);
+
 		for (sub = tree->val.sub_assignment.subscripts->val.tuple.elems, i = 0; sub != 0; sub = sub->next, ++i)
 		{
 		    int subscript;
 
-		    if (is_exprtree_single_const(sub, &subscript, 0))
+		    if (is_tree_vector)
+		    {
+			compvar_t *tree_vector = tree->val.sub_assignment.var->compvar[0];
+			compvar_t *subscript;
+
+			gen_code(filter, sub, &subscript, FALSE);
+
+			emit_assign(make_lhs(tree_vector), make_op_rhs(OP_SET_TREE_VECTOR_NTH,
+								       make_compvar_primary(subscript),
+								       make_compvar_primary(tree_vector),
+								       make_compvar_primary(temps[i])));
+		    }
+		    else if (is_exprtree_single_const(sub, &subscript, 0))
 		    {
 			if (subscript < 0)
 			    subscript = 0;
@@ -1896,26 +2009,7 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 			emit_assign(make_lhs(tree->val.sub_assignment.var->compvar[subscript]), make_compvar_rhs(temps[i]));
 		    }
 		    else
-		    {
-			compvar_t *subscript;
-			int length = tree->val.sub_assignment.var->type.length;
-			int j;
-
-			if (!is_alloced)
-			    dest[i] = make_temporary(TYPE_INT);
-
-			gen_code(filter, sub, &subscript, 0);
-
-			for (j = 1; j < length; ++j)
-			{
-			    start_if_cond(make_op_rhs(OP_LESS_INT, make_compvar_primary(subscript), make_int_const_primary(j)));
-			    emit_assign(make_lhs(tree->val.sub_assignment.var->compvar[j - 1]), make_compvar_rhs(temps[i]));
-			    switch_if_branch();
-			}
-			emit_assign(make_lhs(tree->val.sub_assignment.var->compvar[length - 1]), make_compvar_rhs(temps[i]));
-			for (j = 0; j < length - 1; ++j)
-			    end_if_cond();
-		    }
+			g_assert_not_reached ();
 
 		    if (is_alloced)
 			emit_assign(make_lhs(dest[i]), make_compvar_rhs(temps[i]));
@@ -2092,7 +2186,7 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 
 	default :
 	    g_assert_not_reached();
-   }
+    }
 }
 
 static binding_values_t*
@@ -2379,6 +2473,103 @@ gen_ra_binding_values (filter_t *filter, binding_values_t *bvs)
     return bvs;
 }
 
+static variable_t*
+is_exprtree_variable (exprtree *exprtree)
+{
+    if (exprtree->type == EXPR_VARIABLE)
+	return exprtree->val.var;
+    return NULL;
+}
+
+static void
+find_all_vector_variables (exprtree *tree)
+{
+    exprtree *sub;
+    variable_t *var;
+
+    switch (tree->type)
+    {
+	case EXPR_INT_CONST :
+	case EXPR_FLOAT_CONST :
+	case EXPR_TUPLE_CONST :
+	case EXPR_VARIABLE :
+	case EXPR_INTERNAL :
+	case EXPR_USERVAL :
+	    break;
+
+	case EXPR_TUPLE :
+	    for (sub = tree->val.tuple.elems; sub != 0; sub = sub->next)
+		find_all_vector_variables(sub);
+	    break;
+
+	case EXPR_SELECT :
+	    find_all_vector_variables(tree->val.select.tuple);
+	    var = is_exprtree_variable(tree->val.select.tuple);
+	    for (sub = tree->val.select.subscripts->val.tuple.elems; sub != 0; sub = sub->next)
+	    {
+		find_all_vector_variables(sub);
+		if (!is_exprtree_single_const(sub, NULL, NULL))
+		{
+		    g_hash_table_insert(vector_variables, tree, GINT_TO_POINTER(1));
+		    if (var)
+			g_hash_table_insert(vector_variables, var, GINT_TO_POINTER(1));
+		}
+	    }
+	    break;
+
+	case EXPR_ASSIGNMENT :
+	    find_all_vector_variables(tree->val.assignment.value);
+	    break;
+
+	case EXPR_SUB_ASSIGNMENT :
+	    find_all_vector_variables(tree->val.sub_assignment.value);
+	    var = tree->val.sub_assignment.var;
+	    for (sub = tree->val.sub_assignment.subscripts->val.tuple.elems; sub != 0; sub = sub->next)
+	    {
+		find_all_vector_variables(sub);
+		if (!is_exprtree_single_const(sub, NULL, NULL))
+		    g_hash_table_insert(vector_variables, var, GINT_TO_POINTER(1));
+	    }
+	    break;
+
+	case EXPR_CAST :
+	    find_all_vector_variables(tree->val.cast.tuple);
+	    break;
+
+	case EXPR_FUNC :
+	    for (sub = tree->val.func.args; sub != 0; sub = sub->next)
+		find_all_vector_variables(sub);
+	    break;
+
+	case EXPR_SEQUENCE :
+	    find_all_vector_variables(tree->val.op.left);
+	    find_all_vector_variables(tree->val.op.right);
+	    break;
+
+	case EXPR_IF_THEN :
+	case EXPR_IF_THEN_ELSE :
+	    find_all_vector_variables(tree->val.ifExpr.condition);
+	    find_all_vector_variables(tree->val.ifExpr.consequent);
+	    if (tree->type == EXPR_IF_THEN_ELSE)
+		find_all_vector_variables(tree->val.ifExpr.alternative);
+	    break;
+
+	case EXPR_DO_WHILE :
+	case EXPR_WHILE :
+	    find_all_vector_variables(tree->val.whileExpr.invariant);
+	    find_all_vector_variables(tree->val.whileExpr.body);
+	    break;
+
+	case EXPR_FILTER_CLOSURE :
+	    for (sub = tree->val.filter_closure.args; sub != 0; sub = sub->next)
+		find_all_vector_variables(sub);
+	    break;
+
+	default :
+	    g_assert_not_reached();
+    }
+}
+
 static statement_t*
 gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tuple_rhs, inlining_history_t *history)
 {
@@ -2410,6 +2601,8 @@ gen_filter_code (filter_t *filter, compvar_t *tuple, primary_t *args, rhs_t **tu
 
     if (does_filter_use_ra(filter))
 	binding_values = gen_ra_binding_values(filter, binding_values);
+
+    find_all_vector_variables(filter->v.mathmap.decl->v.filter.body);
 
     gen_code(filter, filter->v.mathmap.decl->v.filter.body, result, FALSE);
 
@@ -2560,6 +2753,9 @@ rhs_type (rhs_t *rhs)
 	case RHS_CLOSURE :
 	    return TYPE_IMAGE;
 
+	case RHS_TREE_VECTOR :
+	    return TYPE_TREE_VECTOR;
+
 	default :
 	    g_assert_not_reached();
     }
@@ -2665,6 +2861,7 @@ rhs_constant (rhs_t *rhs)
 	case RHS_PRIMARY :
 	case RHS_CLOSURE :
 	case RHS_TUPLE :
+	case RHS_TREE_VECTOR :
 	    {
 		int num_primaries;
 		primary_t *primaries = get_rhs_primaries(rhs, &num_primaries);
@@ -3590,6 +3787,12 @@ tuples_equal (float *t1, float *t2)
 }
 
 static int
+tree_vectors_equal (tree_vector_t *tv1, tree_vector_t *tv2)
+{
+    g_assert_not_reached();
+}
+
+static int
 curves_equal (curve_t *c1, curve_t *c2)
 {
     return c1 == c2;
@@ -3688,6 +3891,7 @@ rhss_equal (rhs_t *rhs1, rhs_t *rhs2)
 	}
 
 	case RHS_TUPLE :
+	case RHS_TREE_VECTOR :
 	    {
 		int i;
 
@@ -4551,6 +4755,7 @@ compiler_compile_filters (mathmap_t *mathmap, int timeout)
     filter_t *filter;
 
     init_pools(&compiler_pools);
+    vector_variables = g_hash_table_new(g_direct_hash, g_direct_equal);
 
     num_filters = 0;
     for (filter = mathmap->filters; filter != 0; filter = filter->next)
@@ -4577,6 +4782,7 @@ compiler_compile_filters (mathmap_t *mathmap, int timeout)
 void
 compiler_free_pools (mathmap_t *mathmap)
 {
+    g_hash_table_unref(vector_variables);
     free_pools(&compiler_pools);
 }
 

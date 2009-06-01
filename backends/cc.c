@@ -60,6 +60,12 @@ print_tuple (float *tuple)
 }
 
 static void
+print_tree_vector (tree_vector_t *tree_vector)
+{
+    g_assert_not_reached();
+}
+
+static void
 output_value_name (FILE *out, value_t *value, int for_decl)
 {
     if (value->index < 0)
@@ -287,6 +293,22 @@ output_rhs (FILE *out, rhs_t *rhs)
 		}
 
 		fprintf(out, "tuple; })");
+	    }
+	    break;
+
+	case RHS_TREE_VECTOR :
+	    {
+		int i;
+
+		fprintf(out, "({ float tuple[%d]; ", rhs->v.tuple.length);
+
+		for (i = 0; i < rhs->v.tuple.length; ++i)
+		{
+		    fprintf(out, "tuple[%d] = ", i);
+		    output_primary(out, &rhs->v.tuple.args[i]);
+		    fprintf(out, "; ");
+		}
+		fprintf(out, "; ALLOC_TREE_VECTOR(%d, tuple); })", rhs->v.tuple.length);
 	    }
 	    break;
 

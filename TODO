@@ -37,7 +37,7 @@ speed up compiler - see what the bottlenecks are with valgrind's callgrind
 replace resize with a simple internal filter
 don't use x_consts and y_consts structs in filter_func
 make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
-make solve ops and ell-jac foldable (requires pools in the folders)
+make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth (requires pools in the folders)
 loops which don't compute anything are still emitted for sliced code.  this shouldn't be.
 make internals typed
 don't put easy to produce constants in slices

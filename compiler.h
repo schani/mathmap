@@ -32,6 +32,7 @@
 #include "exprtree.h"
 #include "userval.h"
 #include "drawable.h"
+#include "tree_vectors.h"
 
 #include "compiler_types.h"
 #include "opmacros.h"
