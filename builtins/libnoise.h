@@ -30,6 +30,11 @@ extern "C" {
 /* TEMPLATE libnoise */
 extern float libnoise_perlin (int num_octaves, float persistence, float lacunarity,
 			      float x, float y, float z);
+extern float libnoise_billow (int num_octaves, float persistence, float lacunarity,
+			      float x, float y, float z);
+extern float libnoise_ridged_multi (int num_octaves, float lacunarity,
+				    float x, float y, float z);
+extern float libnoise_voronoi (float displacement, float x, float y, float z);
 /* END */
 
 #ifdef __cplusplus

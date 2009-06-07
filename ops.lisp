@@ -239,6 +239,9 @@
 (defop 'rand 2 "RAND" :pure nil)
 
 (defop 'libnoise-perlin 6 "libnoise_perlin" :type 'float :arg-types '(int float float float float float))
+(defop 'libnoise-billow 6 "libnoise_billow" :type 'float :arg-types '(int float float float float float))
+(defop 'libnoise-ridged-multi 5 "libnoise_ridged_multi" :type 'float :arg-types '(int float float float float))
+(defop 'libnoise-voronoi 4 "libnoise_voronoi" :type 'float :arg-types '(float float float float))
 
 (defop 'userval-int 1 "USERVAL_INT_ACCESS" :type 'int :arg-type 'int :foldable nil)
 (defop 'userval-float 1 "USERVAL_FLOAT_ACCESS" :type 'float :arg-type 'int :foldable nil)

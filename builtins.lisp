@@ -1357,6 +1357,17 @@ from one octave to the next."
   (set result (make (nil 1) (libnoise-perlin (nth 0 octaves) (nth 0 persistence) (nth 0 lacunarity)
 					     (nth 0 a) (nth 1 a) (nth 2 a)))))
 
+(defbuiltin "noise_billow" noise-billow (nil 1) ((octaves (? 1)) (persistence (? 1)) (lacunarity (? 1)) (a (? 3)))
+  (set result (make (nil 1) (libnoise-billow (nth 0 octaves) (nth 0 persistence) (nth 0 lacunarity)
+					     (nth 0 a) (nth 1 a) (nth 2 a)))))
+
+(defbuiltin "noise_ridged_multi" noise-ridged-multi (nil 1) ((octaves (? 1)) (lacunarity (? 1)) (a (? 3)))
+  (set result (make (nil 1) (libnoise-ridged-multi (nth 0 octaves) (nth 0 lacunarity)
+						   (nth 0 a) (nth 1 a) (nth 2 a)))))
+
+(defbuiltin "voronoi_cells" noise-voronoi (nil 1) ((a (? 3)))
+  (set result (make (nil 1) (libnoise-voronoi 1 (nth 0 a) (nth 1 a) (nth 2 a)))))
+
 (defun type-string (type args)
   (labels ((str (s)
 	     (cond ((eq s '?)

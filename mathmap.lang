@@ -147,6 +147,9 @@
 
 		<!-- libnoise -->
 		<keyword>noise_perlin</keyword>
+		<keyword>noise_billow</keyword>
+		<keyword>noise_ridged_multi</keyword>
+		<keyword>voronoi_cells</keyword>
 	</keyword-list>
 
 	<keyword-list _name = "Builtin Values" style = "Keyword" case-sensitive="TRUE">

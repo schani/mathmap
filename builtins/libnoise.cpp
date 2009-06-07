@@ -43,3 +43,46 @@ libnoise_perlin (int num_octaves, float persistence, float lacunarity,
 
     return p.GetValue (x, y, z);
 }
+
+extern "C"
+CALLBACK_SYMBOL
+float
+libnoise_billow (int num_octaves, float persistence, float lacunarity,
+		 float x, float y, float z)
+{
+    module::Billow p;
+
+    p.SetNoiseQuality (QUALITY_BESTEST);
+    p.SetOctaveCount (num_octaves);
+    p.SetLacunarity (lacunarity);
+    p.SetPersistence (persistence);
+
+    return p.GetValue (x, y, z);
+}
+
+extern "C"
+CALLBACK_SYMBOL
+float
+libnoise_ridged_multi (int num_octaves, float lacunarity,
+		       float x, float y, float z)
+{
+    module::RidgedMulti p;
+
+    p.SetNoiseQuality (QUALITY_BESTEST);
+    p.SetOctaveCount (num_octaves);
+    p.SetLacunarity (lacunarity);
+
+    return p.GetValue (x, y, z);
+}
+
+extern "C"
+CALLBACK_SYMBOL
+float
+libnoise_voronoi (float displacement, float x, float y, float z)
+{
+    module::Voronoi p;
+
+    p.SetDisplacement (displacement);
+
+    return p.GetValue (x, y, z);
+}
