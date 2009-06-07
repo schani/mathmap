@@ -24,7 +24,7 @@
 #define __EXPRTREE_H__
 
 #include "vars.h"
-#include "builtins.h"
+#include "builtins/builtins.h"
 #include "internals.h"
 #include "macros.h"
 

@@ -55,7 +55,7 @@
 #include <gtksourceview/gtksourcelanguagemanager.h>
 
 #include "exprtree.h"
-#include "builtins.h"
+#include "builtins/builtins.h"
 #include "tags.h"
 #include "scanner.h"
 #include "vars.h"
@@ -64,7 +64,7 @@
 #include "macros.h"
 #include "jump.h"
 #include "mathmap.h"
-#include "noise.h"
+#include "builtins/noise.h"
 #include "expression_db.h"
 #include "designer/designer.h"
 

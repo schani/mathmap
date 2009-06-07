@@ -69,9 +69,9 @@ static type_t primary_type (primary_t *primary);
 #include <gsl/gsl_sf_ellint.h>
 #include <gsl/gsl_sf_elljac.h>
 
-#include "spec_func.h"
-#include "builtins.h"
-#include "noise.h"
+#include "builtins/spec_func.h"
+#include "builtins/builtins.h"
+#include "builtins/noise.h"
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
 #define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \

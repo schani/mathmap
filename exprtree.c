@@ -27,7 +27,7 @@
 
 #include "exprtree.h"
 #include "userval.h"
-#include "builtins.h"
+#include "builtins/builtins.h"
 #include "tags.h"
 #include "internals.h"
 #include "macros.h"

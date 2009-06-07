@@ -34,7 +34,7 @@
 #include "getopt.h"
 
 #include "exprtree.h"
-#include "builtins.h"
+#include "builtins/builtins.h"
 #include "tags.h"
 #include "scanner.h"
 #include "vars.h"
@@ -43,7 +43,7 @@
 #include "macros.h"
 #include "jump.h"
 #include "mathmap.h"
-#include "noise.h"
+#include "builtins/noise.h"
 #include "drawable.h"
 #include "rwimg/readimage.h"
 #include "rwimg/writeimage.h"

@@ -82,6 +82,9 @@ color gimp layer mode
 figure out how much faster 2^n ffts are
 do gaussian multithreaded if possible
 take aspect ratio of kernel into consideration - don't stretch it
+normalize argument for convolve should not be bool but be the value to normalize to
+image segmentation
+edge detection
 
 * 1.3.x
 
