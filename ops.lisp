@@ -238,6 +238,8 @@
 (defop 'noise 3 "noise")
 (defop 'rand 2 "RAND" :pure nil)
 
+(defop 'libnoise-perlin 6 "libnoise_perlin" :type 'float :arg-types '(int float float float float float))
+
 (defop 'userval-int 1 "USERVAL_INT_ACCESS" :type 'int :arg-type 'int :foldable nil)
 (defop 'userval-float 1 "USERVAL_FLOAT_ACCESS" :type 'float :arg-type 'int :foldable nil)
 (defop 'userval-bool 1 "USERVAL_BOOL_ACCESS" :type 'int :arg-type 'int :foldable nil)

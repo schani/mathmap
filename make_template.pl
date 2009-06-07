@@ -29,7 +29,7 @@ while (<FILE>) {
     my $line = $_;
     while ($line =~ /\$def_(\w+)/) {
 	my $name = $1;
-	exists $snippets{$name} or die;
+	exists $snippets{$name} or die "Snippet $name not found";
 	$line = $PREMATCH . $snippets{$name} . $POSTMATCH;
     }
     print $line;

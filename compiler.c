@@ -72,6 +72,7 @@ static type_t primary_type (primary_t *primary);
 #include "builtins/spec_func.h"
 #include "builtins/builtins.h"
 #include "builtins/noise.h"
+#include "builtins/libnoise.h"
 
 #define RHS_ARG(i)                (rhs->v.op.args[(i)])
 #define OP_CONST_INT_VAL(i)       ({ assert(RHS_ARG((i)).kind == PRIMARY_CONST); \

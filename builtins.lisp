@@ -1342,6 +1342,21 @@ component <tt>a</tt>, i.e. <tt>rgba:[g,g,g,a]</tt>."
 values lie between -1 and 1."
   (set result (make (nil 1) (noise (nth 0 a) (nth 1 a) (nth 2 a)))))
 
+;;; libnoise
+
+(defbuiltin "noise_perlin" noise-perlin-simple (nil 1) ((a (? 3)))
+  "The perlin noise function, defined in three-dimensional space.
+Its value lie between -1 and 1.  <tt>octaves</tt> is the number of
+octaves (by default one).  <tt>persistence</tt> is the factor by which
+the amplitude dimishes from one octave to the next.
+<tt>lacunarity</tt> is the factor by which the frequency increases
+from one octave to the next."
+  (set result (make (nil 1) (libnoise-perlin 1 0 0 (nth 0 a) (nth 1 a) (nth 2 a)))))
+
+(defbuiltin "noise_perlin" noise-perlin-full (nil 1) ((octaves (? 1)) (persistence (? 1)) (lacunarity (? 1)) (a (? 3)))
+  (set result (make (nil 1) (libnoise-perlin (nth 0 octaves) (nth 0 persistence) (nth 0 lacunarity)
+					     (nth 0 a) (nth 1 a) (nth 2 a)))))
+
 (defun type-string (type args)
   (labels ((str (s)
 	     (cond ((eq s '?)

@@ -95,7 +95,7 @@ LIBDIR := $(shell $(GIMPTOOL) --libdir)
 C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS)
 CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS)
-LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas $(PROF_FLAGS) $(MINGW_LDFLAGS)
+LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS)
 
 ifeq ($(MOVIES),YES)
 CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -121,7 +121,7 @@ CXX = g++
 
 export CFLAGS CC
 
-COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/noise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
+COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/noise.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -129,9 +129,9 @@ GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins/builtins.h builtins/noise.h tree_vectors.h native-filters/native-filters.h
+TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins/builtins.h builtins/noise.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
-mathmap : compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
+mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(LDFLAGS)
 
 librwimg :
@@ -139,6 +139,13 @@ librwimg :
 
 liblispreader :
 	$(MAKE) -C lispreader -f Makefile.dist
+
+libnoise :
+	mkdir libnoise
+	cd libnoise ; unzip ../libnoisesrc-1.0.0.zip
+	cd libnoise ; patch -p1 <../libnoise-static.diff
+	cd libnoise ; patch -p1 <../libnoise-bestest.diff
+	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(LDFLAGS) -lgsl -lgslcblas
@@ -171,6 +178,9 @@ backends/lazy_creator.cpp : exported_symbols
 
 backends/lazy_creator.o : backends/lazy_creator.cpp
 	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/lazy_creator.cpp
+
+builtins/libnoise.o : builtins/libnoise.cpp builtins/libnoise.h
+	$(CXX) $(CXXFLAGS) -Ilibnoise/noise/include -o $@ -c builtins/libnoise.cpp
 
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp
@@ -219,7 +229,7 @@ TAGS :
 dist : new_builtins.c parser.c scanner.c new_template.c backends/lazy_creator.cpp clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl make_template.pl *.po mathmap.lang mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl make_template.pl *.po mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils

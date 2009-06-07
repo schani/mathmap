@@ -144,6 +144,9 @@
 		<!-- Random -->
 		<keyword>rand</keyword>
 		<keyword>noise</keyword>
+
+		<!-- libnoise -->
+		<keyword>noise_perlin</keyword>
 	</keyword-list>
 
 	<keyword-list _name = "Builtin Values" style = "Keyword" case-sensitive="TRUE">
