@@ -235,7 +235,6 @@
 (defop 'solve-poly-2 3 "SOLVE_POLY_2" :type 'tuple :foldable nil)
 (defop 'solve-poly-3 4 "SOLVE_POLY_3" :type 'tuple :foldable nil)
 
-(defop 'noise 3 "noise")
 (defop 'rand 2 "RAND" :pure nil)
 
 (defop 'libnoise-perlin 6 "libnoise_perlin" :type 'float :arg-types '(int float float float float float))

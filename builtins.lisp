@@ -2,7 +2,7 @@
 
 ;; MathMap
 
-;; Copyright (C) 2002-2008 Mark Probst
+;; Copyright (C) 2002-2009 Mark Probst
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -1337,23 +1337,18 @@ component <tt>a</tt>, i.e. <tt>rgba:[g,g,g,a]</tt>."
   "A random number between <tt>a</tt> and <tt>b</tt>."
   (set result (make (?T 1) (rand (nth 0 a) (nth 0 b)))))
 
-(defbuiltin "noise" noise (nil 1) ((a (? 3)))
-  "A solid noise function defined in three-dimensional space.  Its
-values lie between -1 and 1."
-  (set result (make (nil 1) (noise (nth 0 a) (nth 1 a) (nth 2 a)))))
-
 ;;; libnoise
 
-(defbuiltin "noise_perlin" noise-perlin-simple (nil 1) ((a (? 3)))
+(defbuiltin "noise" noise-perlin-simple (nil 1) ((a (? 3)))
   "The perlin noise function, defined in three-dimensional space.
-Its value lie between -1 and 1.  <tt>octaves</tt> is the number of
-octaves (by default one).  <tt>persistence</tt> is the factor by which
-the amplitude dimishes from one octave to the next.
-<tt>lacunarity</tt> is the factor by which the frequency increases
-from one octave to the next."
+Its value lie between -1 and 1 if <tt>octaves</tt> is 1.
+<tt>octaves</tt> is the number of octaves (by default 1).
+<tt>persistence</tt> is the factor by which the amplitude dimishes
+from one octave to the next.  <tt>lacunarity</tt> is the factor by
+which the frequency increases from one octave to the next."
   (set result (make (nil 1) (libnoise-perlin 1 0 0 (nth 0 a) (nth 1 a) (nth 2 a)))))
 
-(defbuiltin "noise_perlin" noise-perlin-full (nil 1) ((octaves (? 1)) (persistence (? 1)) (lacunarity (? 1)) (a (? 3)))
+(defbuiltin "noise" noise-perlin-full (nil 1) ((octaves (? 1)) (persistence (? 1)) (lacunarity (? 1)) (a (? 3)))
   (set result (make (nil 1) (libnoise-perlin (nth 0 octaves) (nth 0 persistence) (nth 0 lacunarity)
 					     (nth 0 a) (nth 1 a) (nth 2 a)))))
 

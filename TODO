@@ -19,8 +19,10 @@ speed up compiler - see what the bottlenecks are with valgrind's callgrind
 
 ** LLVM
 why do we compare against floats in simple counting loops? (do we?)
+update exported_symbols
 
 ** Packaging
+documentation for all builtins
 add mathmap.png and error.png
 make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
 give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...

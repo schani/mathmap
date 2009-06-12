@@ -43,7 +43,6 @@
 #include "macros.h"
 #include "jump.h"
 #include "mathmap.h"
-#include "builtins/noise.h"
 #include "drawable.h"
 #include "rwimg/readimage.h"
 #include "rwimg/writeimage.h"
@@ -656,7 +655,6 @@ cmdline_main (int argc, char *argv[])
     init_tags();
     init_builtins();
     init_macros();
-    init_noise();
     init_compiler();
 
     if (htmldoc)

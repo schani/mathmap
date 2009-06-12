@@ -2,7 +2,6 @@ get_floatmap_pixel
 _pools_alloc
 render_image
 make_resize_image
-noise
 gsl_matrix_alloc
 gsl_matrix_free
 gsl_matrix_set

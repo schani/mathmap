@@ -64,7 +64,6 @@
 #include "macros.h"
 #include "jump.h"
 #include "mathmap.h"
-#include "builtins/noise.h"
 #include "expression_db.h"
 #include "designer/designer.h"
 
@@ -665,7 +664,6 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     init_builtins();
     init_tags();
     init_macros();
-    init_noise();
     init_compiler();
 
 #ifdef THREADED_FINAL_RENDER

@@ -106,8 +106,6 @@ $def_builtins
 
 $def_make_resize_image
 
-$def_noise
-
 $def_libnoise
 
 typedef struct _tree_vector_t tree_vector_t;
