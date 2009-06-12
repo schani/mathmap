@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -31,8 +31,8 @@
 
 #define G_SIZE         256
 
-#define frandom()      (rand() / (float)RAND_MAX)
-#define sfrandom()     (frandom() * 2.0 - 1.0)
+#define frandom()      (g_random_double())
+#define sfrandom()     (g_random_double_range(-1.0, 1.0))
 
 #define fold(i,j,k)    (p[(p[(p[(i) % G_SIZE] + (j)) % G_SIZE] + (k)) % G_SIZE])
 #define drop(t)        (1.0 - 3.0 * (t) * (t) + 2.0 * fabs((t) * (t) * (t)))

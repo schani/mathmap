@@ -118,7 +118,7 @@
 				 r[2] = dn; \
 				 r; })
 
-#define RAND(a,b)             ((rand() / (float)RAND_MAX) * ((b) - (a)) + (a))
+#define RAND(a,b)             (g_random_double_range((a), (b)))
 #define CLAMP01(x)            (MAX(0,MIN(1,(x))))
 
 #define USERVAL_INT_ACCESS(x)        (ARG((x)).v.int_const)

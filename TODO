@@ -12,14 +12,13 @@ installer (from yuval)
 why is bool_const a float in userval_t?
 xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 make cmdline non-optional
-use glib random functions for all cases (notably in noise.c)
 
 ** Compiler
 check which optimization order is better
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
 
 ** LLVM
-why do we compare against floats in simple counting loops?
+why do we compare against floats in simple counting loops? (do we?)
 
 ** Packaging
 add mathmap.png and error.png

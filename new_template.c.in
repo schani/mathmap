@@ -123,6 +123,8 @@ typedef struct _tree_vector_t tree_vector_t;
 
 $def_tree_vector_funcs
 
+double g_random_double_range (double min, double max);
+
 struct _gsl_vector;
 typedef struct _gsl_vector gsl_vector;
 struct _gsl_matrix;
