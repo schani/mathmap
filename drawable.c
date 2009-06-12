@@ -117,8 +117,7 @@ copy_input_drawable (input_drawable_t *drawable)
     {
 #ifndef OPENSTEP
 	case INPUT_DRAWABLE_GIMP :
-	    copy = alloc_gimp_input_drawable(drawable->v.gimp.drawable);
-	    copy->v.gimp.has_selection = drawable->v.gimp.has_selection;
+	    copy = alloc_gimp_input_drawable(drawable->v.gimp.drawable, drawable->v.gimp.has_selection);
 	    break;
 #else
         case INPUT_DRAWABLE_OPENSTEP:
@@ -161,8 +160,7 @@ get_default_input_drawable (void)
 
     for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
 	if (input_drawables[i].used
-	    && input_drawables[i].kind == INPUT_DRAWABLE_GIMP
-	    && input_drawables[i].v.gimp.has_selection)
+	    && input_drawables[i].kind == INPUT_DRAWABLE_GIMP)
 	    return &input_drawables[i];
     /* No GIMP drawable with selection found, which means we're
        probably not in GIMP.  Just return the first used drawable. */

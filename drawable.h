@@ -151,11 +151,12 @@ typedef struct _input_drawable_t {
 	struct
 	{
 	    GimpDrawable *drawable;
+	    gboolean has_selection; /* only used for copying the drawable */
+	    gint x0, y0;	    /* is honored whatever the value of has_selection */
 	    gint bpp;
 	    gint row;
 	    gint col;
 	    GimpTile *tile;
-	    gboolean has_selection;
 	    int fast_image_source_width;
 	    int fast_image_source_height;
 	    color_t *fast_image_source;
@@ -187,7 +188,7 @@ int get_num_input_drawables (void);
 input_drawable_t* get_nth_input_drawable (int n);
 
 #ifndef OPENSTEP
-input_drawable_t* alloc_gimp_input_drawable (GimpDrawable *drawable);
+input_drawable_t* alloc_gimp_input_drawable (GimpDrawable *drawable, gboolean honor_selection);
 GimpDrawable* get_gimp_input_drawable (input_drawable_t *drawable);
 
 input_drawable_t* get_default_input_drawable (void);

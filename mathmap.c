@@ -641,6 +641,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     sel_width = sel_x2 - sel_x1;
     sel_height = sel_y2 - sel_y1;
 
+
     tile_width = gimp_tile_width();
     tile_height = gimp_tile_height();
 
@@ -653,10 +654,9 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     assert (fast_image_source_scale >= 1);
 
     /* Allocate drawable structure */
-    drawable = alloc_gimp_input_drawable(gimp_drawable_get(param[2].data.d_drawable));
+    drawable = alloc_gimp_input_drawable(gimp_drawable_get(param[2].data.d_drawable), TRUE);
     assert(drawable != 0);
 
-    drawable->v.gimp.has_selection = TRUE;
     output_bpp = drawable->v.gimp.bpp;
 
     gimp_drawable = get_gimp_input_drawable(drawable);
@@ -1056,19 +1056,40 @@ unref_tiles (void)
 }
 
 input_drawable_t*
-alloc_gimp_input_drawable (GimpDrawable *gimp_drawable)
+alloc_gimp_input_drawable (GimpDrawable *gimp_drawable, gboolean honor_selection)
 {
-    int width = gimp_drawable_width(GIMP_DRAWABLE_ID(gimp_drawable));
-    int height = gimp_drawable_height(GIMP_DRAWABLE_ID(gimp_drawable));
-    input_drawable_t *drawable = alloc_input_drawable(INPUT_DRAWABLE_GIMP, width, height);
+    int x, y, width, height;
+    input_drawable_t *drawable;
+
+    if (honor_selection)
+    {
+	gint x1, x2, y1, y2;
+
+	gimp_drawable_mask_bounds(GIMP_DRAWABLE_ID(gimp_drawable), &x1, &y1, &x2, &y2);
+
+	x = x1;
+	y = y1;
+	width = x2 - x1;
+	height = y2 - y1;
+    }
+    else
+    {
+	x = y = 0;
+	width = gimp_drawable_width(GIMP_DRAWABLE_ID(gimp_drawable));
+	height = gimp_drawable_height(GIMP_DRAWABLE_ID(gimp_drawable));
+    }
+
+    drawable = alloc_input_drawable(INPUT_DRAWABLE_GIMP, width, height);
 
     drawable->v.gimp.drawable = gimp_drawable;
+    drawable->v.gimp.has_selection = honor_selection;
+    drawable->v.gimp.x0 = x;
+    drawable->v.gimp.y0 = y;
     drawable->v.gimp.bpp = gimp_drawable_bpp(GIMP_DRAWABLE_ID(gimp_drawable));
     drawable->v.gimp.row = -1;
     drawable->v.gimp.col = -1;
     drawable->v.gimp.tile = 0;
     drawable->v.gimp.fast_image_source = 0;
-    drawable->v.gimp.has_selection = FALSE;
 
     drawable->v.gimp.fast_image_source_width =
 	(drawable->image.pixel_width + fast_image_source_scale - 1) / fast_image_source_scale;
@@ -1167,10 +1188,15 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 
     ++num_pixels_requested;
 
+    g_assert(drawable->kind == INPUT_DRAWABLE_GIMP);
+
     if (x < 0 || x >= drawable->image.pixel_width)
 	return invocation->edge_color_x;
     if (y < 0 || y >= drawable->image.pixel_height)
 	return invocation->edge_color_y;
+
+    x += drawable->v.gimp.x0;
+    y += drawable->v.gimp.y0;
 
 #ifdef MATHMAP_CMDLINE
     if (cmd_line_mode)
@@ -1232,7 +1258,7 @@ build_fast_image_source (input_drawable_t *drawable)
     color_t *p;
     int width, height;
     int x, y;
-    int img_x1, img_y1, img_width, img_height;
+    int img_width, img_height;
 
     if (drawable->v.gimp.fast_image_source != 0)
 	return;
@@ -1242,46 +1268,20 @@ build_fast_image_source (input_drawable_t *drawable)
 
     p = drawable->v.gimp.fast_image_source = g_malloc(width * height * sizeof(color_t));
 
-    if (drawable->v.gimp.has_selection)
-    {
-	img_x1 = sel_x1;
-	img_y1 = sel_y1;
-	img_width = sel_width;
-	img_height = sel_height;
-    }
-    else
-    {
-	img_x1 = img_y1 = 0;
-	img_width = drawable->image.pixel_width;
-	img_height = drawable->image.pixel_height;
-    }
+    img_width = drawable->image.pixel_width;
+    img_height = drawable->image.pixel_height;
 
     for (y = 0; y < height; ++y)
 	for (x = 0; x < width; ++x)
 	    drawable->v.gimp.fast_image_source[x + y * width] =
-		get_pixel(invocation, drawable, 0,
-			  img_x1 + x * img_width / width,
-			  img_y1 + y * img_height / height);
+		get_pixel(invocation, drawable, 0, x * img_width / width, y * img_height / height);
 }
 
 static color_t
 get_pixel_fast (mathmap_invocation_t *invocation, input_drawable_t *drawable, int x, int y)
 {
-    int x1, y1;
-
-    if (drawable->v.gimp.has_selection)
-    {
-	x1 = sel_x1;
-	y1 = sel_y1;
-    }
-    else
-    {
-	x1 = 0;
-	y1 = 0;
-    }
-
-    x = (x - x1) / fast_image_source_scale;
-    y = (y - y1) / fast_image_source_scale;
+    x = x / fast_image_source_scale;
+    y = y / fast_image_source_scale;
 
     if (x < 0 || x >= drawable->v.gimp.fast_image_source_width)
 	return invocation->edge_color_x;

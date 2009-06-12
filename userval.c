@@ -601,7 +601,7 @@ user_image_update (gint32 id, void **user_data)
     drawable = gimp_drawable_get(id);
     assert(drawable != 0);
 
-    assign_image_userval_drawable(info, userval, alloc_gimp_input_drawable(drawable));
+    assign_image_userval_drawable(info, userval, alloc_gimp_input_drawable(drawable, FALSE));
 
     user_value_changed();
 }
