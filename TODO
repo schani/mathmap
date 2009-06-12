@@ -53,7 +53,6 @@ remove pools in root closure image once mathfuncs work
 add mathmap.png and error.png
 Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
-document git/github
 make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
 give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
 give credit to filter developers

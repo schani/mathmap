@@ -19,7 +19,7 @@ announced there, too.
 See INSTALL on how to build and install MathMap.
 
 If you want to get the absolutely latest MathMap sources from our
-Mercurial repository, please read README.mercurial.
+git repository, please read README.git.
 
 See doc/language.html for a language tutorial with nice pictures (very
 useful if you are new to MathMap) and doc/reference.html for a
