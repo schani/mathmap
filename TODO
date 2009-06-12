@@ -9,7 +9,6 @@ get correct number of cpus
 installer (from yuval)
 
 ** General
-why is bool_const a float in userval_t?
 xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 
 ** Compiler

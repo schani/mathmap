@@ -104,7 +104,7 @@ typedef struct _userval_t
     {
 	int int_const;
 	float float_const;
-	float bool_const;
+	int bool_const;
 	struct _image_t *image;
 	curve_t *curve;
 	gradient_t *gradient;
