@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -669,6 +669,55 @@ make_slider_spin_button_box (GtkObject *adjustment, GtkSignalFunc update_func, u
     return box;
 }
 
+static gboolean
+has_userval_default (userval_info_t *info)
+{
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	case USERVAL_FLOAT_CONST :
+	case USERVAL_BOOL_CONST :
+	    return TRUE;
+
+	default :
+	    return FALSE;
+    }
+}
+
+static void
+default_button_clicked (GtkWidget *widget, userval_t *userval)
+{
+    userval_info_t *info = g_object_get_data(G_OBJECT(widget), "userval-info");
+
+    switch (info->type)
+    {
+	case USERVAL_INT_CONST :
+	    if (userval->v.int_const == info->v.int_const.default_value)
+		return;
+	    userval->v.int_const = info->v.int_const.default_value;
+	    gtk_adjustment_set_value(GTK_ADJUSTMENT(userval->widget_object), userval->v.int_const);
+	    break;
+
+	case USERVAL_FLOAT_CONST :
+	    if (userval->v.float_const == info->v.float_const.default_value)
+		return;
+	    userval->v.float_const = info->v.float_const.default_value;
+	    gtk_adjustment_set_value(GTK_ADJUSTMENT(userval->widget_object), userval->v.float_const);
+	    break;
+
+	case USERVAL_BOOL_CONST :
+	    if ((userval->v.bool_const && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(userval->widget_object))) ||
+		(!userval->v.bool_const && !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(userval->widget_object))))
+		return;
+	    userval->v.bool_const = info->v.bool_const.default_value;
+	    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(userval->widget_object), userval->v.bool_const);
+	    break;
+
+	default :
+	    g_assert_not_reached ();
+    }
+}
+
 GtkWidget*
 make_userval_table (userval_info_t *infos, userval_t *uservals)
 {
@@ -692,11 +741,16 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
     i = 0;
     for (info = infos; info != 0; info = info->next)
     {
-	GtkWidget *widget = 0, *label;
+	GtkObject *object = NULL;
+	GtkWidget *widget = NULL;
+	GtkWidget *label, *widget_to_add;
 	GtkAttachOptions xoptions = GTK_FILL | GTK_EXPAND, yoptions = 0;
+	gboolean have_default;
 
 	if (!make_table_entry_for_userval(info, &have_input_image))
 	    continue;
+
+	have_default = has_userval_default (info);
 
 	label = gtk_label_new(info->name);
 	gtk_table_attach(GTK_TABLE(table), label, 0, 1, i, i + 1, 0, 0, 0, 0);
@@ -708,12 +762,12 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		{
 		    int range = info->v.int_const.max - info->v.int_const.min;
 		    int increment = (int)MAX(increment_for_range(range, NULL), 1.0);
-		    GtkObject *adjustment = gtk_adjustment_new(uservals[info->index].v.int_const,
-							       info->v.int_const.min,
-							       info->v.int_const.max,
-							       increment, increment * 10, 0.0);
 
-		    widget = make_slider_spin_button_box(adjustment, (GtkSignalFunc)userval_int_update,
+		    object = gtk_adjustment_new(uservals[info->index].v.int_const,
+						info->v.int_const.min,
+						info->v.int_const.max,
+						increment, increment * 10, 0.0);
+		    widget = make_slider_spin_button_box(object, (GtkSignalFunc)userval_int_update,
 							 &uservals[info->index], increment, 0);
 		}
 		break;
@@ -724,18 +778,19 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    float range = info->v.float_const.max - info->v.float_const.min;
 		    float increment = increment_for_range(range, &exponent);
 		    int digits = (exponent < 0) ? -exponent : 0;
-		    GtkObject *adjustment = gtk_adjustment_new(uservals[info->index].v.float_const,
-							       info->v.float_const.min,
-							       info->v.float_const.max,
-							       increment, increment * 10, 0.0);
 
-		    widget = make_slider_spin_button_box(adjustment, (GtkSignalFunc)userval_float_update,
+		    object = gtk_adjustment_new(uservals[info->index].v.float_const,
+						info->v.float_const.min,
+						info->v.float_const.max,
+						increment, increment * 10, 0.0);
+		    widget = make_slider_spin_button_box(object, (GtkSignalFunc)userval_float_update,
 							 &uservals[info->index], increment, digits);
 		}
 		break;
 
 	    case USERVAL_BOOL_CONST :
 		widget = gtk_check_button_new();
+		object = GTK_OBJECT (widget);
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
 					     uservals[info->index].v.bool_const != 0.0);
 		gtk_signal_connect(GTK_OBJECT(widget), "toggled",
@@ -746,6 +801,7 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 	    case USERVAL_COLOR :
 		widget = gimp_color_button_new(info->name, 32, 16, &uservals[info->index].v.color.button_value,
 					       GIMP_COLOR_AREA_SMALL_CHECKS);
+		object = GTK_OBJECT (widget);
 		gtk_signal_connect(GTK_OBJECT(widget), "color_changed",
 				   (GtkSignalFunc)userval_color_update,
 				   &uservals[info->index]);
@@ -760,6 +816,7 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 			vector[j] = uservals[info->index].v.curve->values[j] * (USER_CURVE_POINTS - 1);
 
 		    widget = gtk_gamma_curve_new();
+		    object = GTK_OBJECT (widget);
 		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
 					0, USER_CURVE_POINTS - 1, 0, USER_CURVE_POINTS - 1);
 		    gtk_curve_set_vector(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
@@ -794,6 +851,7 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		    }
 
 		    widget = gtk_option_menu_new();
+		    object = GTK_OBJECT (widget);
 		    menu = gimp_drawable_menu_new(NULL, (GimpMenuCallback)user_image_update,
 						  user_data, drawable_id);
 		    gtk_option_menu_set_menu(GTK_OPTION_MENU(widget), menu);
@@ -801,19 +859,40 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 		break;
 
 	    case USERVAL_GRADIENT :
-		assert(0);
+		g_assert_not_reached ();
 
 	    default :
-		assert(0);
+		g_assert_not_reached ();
 	}
 
-	if (widget != 0)
+	if (widget != NULL && have_default)
 	{
-	    gtk_table_attach(GTK_TABLE(table), widget, 1, 2, i, i + 1, xoptions, yoptions, 0, 0);
-	    gtk_widget_show(widget);
-	}
+	    GtkWidget *default_button;
 
-	uservals[info->index].widget = widget;
+	    widget_to_add = gtk_hbox_new (FALSE, 2);
+
+	    gtk_box_pack_start(GTK_BOX(widget_to_add), widget, TRUE, TRUE, 0);
+
+	    default_button = gtk_button_new_with_label(_("Default"));
+	    g_object_set_data(G_OBJECT(default_button), "userval-info", info);
+	    gtk_signal_connect(GTK_OBJECT(default_button), "clicked", (GtkSignalFunc)default_button_clicked, &uservals[info->index]);
+	    gtk_box_pack_start(GTK_BOX(widget_to_add), default_button, FALSE, FALSE, 0);
+	    gtk_widget_show(default_button);
+	}
+	else
+	    widget_to_add = widget;
+
+	if (widget_to_add != NULL)
+	{
+	    g_assert (widget != NULL && object != NULL);
+	    gtk_table_attach(GTK_TABLE(table), widget_to_add, 1, 2, i, i + 1, xoptions, yoptions, 0, 0);
+	    gtk_widget_show(widget);
+	    gtk_widget_show(widget_to_add);
+	}
+	else
+	    g_assert (object == NULL);
+
+	uservals[info->index].widget_object = object;
 
 	++i;
     }
@@ -829,8 +908,8 @@ update_uservals (userval_info_t *infos, userval_t *uservals)
     userval_info_t *info;
 
     for (info = infos; info != 0; info = info->next)
-	if (uservals[info->index].widget != NULL && info->type == USERVAL_CURVE)
-	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(uservals[info->index].widget)->curve),
+	if (uservals[info->index].widget_object != NULL && info->type == USERVAL_CURVE)
+	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(uservals[info->index].widget_object)->curve),
 				 USER_CURVE_POINTS,
 				 uservals[info->index].v.curve->values);
 }

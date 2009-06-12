@@ -80,7 +80,7 @@ typedef struct
     double r, g, b, a;
 } GimpRGB;
 
-typedef struct _GtkWidget GtkWidget;
+typedef struct _GtkObject GtkObject;
 
 $def_userval
 
