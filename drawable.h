@@ -42,9 +42,7 @@
 #define INPUT_DRAWABLE_CMDLINE_MOVIE		3
 #define INPUT_DRAWABLE_OPENSTEP			4
 
-#ifdef MATHMAP_CMDLINE
 struct _cache_entry_t;
-#endif
 
 /* TEMPLATE image_types */
 #define IMAGE_DRAWABLE		1
@@ -162,7 +160,6 @@ typedef struct _input_drawable_t {
 	    color_t *fast_image_source;
 	} gimp;
 #endif
-#ifdef MATHMAP_CMDLINE
 	struct
 	{
 	    int num_frames;
@@ -172,7 +169,6 @@ typedef struct _input_drawable_t {
 	    quicktime_t *movie;
 #endif
 	} cmdline;
-#endif
     } v;
 } input_drawable_t;
 
@@ -194,11 +190,9 @@ GimpDrawable* get_gimp_input_drawable (input_drawable_t *drawable);
 input_drawable_t* get_default_input_drawable (void);
 #endif
 
-#ifdef MATHMAP_CMDLINE
 input_drawable_t* alloc_cmdline_image_input_drawable (const char *filename);
 #ifdef MOVIES
 input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
-#endif
 #endif
 
 image_t* floatmap_alloc (int width, int height, pools_t *pools);

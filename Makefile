@@ -5,11 +5,6 @@
 # compulsory for MinGW32!
 USE_LLVM = YES
 
-# If you want MathMap to provide a command line interface as well,
-# uncomment the following line.  Note that compiling it requires
-# libjpeg, libpng and giflib.
-CMDLINE = YES
-
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
 # should give the prefix for the one which you want to build MathMap
@@ -102,14 +97,12 @@ CFLAGS += -I/usr/local/include/quicktime -DMOVIES
 LDFLAGS += -lquicktime -lpthread
 endif
 
-ifeq ($(CMDLINE),YES)
 CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG $(GIF_CFLAGS)
-CFLAGS += -DMATHMAP_CMDLINE -DGIMPDATADIR=\"$(GIMPDATADIR)\"
+CFLAGS += -DGIMPDATADIR=\"$(GIMPDATADIR)\"
 LDFLAGS += -ljpeg -lpng $(GIF_LDFLAGS)
-endif
 
 NLS_CFLAGS = -DENABLE_NLS
 MOS = fr.mo ru.mo

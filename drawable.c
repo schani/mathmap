@@ -84,12 +84,10 @@ free_input_drawable (input_drawable_t *drawable)
         case INPUT_DRAWABLE_OPENSTEP:
 	    break;
 
-#ifdef MATHMAP_CMDLINE
 	case INPUT_DRAWABLE_CMDLINE_IMAGE :
 	    g_free(drawable->v.cmdline.image_filename);
 	    g_free(drawable->v.cmdline.cache_entries);
 	    break;
-#endif
 
 	default :
 	    g_assert_not_reached();
@@ -128,7 +126,6 @@ copy_input_drawable (input_drawable_t *drawable)
 	    break;
 #endif
 
-#ifdef MATHMAP_CMDLINE
 	case INPUT_DRAWABLE_CMDLINE_IMAGE :
 	    copy = alloc_cmdline_image_input_drawable(drawable->v.cmdline.image_filename);
 	    break;
@@ -137,7 +134,6 @@ copy_input_drawable (input_drawable_t *drawable)
 	case INPUT_DRAWABLE_CMDLINE_MOVIE :
 	    copy = alloc_cmdline_movie_input_drawable(drawable->v.cmdline.image_filename);
 	    break;
-#endif
 #endif
 
 	default :

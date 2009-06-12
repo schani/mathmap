@@ -239,10 +239,8 @@ void llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first
 /* END */
 
 
-#ifdef MATHMAP_CMDLINE
 int cmdline_main (int argc, char *argv[]);
 color_t cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
-#endif
 
 userval_info_t* arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls);
 void register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls);

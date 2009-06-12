@@ -341,7 +341,6 @@ my_gimp_main (const GimpPlugInInfo *info, int argc, char *argv[])
 	gradient_samples[i] = MAKE_RGBA_COLOR_FLOAT(v, v, v, 1.0);
     }
 
-#ifdef MATHMAP_CMDLINE
     for (i = 1; i < argc; ++i)
 	if (strcmp(argv[i], "-gimp") == 0)
 	{
@@ -351,10 +350,6 @@ my_gimp_main (const GimpPlugInInfo *info, int argc, char *argv[])
 
     cmd_line_mode = 1;
     return cmdline_main(argc, argv);
-#else
-    cmd_line_mode = 0;
-    return gimp_main(info, argc, argv);
-#endif
 }
 
 #define gimp_main my_gimp_main
@@ -1196,10 +1191,8 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
     x += drawable->v.gimp.x0;
     y += drawable->v.gimp.y0;
 
-#ifdef MATHMAP_CMDLINE
     if (cmd_line_mode)
 	return cmdline_mathmap_get_pixel(invocation, drawable, frame, x, y);
-#endif
 
     newcol = x / tile_width;
     newcoloff = x % tile_width;
