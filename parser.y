@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2008 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,7 +27,7 @@
 
 #include "mathmap.h"
 #include "exprtree.h"
-#include "builtins.h"
+#include "builtins/builtins.h"
 #include "jump.h"
 %}
 

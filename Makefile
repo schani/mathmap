@@ -145,6 +145,7 @@ libnoise :
 	cd libnoise ; unzip ../libnoisesrc-1.0.0.zip
 	cd libnoise ; patch -p1 <../libnoise-static.diff
 	cd libnoise ; patch -p1 <../libnoise-bestest.diff
+	cd libnoise ; patch -p1 <../libnoise-libtool-tags.diff
 	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
@@ -218,7 +219,7 @@ clean :
 	find . -name '*~' -exec rm {} ';'
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
-	rm -rf debian/mathmap debian/mathmap.substvars
+	rm -rf debian/mathmap debian/mathmap.substvars libnoise
 
 realclean : clean
 	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c backends/lazy_creator.cpp compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
