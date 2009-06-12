@@ -6,6 +6,30 @@
 FFTW
 .lang file
 get correct number of cpus
+installer (from yuval)
+
+** General
+why is bool_const a float in userval_t?
+xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
+make cmdline non-optional
+use glib random functions for all cases (notably in noise.c)
+
+** Compiler
+check which optimization order is better
+speed up compiler - see what the bottlenecks are with valgrind's callgrind
+
+** LLVM
+why do we compare against floats in simple counting loops?
+
+** Packaging
+add mathmap.png and error.png
+make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
+give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
+give credit to filter developers
+check out Robin Norwood's spec file changes (for Fedora)
+changes for gtksourceview 2.0
+
+* 1.3.x
 
 ** GIMP Plug-In
 speed up rendering of GIMP drawables by processing tile for tile
@@ -13,51 +37,35 @@ make preview input drawables to be floatmaps
 
 ** General
 tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves
-why is bool_const a float in userval_t?
 move everything from invocation to frame that belongs there
-xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 pass through frame and t everwhere
 use -O3
 do we need uservals, image size in invocation when we have them in the closure?
-make cmdline non-optional
-use glib random functions for all cases (notably in noise.c)
-Remove message about fallback interpreter when the compiler fails
 
 ** Language
 builtin for getting size of an image
 real gamma function buggy
 
 ** Compiler
-check which optimization order is better
 Generator for simplifiers
 Simplify coordinate stuff (non-stretched ident filter)
 calculate R in the filter code
 optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
-speed up compiler - see what the bottlenecks are with valgrind's callgrind
 replace resize with a simple internal filter
 don't use x_consts and y_consts structs in filter_func
 make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
 make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth (requires pools in the folders)
-loops which don't compute anything are still emitted for sliced code.  this shouldn't be.
 make internals typed
-don't put easy to produce constants in slices
 don't produce functions for filters which have been optimized away
 
 ** LLVM
 implement mathfuncs
 pass t properly (test with recursive filters)
-why do we compare against floats in simple counting loops?
 remove pools in root closure image once mathfuncs work
 
 ** Packaging
-add mathmap.png and error.png
 Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
-make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
-give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
-give credit to filter developers
-check out Robin Norwood's spec file changes (for Fedora)
-changes for gtksourceview 2.0
 
 ** Rendering
 specifiable size
@@ -65,7 +73,7 @@ antialiasing from rendered images
 do rendering multi-threaded if possible
 
 ** Designer
-native filters should show up directly, without .mm filters
+native filters should show up directly, without .mm filters (really? - why?)
 do migration with save/load
 free widget_data in designs
 akklimatisierungsbug (bertl)
@@ -85,7 +93,7 @@ normalize argument for convolve should not be bool but be the value to normalize
 image segmentation
 edge detection
 
-* 1.3.x
+* 1.3.y
 
 ** Designer
 catch and forbid recursive compositions

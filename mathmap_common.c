@@ -529,10 +529,7 @@ compile_mathmap (char *expression, char **support_paths, int timeout, gboolean n
 
 	if (mathmap->initfunc == 0 && mathmap->mathfuncs == 0)
 	{
-	    char *message = g_strdup_printf(_("The MathMap compiler failed.  Since this development\n"
-					      "release does not provide a fallback interpreter that\n"
-					      "means that MathMap won't work.\n"
-					      "This is the reason why the compiler failed:\n%s"), error_string);
+	    char *message = g_strdup_printf(_("The MathMap compiler failed, for the following reason:\n%s"), error_string);
 
 	    strcpy(error_string, message);
 
