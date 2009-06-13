@@ -391,6 +391,7 @@ parse_mathmap (char *expression, gboolean report_error)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     filter_t *filter;
+    gboolean need_end_scan = FALSE;
 
     mathmap = g_new0(mathmap_t, 1);
 
@@ -401,9 +402,11 @@ parse_mathmap (char *expression, gboolean report_error)
     DO_JUMP_CODE {
 	scanner_line_num = 0;
 	scanFromString(expression);
+	need_end_scan = TRUE;
 	report_parse_error_to_user = report_error;
 	yyparse();
 	endScanningFromString();
+	need_end_scan = FALSE;
 
 	if (mathmap->filters == NULL || mathmap->filters->kind != FILTER_MATHMAP)
 	{
@@ -448,6 +451,8 @@ parse_mathmap (char *expression, gboolean report_error)
 
 	mathmap->flags = 0;
     } WITH_JUMP_HANDLER {
+	if (need_end_scan)
+	    endScanningFromString();
 	free_mathmap(mathmap);
 	mathmap = 0;
     } END_JUMP_HANDLER;

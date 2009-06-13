@@ -286,8 +286,6 @@ end : T_END
 
 %%
 
-extern gboolean report_parse_error_to_user;
-
 int
 yyerror (char *s)
 {

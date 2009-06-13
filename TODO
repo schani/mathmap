@@ -11,6 +11,10 @@ installer (from yuval)
 ** General
 xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 
+** Error reporting
+rename operators from "__add" to "operator +"
+set cursor column in set_expression_marker()
+
 ** Compiler
 check which optimization order is better
 speed up compiler - see what the bottlenecks are with valgrind's callgrind

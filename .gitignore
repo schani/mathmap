@@ -6,7 +6,6 @@ compiler_types.h
 new_builtins.c
 opdefs.h
 parser.[ch]
-scanner.c
 TAGS
 mathmap
 new_template.c

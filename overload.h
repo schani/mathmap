@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -94,6 +94,6 @@ void register_overloaded_macro (const char *name, const char *argstring, macro_f
 
 overload_entry_t* resolve_function_call (const char *name, function_arg_info_t *args, tuple_info_t *result);
 
-int exists_overload_entry_with_name (char *name);
+int exists_overload_entry_with_name (const char *name);
 
 #endif

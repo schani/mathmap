@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2000 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,7 +23,27 @@
 #ifndef __SCANNER_H__
 #define __SCANNER_H__
 
-void scanFromString (char *string);
+void scanFromString (const char *string);
 void endScanningFromString (void);
+
+int yylex (void);
+
+#define HIGHLIGHT_EOS            0      /* end of string */
+#define HIGHLIGHT_ERROR          1
+#define HIGHLIGHT_COMMENT        2
+#define HIGHLIGHT_KEYWORD        3
+#define HIGHLIGHT_INTERNAL       4
+#define HIGHLIGHT_TAG            5
+#define HIGHLIGHT_BUILTIN        6
+#define HIGHLIGHT_INT            7
+#define HIGHLIGHT_FLOAT          8
+#define HIGHLIGHT_STRING         9
+#define HIGHLIGHT_USERVAL       10
+#define HIGHLIGHT_VARIABLE      11
+#define HIGHLIGHT_CONSTANT      12	/* pi, e, I */
+#define HIGHLIGHT_SPECIAL	13
+#define HIGHLIGHT_ATTRIBUTE	14
+
+int next_highlight (const char *expr, int start, int *first, int *last);
 
 #endif

@@ -155,10 +155,6 @@ parser.c parser.h : parser.y
 	mv parser.tab.c parser.c
 	mv parser.tab.h parser.h
 
-scanner.c : scanner.fl parser.h
-	flex scanner.fl
-	mv lex.yy.c scanner.c
-
 compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 	$(CC) $(CFLAGS) $(COMPILER_C_OPT_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
@@ -215,15 +211,15 @@ clean :
 	rm -rf debian/mathmap debian/mathmap.substvars libnoise
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c backends/lazy_creator.cpp compiler_types.h scanner.c parser.[ch] .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c backends/lazy_creator.cpp compiler_types.h parser.[ch] .nfs* mathmap-*.tar.gz
 
 TAGS :
 	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp' -o -name '*.cpp'`
 
-dist : new_builtins.c parser.c scanner.c new_template.c backends/lazy_creator.cpp clean
+dist : new_builtins.c parser.c new_template.c backends/lazy_creator.cpp clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y scanner.fl make_template.pl *.po mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.mercurial ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y make_template.pl *.po mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils
@@ -250,7 +246,7 @@ dist : new_builtins.c parser.c scanner.c new_template.c backends/lazy_creator.cp
 	rm -f mathmap-$(VERSION)/examples/*.mm
 	rm -rf `find mathmap-$(VERSION) -name '.svn'`
 	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
-	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/scanner.c mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h
+	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)
 

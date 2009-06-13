@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -279,7 +279,7 @@ resolve_function_call (const char *name, function_arg_info_t *args, tuple_info_t
 }
 
 int
-exists_overload_entry_with_name (char *name)
+exists_overload_entry_with_name (const char *name)
 {
     overload_entry_t *entry;
 

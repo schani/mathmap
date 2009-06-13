@@ -232,6 +232,8 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
+extern gboolean report_parse_error_to_user;
+
 /* TEMPLATE llvm_mathfuncs */
 void llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure);
 void llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure);
