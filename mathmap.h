@@ -122,9 +122,6 @@ extern int cmd_line_mode;
    fast and more convenient to write). */
 extern mathmap_t *the_mathmap;
 
-/* This is incremented by the scanner for each line scanned. */
-extern int scanner_line_num;
-
 #ifndef OPENSTEP
 extern color_t gradient_samples[USER_GRADIENT_POINTS];
 #endif

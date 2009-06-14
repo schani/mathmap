@@ -48,7 +48,6 @@
 int cmd_line_mode = 0;
 
 mathmap_t *the_mathmap = 0;
-int scanner_line_num;
 
 gboolean report_parse_error_to_user = FALSE;
 
@@ -400,7 +399,6 @@ parse_mathmap (char *expression, gboolean report_error)
     register_native_filters(mathmap);
 
     DO_JUMP_CODE {
-	scanner_line_num = 0;
 	scanFromString(expression);
 	need_end_scan = TRUE;
 	report_parse_error_to_user = report_error;

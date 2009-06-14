@@ -405,8 +405,6 @@ static scanner_state_t global_state;
 void
 scanFromString (const char *string)
 {
-    g_print("starting scanning from `%s'\n", string);
-
     g_assert(global_state.text == NULL);
     global_state.text = g_strdup(string);
     global_state.location.row = global_state.location.column = global_state.location.pos = 0;
@@ -418,6 +416,12 @@ endScanningFromString (void)
     g_assert(global_state.text != NULL);
     g_free(global_state.text);
     global_state.text = NULL;
+}
+
+int
+scanner_line_num (void)
+{
+    return global_state.location.row;
 }
 
 int

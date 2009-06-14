@@ -26,6 +26,9 @@
 void scanFromString (const char *string);
 void endScanningFromString (void);
 
+/* This is incremented by the scanner for each line scanned. */
+int scanner_line_num (void);
+
 int yylex (void);
 
 #define HIGHLIGHT_EOS            0      /* end of string */
