@@ -23,6 +23,25 @@
 #ifndef __SCANNER_H__
 #define __SCANNER_H__
 
+typedef struct
+{
+    int row;
+    int column;
+    int pos;
+} scanner_location_t;
+
+typedef struct
+{
+    scanner_location_t start;
+    scanner_location_t end;
+} scanner_region_t;
+
+typedef struct
+{
+    scanner_region_t region;
+    char str[];
+} scanner_ident_t;
+
 void scanFromString (const char *string);
 void endScanningFromString (void);
 

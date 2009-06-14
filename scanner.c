@@ -25,31 +25,17 @@
 #include <string.h>
 
 #include "exprtree.h"
+#include "scanner.h"
 #include "parser.h"
 #include "overload.h"
 #include "mathmap.h"
 #include "jump.h"
-
-#include "scanner.h"
-
-typedef struct
-{
-    int row;
-    int column;
-    int pos;
-} scanner_location_t;
 
 typedef struct
 {
     char *text;
     scanner_location_t location;
 } scanner_state_t;
-
-typedef struct
-{
-    scanner_location_t start;
-    scanner_location_t end;
-} scanner_region_t;
 
 typedef struct
 {
@@ -424,6 +410,18 @@ scanner_line_num (void)
     return global_state.location.row;
 }
 
+static scanner_ident_t*
+make_ident (scanner_region_t region, char *text, int length)
+{
+    scanner_ident_t *ident = malloc(sizeof(scanner_ident_t) + length + 1);
+
+    ident->region = region;
+    memcpy(ident->str, text, length);
+    ident->str[length] = 0;
+
+    return ident;
+}
+
 int
 yylex (void)
 {
@@ -443,13 +441,19 @@ yylex (void)
 	    switch (token.token)
 	    {
 		case T_IDENT :
-		    yylval.ident = g_strndup(global_state.text + token.region.start.pos,
-					     token.region.end.pos - token.region.start.pos);
+		    yylval.ident = make_ident(token.region,
+					      global_state.text + token.region.start.pos,
+					      token.region.end.pos - token.region.start.pos);
 		    break;
 
 		case T_STRING :
-		    yylval.ident = g_strndup(global_state.text + token.region.start.pos + 1,
-					     token.region.end.pos - token.region.start.pos - 2);
+		    yylval.ident = make_ident(token.region,
+					      global_state.text + token.region.start.pos + 1,
+					      token.region.end.pos - token.region.start.pos - 2);
+		    ++yylval.ident->region.start.column;
+		    ++yylval.ident->region.start.pos;
+		    --yylval.ident->region.end.column;
+		    --yylval.ident->region.end.pos;
 		    break;
 
 		case T_INT :
