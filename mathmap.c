@@ -1181,6 +1181,9 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 
     ++num_pixels_requested;
 
+    if (cmd_line_mode)
+	return cmdline_mathmap_get_pixel(invocation, drawable, frame, x, y);
+
     g_assert(drawable->kind == INPUT_DRAWABLE_GIMP);
 
     if (x < 0 || x >= drawable->image.pixel_width)
@@ -1190,9 +1193,6 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 
     x += drawable->v.gimp.x0;
     y += drawable->v.gimp.y0;
-
-    if (cmd_line_mode)
-	return cmdline_mathmap_get_pixel(invocation, drawable, frame, x, y);
 
     newcol = x / tile_width;
     newcoloff = x % tile_width;
