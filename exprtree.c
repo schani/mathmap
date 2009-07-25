@@ -973,6 +973,66 @@ make_image_call (exprtree *image, exprtree *args, scanner_region_t region)
     return tree;
 }
 
+static struct { const char *op, *func; } binop_table[] = {
+    { "+", "__add" },
+    { "-", "__sub" },
+    { "*", "__mul" },
+    { "/", "__div" },
+    { "%", "__mod" },
+    { "^", "__pow" },
+    { "==", "__equal" },
+    { "<", "__less" },
+    { ">", "__greater" },
+    { "<=", "__lessequal" },
+    { ">=", "__greaterequal" },
+    { "!=", "__notequal" },
+    { "||", "__or" },
+    { "&&", "__and" },
+    { "xor", "__xor" },
+    { NULL, NULL }
+};
+
+static struct { const char *op, *func; } unop_table[] = {
+    { "-", "__neg" },
+    { "!", "__not" },
+    { NULL, NULL }
+};
+
+static const char*
+get_func_name_for_op (const char *name)
+{
+    int i;
+
+    for (i = 0; binop_table[i].op != NULL; ++i)
+	if (strcmp(binop_table[i].op, name) == 0)
+	    return binop_table[i].func;
+    return NULL;
+}
+
+static const char*
+get_func_name_for_unary_op (const char *name)
+{
+    int i;
+
+    for (i = 0; unop_table[i].op != NULL; ++i)
+	if (strcmp(unop_table[i].op, name) == 0)
+	    return unop_table[i].func;
+    return NULL;
+}
+
+static const char*
+get_op_name_for_func (const char *name)
+{
+    int i;
+    for (i = 0; binop_table[i].op != NULL; ++i)
+	if (strcmp(binop_table[i].func, name) == 0)
+	    return binop_table[i].op;
+    for (i = 0; unop_table[i].op != NULL; ++i)
+	if (strcmp(unop_table[i].func, name) == 0)
+	    return unop_table[i].op;
+    return NULL;
+}
+
 exprtree*
 make_function (scanner_ident_t *name_ident, exprtree *args)
 {
@@ -1052,59 +1112,16 @@ make_function (scanner_ident_t *name_ident, exprtree *args)
 
 	return make_image_call(make_var_exprtree(var, info, name_region), args, name_region);
     } else {
-	sprintf(error_string, _("Unable to resolve invocation of %s."), name);
+	const char *op_name = get_op_name_for_func(name);
+	if (op_name)
+	    sprintf(error_string, _("Unable to resolve invocation of operator `%s'."), op_name);
+	else
+	    sprintf(error_string, _("Unable to resolve invocation of function `%s'."), name);
 	error_region = name_region;
 	JUMP(1);
     }
 
     return tree;
-}
-
-const char*
-get_func_name_for_op (const char *name)
-{
-    static struct { const char *op, *func; } table[] = {
-	{ "+", "__add" },
-	{ "-", "__sub" },
-	{ "*", "__mul" },
-	{ "/", "__div" },
-	{ "%", "__mod" },
-	{ "^", "__pow" },
-	{ "==", "__equal" },
-	{ "<", "__less" },
-	{ ">", "__greater" },
-	{ "<=", "__lessequal" },
-	{ ">=", "__greaterequal" },
-	{ "!=", "__notequal" },
-	{ "||", "__or" },
-	{ "&&", "__and" },
-	{ "xor", "__xor" },
-	{ NULL, NULL }
-    };
-
-    int i;
-
-    for (i = 0; table[i].op != NULL; ++i)
-	if (strcmp(table[i].op, name) == 0)
-	    return table[i].func;
-    return NULL;
-}
-
-const char*
-get_func_name_for_unary_op (const char *name)
-{
-    static struct { const char *op, *func; } table[] = {
-	{ "-", "__neg" },
-	{ "!", "__not" },
-	{ NULL, NULL }
-    };
-
-    int i;
-
-    for (i = 0; table[i].op != NULL; ++i)
-	if (strcmp(table[i].op, name) == 0)
-	    return table[i].func;
-    return NULL;
 }
 
 exprtree*

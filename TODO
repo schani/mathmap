@@ -11,10 +11,6 @@ installer (from yuval)
 ** General
 xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 
-** Error reporting
-rename operators from "__add" to "operator +"
-set cursor column in set_expression_marker()
-
 ** Compiler
 check which optimization order is better
 speed up compiler - see what the bottlenecks are with valgrind's callgrind
@@ -98,6 +94,10 @@ normalize argument for convolve should not be bool but be the value to normalize
 image segmentation
 edge detection
 
+** Command Line Tool
+Report error positions
+Colors as definable user values
+
 * 1.3.y
 
 ** Designer
@@ -119,9 +119,6 @@ indirectly recursive filters
 Hypercomplex-Complex multiplication
 XYZ, Lab color space support
 filters as first class values
-
-** Command Line Tool
-Colors as definable user values
 
 ** General
 Logarithmic sliders
