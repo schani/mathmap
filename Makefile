@@ -35,9 +35,9 @@ PREFIX = /usr
 
 VERSION = 1.3.4
 
-OPT_CFLAGS := -O2
-#COMPILER_C_OPT_CFLAGS := -O1
-#OPT_CFLAGS := -O0 -g -DDEBUG_OUTPUT -DDONT_UNLINK_C #-fgnu89-inline
+CFLAGS = -O2 -Wall
+#CFLAGS = -O0 -g -Wall #-fgnu89-inline
+#DEBUG_CFLAGS := -DDEBUG_OUTPUT -DDONT_UNLINK_C
 
 #PROF_FLAGS := -pg
 
@@ -87,27 +87,27 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CGEN_CFLAGS) $(OPT_CFLAGS) -Wall $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS)
-CFLAGS = $(C_CXX_FLAGS) -std=gnu99
-CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS)
-LDFLAGS = $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS)
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(OPT_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS)
+MATHMAP_CFLAGS = $(C_CXX_FLAGS) -std=gnu99
+MATHMAP_CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS) $(CXXFLAGS)
+MATHMAP_LDFLAGS = $(LDFLAGS) $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS)
 
 ifeq ($(MOVIES),YES)
-CFLAGS += -I/usr/local/include/quicktime -DMOVIES
-LDFLAGS += -lquicktime -lpthread
+MATHMAP_CFLAGS += -I/usr/local/include/quicktime -DMOVIES
+MATHMAP_LDFLAGS += -lquicktime -lpthread
 endif
 
 CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG $(GIF_CFLAGS)
-CFLAGS += -DGIMPDATADIR=\"$(GIMPDATADIR)\"
-LDFLAGS += -ljpeg -lpng $(GIF_LDFLAGS)
+MATHMAP_CFLAGS += -DGIMPDATADIR=\"$(GIMPDATADIR)\"
+MATHMAP_LDFLAGS += -ljpeg -lpng $(GIF_LDFLAGS)
 
 NLS_CFLAGS = -DENABLE_NLS
 MOS = fr.mo ru.mo
 
-CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
+MATHMAP_CFLAGS += -DMATHMAP_VERSION=\"$(VERSION)\"
 
 CC = gcc
 CXX = g++
@@ -125,7 +125,7 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
 mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
-	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(LDFLAGS)
+	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)
 
 librwimg :
 	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)"
@@ -142,10 +142,10 @@ libnoise :
 	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
-#	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(LDFLAGS) -lgsl -lgslcblas
+#	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(MATHMAP_LDFLAGS) -lgsl -lgslcblas
 
 %.o : %.c
-	$(CC) $(CFLAGS) $(FORMATDEFS) -o $@ -c $<
+	$(CC) $(MATHMAP_CFLAGS) $(FORMATDEFS) -o $@ -c $<
 
 %.mo : %.po
 	msgfmt -o $@ $<
@@ -156,21 +156,21 @@ parser.c parser.h : parser.y
 	mv parser.tab.h parser.h
 
 compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
-	$(CC) $(CFLAGS) $(COMPILER_C_OPT_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
+	$(CC) $(MATHMAP_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
 backends/cc.o : compiler_types.h
 
 backends/llvm.o : backends/llvm.cpp compiler_types.h
-	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/llvm.cpp
+	$(CXX) $(MATHMAP_CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/llvm.cpp
 
 backends/lazy_creator.cpp : exported_symbols
 	perl -- make_lazy_creator.pl exported_symbols >$@
 
 backends/lazy_creator.o : backends/lazy_creator.cpp
-	$(CXX) $(CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/lazy_creator.cpp
+	$(CXX) $(MATHMAP_CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/lazy_creator.cpp
 
 builtins/libnoise.o : builtins/libnoise.cpp builtins/libnoise.h
-	$(CXX) $(CXXFLAGS) -Ilibnoise/noise/include -o $@ -c builtins/libnoise.cpp
+	$(CXX) $(MATHMAP_CXXFLAGS) -Ilibnoise/noise/include -o $@ -c builtins/libnoise.cpp
 
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
 	clisp builtins.lisp

@@ -22,7 +22,6 @@ update exported_symbols
 ** Packaging
 documentation for all builtins
 add mathmap.png and error.png
-make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
 give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
 give credit to filter developers
 check out Robin Norwood's spec file changes (for Fedora)
