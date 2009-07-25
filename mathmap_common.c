@@ -390,8 +390,7 @@ mathmap_t*
 parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-    filter_t *filter;
-    gboolean need_end_scan = FALSE;
+    volatile gboolean need_end_scan = FALSE;
 
     mathmap = g_new0(mathmap_t, 1);
 
@@ -400,6 +399,8 @@ parse_mathmap (char *expression)
     register_native_filters(mathmap);
 
     DO_JUMP_CODE {
+	filter_t *filter;
+
 	scanFromString(expression);
 	need_end_scan = TRUE;
 	yyparse();
@@ -480,9 +481,7 @@ check_mathmap (char *expression)
 mathmap_t*
 compile_mathmap (char *expression, char **support_paths, int timeout, gboolean no_backend)
 {
-    static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
-
-    filter_code_t **filter_codes;
+    volatile mathmap_t *mathmap = NULL;
     char *template_filename, *include_path;
     int i;
 
@@ -510,6 +509,8 @@ compile_mathmap (char *expression, char **support_paths, int timeout, gboolean n
     include_path = support_paths[i];
 
     DO_JUMP_CODE {
+	filter_code_t **filter_codes;
+
 	mathmap = parse_mathmap(expression);
 
 	if (mathmap == 0)
@@ -517,22 +518,22 @@ compile_mathmap (char *expression, char **support_paths, int timeout, gboolean n
 	    JUMP(1);
 	}
 
-	filter_codes = compiler_compile_filters(mathmap, timeout);
+	filter_codes = compiler_compile_filters((mathmap_t*)mathmap, timeout);
 
 	if (no_backend)
 	{
-	    compiler_free_pools(mathmap);
+	    compiler_free_pools((mathmap_t*)mathmap);
 	    return NULL;
 	}
 
 #ifdef USE_LLVM
-	gen_and_load_llvm_code(mathmap, template_filename, filter_codes);
+	gen_and_load_llvm_code((mathmap_t*)mathmap, template_filename, filter_codes);
 #else
 	mathmap->initfunc = gen_and_load_c_code(mathmap, &mathmap->module_info,
 						template_filename, include_path, filter_codes);
 #endif
 
-	compiler_free_pools(mathmap);
+	compiler_free_pools((mathmap_t*)mathmap);
 
 	if (mathmap->initfunc == 0 && mathmap->mathfuncs == 0)
 	{
@@ -550,12 +551,12 @@ compile_mathmap (char *expression, char **support_paths, int timeout, gboolean n
     } WITH_JUMP_HANDLER {
 	if (mathmap != 0)
 	{
-	    free_mathmap(mathmap);
+	    free_mathmap((mathmap_t*)mathmap);
 	    mathmap = 0;
 	}
     } END_JUMP_HANDLER;
 
-    return mathmap;
+    return (mathmap_t*)mathmap;
 }
 
 void

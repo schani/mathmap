@@ -11,10 +11,6 @@ installer (from yuval)
 ** General
 xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 
-** Compiler
-check which optimization order is better
-speed up compiler - see what the bottlenecks are with valgrind's callgrind
-
 ** LLVM
 why do we compare against floats in simple counting loops? (do we?)
 update exported_symbols
