@@ -659,7 +659,7 @@ cmdline_main (int argc, char *argv[])
 
     if (htmldoc)
     {
-	mathmap_t *mathmap = parse_mathmap(script, FALSE);
+	mathmap_t *mathmap = parse_mathmap(script);
 	filter_t *filter;
 	FILE *out;
 

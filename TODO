@@ -51,6 +51,7 @@ builtin for getting size of an image
 real gamma function buggy
 
 ** Compiler
+Make exprtree and scanner use compiler pools as well
 Generator for simplifiers
 Simplify coordinate stuff (non-stretched ident filter)
 calculate R in the filter code

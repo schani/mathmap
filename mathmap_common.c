@@ -49,8 +49,6 @@ int cmd_line_mode = 0;
 
 mathmap_t *the_mathmap = 0;
 
-gboolean report_parse_error_to_user = FALSE;
-
 /* from parser.y */
 int yyparse (void);
 
@@ -88,6 +86,7 @@ arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
 	if (lookup_userval(infos, arg_decls->name) != NULL)
 	{
 	    sprintf(error_string, _("The argument `%s' is declared more than once."), arg_decls->name);
+	    error_region = arg_decls->region;
 	    JUMP(1);
 	}
 
@@ -142,6 +141,7 @@ arg_decls_to_uservals (filter_t *filter, arg_decl_t *arg_decls)
 	if (result == 0)
 	{
 	    sprintf(error_string, _("Conflict for argument %s."), arg_decls->name);
+	    error_region = arg_decls->region;
 	    JUMP(1);
 	}
 
@@ -175,6 +175,7 @@ register_args_as_uservals (filter_t *filter, arg_decl_t *arg_decls)
 	    || lookup_variable_macro(decl->name, NULL) != NULL)
 	{
 	    sprintf(error_string, _("Argument `%s' has the same name as an internal variable."), decl->name);
+	    error_region = decl->region;
 	    JUMP(1);
 	}
 
@@ -386,7 +387,7 @@ does_filter_use_t (filter_t *filter)
 }
 
 mathmap_t*
-parse_mathmap (char *expression, gboolean report_error)
+parse_mathmap (char *expression)
 {
     static mathmap_t *mathmap;	/* this is static to avoid problems with longjmp.  */
     filter_t *filter;
@@ -401,7 +402,6 @@ parse_mathmap (char *expression, gboolean report_error)
     DO_JUMP_CODE {
 	scanFromString(expression);
 	need_end_scan = TRUE;
-	report_parse_error_to_user = report_error;
 	yyparse();
 	endScanningFromString();
 	need_end_scan = FALSE;
@@ -412,6 +412,7 @@ parse_mathmap (char *expression, gboolean report_error)
 	    mathmap->filters = 0;
 
 	    sprintf(error_string, _("At least one filter must be defined."));
+	    error_region = scanner_null_region;
 	    JUMP(1);
 	}
 
@@ -428,6 +429,7 @@ parse_mathmap (char *expression, gboolean report_error)
 		mathmap->filters = 0;
 
 		sprintf(error_string, _("Top-level declarations can only be filters."));
+		error_region = scanner_null_region;
 		JUMP(1);
 	    }
 
@@ -437,6 +439,7 @@ parse_mathmap (char *expression, gboolean report_error)
 		|| expr->result.length != 4)
 	    {
 		sprintf(error_string, _("The filter `%s' must have the result type rgba:4."), filter->name);
+		error_region = expr->region;
 
 		free_filters(mathmap->filters);
 		mathmap->filters = 0;
@@ -463,7 +466,7 @@ parse_mathmap (char *expression, gboolean report_error)
 int
 check_mathmap (char *expression)
 {
-    mathmap_t *mathmap = parse_mathmap(expression, TRUE);
+    mathmap_t *mathmap = parse_mathmap(expression);
 
     if (mathmap != 0)
     {
@@ -500,13 +503,14 @@ compile_mathmap (char *expression, char **support_paths, int timeout, gboolean n
 	    g_string_append_printf(str, "\n`%s'", support_paths[i]);
 	g_string_append(str, ".");
 	strcpy(error_string, str->str);
+	error_region = scanner_null_region;
 	g_string_free(str, TRUE);
 	return NULL;
     }
     include_path = support_paths[i];
 
     DO_JUMP_CODE {
-	mathmap = parse_mathmap(expression, TRUE);
+	mathmap = parse_mathmap(expression);
 
 	if (mathmap == 0)
 	{
@@ -535,6 +539,7 @@ compile_mathmap (char *expression, char **support_paths, int timeout, gboolean n
 	    char *message = g_strdup_printf(_("The MathMap compiler failed, for the following reason:\n%s"), error_string);
 
 	    strcpy(error_string, message);
+	    error_region = scanner_null_region;
 
 	    g_free(message);
 

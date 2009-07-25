@@ -27,8 +27,10 @@
 #include "builtins/builtins.h"
 #include "internals.h"
 #include "macros.h"
+#include "scanner.h"
 
 extern char error_string[];
+extern scanner_region_t error_region;
 
 #define LIMITS_INT             1
 #define LIMITS_FLOAT           2
@@ -37,6 +39,7 @@ extern char error_string[];
 typedef struct
 {
     int type;
+    scanner_region_t region;
     union
     {
 	struct
@@ -74,6 +77,7 @@ typedef struct _arg_decl_t
     int type;
     char *docstring;
     option_t *options;
+    scanner_region_t region;
     union
     {
 	struct
@@ -131,6 +135,8 @@ typedef struct _exprtree
     int type;
     tuple_info_t result;
     int tmpvarnum;
+
+    scanner_region_t region;
 
     union
     {
@@ -235,46 +241,51 @@ typedef struct _top_level_decl_t
 
 extern top_level_decl_t *the_top_level_decls;
 
-top_level_decl_t* make_filter_decl (const char *name, const char *docstring, arg_decl_t *args, option_t *options);
+top_level_decl_t* make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options);
 
 void free_top_level_decl (top_level_decl_t *list);
 
-option_t* make_option (const char *name, option_t *suboptions);
+option_t* make_option (scanner_ident_t *name, option_t *suboptions);
 option_t* options_append (option_t *o1, option_t *o2);
 option_t* find_option_with_name (option_t *options, const char *name);
 
-arg_decl_t* make_simple_arg_decl (int type, const char *name, const char *docstring, option_t *options);
-arg_decl_t* make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring, option_t *options);
+arg_decl_t* make_simple_arg_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring, option_t *options);
+arg_decl_t* make_filter_arg_decl (scanner_ident_t *name, arg_decl_t *args, scanner_ident_t *docstring, option_t *options);
 
 arg_decl_t* arg_decl_list_append (arg_decl_t *list1, arg_decl_t *list2);
 
 void free_arg_decls (arg_decl_t *list);
 
-limits_t* make_int_limits (int min, int max);
-limits_t* make_float_limits (float min, float max);
+limits_t* make_int_limits (exprtree *min, exprtree *max);
+limits_t* make_float_limits (exprtree *min, exprtree *max);
 void free_limits (limits_t *limits);
 
 void apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits);
 void apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree);
 
-exprtree* make_int_number (int num);
-exprtree* make_float_number (float num);
-exprtree* make_range (int first, int last);
-exprtree* make_var (const char *name); /* should use variable_t instead */
+exprtree* make_int_number (int num, scanner_region_t region);
+exprtree* make_float_number (float num, scanner_region_t region);
+exprtree* make_range (exprtree *first_expr, exprtree *last_expr);
+exprtree* make_var (scanner_ident_t *name); /* should use variable_t instead */
+exprtree* make_var_from_string (const char *name);
 exprtree* make_tuple_exprtree (exprtree *elems);
 exprtree* make_select (exprtree *tuple, exprtree *subscripts);
-exprtree* make_cast (const char *tagname, exprtree *tuple); /* should use tag number instead */
-exprtree* make_convert (const char *tagname, exprtree *tuple); /* ditto */
-exprtree* make_function (const char *name, exprtree *args);
+exprtree* make_cast (scanner_ident_t *tagname, exprtree *tuple); /* should use tag number instead */
+exprtree* make_convert (scanner_ident_t *tagname, exprtree *tuple); /* ditto */
+exprtree* make_function (scanner_ident_t *name, exprtree *args);
+exprtree* make_function_from_string (const char *name, exprtree *args, scanner_region_t name_region);
+exprtree* make_operator_function (scanner_ident_t *name, exprtree *left, exprtree *right);
+exprtree* make_unary_operator_function (scanner_ident_t *name, exprtree *arg);
 exprtree* make_sequence (exprtree *left, exprtree *right);
-exprtree* make_assignment (const char *name, exprtree *value); /* should use variable_t instead */
-exprtree* make_sub_assignment (char *name, exprtree *subscripts, exprtree *value);
+exprtree* make_assignment (scanner_ident_t *name, exprtree *value); /* should use variable_t instead */
+exprtree* make_sub_assignment (scanner_ident_t *name, exprtree *subscripts, exprtree *value);
 exprtree* make_if_then (exprtree *condition, exprtree *consequent);
 exprtree* make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternative);
 exprtree* make_while (exprtree *invariant, exprtree *body);
 exprtree* make_do_while (exprtree *body, exprtree *invariant);
 void check_for_start (exprtree *start);
-exprtree* make_for (const char *name, exprtree *counter_init, exprtree *start, exprtree *end, exprtree *body);
+exprtree* make_for (scanner_ident_t *name, exprtree *counter_init,
+		    exprtree *start, exprtree *end, exprtree *body);
 
 void free_exprtree (exprtree *tree);
 

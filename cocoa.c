@@ -36,11 +36,11 @@ delete_expression_marker (void)
 }
 
 void
-set_expression_marker (int line, int column)
+set_expression_marker (int start_line, int start_column, int end_line, int end_column)
 {
     delete_expression_marker();
-	
-    printf("FIXME: the error is at %d:%d\n", line, column);	
+
+    printf("FIXME: the error is at %d:%d\n", start_line, start_column);
 }
 
 void

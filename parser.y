@@ -30,8 +30,6 @@
 #include "builtins/builtins.h"
 #include "jump.h"
 #include "scanner.h"
-
-#define STR(i)	((i) ? (i)->str : NULL)
 %}
 
 %union {
@@ -73,7 +71,7 @@ filters :
 
 filter : options_opt T_FILTER T_IDENT '(' args_decl ')' docstring_opt
                              {
-				 top_level_decl_t *decl = make_filter_decl(STR($<ident>3), STR($<ident>7), $<arg_decl>5,
+				 top_level_decl_t *decl = make_filter_decl($<ident>3, $<ident>7, $<arg_decl>5,
 									   $<options>1);
 				 start_parsing_filter(the_mathmap, decl);
 				 register_args_as_uservals(the_mathmap->current_filter, $<arg_decl>5);
@@ -99,8 +97,8 @@ arg_decl_list : arg_decl     { $<arg_decl>$ = $<arg_decl>1; }
 
 arg_decl : options_opt type T_IDENT limits_opt default_opt docstring_opt
 			     {
-				 arg_decl_t *arg_decl = make_simple_arg_decl($<arg_type>2, STR($<ident>3),
-									     STR($<ident>6), $<options>1);
+				 arg_decl_t *arg_decl = make_simple_arg_decl($<arg_type>2, $<ident>3,
+									     $<ident>6, $<options>1);
 
 				 if ($<limits>4 != 0)
 				 {
@@ -117,8 +115,8 @@ arg_decl : options_opt type T_IDENT limits_opt default_opt docstring_opt
 			     }
          | options_opt T_FILTER T_IDENT '(' args_decl ')' docstring_opt
                              {
-				 arg_decl_t *arg_decl = make_filter_arg_decl(STR($<ident>3), $<arg_decl>5,
-									     STR($<ident>7), $<options>1);
+				 arg_decl_t *arg_decl = make_filter_arg_decl($<ident>3, $<arg_decl>5,
+									     $<ident>7, $<options>1);
 				 free($<ident>3); if ($<ident>7 != NULL) free($<ident>7);
 				 $<arg_decl>$ = arg_decl;
 			     }
@@ -139,9 +137,9 @@ options_opt :		     { $<options>$ = 0; }
 			     { $<options>$ = $<options>1; }
 	      ;
 
-option :   T_IDENT	     { $<options>$ = make_option(STR($<ident>1), 0); free($<ident>1); }
+option :   T_IDENT	     { $<options>$ = make_option($<ident>1, 0); free($<ident>1); }
          | T_IDENT '(' options ')'
-	 		     { $<options>$ = make_option(STR($<ident>1), $<options>3); free($<ident>1); }
+	 		     { $<options>$ = make_option($<ident>1, $<options>3); free($<ident>1); }
 	 ;
 
 int_const :   T_INT          { $<exprtree>$ = $<exprtree>1; }
@@ -156,17 +154,13 @@ float_const :   T_FLOAT      { $<exprtree>$ = $<exprtree>1; }
 
 limits_opt :                 { $<limits>$ = 0; }
 	   | ':' int_const '-' int_const
-			     { $<limits>$ = make_int_limits($<exprtree>2->val.int_const,
-							    $<exprtree>4->val.int_const); }
+			     { $<limits>$ = make_int_limits($<exprtree>2, $<exprtree>4); }
 	   | ':' float_const '-' int_const
-			     { $<limits>$ = make_float_limits($<exprtree>2->val.float_const,
-							      (float)$<exprtree>4->val.int_const); }
+			     { $<limits>$ = make_float_limits($<exprtree>2, $<exprtree>4); }
 	   | ':' int_const '-' float_const
-			     { $<limits>$ = make_float_limits((float)$<exprtree>2->val.int_const,
-							      $<exprtree>4->val.float_const); }
+			     { $<limits>$ = make_float_limits($<exprtree>2, $<exprtree>4); }
 	   | ':' float_const '-' float_const
-			     { $<limits>$ = make_float_limits($<exprtree>2->val.float_const,
-							      $<exprtree>4->val.float_const); }
+			     { $<limits>$ = make_float_limits($<exprtree>2, $<exprtree>4); }
 	   ;
 
 default_opt :		     { $<exprtree>$ = 0; }
@@ -187,63 +181,47 @@ type :   T_FLOAT_TYPE	     { $<arg_type>$ = ARG_TYPE_FLOAT; }
 
 expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | T_FLOAT             { $<exprtree>$ = $<exprtree>1; }
-       | T_IDENT             { $<exprtree>$ = make_var(STR($<ident>1)); free($<ident>1); }
+       | T_IDENT             { $<exprtree>$ = make_var($<ident>1); free($<ident>1); }
        | '[' exprlist ']'    { $<exprtree>$ = make_tuple_exprtree($<exprtree>2); }
        | T_IDENT '[' subscripts ']'
                              {
-				 $<exprtree>$ = make_select(make_var(STR($<ident>1)), make_tuple_exprtree($<exprtree>3));
+				 $<exprtree>$ = make_select(make_var($<ident>1), make_tuple_exprtree($<exprtree>3));
 				 free($<ident>1);
 			     }
        | '(' expr ')' '[' subscripts ']' { $<exprtree>$ = make_select($<exprtree>2, make_tuple_exprtree($<exprtree>5)); }
-       | T_IDENT ':' expr    { $<exprtree>$ = make_cast(STR($<ident>1), $<exprtree>3);
+       | T_IDENT ':' expr    { $<exprtree>$ = make_cast($<ident>1, $<exprtree>3);
 			       free($<ident>1); }
-       | T_IDENT T_CONVERT expr { $<exprtree>$ = make_convert(STR($<ident>1), $<exprtree>3);
-				  free($<ident>1); }
-       | expr '+' expr       { $<exprtree>$ = make_function("__add",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '-' expr       { $<exprtree>$ = make_function("__sub",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '*' expr       { $<exprtree>$ = make_function("__mul",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '/' expr       { $<exprtree>$ = make_function("__div",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '%' expr       { $<exprtree>$ = make_function("__mod",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '^' expr       { $<exprtree>$ = make_function("__pow",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr T_EQUAL expr   { $<exprtree>$ = make_function("__equal",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '<' expr       { $<exprtree>$ = make_function("__less",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr '>' expr       { $<exprtree>$ = make_function("__greater",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
+       | T_IDENT T_CONVERT expr { $<exprtree>$ = make_convert($<ident>1, $<exprtree>3); free($<ident>1); }
+       | expr '+' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '-' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '*' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '/' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '%' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '^' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr T_EQUAL expr   { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '<' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr '>' expr       { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
        | expr T_LESSEQUAL expr
-                             { $<exprtree>$ = make_function("__lessequal",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
+                             { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
        | expr T_GREATEREQUAL expr
-                             { $<exprtree>$ = make_function("__greaterequal",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
+                             { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
        | expr T_NOTEQUAL expr
-                             { $<exprtree>$ = make_function("__notequal",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr T_OR expr      { $<exprtree>$ = make_function("__or",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr T_AND expr     { $<exprtree>$ = make_function("__and",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
-       | expr T_XOR expr     { $<exprtree>$ = make_function("__xor",
-							    exprlist_append($<exprtree>1, $<exprtree>3)); }
+                             { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr T_OR expr      { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr T_AND expr     { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
+       | expr T_XOR expr     { $<exprtree>$ = make_operator_function($<ident>2, $<exprtree>1, $<exprtree>3); free($<ident>2); }
        | '-' expr %prec UNARY
-                             { $<exprtree>$ = make_function("__neg", $<exprtree>2); }
+                             { $<exprtree>$ = make_unary_operator_function($<ident>1, $<exprtree>2); free($<ident>1); }
        | '!' expr %prec UNARY
-                             { $<exprtree>$ = make_function("__not", $<exprtree>2); }
+                             { $<exprtree>$ = make_unary_operator_function($<ident>1, $<exprtree>2); free($<ident>1); }
        | '(' expr ')'        { $<exprtree>$ = $<exprtree>2; }
        | T_IDENT '(' arglist ')'
-       			     { $<exprtree>$ = make_function(STR($<ident>1), $<exprtree>3);
+       			     { $<exprtree>$ = make_function($<ident>1, $<exprtree>3);
 			       free($<ident>1); }
-       | T_IDENT '=' expr    { $<exprtree>$ = make_assignment(STR($<ident>1), $<exprtree>3);
+       | T_IDENT '=' expr    { $<exprtree>$ = make_assignment($<ident>1, $<exprtree>3);
 			       free($<ident>1); }
        | T_IDENT '[' subscripts ']' '=' expr
-       			     { $<exprtree>$ = make_sub_assignment(STR($<ident>1), make_tuple_exprtree($<exprtree>3), $<exprtree>6);
+       			     { $<exprtree>$ = make_sub_assignment($<ident>1, make_tuple_exprtree($<exprtree>3), $<exprtree>6);
 			       free($<ident>1); }
        | expr ';' expr       { $<exprtree>$ = make_sequence($<exprtree>1, $<exprtree>3); }
        | T_IF expr T_THEN expr end
@@ -259,11 +237,11 @@ expr :   T_INT               { $<exprtree>$ = $<exprtree>1; }
        | T_FOR T_IDENT '=' expr
 			     {
 				 check_for_start($<exprtree>4);
-				 $<exprtree>$ = make_assignment(STR($<ident>2), $<exprtree>4);
+				 $<exprtree>$ = make_assignment($<ident>2, $<exprtree>4);
 			     }
 	 T_RANGE expr T_DO expr T_END
 			     {
-				 $<exprtree>$ = make_for(STR($<ident>2), $<exprtree>5, $<exprtree>4, $<exprtree>7, $<exprtree>9);
+				 $<exprtree>$ = make_for($<ident>2, $<exprtree>5, $<exprtree>4, $<exprtree>7, $<exprtree>9);
 				 free($<ident>2);
 			     }
        ;
@@ -281,8 +259,7 @@ subscripts : subscript                 { $<exprtree>$ = $<exprtree>1; }
            ;
 
 subscript : expr                   { $<exprtree>$ = $<exprtree>1; }
-          | T_INT T_RANGE T_INT    { $<exprtree>$ = make_range($<exprtree>1->val.int_const,
-                                                               $<exprtree>3->val.int_const); }
+          | T_INT T_RANGE T_INT    { $<exprtree>$ = make_range($<exprtree>1, $<exprtree>3); }
           ;
 
 else : T_ELSE
@@ -298,9 +275,13 @@ end : T_END
 int
 yyerror (char *s)
 {
+    scanner_location_t location = scanner_location();
+
     sprintf(error_string, _("Parse error."));
-    if (report_parse_error_to_user)
-	set_expression_marker(scanner_line_num(), 0);
+    /* FIXME: The error region should actually be the last token's
+       region. */
+    error_region.start = location;
+    error_region.end = location;
     JUMP(1);
 
     return 0;

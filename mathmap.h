@@ -229,8 +229,6 @@ typedef struct
 #define M_PI     3.14159265358979323846
 #endif
 
-extern gboolean report_parse_error_to_user;
-
 /* TEMPLATE llvm_mathfuncs */
 void llvm_filter_init_frame (mathmap_frame_t *mmframe, image_t *closure);
 void llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure);
@@ -260,7 +258,7 @@ void start_parsing_filter (mathmap_t *mathmap, top_level_decl_t *decl);
 void finish_parsing_filter (mathmap_t *mathmap);
 
 int check_mathmap (char *expression);
-mathmap_t* parse_mathmap (char *expression, gboolean report_error);
+mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, char **support_paths, int timeout, gboolean no_backend);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template_invocation,
 				      int img_width, int img_height);
@@ -305,7 +303,7 @@ int generate_plug_in (char *filter, char *output_filename,
 void user_value_changed (void);
 
 void delete_expression_marker (void);
-void set_expression_marker (int line, int column);
+void set_expression_marker (int start_line, int start_column, int end_line, int end_column);
 
 int get_num_cpus (void);
 

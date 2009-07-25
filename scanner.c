@@ -31,6 +31,8 @@
 #include "mathmap.h"
 #include "jump.h"
 
+scanner_region_t scanner_null_region = { { -1, -1, -1 }, { -1, -1, -1 } };
+
 typedef struct
 {
     char *text;
@@ -69,7 +71,7 @@ find_name (name_value_pair_t *list, const char *name)
     } while (0)
 
 static int
-resolv_ident (const char *name, int *highlight)
+resolv_ident (const char *name, int *highlight, scanner_region_t region)
 {
     static name_value_pair_t keywords[] =
 	{ { "filter", T_FILTER },
@@ -129,6 +131,7 @@ resolv_ident (const char *name, int *highlight)
     if ((token = find_name(errors, name)))
     {
 	sprintf(error_string, _("`%s' is a reserved keyword"), name);
+	error_region = region;
 	RETURN_HIGHLIGHT(0, HIGHLIGHT_ERROR);
     }
     if ((token = find_name(attributes, name)))
@@ -185,6 +188,17 @@ skip_ws (scanner_state_t *state)
     while (!is_eof(state) && isspace(current_char(state)))
 	advance_char(state);
     return current_char(state);
+}
+
+static scanner_region_t
+make_region (scanner_location_t start, scanner_location_t end)
+{
+    scanner_region_t region;
+
+    region.start = start;
+    region.end = end;
+
+    return region;
 }
 
 #define RESULT_ERROR		0
@@ -245,7 +259,7 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 
 	ident = g_strndup(state->text + token->region.start.pos,
 			  state->location.pos - token->region.start.pos);
-	token->token = resolv_ident(ident, highlight);
+	token->token = resolv_ident(ident, highlight, make_region(token->region.start, state->location));
 	g_free(ident);
 
 	if (!token->token)
@@ -260,6 +274,7 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 	    if (is_eof(state))
 	    {
 		sprintf(error_string, _("String not terminated"));
+		error_region = make_region(token->region.start, state->location);
 		RETURN_HIGHLIGHT(RESULT_ERROR, HIGHLIGHT_ERROR);
 	    }
 	} while (c != '\"');
@@ -312,6 +327,7 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 	if (!have_digits)
 	{
 	    sprintf(error_string, _("Misplaced decimal point"));
+	    error_region = make_region(token->region.start, state->location);
 	    RETURN_HIGHLIGHT(RESULT_ERROR, HIGHLIGHT_ERROR);
 	}
 
@@ -345,6 +361,7 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 	    else
 	    {
 		sprintf(error_string, _("Illegal character"));
+		error_region = make_region(token->region.start, state->location);
 		RETURN_HIGHLIGHT(RESULT_ERROR, HIGHLIGHT_ERROR);
 	    }
 	}
@@ -363,6 +380,7 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 	    RETURN_HIGHLIGHT(RESULT_SUCCESS, HIGHLIGHT_SPECIAL);
 
 	sprintf(error_string, _("Illegal character sequence"));
+	error_region = make_region(token->region.start, state->location);
 	RETURN_HIGHLIGHT(RESULT_ERROR, HIGHLIGHT_ERROR);
     }
 }
@@ -404,14 +422,14 @@ endScanningFromString (void)
     global_state.text = NULL;
 }
 
-int
-scanner_line_num (void)
+scanner_location_t
+scanner_location (void)
 {
-    return global_state.location.row;
+    return global_state.location;
 }
 
 static scanner_ident_t*
-make_ident (scanner_region_t region, char *text, int length)
+make_ident (scanner_region_t region, const char *text, int length)
 {
     scanner_ident_t *ident = malloc(sizeof(scanner_ident_t) + length + 1);
 
@@ -420,6 +438,12 @@ make_ident (scanner_region_t region, char *text, int length)
     ident->str[length] = 0;
 
     return ident;
+}
+
+scanner_ident_t*
+scanner_make_ident (scanner_region_t region, const char *str)
+{
+    return make_ident(region, str, strlen(str));
 }
 
 int
@@ -431,8 +455,9 @@ yylex (void)
     switch (scan_token(&global_state, &token, NULL))
     {
 	case RESULT_ERROR :
-	    if (report_parse_error_to_user)
-		set_expression_marker(token.region.start.row, token.region.start.column);
+	    sprintf(error_string, "Invalid characters.");
+	    error_region.start = token.region.start;
+	    error_region.end = global_state.location;
 	    JUMP(1);
 	    break;
 
@@ -460,7 +485,7 @@ yylex (void)
 		    {
 			char *str = g_strndup(global_state.text + token.region.start.pos,
 					      token.region.end.pos - token.region.start.pos);
-			yylval.exprtree = make_int_number(atoi(str));
+			yylval.exprtree = make_int_number(atoi(str), token.region);
 			g_free(str);
 		    }
 		    break;
@@ -469,9 +494,30 @@ yylex (void)
 		    {
 			char *str = g_strndup(global_state.text + token.region.start.pos,
 					      token.region.end.pos - token.region.start.pos);
-			yylval.exprtree = make_float_number(g_ascii_strtod(str, NULL));
+			yylval.exprtree = make_float_number(g_ascii_strtod(str, NULL), token.region);
 			g_free(str);
 		    }
+		    break;
+
+		case T_OR :
+		case T_AND :
+		case T_XOR :
+		case T_EQUAL :
+		case '<' :
+		case '>' :
+		case T_LESSEQUAL :
+		case T_GREATEREQUAL :
+		case T_NOTEQUAL :
+		case '+' :
+		case '-' :
+		case '*' :
+		case '/' :
+		case '%' :
+		case '^' :
+		case '!' :
+		    yylval.ident = make_ident(token.region,
+					      global_state.text + token.region.start.pos,
+					      token.region.end.pos - token.region.start.pos);
 		    break;
 	    }
 	    return token.token;
@@ -483,4 +529,38 @@ yylex (void)
 	    g_assert_not_reached();
     }
     g_assert_not_reached();
+}
+
+gboolean
+scanner_region_is_valid (scanner_region_t r)
+{
+    gboolean valid = r.start.pos >= 0;
+    if (valid)
+	g_assert(r.end.pos >= 0);
+    else
+	g_assert(r.end.pos < 0);
+    return valid;
+}
+
+scanner_region_t
+scanner_region_merge (scanner_region_t r1, scanner_region_t r2)
+{
+    scanner_region_t r;
+
+    if (!scanner_region_is_valid(r1))
+	return r2;
+    if (!scanner_region_is_valid(r2))
+	return r1;
+
+    if (r1.start.pos < r2.start.pos)
+	r.start = r1.start;
+    else
+	r.start = r2.start;
+
+    if (r1.end.pos > r2.end.pos)
+	r.end = r1.end;
+    else
+	r.end = r2.end;
+
+    return r;
 }

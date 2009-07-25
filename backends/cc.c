@@ -804,7 +804,7 @@ generate_plug_in (char *filter, char *output_filename,
 
     sprintf(template_path, "%s/%s", TEMPLATE_DIR, template_filename);
 
-    mathmap = parse_mathmap(filter, FALSE);
+    mathmap = parse_mathmap(filter);
 
     if (mathmap == 0)
     {

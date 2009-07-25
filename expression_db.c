@@ -387,7 +387,7 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 		if (source == NULL)
 		    return NULL;
 
-		expr->v.expression.mathmap = parse_mathmap(source, FALSE);
+		expr->v.expression.mathmap = parse_mathmap(source);
 
 		g_free(source);
 	    }
@@ -411,7 +411,7 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 
 		source = make_filter_source_from_design(design, NULL);
 
-		expr->v.design.mathmap = parse_mathmap(source, FALSE);
+		expr->v.design.mathmap = parse_mathmap(source);
 
 		g_free(source);
 		designer_free_design(design);
@@ -474,7 +474,7 @@ get_expression_docstring (expression_db_t *edb)
     if (expression == NULL)
 	return NULL;
 
-    mathmap = parse_mathmap(expression, FALSE);
+    mathmap = parse_mathmap(expression);
     if (mathmap == NULL)
 	return NULL;
 

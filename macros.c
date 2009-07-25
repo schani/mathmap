@@ -65,68 +65,116 @@ lookup_variable_macro (const char *name, tuple_info_t *info)
     return 0;
 }
 
+static scanner_ident_t*
+get_xy_ident (void)
+{
+    static scanner_ident_t *ident = NULL;
+    if (ident == NULL)
+	ident = scanner_make_ident(scanner_null_region, "xy");
+    return ident;
+}
+
+static scanner_ident_t*
+get_ra_ident (void)
+{
+    static scanner_ident_t *ident = NULL;
+    if (ident == NULL)
+	ident = scanner_make_ident(scanner_null_region, "ra");
+    return ident;
+}
+
+static scanner_ident_t*
+get_ri_ident (void)
+{
+    static scanner_ident_t *ident = NULL;
+    if (ident == NULL)
+	ident = scanner_make_ident(scanner_null_region, "ri");
+    return ident;
+}
+
 exprtree*
 macro_var_xy (exprtree *args)
 {
-    return make_cast("xy", make_tuple_exprtree(exprlist_append(make_var("x"), make_var("y"))));
+    return make_cast(get_xy_ident(), make_tuple_exprtree(exprlist_append(make_var_from_string("x"), make_var_from_string("y"))));
 }
 
 exprtree*
 macro_var_ra (exprtree *args)
 {
-    return make_cast("ra", make_tuple_exprtree(exprlist_append(make_var("r"), make_var("a"))));
+    return make_cast(get_ra_ident(), make_tuple_exprtree(exprlist_append(make_var_from_string("r"), make_var_from_string("a"))));
 }
 
 exprtree*
 macro_var_big_xy (exprtree *args)
 {
-    return make_cast("xy", make_tuple_exprtree(exprlist_append(make_var("X"), make_var("Y"))));
+    return make_cast(get_xy_ident(), make_tuple_exprtree(exprlist_append(make_var_from_string("X"), make_var_from_string("Y"))));
 }
 
 exprtree*
 macro_var_big_wh (exprtree *args)
 {
-    return make_cast("xy", make_tuple_exprtree(exprlist_append(make_var("W"), make_var("H"))));
+    return make_cast(get_xy_ident(), make_tuple_exprtree(exprlist_append(make_var_from_string("W"), make_var_from_string("H"))));
 }
 
 exprtree*
 macro_var_big_i (exprtree *args)
 {
-    return make_cast("ri", make_tuple_exprtree(exprlist_append(make_int_number(0), make_int_number(1))));
+    return make_cast(get_ri_ident(), make_tuple_exprtree(exprlist_append(make_int_number(0, scanner_null_region),
+									 make_int_number(1, scanner_null_region))));
 }
 
 exprtree*
 macro_var_pi (exprtree *args)
 {
-    return make_float_number(M_PI);
+    return make_float_number(M_PI, scanner_null_region);
 }
 
 exprtree*
 macro_var_e (exprtree *args)
 {
-    return make_float_number(M_E);
+    return make_float_number(M_E, scanner_null_region);
 }
 
 exprtree*
 macro_func_origValImage (exprtree *args)
 {
     variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->v.mathmap.variables, args->result);
+    scanner_ident_t *ident = scanner_make_ident(scanner_null_region, tmpvar->name);
+    exprtree *tree;
 
-    return make_sequence(make_assignment(tmpvar->name, args),
-			 make_function("__origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								    exprlist_append(make_var("t"),
-										    args->next))));
+    tree = make_sequence(make_assignment(ident, args),
+			 make_function_from_string("__origVal",
+						   exprlist_append(make_function_from_string("toXY",
+											     make_var_from_string(tmpvar->name),
+											     scanner_null_region),
+								   exprlist_append(make_var_from_string("t"),
+										   args->next)),
+						   scanner_null_region));
+
+    free(ident);
+
+    return tree;
 }
 
 exprtree*
 macro_func_origValImageFrame (exprtree *args)
 {
     variable_t *tmpvar = new_temporary_variable(&the_mathmap->current_filter->v.mathmap.variables, args->result);
+    scanner_ident_t *ident = scanner_make_ident(scanner_null_region, tmpvar->name);
+    exprtree *tree;
 
-    return make_sequence(make_assignment(tmpvar->name, args),
-			 make_function("__origVal", exprlist_append(make_function("toXY", make_var(tmpvar->name)),
-								    exprlist_append(args->next,
-										    args->next->next))));
+    tree = make_sequence(make_assignment(ident, args),
+			 make_function_from_string("__origVal",
+						   exprlist_append(make_function_from_string("toXY",
+											     make_var_from_string(tmpvar->name),
+											     scanner_null_region),
+								   exprlist_append(args->next,
+										   args->next->next)),
+						   scanner_null_region));
+
+    free(ident);
+
+    return tree;
 }
 
 void

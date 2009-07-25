@@ -38,6 +38,7 @@
 #define MAX_GENSYM_LEN	64
 
 char error_string[1024];
+scanner_region_t error_region;
 
 static char*
 gensym (char *buf)
@@ -50,7 +51,7 @@ gensym (char *buf)
 }
 
 static arg_decl_t*
-make_arg_decl (int type, const char *name, const char *docstring, option_t *options)
+make_arg_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring, option_t *options)
 {
     arg_decl_t *arg = (arg_decl_t*)malloc(sizeof(arg_decl_t));
 
@@ -58,18 +59,20 @@ make_arg_decl (int type, const char *name, const char *docstring, option_t *opti
 
     arg->type = type;
 
-    arg->name = strdup(name);
+    arg->name = strdup(name->str);
     assert(arg->name != 0);
 
-    if (docstring != 0)
+    if (docstring != NULL)
     {
-	arg->docstring = strdup(docstring);
-	assert(arg->docstring != 0);
+	arg->docstring = strdup(docstring->str);
+	assert(arg->docstring != NULL);
     }
     else
-	arg->docstring = 0;
+	arg->docstring = NULL;
 
     arg->options = options;
+
+    arg->region = name->region;
 
     arg->next = 0;
 
@@ -77,7 +80,7 @@ make_arg_decl (int type, const char *name, const char *docstring, option_t *opti
 }
 
 arg_decl_t*
-make_simple_arg_decl (int type, const char *name, const char *docstring, option_t *options)
+make_simple_arg_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring, option_t *options)
 {
     arg_decl_t *arg_decl = make_arg_decl(type, name, docstring, options);
 
@@ -98,7 +101,7 @@ make_simple_arg_decl (int type, const char *name, const char *docstring, option_
 }
 
 arg_decl_t*
-make_filter_arg_decl (const char *name, arg_decl_t *args, const char *docstring, option_t *options)
+make_filter_arg_decl (scanner_ident_t *name, arg_decl_t *args, scanner_ident_t *docstring, option_t *options)
 {
     arg_decl_t *arg = make_arg_decl(ARG_TYPE_FILTER, name, docstring, options);
 
@@ -166,9 +169,9 @@ make_top_level_decl (int type, const char *name, const char *docstring)
 }
 
 top_level_decl_t*
-make_filter_decl (const char *name, const char *docstring, arg_decl_t *args, option_t *options)
+make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options)
 {
-    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
+    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name->str, docstring ? docstring->str : NULL);
 
     top_level->v.filter.args = args;
     top_level->v.filter.options = options;
@@ -196,13 +199,13 @@ free_top_level_decl (top_level_decl_t *list)
 }
 
 option_t*
-make_option (const char *name, option_t *suboptions)
+make_option (scanner_ident_t *name, option_t *suboptions)
 {
     option_t *option = (option_t*)malloc(sizeof(option_t));
 
     assert(option != 0);
 
-    option->name = strdup(name);
+    option->name = strdup(name->str);
     assert(option->name != 0);
 
     option->suboptions = suboptions;
@@ -257,16 +260,27 @@ alloc_limits (int type)
 }
 
 limits_t*
-make_int_limits (int min, int max)
+make_int_limits (exprtree *min_tree, exprtree *max_tree)
 {
-    limits_t *limits = alloc_limits(LIMITS_INT);
+    scanner_region_t region = scanner_region_merge (min_tree->region, max_tree->region);
+    limits_t *limits;
+    int min, max;
+
+    g_assert(min_tree->type == EXPR_INT_CONST && max_tree->type == EXPR_INT_CONST);
+
+    min = min_tree->val.int_const;
+    max = max_tree->val.int_const;
 
     if (min >= max)
     {
 	strcpy(error_string, _("Lower limit must be less than upper limit"));
+	error_region = region;
 	JUMP(1);
     }
 
+    limits = alloc_limits(LIMITS_INT);
+
+    limits->region = region;
     limits->v.integer.min = min;
     limits->v.integer.max = max;
 
@@ -274,16 +288,35 @@ make_int_limits (int min, int max)
 }
 
 limits_t*
-make_float_limits (float min, float max)
+make_float_limits (exprtree *min_tree, exprtree *max_tree)
 {
-    limits_t *limits = alloc_limits(LIMITS_FLOAT);
+    scanner_region_t region = scanner_region_merge (min_tree->region, max_tree->region);
+    limits_t *limits;
+    float min, max;
+
+    g_assert((min_tree->type == EXPR_INT_CONST || min_tree->type == EXPR_FLOAT_CONST) &&
+	     (max_tree->type == EXPR_INT_CONST || max_tree->type == EXPR_FLOAT_CONST));
+
+    if (min_tree->type == EXPR_INT_CONST)
+	min = (float)min_tree->val.int_const;
+    else
+	min = min_tree->val.float_const;
+
+    if (max_tree->type == EXPR_INT_CONST)
+	max = (float)max_tree->val.int_const;
+    else
+	max = max_tree->val.float_const;
 
     if (min >= max)
     {
 	strcpy(error_string, _("Lower limit must be less than upper limit"));
+	error_region = region;
 	JUMP(1);
     }
 
+    limits = alloc_limits(LIMITS_FLOAT);
+
+    limits->region = region;
     limits->v.floating.min = min;
     limits->v.floating.max = max;
 
@@ -304,6 +337,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
 	if (limits->type != LIMITS_INT)
 	{
 	    strcpy(error_string, _("Only integers can be limits for an int argument"));
+	    error_region = limits->region;
 	    JUMP(1);
 	}
 
@@ -329,6 +363,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
 	else
 	{
 	    strcpy(error_string, _("Only integers and floats can be limits for a float argument"));
+	    error_region = limits->region;
 	    JUMP(1);
 	}
 
@@ -340,6 +375,7 @@ apply_limits_to_arg_decl (arg_decl_t *arg_decl, limits_t *limits)
     else
     {
 	strcpy(error_string, _("Limits applied to wrongly typed argument"));
+	error_region = limits->region;
 	JUMP(1);
     }
 }
@@ -353,6 +389,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	    if (exprtree->type != EXPR_INT_CONST)
 	    {
 		strcpy(error_string, _("Only integers can be defaults for an int argument"));
+		error_region = exprtree->region;
 		JUMP(1);
 	    }
 
@@ -360,6 +397,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 		|| exprtree->val.int_const > arg_decl->v.integer.max)
 	    {
 		strcpy(error_string, _("Default value outside of bounds"));
+		error_region = exprtree->region;
 		JUMP(1);
 	    }
 
@@ -377,6 +415,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 		else
 		{
 		    strcpy(error_string, _("Only floats can be defaults for a float argument"));
+		    error_region = exprtree->region;
 		    JUMP(1);
 		}
 
@@ -384,6 +423,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 		    || default_value > arg_decl->v.floating.max)
 		{
 		    strcpy(error_string, _("Default value outside of bounds"));
+		    error_region = exprtree->region;
 		    JUMP(1);
 		}
 
@@ -395,6 +435,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 	    if (exprtree->type != EXPR_INT_CONST)
 	    {
 		strcpy(error_string, _("Only integers can be defaults for a bool argument"));
+		error_region = exprtree->region;
 		JUMP(1);
 	    }
 
@@ -403,6 +444,7 @@ apply_default_to_arg_decl (arg_decl_t *arg_decl, exprtree *exprtree)
 
 	default :
 	    strcpy(error_string, _("Default applied to wrongly typed argument"));
+	    error_region = exprtree->region;
 	    JUMP(1);
     }
 }
@@ -414,13 +456,14 @@ alloc_exprtree (void)
 
     assert(tree != 0);
 
+    tree->region = scanner_null_region;
     tree->next = 0;
 
     return tree;
 }
 
 exprtree*
-make_int_number (int num)
+make_int_number (int num, scanner_region_t region)
 {
     exprtree *tree = alloc_exprtree();
 
@@ -429,11 +472,13 @@ make_int_number (int num)
 
     tree->result = make_tuple_info(nil_tag_number, 1);
 
+    tree->region = region;
+
     return tree;
 }
 
 exprtree*
-make_float_number (float num)
+make_float_number (float num, scanner_region_t region)
 {
     exprtree *tree = alloc_exprtree();
 
@@ -442,31 +487,78 @@ make_float_number (float num)
 
     tree->result = make_tuple_info(nil_tag_number, 1);
 
+    tree->region = region;
+
+    return tree;
+}
+
+static exprtree*
+make_range_list (int first, int last, scanner_region_t region)
+{
+    exprtree *tree;
+
+    if (first > last)
+	return NULL;
+
+    tree = make_int_number(first, region);
+    tree->next = make_range_list(first + 1, last, region);
+
     return tree;
 }
 
 exprtree*
-make_range (int first, int last)
+make_range (exprtree *first_expr, exprtree *last_expr)
 {
+    scanner_region_t region = scanner_region_merge (first_expr->region, last_expr->region);
+    int first, last;
+
+    g_assert(first_expr->type == EXPR_INT_CONST && last_expr->type == EXPR_INT_CONST);
+
+    first = first_expr->val.int_const;
+    last = last_expr->val.int_const;
+
     if (first > last)
     {
 	sprintf(error_string, _("Invalid range %d..%d."), first, last);
+	error_region = region;
 	JUMP(1);
     }
-    else if (first == last)
-	return make_int_number(first);
-    else
-    {
-	exprtree *tree = make_int_number(first);
 
-	tree->next = make_range(first + 1, last);
+    return make_range_list(first, last, region);
+}
 
-	return tree;
-    }
+static scanner_region_t
+exprlist_region (exprtree *list)
+{
+    if (list == NULL)
+	return scanner_null_region;
+    return scanner_region_merge(list->region, exprlist_region(list->next));
+}
+
+exprtree*
+make_function_from_string (const char *name, exprtree *args, scanner_region_t name_region)
+{
+    scanner_ident_t *ident = scanner_make_ident(name_region, name);
+    exprtree *tree = make_function(ident, args);
+
+    free(ident);
+
+    return tree;
+}
+
+exprtree*
+make_var_from_string (const char *name)
+{
+    scanner_ident_t *ident = scanner_make_ident(scanner_null_region, name);
+    exprtree *tree = make_var(ident);
+
+    free(ident);
+
+    return tree;
 }
 
 static exprtree*
-make_userval (userval_info_t *info, exprtree *args)
+make_userval (userval_info_t *info, exprtree *args, scanner_region_t region)
 {
     exprtree *tree = alloc_exprtree();
 
@@ -479,6 +571,7 @@ make_userval (userval_info_t *info, exprtree *args)
 	    if (exprlist_length(args) != 0)
 	    {
 		sprintf(error_string, _("Number, bool and color inputs take no arguments."));
+		error_region = region;
 		JUMP(1);
 	    }
 
@@ -515,38 +608,42 @@ make_userval (userval_info_t *info, exprtree *args)
 
     tree->type = EXPR_USERVAL;
     tree->val.userval.info = info;
+    tree->region = scanner_region_merge(region, exprlist_region(args));
 
     switch (info->type)
     {
 	case USERVAL_CURVE :
 	    if (exprlist_length(args) == 1)
-		return make_function("__applyCurve", exprlist_append(tree, args));
+		return make_function_from_string("__applyCurve", exprlist_append(tree, args), region);
 
 	    if (exprlist_length(args) != 0)
 	    {
 		sprintf(error_string, _("A curve takes one argument."));
+		error_region = region;
 		JUMP(1);
 	    }
 	    break;
 
 	case USERVAL_GRADIENT :
 	    if (exprlist_length(args) == 1)
-		return make_function("__applyGradient", exprlist_append(tree, args));
+		return make_function_from_string("__applyGradient", exprlist_append(tree, args), region);
 
 	    if (exprlist_length(args) != 0)
 	    {
 		sprintf(error_string, _("A gradient takes one argument."));
+		error_region = region;
 		JUMP(1);
 	    }
 	    break;
 
 	case USERVAL_IMAGE :
 	    if (exprlist_length(args) == 1 || exprlist_length(args) == 2)
-		return make_function("__origVal", exprlist_append(args, tree));
+		return make_function_from_string("__origVal", exprlist_append(args, tree), region);
 
 	    if (exprlist_length(args) != 0)
 	    {
 		sprintf(error_string, _("An image takes one or two arguments."));
+		error_region = region;
 		JUMP(1);
 	    }
 	    break;
@@ -559,21 +656,24 @@ make_userval (userval_info_t *info, exprtree *args)
     return tree;
 }
 
-exprtree*
-make_var_exprtree (variable_t *var, tuple_info_t info)
+static exprtree*
+make_var_exprtree (variable_t *var, tuple_info_t info, scanner_region_t region)
 {
     exprtree *tree = alloc_exprtree();
 
     tree->type = EXPR_VARIABLE;
     tree->val.var = var;
     tree->result = info;
+    tree->region = region;
 
     return tree;
 }
 
 exprtree*
-make_var (const char *name)
+make_var (scanner_ident_t *name_ident)
 {
+    char *name = name_ident->str;
+    scanner_region_t region = name_ident->region;
     tuple_info_t info;
     exprtree *tree = 0;
 
@@ -584,28 +684,31 @@ make_var (const char *name)
 	tree->type = EXPR_INTERNAL;
 	tree->val.internal = lookup_internal(the_mathmap->current_filter->v.mathmap.internals, name, 0);
 	tree->result = make_tuple_info(nil_tag_number, 1);
+	tree->region = region;
     }
     else if (lookup_variable_macro(name, &info) != 0)
     {
 	macro_function_t function = lookup_variable_macro(name, &info);
 
 	tree = function(0);
+	tree->region = name_ident->region;
     }
     else if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != 0)
     {
 	userval_info_t *info = lookup_userval(the_mathmap->current_filter->userval_infos, name);
 
-	tree = make_userval(info, 0);
+	tree = make_userval(info, 0, region);
     }
     else if (lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info) != 0)
     {
 	variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info);
 
-	return make_var_exprtree(var, info);
+	return make_var_exprtree(var, info, region);
     }
     else
     {
 	sprintf(error_string, _("Undefined variable %s."), name);
+	error_region = region;
 	JUMP(1);
     }
 
@@ -626,6 +729,7 @@ make_tuple_exprtree (exprtree *elems)
 	if (elem->result.length != 1)
 	{
 	    sprintf(error_string, _("Tuples cannot contain tuples of length other than 1."));
+	    error_region = elem->region;
 	    JUMP(1);
 	}
     }
@@ -635,6 +739,8 @@ make_tuple_exprtree (exprtree *elems)
     tree->type = EXPR_TUPLE;
     tree->val.tuple.length = length;
     tree->val.tuple.elems = elems;
+
+    tree->region = exprlist_region(elems);
 
     tree->result = make_tuple_info(nil_tag_number, length);
 
@@ -649,6 +755,7 @@ make_select (exprtree *tuple, exprtree *subscripts)
     tree->type = EXPR_SELECT;
     tree->val.select.tuple = tuple;
     tree->val.select.subscripts = subscripts;
+    tree->region = scanner_region_merge(tuple->region, exprlist_region(subscripts));
     if (subscripts->result.length == 1)
 	tree->result = make_tuple_info(nil_tag_number, 1);
     else
@@ -658,10 +765,10 @@ make_select (exprtree *tuple, exprtree *subscripts)
 }
 
 exprtree*
-make_cast (const char *tagname, exprtree *tuple)
+make_cast (scanner_ident_t *tagname, exprtree *tuple)
 {
     exprtree *tree = alloc_exprtree();
-    int tagnum = tag_number_for_name(tagname);
+    int tagnum = tag_number_for_name(tagname->str);
 
     if (tuple->type == EXPR_TUPLE_CONST)
     {
@@ -675,20 +782,22 @@ make_cast (const char *tagname, exprtree *tuple)
 	tree->val.cast.tagnum = tagnum;
 	tree->val.cast.tuple = tuple;
     }
+    tree->region = scanner_region_merge(tagname->region, tuple->region);
     tree->result = make_tuple_info(tagnum, tuple->result.length);
 
     return tree;
 }
 
 exprtree*
-make_convert (const char *tagname, exprtree *tuple)
+make_convert (scanner_ident_t *tagname_ident, exprtree *tuple)
 {
     exprtree *tree = alloc_exprtree();
 
     tree->type = EXPR_CONVERT;
-    tree->val.convert.tagnum = tag_number_for_name(tagname);
+    tree->val.convert.tagnum = tag_number_for_name(tagname_ident->str);
     tree->val.convert.tuple = tuple;
     tree->result = make_tuple_info(tree->val.convert.tagnum, tuple->result.length);
+    tree->region = scanner_region_merge(tagname_ident->region, tuple->region);
 
     return tree;
 }
@@ -706,8 +815,9 @@ lookup_filter (filter_t *filters, const char *name)
 }
 
 static exprtree*
-make_filter_call (filter_t *filter, exprtree *args)
+make_filter_call (filter_t *filter, exprtree *args, scanner_region_t filter_region)
 {
+    scanner_region_t region = scanner_region_merge(filter_region, exprlist_region(args));
     userval_info_t *info;
     exprtree **argp;
     exprtree *closure;
@@ -720,6 +830,7 @@ make_filter_call (filter_t *filter, exprtree *args)
     {
 	sprintf(error_string, _("Filter %s takes %d to %d arguments but is called with %d."),
 		filter->name, filter->num_uservals, filter->num_uservals + 2, exprlist_length(args));
+	error_region = region;
 	JUMP(1);
     }
 
@@ -740,6 +851,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 		if ((*argp)->result.length != 1)
 		{
 		    sprintf(error_string, _("Can only pass tuples of length 1 as numbers, booleans, curves, gradients, or images."));
+		    error_region = (*argp)->region;
 		    JUMP(1);
 		}
 		break;
@@ -748,6 +860,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 		if ((*argp)->result.number != rgba_tag_number || (*argp)->result.length != 4)
 		{
 		    sprintf(error_string, _("Can only pass tuples of type rgba:4 as colors."));
+		    error_region = (*argp)->region;
 		    JUMP(1);
 		}
 		break;
@@ -776,6 +889,8 @@ make_filter_call (filter_t *filter, exprtree *args)
     closure->result.number = image_tag_number;
     closure->result.length = 1;
 
+    closure->region = region;
+
     if (is_closure)
 	return closure;
 
@@ -786,6 +901,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	    && call_args->result.number != ra_tag_number))
     {
 	sprintf(error_string, _("The coordinate argument to a filter must be a tuple of type xy:2 or ra:2."));
+	error_region = call_args->region;
 	JUMP(1);
     }
 
@@ -794,7 +910,7 @@ make_filter_call (filter_t *filter, exprtree *args)
 	exprtree *next = call_args->next;
 
 	call_args->next = NULL;
-	call_args = make_function("toXY", call_args);
+	call_args = make_function_from_string("toXY", call_args, call_args->region);
 	call_args->next = next;
     }
 
@@ -803,24 +919,29 @@ make_filter_call (filter_t *filter, exprtree *args)
     argp = &call_args->next;
 
     if (*argp == NULL)
-	*argp = make_var("t");
+	*argp = make_var_from_string("t");
     else if ((*argp)->result.length != 1)
     {
 	sprintf(error_string, _("The time argument to a filter must be a tuple of length 1."));
+	error_region = (*argp)->region;
 	JUMP(1);
     }
 
     g_assert(exprlist_length(call_args) == 2);
 
-    return make_function("__origVal", exprlist_append(call_args, closure));
+    return make_function_from_string("__origVal", exprlist_append(call_args, closure), filter_region);
 }
 
 static exprtree*
-make_image_call (exprtree *image, exprtree *args)
+make_image_call (exprtree *image, exprtree *args, scanner_region_t region)
 {
+    exprtree *tree;
+    scanner_ident_t *ident;
+
     if (exprlist_length(args) != 1 && exprlist_length(args) != 2)
     {
 	sprintf(error_string, _("An image must be invoked with one or two arguments."));
+	error_region = region;
 	JUMP(1);
     }
 
@@ -829,28 +950,36 @@ make_image_call (exprtree *image, exprtree *args)
 	    && args->result.number != ra_tag_number))
     {
 	sprintf(error_string, _("The coordinate argument to an image must be of type xy:2 or ra:2."));
+	error_region = region;
 	JUMP(1);
     }
     if (args->result.number == ra_tag_number)
-	args = make_function("toXY", args);
+	args = make_function_from_string("toXY", args, args->region);
 
     if (args->next != NULL)
     {
 	if (args->next->result.length != 1)
 	{
 	    sprintf(error_string, _("The time argument to an image have length 1."));
+	    error_region = region;
 	    JUMP(1);
 	}
     }
 
-    return make_function("__origVal", exprlist_append(args, image));
+    ident = scanner_make_ident(scanner_null_region, "__origVal");
+    tree = make_function(ident, exprlist_append(args, image));
+    free(ident);
+
+    return tree;
 }
 
 exprtree*
-make_function (const char *name, exprtree *args)
+make_function (scanner_ident_t *name_ident, exprtree *args)
 {
+    char *name = name_ident->str;
+    scanner_region_t name_region = name_ident->region;
     exprtree *tree = 0;
-    exprtree *arg = args;
+    exprtree *arg;
     function_arg_info_t *first, *last;
     overload_entry_t *entry;
     tuple_info_t info;
@@ -859,17 +988,18 @@ make_function (const char *name, exprtree *args)
     {
 	userval_info_t *info = lookup_userval(the_mathmap->current_filter->userval_infos, name);
 
-	return make_userval(info, args);
+	return make_userval(info, args, name_region);
     }
 
     if (lookup_filter(the_mathmap->filters, name) != 0)
     {
 	filter_t *filter = lookup_filter(the_mathmap->filters, name);
 
-	return make_filter_call(filter, args);
+	return make_filter_call(filter, args, name_region);
     }
 
     first = last = (function_arg_info_t*)malloc(sizeof(function_arg_info_t));
+    arg = args;
     last->info = arg->result;
     last->next = 0;
     while (arg->next != 0)
@@ -904,7 +1034,9 @@ make_function (const char *name, exprtree *args)
 	else if (entry->type == OVERLOAD_MACRO)
 	    tree = entry->v.macro(args);
 	else
-	    assert(0);
+	    g_assert_not_reached();
+
+	tree->region = scanner_region_merge(name_region, exprlist_region(args));
     }
     else if (lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info))
     {
@@ -914,14 +1046,95 @@ make_function (const char *name, exprtree *args)
 	    || info.length != 1)
 	{
 	    sprintf(error_string, _("Variable %s is not an image and cannot be invoked."), name);
+	    error_region = name_region;
 	    JUMP(1);
 	}
 
-	return make_image_call(make_var_exprtree(var, info), args);
+	return make_image_call(make_var_exprtree(var, info, name_region), args, name_region);
     } else {
 	sprintf(error_string, _("Unable to resolve invocation of %s."), name);
+	error_region = name_region;
 	JUMP(1);
     }
+
+    return tree;
+}
+
+const char*
+get_func_name_for_op (const char *name)
+{
+    static struct { const char *op, *func; } table[] = {
+	{ "+", "__add" },
+	{ "-", "__sub" },
+	{ "*", "__mul" },
+	{ "/", "__div" },
+	{ "%", "__mod" },
+	{ "^", "__pow" },
+	{ "==", "__equal" },
+	{ "<", "__less" },
+	{ ">", "__greater" },
+	{ "<=", "__lessequal" },
+	{ ">=", "__greaterequal" },
+	{ "!=", "__notequal" },
+	{ "||", "__or" },
+	{ "&&", "__and" },
+	{ "xor", "__xor" },
+	{ NULL, NULL }
+    };
+
+    int i;
+
+    for (i = 0; table[i].op != NULL; ++i)
+	if (strcmp(table[i].op, name) == 0)
+	    return table[i].func;
+    return NULL;
+}
+
+const char*
+get_func_name_for_unary_op (const char *name)
+{
+    static struct { const char *op, *func; } table[] = {
+	{ "-", "__neg" },
+	{ "!", "__not" },
+	{ NULL, NULL }
+    };
+
+    int i;
+
+    for (i = 0; table[i].op != NULL; ++i)
+	if (strcmp(table[i].op, name) == 0)
+	    return table[i].func;
+    return NULL;
+}
+
+exprtree*
+make_operator_function (scanner_ident_t *name, exprtree *left, exprtree *right)
+{
+    const char *func_name = get_func_name_for_op(name->str);
+    scanner_ident_t *ident;
+    exprtree *tree;
+
+    g_assert(func_name != NULL);
+
+    ident = scanner_make_ident(name->region, func_name);
+    tree = make_function(ident, exprlist_append(left, right));
+    free(ident);
+
+    return tree;
+}
+
+exprtree*
+make_unary_operator_function (scanner_ident_t *name, exprtree *arg)
+{
+    const char *func_name = get_func_name_for_unary_op(name->str);
+    scanner_ident_t *ident;
+    exprtree *tree;
+
+    g_assert(func_name != NULL);
+
+    ident = scanner_make_ident(name->region, func_name);
+    tree = make_function(ident, arg);
+    free(ident);
 
     return tree;
 }
@@ -935,13 +1148,16 @@ make_sequence (exprtree *left, exprtree *right)
     tree->val.op.left = left;
     tree->val.op.right = right;
     tree->result = right->result;
+    tree->region = scanner_region_merge(left->region, right->region);
 
     return tree;
 }
 
 exprtree*
-make_assignment (const char *name, exprtree *value)
+make_assignment (scanner_ident_t *name_ident, exprtree *value)
 {
+    char *name = name_ident->str;
+    scanner_region_t region = name_ident->region;
     exprtree *tree = alloc_exprtree();
     variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &tree->result);
 
@@ -951,11 +1167,13 @@ make_assignment (const char *name, exprtree *value)
 	    || lookup_variable_macro(name, NULL) != NULL)
 	{
 	    sprintf(error_string, _("Cannot assign to internal variable `%s'."), name);
+	    error_region = region;
 	    JUMP(1);
 	}
 	if (lookup_userval(the_mathmap->current_filter->userval_infos, name) != NULL)
 	{
 	    sprintf(error_string, _("Cannot assign to filter argument `%s'."), name);
+	    error_region = region;
 	    JUMP(1);
 	}
 
@@ -966,19 +1184,24 @@ make_assignment (const char *name, exprtree *value)
     if (tree->result.number != value->result.number || tree->result.length != value->result.length)
     {
 	sprintf(error_string, _("Variable %s is being assigned two different types."), name);
+	error_region = region;
 	JUMP(1);
     }
 
     tree->type = EXPR_ASSIGNMENT;
     tree->val.assignment.var = var;
     tree->val.assignment.value = value;
+    tree->region = region;
 
     return tree;
 }
 
 exprtree*
-make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
+make_sub_assignment (scanner_ident_t *name_ident, exprtree *subscripts, exprtree *value)
 {
+    char *name = name_ident->str;
+    scanner_region_t region = scanner_region_merge(name_ident->region,
+						   scanner_region_merge(exprlist_region(subscripts), value->region));
     exprtree *tree = alloc_exprtree();
     tuple_info_t info;
     variable_t *var = lookup_variable(the_mathmap->current_filter->v.mathmap.variables, name, &info);
@@ -986,12 +1209,14 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
     if (var == 0)
     {
 	sprintf(error_string, _("Undefined variable %s."), name);
+	error_region = name_ident->region;
 	JUMP(1);
     }
 
     if (subscripts->result.length != value->result.length)
     {
 	sprintf(error_string, _("Lhs does not match rhs in sub assignment."));
+	error_region = region;
 	JUMP(1);
     }
 
@@ -1000,6 +1225,7 @@ make_sub_assignment (char *name, exprtree *subscripts, exprtree *value)
     tree->val.sub_assignment.subscripts = subscripts;
     tree->val.sub_assignment.value = value;
     tree->result = value->result;
+    tree->region = region;
 
     return tree;
 }
@@ -1012,6 +1238,7 @@ make_if_then (exprtree *condition, exprtree *consequent)
     if (condition->result.length != 1)
     {
 	sprintf(error_string, _("Condition to if statement must have length 1."));
+	error_region = condition->region;
 	JUMP(1);
     }
 
@@ -1019,6 +1246,7 @@ make_if_then (exprtree *condition, exprtree *consequent)
     tree->val.ifExpr.condition = condition;
     tree->val.ifExpr.consequent = consequent;
     tree->result = consequent->result;
+    tree->region = scanner_region_merge(condition->region, consequent->region);
 
     return tree;
 }
@@ -1031,12 +1259,14 @@ make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternat
     if (condition->result.length != 1)
     {
 	sprintf(error_string, _("Condition to if statement must have length 1."));
+	error_region = condition->region;
 	JUMP(1);
     }
     if (consequent->result.number != alternative->result.number
 	|| consequent->result.length != alternative->result.length)
     {
 	sprintf(error_string, _("Consequent and alternative must have the same type in if statement."));
+	error_region = scanner_region_merge(consequent->region, alternative->region);
 	JUMP(1);
     }
 
@@ -1045,6 +1275,8 @@ make_if_then_else (exprtree *condition, exprtree *consequent, exprtree *alternat
     tree->val.ifExpr.consequent = consequent;
     tree->val.ifExpr.alternative = alternative;
     tree->result = consequent->result;
+    tree->region = scanner_region_merge(condition->region,
+					scanner_region_merge(consequent->region, alternative->region));
 
     return tree;
 }
@@ -1054,10 +1286,17 @@ make_while (exprtree *invariant, exprtree *body)
 {
     exprtree *tree = alloc_exprtree();
 
+    if (invariant->result.length != 1)
+    {
+	sprintf(error_string, _("Invariant of while loop must have length 1."));
+	error_region = invariant->region;
+	JUMP(1);
+    }
     tree->type = EXPR_WHILE;
     tree->val.whileExpr.invariant = invariant;
     tree->val.whileExpr.body = body;
     tree->result = make_tuple_info(nil_tag_number, 1);
+    tree->region = scanner_region_merge(invariant->region, body->region);
 
     return tree;
 }
@@ -1067,10 +1306,17 @@ make_do_while (exprtree *body, exprtree *invariant)
 {
     exprtree *tree = alloc_exprtree();
 
+    if (invariant->result.length != 1)
+    {
+	sprintf(error_string, _("Invariant of do-while loop must have length 1."));
+	error_region = invariant->region;
+	JUMP(1);
+    }
     tree->type = EXPR_DO_WHILE;
     tree->val.whileExpr.invariant = invariant;
     tree->val.whileExpr.body = body;
     tree->result = make_tuple_info(nil_tag_number, 1);
+    tree->region = scanner_region_merge(invariant->region, body->region);
 
     return tree;
 }
@@ -1081,28 +1327,39 @@ check_for_start (exprtree *start)
     if (start->result.length != 1)
     {
 	sprintf(error_string, _("The start and end of a for loop interval must be tuples of length 1."));
+	error_region = start->region;
 	JUMP(1);
     }
 }
 
 exprtree*
-make_for (const char *counter_name, exprtree *counter_init, exprtree *start, exprtree *end, exprtree *body)
+make_for (scanner_ident_t *counter_name_ident, exprtree *counter_init, exprtree *start, exprtree *end, exprtree *body)
 {
+    scanner_region_t region = counter_name_ident->region;
+
     if (start->result.length != 1 || end->result.length != 1 || start->result.number != end->result.number)
     {
 	sprintf(error_string, _("The start and end of a for loop interval must be tuples of the same tag and length 1."));
+	error_region = region;
 	JUMP(1);
     }
     else
     {
 	char end_name_buf[MAX_GENSYM_LEN];
 	char *end_name = gensym(end_name_buf);
-	exprtree *end_init = make_assignment(end_name, end);
+	scanner_ident_t *end_name_ident = scanner_make_ident(scanner_null_region, end_name);
+	exprtree *end_init = make_assignment(end_name_ident, end);
 	exprtree *init = make_sequence(counter_init, end_init);
-	exprtree *inc = make_assignment(counter_name, make_function("__add",
-								    exprlist_append(make_var(counter_name),
-										    make_int_number(1))));
-	exprtree *invariant = make_function("__lessequal", exprlist_append(make_var(counter_name), make_var(end_name)));
+	exprtree *inc = make_assignment(counter_name_ident,
+					make_function_from_string("__add",
+								  exprlist_append(make_var(counter_name_ident),
+										  make_int_number(1, scanner_null_region)),
+								  scanner_null_region));
+	exprtree *invariant = make_function_from_string("__lessequal", exprlist_append(make_var(counter_name_ident),
+										       make_var(end_name_ident)),
+							scanner_null_region);
+
+	free(end_name_ident);
 
 	return make_sequence(init, make_while(invariant, make_sequence(body, inc)));
     }
@@ -1111,6 +1368,7 @@ make_for (const char *counter_name, exprtree *counter_init, exprtree *start, exp
 void
 free_exprtree (exprtree *tree)
 {
+    /* FIXME: implement */
 }
 
 int

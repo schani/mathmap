@@ -23,6 +23,8 @@
 #ifndef __SCANNER_H__
 #define __SCANNER_H__
 
+#include <glib.h>
+
 typedef struct
 {
     int row;
@@ -36,6 +38,8 @@ typedef struct
     scanner_location_t end;
 } scanner_region_t;
 
+extern scanner_region_t scanner_null_region;
+
 typedef struct
 {
     scanner_region_t region;
@@ -45,8 +49,8 @@ typedef struct
 void scanFromString (const char *string);
 void endScanningFromString (void);
 
-/* This is incremented by the scanner for each line scanned. */
-int scanner_line_num (void);
+/* This is updated by the scanner for each character scanned. */
+scanner_location_t scanner_location (void);
 
 int yylex (void);
 
@@ -67,5 +71,10 @@ int yylex (void);
 #define HIGHLIGHT_ATTRIBUTE	14
 
 int next_highlight (const char *expr, int start, int *first, int *last);
+
+scanner_ident_t* scanner_make_ident (scanner_region_t region, const char *str);
+
+gboolean scanner_region_is_valid (scanner_region_t r);
+scanner_region_t scanner_region_merge (scanner_region_t r1, scanner_region_t r2);
 
 #endif
