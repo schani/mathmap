@@ -2258,11 +2258,13 @@ set_expression_marker (int start_line, int start_column, int end_line, int end_c
 	g_print("Error at %d:%d - %d:%d\n", start_line, start_column, end_line, end_column);
 #endif
 
+	if (start_line == end_line && start_column == end_column)
+	    ++end_column;
+
 	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &start_iter, start_line, start_column);
 	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &end_iter, end_line, end_column);
 	source_marker = gtk_source_buffer_create_source_mark(source_buffer, NULL, "one", &start_iter);
 	gtk_text_buffer_select_range(GTK_TEXT_BUFFER(source_buffer), &start_iter, &end_iter);
-	g_assert(gtk_text_buffer_get_has_selection(GTK_TEXT_BUFFER(source_buffer)));
 	gtk_text_view_scroll_mark_onscreen(GTK_TEXT_VIEW(expression_entry),
 					   gtk_text_buffer_get_insert(GTK_TEXT_BUFFER(source_buffer)));
     }
