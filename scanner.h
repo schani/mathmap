@@ -52,6 +52,9 @@ void endScanningFromString (void);
 /* This is updated by the scanner for each character scanned. */
 scanner_location_t scanner_location (void);
 
+/* The region of the last successfully scanned token. */
+scanner_region_t scanner_last_token_region (void);
+
 int yylex (void);
 
 #define HIGHLIGHT_EOS            0      /* end of string */

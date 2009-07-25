@@ -275,13 +275,8 @@ end : T_END
 int
 yyerror (char *s)
 {
-    scanner_location_t location = scanner_location();
-
     sprintf(error_string, _("Parse error."));
-    /* FIXME: The error region should actually be the last token's
-       region. */
-    error_region.start = location;
-    error_region.end = location;
+    error_region = scanner_last_token_region();
     JUMP(1);
 
     return 0;

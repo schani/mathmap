@@ -405,6 +405,7 @@ next_highlight (const char *expr, int start, int *first, int *last)
 }
 
 static scanner_state_t global_state;
+static scanner_region_t last_token_region;
 
 void
 scanFromString (const char *string)
@@ -412,6 +413,7 @@ scanFromString (const char *string)
     g_assert(global_state.text == NULL);
     global_state.text = g_strdup(string);
     global_state.location.row = global_state.location.column = global_state.location.pos = 0;
+    last_token_region = scanner_null_region;
 }
 
 void
@@ -420,6 +422,7 @@ endScanningFromString (void)
     g_assert(global_state.text != NULL);
     g_free(global_state.text);
     global_state.text = NULL;
+    last_token_region = scanner_null_region;
 }
 
 scanner_location_t
@@ -520,6 +523,9 @@ yylex (void)
 					      token.region.end.pos - token.region.start.pos);
 		    break;
 	    }
+
+	    last_token_region = token.region;
+
 	    return token.token;
 
 	case RESULT_EOF :
@@ -563,4 +569,10 @@ scanner_region_merge (scanner_region_t r1, scanner_region_t r2)
 	r.end = r2.end;
 
     return r;
+}
+
+scanner_region_t
+scanner_last_token_region (void)
+{
+    return last_token_region;
 }
