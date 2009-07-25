@@ -20,14 +20,13 @@ why do we compare against floats in simple counting loops? (do we?)
 update exported_symbols
 
 ** Packaging
-add lots of comments to the default filter
 documentation for all builtins
 add mathmap.png and error.png
 make CFLAGS and LDFLAGS user-changable in Makefile - see mail from Nelson de Oliveira
 give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
 give credit to filter developers
 check out Robin Norwood's spec file changes (for Fedora)
-changes for gtksourceview 2.0
+changes for gtksourceview 2.0 (including .lang directory)
 
 * 1.3.x
 

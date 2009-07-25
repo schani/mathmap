@@ -76,7 +76,48 @@
 
 #define EXPRESSIONS_DIR         "expressions"
 
-#define DEFAULT_EXPRESSION      "filter ident (image in)\n  in(xy)\nend"
+#define DEFAULT_EXPRESSION \
+"# Welcome to MathMap!\n" \
+"\n" \
+"# MathMap is a programmable tool for image manipulation.\n" \
+"\n" \
+"# Here in the \"Expression\" tab is where you can enter and\n" \
+"# modify MathMap programs, called \"filters\".  To get you\n" \
+"# started there is a very simple filter which doesn't modify\n" \
+"# its input image down below.\n" \
+"\n" \
+"# In the \"Filters\" tab you'll find lots of more interesting\n" \
+"# filters you can try out, study and modify.  Most of those\n" \
+"# filters have parameters that you can play around with in\n" \
+"# the \"User Values\" tab.\n" \
+"\n" \
+"# Finally, the \"Composer\" tab provides a graphical way of\n" \
+"# combining two or more filters into a more complex\n" \
+"# \"composition\", which in turn can be used in yet more\n" \
+"# complex ones.\n" \
+"\n" \
+"\n" \
+"# This is the simple demo filter.  It's called \"demo\".\n" \
+"# \"image in\" means that the filter takes a single input,\n" \
+"# namely an image that we call \"in\".\n" \
+"filter demo (image in)\n" \
+"  # A filter must calculate a pixel at a specific position\n" \
+"  # which is called \"xy\", which is a coordinate pair consisting\n" \
+"  # of the X-coordinate \"x\" and the Y-coordinate \"y\".\n" \
+"\n" \
+"  # Here we just get the pixel at the same position from the\n" \
+"  # input image:\n" \
+"  in(xy)\n" \
+"\n" \
+"  # Another. even simpler possibility, is to always produce\n" \
+"  # the same color, for example:\n" \
+"  #grayColor(0.5)\n" \
+"\n" \
+"  # Or we can produce one color if the X-coordinate is\n" \
+"  # positive, and a different one otherwise:\n" \
+"  #if x>0 then rgbColor(1,0,0) else rgbColor(0,1,0) end\n" \
+"end\n"
+
 #define DEFAULT_NUMBER_FRAMES   10
 
 #define FLAG_ANTIALIASING       1
