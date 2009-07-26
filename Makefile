@@ -3,7 +3,7 @@
 
 # Uncomment this line if you want to use the LLVM backend.  This is
 # compulsory for MinGW32!
-USE_LLVM = YES
+#USE_LLVM = YES
 
 # Prefix of your GIMP binaries.  Usually you can leave this line
 # commented.  If you have more than one GIMP versions installed, you
