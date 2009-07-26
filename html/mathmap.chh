@@ -18,7 +18,7 @@
 \
 %define(invokeMathMap, script, outname, optargs, inputs,
     %let(args, %listAppend(%list(r, %mathmap), %optargs,
-                           %listMap(%lambda(filename, -I%filename), %inputs),
+                           %listMap(%lambda(filename, -Din=%filename), %inputs),
                            %list(%script, %outname)),
          handle, %apply(%fpipe, %args),
         %void(%frest(%&handle))\

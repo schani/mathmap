@@ -23,7 +23,7 @@ and it is necessary to know the MathMap language.
 
 <p>This document is a gentle introduction to the
 MathMap language.  Very little mathematical knowledge is assumed, and
-almost no programming skills are needed--although they certainly would
+almost no programming skills are needed--although they would certainly
 come in handy.
 
 <p>Please take the time to read through this introduction.  Try out
@@ -50,12 +50,12 @@ maybe even get hooked on MathMap.
 
 <blockquote>
 <p>The basic operating principle of MathMap is very simple.  To create
-an image of a given size, MathMap simply iterates through all the
-elements (pixels) of the image to be created and "asks" your script
+an image of a given size, MathMap simply goes through all the
+elements (pixels) of the image to be created and "asks" your filter
 how the pixel in question should look like, i.e. what color it should
 have.
 
-<p>Let's make a script that produces a white image:
+<p>Let's make a filter that produces a white image:
 
 <blockquote>
 <pre>
@@ -65,15 +65,15 @@ end
 </pre>
 </blockquote>
 
-<p>As you can see, MathMap scripts always start with the word
+<p>As you can see, MathMap filters always start with the word
 <tt>filter</tt> and end with the word <tt>end</tt>.  The word
-<tt>white</tt> after <tt>filter</tt> is simply the name of the script
+<tt>white</tt> after <tt>filter</tt> is simply the name of the filter
 and you are free to choose your own names as you like.  The
 parentheses <tt>()</tt> serve a purpose which we'll come to later.
 
 <p>%func(grayColor) is a function producing a gray level color.
 What it needs to know is the gray level you want to produce.  In this
-case, the gray level we want is <tt>1</tt> which is for white.
+case, the gray level we want is <tt>1</tt>, which stands for white.
 <tt>0</tt> is black, and <tt>0.5</tt> is halfway in between.  If you
 provide a value greater than <tt>1</tt>, MathMap will use <tt>1</tt>
 instead (there is no color whiter than white!).  Similarly, <tt>0</tt>
@@ -109,7 +109,7 @@ Try to change the values and see how it affects the output color.
 <h2><a name="cartesian"></a>The Cartesian Coordinate System</h2>
 
 <blockquote>
-<p>So far, the pixels in our images always had the same color.  When
+<p>So far, the pixels in our images have always had the same color.  When
 we produce images with multiple colors, we usually want to determine
 the color based on the position of the pixel in question.
 
@@ -125,40 +125,33 @@ system:
 <p>The point labeled "O" is the <em>origin</em> of the coordinate
 system.  Both its coordinates (<tt>x</tt> and <tt>y</tt>) are zero.
 The origin is always in the center of the image.  The point "p" in the
-illustration has a value of <tt>50</tt> for the coordinate <tt>x</tt>
-and <tt>20</tt> for <tt>y</tt>.  That's because it's <tt>50</tt>
-pixels to the right of the origin and <tt>20</tt> pixels above.  As
-you can see, <tt>x</tt> increases by one as you go one pixel to the
-right, while <tt>y</tt> increases by one if you go up one pixel.
-Similarly, they decrease when going in the opposite directions.  That
-means that pixels to the left of the origin have negative <tt>x</tt>
-coordinates and pixels below it have negative <tt>y</tt> coordinates.
+illustration has a value of <tt>0.5</tt> for the coordinate <tt>x</tt>
+and <tt>0.2</tt> for <tt>y</tt>.  That's because it's halfway from the
+origin to the right edge of the image and one fifth to the top edge.
+As you can see, the <tt>x</tt> coordinate is <tt>1</tt> at the right
+edge of the image and <tt>-1</tt> at the left edge.  The same holds
+for the <tt>y</tt> coordinate and the top and bottom edges,
+respectively.
 
 <p>Let's use this knowledge to produce an image which is black on the
 left, white on the right and has gray levels in between.  We want to
 produce this image:
 
 <p>%<filter=%'filter gray_gradient ()
-    grayColor((x + W/2) / W)
+    grayColor((x + 1) / 2)
 end'>%createImage(%filter, %list())
-
-<p>For the creation of this image, it helps to know that the constant
-<tt>W</tt> contains the width of the image to be created.
 
 <p>We know that we can use %func(grayColor) to produce a gray level.
 However, we need a number between <tt>0</tt> and <tt>1</tt> to get
 colors between black and white.  Let's look at what we have.  At the
-right edge of the image the value of <tt>x</tt> is half the width of
-the image (since the origin is always at the center),
-i.e. <tt>W/2</tt>.  Similarly, at the left edge, it has the same
-absolute value, only it's negative, i.e. <tt>-W/2</tt>.  In order to
-get <tt>0</tt> (for black) for the left edge, we can simply add
-<tt>W/2</tt> to <tt>x</tt>.  That gives us <tt>x+W/2</tt> which is
-<tt>0</tt> at the left edge of the image.  At the right edge, however,
-its value is <tt>W</tt>, instead of <tt>1</tt>.  We can solve this
-problem by simply dividing our expression by <tt>W</tt>, giving
-<tt>(x+W/2)/W</tt>.  Now we have what we want, and we can give this
-expression as an argument to %func(grayColor):
+right edge of the image the value of <tt>x</tt> is <tt>1</tt> and at
+the left edge it's <tt>-1</tt>.  In order to get <tt>0</tt> at the
+left edge, we can simply add <tt>1</tt> to <tt>x</tt>,
+i.e. use <tt>x+1</tt>.  At the right edge, however, we now
+get <tt>2</tt> instead of <tt>1</tt>, which we can rectify by dividing
+by <tt>2</tt>, which gives us <tt>(x+1)/2</tt>.  Now we have what we
+want, and we can give this expression as an argument to
+%func(grayColor):
 
 <blockquote>
 <pre>
@@ -167,11 +160,9 @@ expression as an argument to %func(grayColor):
 </blockquote>
 
 <p>Try to do the same for the <tt>y</tt> coordinate, i.e. make a
-gradient from bottom to top instead of from left to right.  It will be
-helpful to know that the constant <tt>H</tt> holds the height of the
-image.  You could also try to combine both coordinates to produce a
-gradient which goes from the bottom left corner to the top right
-corner.
+gradient from bottom to top instead of from left to right.  You could
+also try to combine both coordinates to produce a gradient which goes
+from the bottom left corner to the top right corner.
 </blockquote>
 
 <h2><a name="inputImages"></a>Input Images</h2>
@@ -183,10 +174,10 @@ image:
 
 <p><a href="http://www.flickr.com/photos/schani/30729426/in/set-487122/"><img src="finn.jpg"></a>
 
-<p>What we have to do is tell MathMap that it needs to give us an
-input image, and we have to give it a name, because there might be
-more than one.  That's where the parentheses after the name of the
-filter come in.  Between them, we give all the inputs our script gets:
+<p>What we have to do is tell MathMap that we want to give it an input
+image, and we have to give it a name, because there might be more than
+one.  That's where the parentheses after the name of the filter come
+in.  Between them, we give all the inputs our filter gets:
 
 <blockquote>
 <pre>
@@ -199,7 +190,7 @@ end
 <p>A few things are new here.  Notice the declaration of the input
 image, which we call <tt>in</tt>.  The reason why we have to specify
 with the word <tt>image</tt> that it's an image is that there are
-inputs other than images, which we'll come to later.
+input types other than images, which we'll come to later.
 
 <p>What's new as well is the way we use the input image.  It looks
 exactly like using a function with one argument, in this case
@@ -212,7 +203,7 @@ another coordinate system, as well.
 <p>So, you can use an input image just like you use a function.  It
 takes one argument, namely the coordinates of the pixel that you
 request.  In the script above, we are simply passing along the
-coordinates that our script gets, so we just copy the input image,
+coordinates that our filter is given, so we just copy the input image,
 which is not very exciting.
 
 <p>A very simple effect is to flip the image horizontally.  This can
@@ -246,7 +237,7 @@ happen if you changed the sign of the <tt>y</tt> coordinate instead,
 then try it out and see if you were right.
 
 <p>Now, let's shake the waves with our image.  The function
-<tt>sin</tt> will come in handy for our purposes.  This is what its
+%func(sin) will come in handy for our purposes.  This is what its
 graph looks like (by the way, this graph was produced by MathMap,
 using an expression by Hans Lundmark):
 
@@ -260,12 +251,12 @@ period (the distance it needs to make a whole "cycle") is
 
 <p>We will now try to shift whole pixel columns up and down, depending
 on their <tt>x</tt> coordinates.  The shift pattern will resemble the
-graph of the %func(sin) function, only that we will
-use a period of 60 pixels, and we will shift at most <tt>10</tt>
-pixels up or down:
+graph of the %func(sin) function, only that we will use a period
+length of half the width of the image, i.e. <tt>1</tt>, and we will
+shift them up or down by at most <tt>0.1</tt>:
 
 %<sinefinn=%'filter sine_finn (image in)
-    in(xy:[x, y + 10 * sin(x * (2*pi)/60)])
+    in(xy:[x, y + 0.1 * sin(x * (2*pi))])
 end'>\
 
 <blockquote>
@@ -308,7 +299,7 @@ cartesian coordinates, leaving the <tt>a</tt> coordinate unchanged and
 shifting the <tt>r</tt> coordinate, we get the following expression:
 
 %<filter=%'filter finn_pond (image in)
-    in(ra:[r + 10 * sin(r * (2*pi)/60), a])
+    in(ra:[r + 0.1 * sin(r * (2*pi)), a])
 end'>\
 
 <blockquote>
@@ -332,7 +323,7 @@ input image are polar and not cartesian.
 <p>Let's create an image which looks like a shooting target:
 
 %<target=%'filter target ()
-    if r%40 < 20 then
+    if r%0.4 < 0.2 then
         rgbColor(1,0,0)
     else
         rgbColor(1,1,1)
@@ -342,10 +333,10 @@ end'>\
 
 <p>Obviously, whether a pixel is red or white depends solely on its
 distance from the center, which we know is available as <tt>r</tt>.  I
-have chosen the width of each ring as <tt>20</tt>, i.e. the distance
+have chosen the width of each ring as <tt>0.2</tt>, i.e. the distance
 between the radii of the inner circles of two neighboring red (or
-white) rings is <tt>40</tt>.  Hence, the expression we
-are looking for is periodic with a period of <tt>40</tt>.
+white) rings is <tt>0.4</tt>.  Hence, the expression we
+are looking for is periodic with a period of <tt>0.4</tt>.
 
 <p>To solve this problem, we will use the modulo operator, which is
 available as %func(%%).  Its value is the remainder of the division
@@ -354,13 +345,13 @@ is <tt>1</tt> because the remainder of the division of
 <tt>7</tt> by <tt>3</tt> is <tt>1</tt>.
 This operation is periodic.  Its period is the value of its right
 operand (the divisor).  Furthermore, the result of the operation is
-never greater than the right operand.  So, for example, <tt>r%%40</tt>
-is periodic with a period of <tt>40</tt> and is always
-between <tt>0</tt> (inclusive) and <tt>40</tt> (exclusive).  Let's see
+never greater than the right operand.  So, for example, <tt>r%%0.4</tt>
+is periodic with a period of <tt>0.4</tt> and is always
+between <tt>0</tt> (inclusive) and <tt>0.4</tt> (exclusive).  Let's see
 what this looks like:
 
 %<filter=%'filter rmod ()
-    grayColor((r%40)/40)
+    grayColor((r%0.4)/0.4)
 end'>\
 <blockquote>
 <pre>
@@ -370,20 +361,21 @@ end'>\
 
 <p>In order to be nice to %func(grayColor), the value
 is scaled to be in the range from <tt>0</tt> to <tt>1</tt> (instead of
-<tt>40</tt>).  The resulting image looks like this:
+<tt>0.4</tt>).  The resulting image looks like this:
 
 <p>%createImage(%filter, %list())
 
 <p>You can see that the value starts out as <tt>0</tt> at the center
-of the image, climbs to <tt>1</tt> at <tt>40</tt> pixels from the
-center and then immediately drops to <tt>0</tt> again, repeating this
-cycle forever (well, in our case, to the boundaries of the image).
+of the image, climbs to <tt>1</tt> at a distance of <tt>0.4</tt> from
+the center and then immediately drops to <tt>0</tt> again, repeating
+this cycle forever (well, in our case, to the boundaries of the
+image).
 
-<p>You may want to try to leave out the rescaling "<tt>/40</tt>" to
+<p>You may want to try to leave out the rescaling "<tt>/0.4</tt>" to
 see the difference.
 
 <p>All we have to do now is to check whether we are in the first half
-of a period (in which case <tt>r%%40</tt> is less than <tt>20</tt>), or
+of a period (in which case <tt>r%%0.4</tt> is less than <tt>0.2</tt>), or
 in the second.  If we are in the first, the color for the pixel is
 red, otherwise it is white.  MathMap provides a construct for such
 decisions:
@@ -420,13 +412,15 @@ with the distance from the center.  They reach the black color at the
 corners of the image.
 
 <p>The variable <tt>r</tt>, which holds the distance from the center
-of the image, is measured in pixels, and its maximum value, which it
-reaches in the four corners of the image, is provided by the constant
-<tt>R</tt>.  If we scale this down to <tt>1</tt>, it's much
-easier to work with, so we'll use <tt>r/R</tt>.  This expression's
-value is <tt>0</tt> at the center of the image and increases with the
-distance from the center.  It reaches <tt>1</tt> in the corners,
-exactly where we want the color to be solid black.
+of the image, is measured in the same distance units as the cartesian
+coordinates, and its maximum value, which it reaches in the four
+corners of the image, is provided by the constant
+<tt>R</tt> (which is the square root of <tt>2</tt> in square images,
+in case you must know).  If we scale this down to <tt>1</tt>, it's
+much easier to work with, so we'll use <tt>r/R</tt>.  This
+expression's value is <tt>0</tt> at the center of the image and
+increases with the distance from the center.  It reaches <tt>1</tt> in
+the corners, exactly where we want the color to be solid black.
 
 <p>Given the color of a pixel in the original image and its
 transformed (as above) distance from the center, we can now figure out
@@ -436,18 +430,18 @@ what to do.  If the transformed distance is <tt>0</tt>
 multiplying the three color components of the pixel by <tt>1</tt>
 minus the transformed distance, i.e. by <tt>1-r/R</tt>.
 
-<p>We can use the functions %func(red), %func(green), and
-%func(blue) to access the components of a color.  Now we could write
-the red component of our output image as <tt>red(in(xy))*(1-r/R)</tt>.
-We'd have to use equivalent expressions for the green and blue
-components and then use them as arguments to %func(rgbColor).  By
-assigning the values <tt>in(xy)</tt> and <tt>1-r/R</tt> to variables,
-which we'll call <tt>p</tt> and <tt>d</tt> (you can choose any name
-you like, as long as it's not the name of a built-in constant or
-variable or a keyword; consult the <a href="reference.html">MathMap
-reference</a> for the names of all of those), we can write the
-resulting expression as <tt>rgbColor(red(p)*d, green(p)*d,
-blue(p)*d)</tt>.  The complete script is:
+<p>We can use the functions %func(red), %func(green), and %func(blue)
+to access the components of a color.  Now we could write the red
+component of our output image as <tt>red(in(xy))*(1-r/R)</tt>.  We'd
+have to use equivalent expressions for the green and blue components
+and then use them as arguments to %func(rgbColor).  By assigning the
+values <tt>in(xy)</tt> and <tt>1-r/R</tt> to variables, which we'll
+call <tt>p</tt> and <tt>d</tt> (you can choose any name you like, as
+long as it's not the name of a built-in constant or variable or a
+keyword; consult the <a href="reference.html">MathMap reference</a>
+for the names of all of those), we can write the resulting expression
+much shorter as <tt>rgbColor(red(p)*d, green(p)*d, blue(p)*d)</tt>.
+The complete filter is:
 
 <blockquote>
 <pre>
@@ -492,9 +486,9 @@ example:
 
 <p>There are two parameters here which we have chosen more or less
 arbitrarily, namely the amplitude of the wave (in this case
-<tt>10</tt>) and the wave length (in this case <tt>60</tt>).  Wouldn't
-it be nice if we could change these values with sliders instead of
-having to edit the expression?
+<tt>0.1</tt>) and the wave length (in this case implicitly given
+as <tt>1</tt>).  Wouldn't it be nice if we could change these values
+with sliders instead of having to edit the expression?
 
 <p>That's where inputs come in again.  We've seen above that we can
 give images as inputs to filters.  Now we'll learn how to supply
@@ -502,7 +496,7 @@ numbers as well:
 
 <blockquote>
 <pre>
-filter sine_finn (image in, float amplitude: 0-100, float wavelength: 1-200)
+filter sine_finn (image in, float amplitude: 0-2, float wavelength: 0-10)
     in(xy:[x, y + amplitude * sin(x * (2*pi) / wavelength)])
 end
 </pre>
@@ -514,7 +508,7 @@ number, which represents a real number and can have a fractional
 component, in contrast to integers, which you can specify with the
 word <tt>int</tt>.  After the name of the argument you can also give a
 range of allowed values, in the case of the argument
-<tt>amplitude</tt> above from <tt>0</tt> to <tt>100</tt>.
+<tt>amplitude</tt> above from <tt>0</tt> to <tt>2</tt>.
 
 <p>There are not only argument types for images and numbers, but also
 for colors, color gradients and curves.  Check out the <a
@@ -544,7 +538,7 @@ far.  An alpha component of <tt>0</tt> means full transparency,
 
 <p>So far, we have always treated colors as single values.  We have
 constructed colors using functions such as %func(rgbColor) and
-retrieved its components with functions like %func(red).  We can,
+retrieved their components with functions like %func(red).  We can,
 however, do these things without using those functions.  This, for
 example, is the half-transparent color green:
 
@@ -609,8 +603,8 @@ end
 </blockquote>
 
 <p>You will often want to produce animations which loop seemlessly,
-i.e. which looks like one endless animation when looped.  For such
-animations, make it so that the image with a <tt>t</tt>
+i.e. which look like one endless animation when looped.  For such
+animations, make sure that the image with a <tt>t</tt>
 value of <tt>1</tt> looks exactly like the one with a value of
 <tt>0</tt>, like in the following script:
 
@@ -656,18 +650,18 @@ example the gray gradient:
 
 <p><img src="gray_gradient.jpg">
 
-<p>The variable <tt>x</tt> varies from <tt>-W/2</tt> to <tt>W/2</tt>
+<p>The variable <tt>x</tt> varies from <tt>-1</tt> to <tt>1</tt>
 but you want it to be between <tt>0</tt> and <tt>1</tt>.  In such
 cases you can use the %func(scale) function.  The
-expression <tt>scale(x, -W/2, W/2, 0, 1)</tt> is <tt>0</tt>
-when <tt>x</tt> is <tt>-W/2</tt> and <tt>1</tt> when
-<tt>x</tt> is <tt>W/2</tt>.  Hence, you can create the
+expression <tt>scale(x, -1, 1, 0, 1)</tt> is <tt>0</tt>
+when <tt>x</tt> is <tt>-1</tt> and <tt>1</tt> when
+<tt>x</tt> is <tt>1</tt>.  Hence, you can create the
 above image with the script
 
 <blockquote>
 <pre>
 filter gray_gradient ()
-    grayColor(scale(x, -W/2, W/2, 0, 1))
+    grayColor(scale(x, -1, 1, 0, 1))
 end
 </pre>
 </blockquote>
@@ -679,11 +673,11 @@ end
 <p>Suppose we want to produce a gradient from red to green:
 
 %<filter=%'filter redgreengradient ()
-    lerp(scale(x, -W/2, W/2, 0, 1), rgbColor(1,0,0), rgbColor(0,1,0))
+    lerp(scale(x, -1, 1, 0, 1), rgbColor(1,0,0), rgbColor(0,1,0))
 end'>\
 <p>%createImage(%filter, %list())
 
-<p>We know from above that we can use <tt>scale(x, -W/2, W/2, 0, 1)</tt>
+<p>We know from above that we can use <tt>scale(x, -1, 1, 0, 1)</tt>
 for a value which is <tt>0</tt> at the left image edge
 and <tt>1</tt> at the right edge.  %func(lerp) does
 the rest: it takes two tuples and produces a value which is "in
@@ -706,13 +700,13 @@ lies within a given range.  %func(inintv) has a value
 of <tt>1</tt> if the condition is fulfilled, and of <tt>0</tt>
 otherwise.  You can use this as a condition in an <tt>if</tt>
 expression, or as a value in its own right.  For example, this
-script draws a white ring with an inner radius of <tt>50</tt> and
-an outer radius of <tt>60</tt>:
+script draws a white ring with an inner radius of <tt>0.4</tt> and
+an outer radius of <tt>0.6</tt>:
 
 <blockquote>
 <pre>
 filter ring ()
-    grayColor(inintv(r, 50, 60))
+    grayColor(inintv(r, 0.4, 0.6))
 end
 </pre>
 </blockquote>
@@ -740,14 +734,14 @@ example, <tt>clamp(v, [0,0,0], [1,1,1])</tt> restricts every element of
 <blockquote>
 <p>The function %func(rand) generates a random number.  It takes two
 arguments: The minimum and the maximum value of the number to be
-generated.  This script, for examples, randomly scatters the
-pixels of the input image (but not more than 10 pixels away from their
+generated.  This filter, for examples, randomly scatters the
+pixels of the input image (but not more than a distance of 0.05 away from their
 original location in both directions):
 
 <blockquote>
 <pre>
 filter scatter (image in)
-    in(xy:[x + rand(-10,10), y + rand(-10,10)])
+    in(xy:[x + rand(-0.05,0.05), y + rand(-0.05,0.05)])
 end
 </pre>
 </blockquote>
@@ -756,7 +750,7 @@ end
 <h3>%func(noise)</h3>
 
 <blockquote>
-<p>In image manipulation, one often needs a functions which is random
+<p>In image manipulation, one often needs a function which is random
 but doesn't change as abruptly as %func(rand) does.  %func(noise)
 is a so-called <em>solid noise</em> function.  It takes a tuple of
 three numbers and returns a value between <tt>-1</tt> and <tt>1</tt>.
@@ -764,8 +758,8 @@ If the input arguments change only by a little, so does the resulting
 value.  The overall "look" of the function is random, though.  It's
 hard to describe, so it's best you see for yourself:
 
-%<filter=%'filter noise ()
-    grayColor(scale(noise([x/20, y/20, t*2]), -1, 1, 0, 1))
+%<filter=%'filter noise_demo ()
+    grayColor(scale(noise([x*5, y*5, t*2]), -1, 1, 0, 1))
 end'>\
 <blockquote>
 <pre>
@@ -793,15 +787,18 @@ the <a href="reference.html">MathMap Reference Manual</a>.
 
 <p>A very good way to learn how to do things with MathMap is to look
 at the examples supplied with it.  Pick the examples you find
-interesting, look at the scripts, and try to figure out how they work.
+interesting, look at the filter sources, and try to figure out how
+they work.
 
-<p>You might also want to look at the <a
-href="http://www.complang.tuwien.ac.at/schani/mathmap/">MathMap Homepage</a>
-for announcements, new documentation or interesting links.
+<p>You might also want to look at
+the <a href="http://www.complang.tuwien.ac.at/schani/mathmap/">MathMap
+Homepage</a> for announcements, new documentation or interesting
+links.  The best way to get involved in the MathMap community is by
+joining the <a href="http://groups.google.com/group/mathmap">MathMap Google Group</a>.
 
 <p>If you like MathMap, or if you have suggestions or questions
 regarding the MathMap language or user interface, feel free to <a
-href="mailto:schani@complang.tuwien.ac.at">contact the author</a>.  I
+href="mailto:mark.probst@gmail.com">contact the author</a>.  I
 am looking forward to your feedback.
 </blockquote>
 

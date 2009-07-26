@@ -5,3 +5,6 @@ language.html : language.chtml mathmap.chh
 
 reference.html : reference.chtml ../builtins_doc.html
 	chpp reference.chtml >reference.html
+
+clean :
+	rm -f language.html reference.html
