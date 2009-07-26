@@ -86,7 +86,7 @@ rm -rf "$RPM_BUILD_ROOT"
 
 %files
 %defattr(-,root,root)
-%doc ANNOUNCEMENT COPYING README README.filters README.mercurial
+%doc ANNOUNCEMENT COPYING README README.filters README.git
 %{_bindir}/mathmap
 %{_plugindir}/mathmap
 %{_langdir}/mathmap.lang
