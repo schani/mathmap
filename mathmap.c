@@ -1225,15 +1225,15 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 
     ++num_pixels_requested;
 
-    if (cmd_line_mode)
-	return cmdline_mathmap_get_pixel(invocation, drawable, frame, x, y);
-
-    g_assert(drawable->kind == INPUT_DRAWABLE_GIMP);
-
     if (x < 0 || x >= drawable->image.pixel_width)
 	return invocation->edge_color_x;
     if (y < 0 || y >= drawable->image.pixel_height)
 	return invocation->edge_color_y;
+
+    if (cmd_line_mode)
+	return cmdline_mathmap_get_pixel(invocation, drawable, frame, x, y);
+
+    g_assert(drawable->kind == INPUT_DRAWABLE_GIMP);
 
     x += drawable->v.gimp.x0;
     y += drawable->v.gimp.y0;
