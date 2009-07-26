@@ -1177,14 +1177,16 @@ bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
     (set result (make (rgba 4) (tuple-nth t 0) (tuple-nth t 1) (tuple-nth t 2) (tuple-nth t 3)))))
 
 (defbuiltin "render" render (image 1) ((drawable (image 1)))
-  ;FIXME: docstring
+  "Renders the image <tt>drawable</tt>, giving another drawable, which
+is a bitmap image."
   (set result (make (image 1) (render (nth 0 drawable)
 				      (internal "__renderPixelW") (internal "__renderPixelH")))))
 
 ;;; images
 
 (defbuiltin "pixelSize" pixelSize (xy 2) ((drawable (image 1)))
-  ;FIXME: docstring
+  "Returns a tuple giving the width and height of one pixel in the
+image <tt>drawable</tt>."
   (set result (make (xy 2) (image-pixel-width (nth 0 drawable)) (image-pixel-height (nth 0 drawable)))))
 
 ;;; colors
@@ -1340,8 +1342,8 @@ component <tt>a</tt>, i.e. <tt>rgba:[g,g,g,a]</tt>."
 ;;; libnoise
 
 (defbuiltin "noise" noise-perlin-simple (nil 1) ((a (? 3)))
-  "The perlin noise function, defined in three-dimensional space.
-Its value lie between -1 and 1 if <tt>octaves</tt> is 1.
+  "The Perlin noise function, defined in three-dimensional space.
+Its values lie between -1 and 1 if <tt>octaves</tt> is 1.
 <tt>octaves</tt> is the number of octaves (by default 1).
 <tt>persistence</tt> is the factor by which the amplitude dimishes
 from one octave to the next.  <tt>lacunarity</tt> is the factor by
@@ -1352,15 +1354,29 @@ which the frequency increases from one octave to the next."
   (set result (make (nil 1) (libnoise-perlin (nth 0 octaves) (nth 0 persistence) (nth 0 lacunarity)
 					     (nth 0 a) (nth 1 a) (nth 2 a)))))
 
-(defbuiltin "noise_billow" noise-billow (nil 1) ((octaves (? 1)) (persistence (? 1)) (lacunarity (? 1)) (a (? 3)))
+(defbuiltin "noiseBillow" noise-billow (nil 1) ((octaves (? 1)) (persistence (? 1)) (lacunarity (? 1)) (a (? 3)))
+  "A \"billowy\" noise function, similar to Perlin noise.
+Its values lie between -1 and 1 if <tt>octaves</tt> is 1.
+<tt>octaves</tt> is the number of octaves (by default 1).
+<tt>persistence</tt> is the factor by which the amplitude dimishes
+from one octave to the next.  <tt>lacunarity</tt> is the factor by
+which the frequency increases from one octave to the next."
   (set result (make (nil 1) (libnoise-billow (nth 0 octaves) (nth 0 persistence) (nth 0 lacunarity)
 					     (nth 0 a) (nth 1 a) (nth 2 a)))))
 
-(defbuiltin "noise_ridged_multi" noise-ridged-multi (nil 1) ((octaves (? 1)) (lacunarity (? 1)) (a (? 3)))
+(defbuiltin "noiseRidgedMulti" noise-ridged-multi (nil 1) ((octaves (? 1)) (lacunarity (? 1)) (a (? 3)))
+  "A \"ridgy\" noise function, similar to Perlin noise.
+Its values lie between -1 and 1 if <tt>octaves</tt> is 1.
+<tt>octaves</tt> is the number of octaves (by default 1).
+<tt>persistence</tt> is the factor by which the amplitude dimishes
+from one octave to the next.  <tt>lacunarity</tt> is the factor by
+which the frequency increases from one octave to the next."
   (set result (make (nil 1) (libnoise-ridged-multi (nth 0 octaves) (nth 0 lacunarity)
 						   (nth 0 a) (nth 1 a) (nth 2 a)))))
 
-(defbuiltin "voronoi_cells" noise-voronoi (nil 1) ((a (? 3)))
+(defbuiltin "voronoiCells" noise-voronoi (nil 1) ((a (? 3)))
+  "The Voronoi cell function, defined in three-dimensional space.  Its
+values lie between -1 and 1."
   (set result (make (nil 1) (libnoise-voronoi 1 (nth 0 a) (nth 1 a) (nth 2 a)))))
 
 (defun type-string (type args)
