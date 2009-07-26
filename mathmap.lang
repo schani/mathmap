@@ -143,13 +143,12 @@
 
 		<!-- Random -->
 		<keyword>rand</keyword>
-		<keyword>noise</keyword>
 
 		<!-- libnoise -->
-		<keyword>noise_perlin</keyword>
-		<keyword>noise_billow</keyword>
-		<keyword>noise_ridged_multi</keyword>
-		<keyword>voronoi_cells</keyword>
+		<keyword>noise</keyword>
+		<keyword>noiseBillow</keyword>
+		<keyword>noiseRidgedMulti</keyword>
+		<keyword>voronoiCells</keyword>
 	</keyword-list>
 
 	<keyword-list _name = "Builtin Values" style = "Keyword" case-sensitive="TRUE">
