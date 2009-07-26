@@ -219,7 +219,7 @@ TAGS :
 dist : new_builtins.c parser.c new_template.c backends/lazy_creator.cpp clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.git ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y make_template.pl *.po mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.git ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y make_template.pl *.po exported_symbols mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
 	cp -r debian mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils
@@ -236,16 +236,15 @@ dist : new_builtins.c parser.c new_template.c backends/lazy_creator.cpp clean
 	cp backends/*.[ch] mathmap-$(VERSION)/backends
 	cp backends/*.cpp mathmap-$(VERSION)/backends
 	mkdir mathmap-$(VERSION)/builtins
-	cp builtins/*.[ch] mathmap-$(VERSION)/builtins
+	cp builtins/*.[ch] builtins/*.cpp mathmap-$(VERSION)/builtins
 	mkdir mathmap-$(VERSION)/doc
-	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise.jpg mathmap-$(VERSION)/doc
+	cp html/language.html html/reference.html html/cartesian.png html/gray_gradient.jpg html/finn.jpg html/sinegraph.png html/sine_finn.jpg html/polar.png html/finn_pond.jpg html/target.jpg html/rmod.jpg html/finn_vignette.jpg html/redgreengradient.jpg html/noise_demo.jpg mathmap-$(VERSION)/doc
 	mkdir mathmap-$(VERSION)/pixmaps
 	cp pixmaps/*.png mathmap-$(VERSION)/pixmaps
 	cp -rL examples lispreader rwimg mathmap-$(VERSION)/
 	rm -rf mathmap-$(VERSION)/examples/Test
 	rm -f mathmap-$(VERSION)/examples/*.mm
-	rm -rf `find mathmap-$(VERSION) -name '.svn'`
-	rm -rf `find mathmap-$(VERSION) -name '.hg*'`
+	rm -rf `find mathmap-$(VERSION) -name '.git'`
 	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)
@@ -260,6 +259,6 @@ mingw-dist : mathmap llvm_template.o
 	cp mathmap.exe mathmap-$(VERSION)-mingw32/plug-ins/
 	cp /usr/local/bin/libgsl-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
 	cp /usr/local/bin/libgslcblas-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
-	cp /c/mingw/bin/libgtksourceview-1.0-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
+	cp /c/mingw/bin/libgtksourceview-2.0-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
 	cp llvm_template.o pixmaps/*.png mathmap-$(VERSION)-mingw32/mathmap/
 	cp -a examples mathmap-$(VERSION)-mingw32/mathmap/expressions

@@ -1,32 +1,32 @@
 %define _plugindir %{_libdir}/gimp/2.0/plug-ins
 %define _mathmapdir %{_datadir}/gimp/2.0/mathmap
-%define _langdir %{_datadir}/gtksourceview-1.0/language-specs
-
-%if "%{?product_vendor}" == "Mandriva"
-%if !0%{?mandriva_version}
-%define mandriva_version %( echo %{product_version} | colrm 5 )
-%endif
-%endif
+%define _langdir %{_datadir}/gtksourceview-2.0/language-specs
 
 %if 0%{?mandriva_version}
+%define mdkversion %{mandriva_version}00
+%endif
+
+%if "x%{?_vendor}" == "xmandriva"
 
 %define _mmrelease %mkrel 1
+%define _gtksourceview libgtksourceview-2.0
+
 %ifarch x86_64
 %define _giflib lib64ungif4
 %else
 %define _giflib libungif
-%endif
-%if %mandriva_version == 2007
-%define _gtksourceview gtksourceview
-%else
-%define _gtksourceview libgtksourceview1
 %endif
 
 %else
 
 %define _mmrelease 1
 %define _giflib giflib
+
+%if 0%{?suse_version}
 %define _gtksourceview gtksourceview
+%else
+%define _gtksourceview gtksourceview2
+%endif
 
 %endif
 
@@ -41,6 +41,8 @@ URL:		http://www.complang.tuwien.ac.at/schani/mathmap/
 Source:		%{name}_%{version}-1.tar.gz
 Requires: gcc
 Requires: gimp
+BuildRequires: gcc
+BuildRequires: gcc-c++
 BuildRequires: libpng-devel
 BuildRequires: libjpeg-devel
 BuildRequires: %{_giflib}-devel
@@ -51,12 +53,13 @@ BuildRequires: make
 BuildRequires: fftw3-devel
 BuildRequires: %{_gtksourceview}-devel
 BuildRequires: gettext
-%if 0%{?mandriva_version} == 2008
+BuildRequires: unzip
+BuildRequires: doxygen
+BuildRequires: perl
+%if "x%{?_vendor}" == "xmandriva"
 BuildRequires: gimp-help-2-en
-%endif
-%if 0%{?suse_version}
-%if %suse_version > 1020
-BuildRequires: gtksourceview18-devel
+%if %mdkversion >= 200900
+BuildRequires: pulseaudio-esound-compat
 %endif
 %endif
 %if 0%{?fedora_version}
@@ -94,6 +97,9 @@ rm -rf "$RPM_BUILD_ROOT"
 %{_datadir}/locale
 
 %changelog
+* Sun Jul 26 2009 Mark Probst <schani@complang.tuwien.ac.at> 1.3.4
+- Update for gtksourceview2
+
 * Sun Aug 31 2008 Mark Probst <schani@complang.tuwien.ac.at> 1.3.4
 - Update for version 1.3.4
 
