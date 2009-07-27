@@ -56,6 +56,8 @@ BuildRequires: gettext
 BuildRequires: unzip
 BuildRequires: doxygen
 BuildRequires: perl
+
+%if 0%{?opensuse_bs}
 %if "x%{?_vendor}" == "xmandriva"
 BuildRequires: gimp-help-2-en
 %if %mdkversion >= 200900
@@ -65,6 +67,7 @@ BuildRequires: pulseaudio-esound-compat
 %if 0%{?fedora_version}
 %if %fedora_version == 8
 BuildRequires: lynx
+%endif
 %endif
 %endif
 
