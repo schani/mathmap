@@ -31,7 +31,7 @@
 %endif
 
 Name:           mathmap
-Version:        1.3.4
+Version:        \version
 Release:        %{_mmrelease}
 License:        GPL
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build

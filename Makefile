@@ -219,8 +219,12 @@ TAGS :
 dist : new_builtins.c parser.c new_template.c backends/lazy_creator.cpp clean
 	rm -rf mathmap-$(VERSION)
 	mkdir mathmap-$(VERSION)
-	cp Makefile README README.blender README.filters README.git ANNOUNCEMENT COPYING INSTALL mathmap.spec new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y make_template.pl *.po exported_symbols mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
-	cp -r debian mathmap-$(VERSION)
+	cp Makefile README README.blender README.filters README.git ANNOUNCEMENT COPYING INSTALL new_template.c.in *.[ch] builtins.lisp ops.lisp parser.y make_template.pl *.po exported_symbols mathmap.lang libnoisesrc-1.0.0.zip libnoise-*.diff mathmap-$(VERSION)
+	chpp -Dversion=$(VERSION) --meta-char=\\ <mathmap.spec.in >mathmap-$(VERSION)/mathmap.spec
+	mkdir mathmap-$(VERSION)/debian
+	cp debian/compat debian/control debian/copyright debian/dirs debian/docs debian/rules mathmap-$(VERSION)/debian
+	chpp -Dversion=$(VERSION) <debian/files.in >mathmap-$(VERSION)/debian/files
+	chpp -Dversion=$(VERSION) -Ddate="`date -R`" <debian/changelog.in >mathmap-$(VERSION)/debian/changelog
 	mkdir mathmap-$(VERSION)/lisp-utils
 	cp lisp-utils/*.lisp mathmap-$(VERSION)/lisp-utils
 	mkdir mathmap-$(VERSION)/generators
