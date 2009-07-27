@@ -240,7 +240,9 @@ static gboolean ignore_designer_tree_changes = FALSE;
 //static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
 GtkSourceBuffer *source_buffer;
+#ifdef GTK_SOURCE_MARK
 GtkSourceMark *source_marker = NULL;
+#endif
 GtkWidget *mathmap_dialog_window,
     *expression_entry,
     *animation_table,
@@ -1789,6 +1791,7 @@ mathmap_dialog (int mutable_expression)
 	    expression_entry = gtk_source_view_new_with_buffer(source_buffer);
 	    gtk_widget_show(expression_entry);
 
+#ifdef GTK_SOURCE_MARK
 	    gtk_source_view_set_show_line_marks(GTK_SOURCE_VIEW(expression_entry), TRUE);
 
 	    if ((pixbuf = load_pixbuf("error.png")))
@@ -1796,6 +1799,7 @@ mathmap_dialog (int mutable_expression)
 		gtk_source_view_set_mark_category_pixbuf (GTK_SOURCE_VIEW (expression_entry), "one", pixbuf);
 		g_object_unref (pixbuf);
 	    }
+#endif
 
 	    gtk_container_add(GTK_CONTAINER(scrolled_window), expression_entry);
 
@@ -2279,11 +2283,13 @@ dialog_text_update (void)
 void
 delete_expression_marker (void)
 {
+#ifdef GTK_SOURCE_MARK
     if (source_marker != NULL)
     {
         gtk_text_buffer_delete_mark(GTK_TEXT_BUFFER(source_buffer), GTK_TEXT_MARK(source_marker));
 	source_marker = 0;
     }
+#endif
 }
 
 void
@@ -2304,7 +2310,9 @@ set_expression_marker (int start_line, int start_column, int end_line, int end_c
 
 	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &start_iter, start_line, start_column);
 	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &end_iter, end_line, end_column);
+#ifdef GTK_SOURCE_MARK
 	source_marker = gtk_source_buffer_create_source_mark(source_buffer, NULL, "one", &start_iter);
+#endif
 	gtk_text_buffer_select_range(GTK_TEXT_BUFFER(source_buffer), &start_iter, &end_iter);
 	gtk_text_view_scroll_mark_onscreen(GTK_TEXT_VIEW(expression_entry),
 					   gtk_text_buffer_get_insert(GTK_TEXT_BUFFER(source_buffer)));
