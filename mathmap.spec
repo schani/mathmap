@@ -94,7 +94,7 @@ rm -rf "$RPM_BUILD_ROOT"
 %{_plugindir}/mathmap
 %{_langdir}/mathmap.lang
 %{_mathmapdir}
-%{_datadir}/locale
+%{_datadir}/locale/*/LC_MESSAGES/mathmap.mo
 
 %changelog
 * Sun Jul 26 2009 Mark Probst <schani@complang.tuwien.ac.at> 1.3.4
