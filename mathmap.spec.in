@@ -2,20 +2,31 @@
 %define _mathmapdir %{_datadir}/gimp/2.0/mathmap
 %define _langdir %{_datadir}/gtksourceview-2.0/language-specs
 
+%if 0%{?opensuse_bs}
+
+%if "x%{?_vendor}" == "xmandriva"
+%define mandriva 1
 %if 0%{?mandriva_version}
 %define mdkversion %{mandriva_version}00
 %endif
+%endif
 
-%if "x%{?_vendor}" == "xmandriva"
+%else
+
+%if %{?_vendor:%_vendor==mandriva || %_vendor==Mandriva}
+%define mandriva 1
+%endif
+
+%{?mandriva_version:%define mdkversion %{mandriva_version}00}
+%{?!mdkversion:%define mdkversion %(perl -pe '/(\\d+)\\.(\\d)\\.?(\\d)?/; $_="$1$2".($3||0)' /etc/mandriva-release)}
+
+%endif
+
+%if 0%{?mandriva}
 
 %define _mmrelease %mkrel 1
 %define _gtksourceview libgtksourceview-2.0
-
-%ifarch x86_64
-%define _giflib lib64ungif4
-%else
-%define _giflib libungif
-%endif
+%define _giflib ungif
 
 %else
 
@@ -58,8 +69,9 @@ BuildRequires: doxygen
 BuildRequires: perl
 
 %if 0%{?opensuse_bs}
-%if "x%{?_vendor}" == "xmandriva"
+%if 0%{?mandriva}
 BuildRequires: gimp-help-2-en
+BuildRequires: which libtool
 %if %mdkversion >= 200900
 BuildRequires: pulseaudio-esound-compat
 %endif
