@@ -10,12 +10,17 @@ threads?
 installer (from yuval)
 
 ** LLVM
-why do we compare against floats in simple counting loops? (do we?)
+why do we compare against floats in simple counting loops, for example:
+  filter loop ()
+    g = 0;
+    for i = 0 .. 10 do
+      g = g + (x + y)/30
+    end;
+    grayColor(g)
+  end
 update exported_symbols
 
 ** Packaging
-give credit to contributors - hans lundmark (cgamma?), serge van thillo, ...
-give credit to filter developers
 check out Robin Norwood's spec file changes (for Fedora)
 
 * 1.3.x

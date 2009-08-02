@@ -48,6 +48,7 @@ MACOSX_LIBS=-lmx
 MACOSX_CFLAGS=-I/sw/include
 else
 CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
+#CGEN_CC=-DCGEN_CC="\"gcc -O0 -g -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 endif
 
