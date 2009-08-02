@@ -576,14 +576,14 @@ llvm_filter_init_slice (mathmap_slice_t *slice, image_t *closure)
 {
     mathmap_frame_t *mmframe = slice->frame;
     float t = mmframe->current_t;
-    pools_t *pools = &slice->pools;
+    mathmap_pools_t *pools = &slice->pools;
     int col;
 
 #ifdef POOLS_DEBUG_OUTPUT
     printf("initing slice %p (pools %p)\n", slice, pools);
 #endif
 
-    slice->y_vars = pools_alloc(pools, sizeof(void*) * slice->region_width);
+    slice->y_vars = mathmap_pools_alloc(pools, sizeof(void*) * slice->region_width);
 
     for (col = 0; col < slice->region_width; ++col)
     {
@@ -606,13 +606,13 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
     int is_bw = output_bpp == 1 || output_bpp == 2;
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
-    pools_t pixel_pools;
-    pools_t *pools;
+    mathmap_pools_t pixel_pools;
+    mathmap_pools_t *pools;
     int region_x = slice->region_x;
     int frame_render_width = mmframe->frame_render_width;
     int frame_render_height = mmframe->frame_render_height;
 
-    init_pools(&pixel_pools);
+    mathmap_pools_init_local(&pixel_pools);
     pools = &pixel_pools;
 
 #ifdef POOLS_DEBUG_OUTPUT
@@ -640,7 +640,7 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 	    float x = CALC_VIRTUAL_X(col + region_x, frame_render_width, sampling_offset_x);
 	    float *return_tuple;
 
-	    reset_pools(pools);
+	    mathmap_pools_reset(pools);
 
 #ifdef POOLS_DEBUG_OUTPUT
 	    printf("calcing row %d col %d\n", row, col);
@@ -686,7 +686,7 @@ llvm_filter_calc_lines (mathmap_slice_t *slice, image_t *closure, int first_row,
 	    invocation->rows_finished[row] = 1;
     }
 
-    free_pools(&pixel_pools);
+    mathmap_pools_free(&pixel_pools);
 }
 
 static void
@@ -777,7 +777,7 @@ invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
     frame->current_frame = current_frame;
     frame->current_t = current_t;
 
-    init_pools(&frame->pools);
+    mathmap_pools_init_global(&frame->pools);
 
     closure->v.closure.funcs->init_frame(frame, closure);
 
@@ -787,7 +787,7 @@ invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
 void
 invocation_free_frame (mathmap_frame_t *frame)
 {
-    free_pools(&frame->pools);
+    mathmap_pools_free(&frame->pools);
     g_free(frame);
 }
 
@@ -828,7 +828,7 @@ invocation_init_slice (mathmap_slice_t *slice, image_t *closure, mathmap_frame_t
     slice->sampling_offset_x = sampling_offset_x;
     slice->sampling_offset_y = sampling_offset_y;
 
-    init_pools(&slice->pools);
+    mathmap_pools_init_local(&slice->pools);
 
     closure->v.closure.funcs->init_slice(slice, closure);
 }
@@ -836,7 +836,7 @@ invocation_init_slice (mathmap_slice_t *slice, image_t *closure, mathmap_frame_t
 void
 invocation_deinit_slice (mathmap_slice_t *slice)
 {
-    free_pools(&slice->pools);
+    mathmap_pools_free(&slice->pools);
 }
 
 static void

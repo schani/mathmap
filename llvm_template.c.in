@@ -36,6 +36,8 @@
 #include "opmacros.h"
 #include "lispreader/pools.h"
 
+$def_mmpools
+
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))
 #endif
@@ -170,7 +172,7 @@ make_color (int r, int g, int b, int a)
 }
 
 float*
-alloc_tuple (pools_t *pools, int n)
+alloc_tuple (mathmap_pools_t *pools, int n)
 {
     return ALLOC_TUPLE(n);
 }
@@ -182,7 +184,7 @@ tuple_set (float *tuple, int n, float x)
 }
 
 tree_vector_t*
-alloc_tree_vector (pools_t *pools, int n, float *v)
+alloc_tree_vector (mathmap_pools_t *pools, int n, float *v)
 {
     return new_tree_vector(pools, n, v);
 }
@@ -193,7 +195,7 @@ get_slice_frame (mathmap_slice_t *slice)
     return slice->frame;
 }
 
-pools_t*
+mathmap_pools_t*
 get_slice_pools (mathmap_slice_t *slice)
 {
     return &slice->pools;
@@ -223,7 +225,7 @@ get_frame_t (mathmap_frame_t *frame)
     return frame->current_t;
 }
 
-pools_t*
+mathmap_pools_t*
 get_frame_pools (mathmap_frame_t *frame)
 {
     return &frame->pools;
@@ -261,7 +263,7 @@ get_invocation_image_R (mathmap_invocation_t *invocation)
 
 void*
 calc_closure_xy_vars (mathmap_invocation_t *invocation, image_t *closure, float t,
-		      void* (*init_frame) (mathmap_invocation_t*, image_t*, float, pools_t*))
+		      void* (*init_frame) (mathmap_invocation_t*, image_t*, float, mathmap_pools_t*))
 {
     if (!closure->v.closure.xy_vars)
     {
@@ -303,12 +305,12 @@ get_uninited_image (void)
 $def_llvm_mathfuncs
 
 image_t*
-alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_args, filter_func_t filter_func,
+alloc_closure_image (mathmap_invocation_t *invocation, mathmap_pools_t *pools, int num_args, filter_func_t filter_func,
 		     llvm_init_frame_func_t init_frame_func, llvm_filter_func_t main_filter_func,
 		     init_x_or_y_func_t init_x_func, init_x_or_y_func_t init_y_func)
 {
     image_t *image = ALLOC_CLOSURE_IMAGE(num_args);
-    mathfuncs_t *funcs = (mathfuncs_t*)pools_alloc(pools, sizeof(mathfuncs_t));
+    mathfuncs_t *funcs = (mathfuncs_t*)mathmap_pools_alloc(pools, sizeof(mathfuncs_t));
 
 #ifdef POOLS_DEBUG_OUTPUT
     printf("alloced closure %p from pools %p\n", image, pools);
@@ -332,9 +334,9 @@ alloc_closure_image (mathmap_invocation_t *invocation, pools_t *pools, int num_a
 }
 
 userval_t*
-alloc_uservals (pools_t *pools, int num)
+alloc_uservals (mathmap_pools_t *pools, int num)
 {
-    return (userval_t*)pools_alloc(pools, sizeof(userval_t) * num);
+    return (userval_t*)mathmap_pools_alloc(pools, sizeof(userval_t) * num);
 }
 
 userval_t*
@@ -402,25 +404,25 @@ set_closure_pixel_size (image_t *image, int width, int height)
 $def_native_filters
 
 image_t*
-llvm_native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+llvm_native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     return native_filter_gaussian_blur(invocation, args, pools);
 }
 
 image_t*
-llvm_native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+llvm_native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     return native_filter_convolve(invocation, args, pools);
 }
 
 image_t*
-llvm_native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+llvm_native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     return native_filter_half_convolve(invocation, args, pools);
 }
 
 image_t*
-llvm_native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+llvm_native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     return native_filter_visualize_fft(invocation, args, pools);
 }

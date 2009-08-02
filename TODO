@@ -6,10 +6,8 @@
 FFTW
 .lang file
 get correct number of cpus
+threads?
 installer (from yuval)
-
-** General
-xy_vars must be moved to slice.  the problem is that it might contain closures, whose pools might be used by the threads, and they're not thread-safe
 
 ** LLVM
 why do we compare against floats in simple counting loops? (do we?)
@@ -60,6 +58,7 @@ Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
 
 ** Rendering
+strip resize images manually
 specifiable size
 antialiasing from rendered images
 do rendering multi-threaded if possible
@@ -80,6 +79,7 @@ color gimp layer mode
 ** Native filters
 figure out how much faster 2^n ffts are
 do gaussian multithreaded if possible
+see if there are faster gauss implementations available (some intel stuff?)
 take aspect ratio of kernel into consideration - don't stretch it
 normalize argument for convolve should not be bool but be the value to normalize to
 image segmentation

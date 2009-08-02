@@ -45,6 +45,8 @@
 #include "$include/opmacros.h"
 #include "$include/pools.h"
 
+$def_mmpools
+
 #ifndef MIN
 #define MIN(a,b)         (((a)<(b))?(a):(b))
 #endif
@@ -163,7 +165,7 @@ double gsl_sf_gamma (double x);
 
 extern void save_debug_tuples (mathmap_invocation_t *invocation, int row, int col);
 
-#define DECLARE_NATIVE_FILTER(name)	extern image_t* name (mathmap_invocation_t*, userval_t*, pools_t*)
+#define DECLARE_NATIVE_FILTER(name)	extern image_t* name (mathmap_invocation_t*, userval_t*, mathmap_pools_t*)
 $native_filter_decls
 
 $filter_begin
@@ -177,7 +179,7 @@ static void
 init_slice_$name (mathmap_slice_t *slice, image_t *closure);
 
 static float*
-filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, pools_t *pools);
+filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, mathmap_pools_t *pools);
 
 static mathfuncs_t mathfuncs_$name;
 $filter_end
@@ -217,14 +219,14 @@ calc_lines_$name (mathmap_slice_t *slice, image_t *closure, int first_row, int l
     int need_alpha = output_bpp == 2 || output_bpp == 4;
     int alpha_index = output_bpp - 1;
     xy_const_vars_t_$name *xy_vars = mmframe->xy_vars;
-    pools_t pixel_pools;
-    pools_t *pools;
+    mathmap_pools_t pixel_pools;
+    mathmap_pools_t *pools;
     int region_x = slice->region_x;
     int frame_render_width = mmframe->frame_render_width;
     int frame_render_height = mmframe->frame_render_height;
     userval_t *arguments = closure->v.closure.args;
 
-    init_pools(&pixel_pools);
+    mathmap_pools_init_local(&pixel_pools);
 
     first_row = MAX(0, first_row);
     last_row = MIN(last_row, slice->region_y + slice->region_height);
@@ -254,7 +256,7 @@ calc_lines_$name (mathmap_slice_t *slice, image_t *closure, int first_row, int l
 	    if (invocation->do_debug)
 		invocation->num_debug_tuples = 0;
 
-	    reset_pools(pools);
+	    mathmap_pools_reset(pools);
 
 	    {
 		$m
@@ -299,7 +301,7 @@ calc_lines_$name (mathmap_slice_t *slice, image_t *closure, int first_row, int l
 	    invocation->rows_finished[row] = 1;
     }
 
-    free_pools(&pixel_pools);
+    mathmap_pools_free(&pixel_pools);
 }
 
 static void
@@ -315,12 +317,12 @@ init_frame_$name (mathmap_frame_t *mmframe, image_t *closure)
     int __renderPixelW = invocation->render_width;
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
-    pools_t *pools = &mmframe->pools;
+    mathmap_pools_t *pools = &mmframe->pools;
     userval_t *arguments = closure->v.closure.args;
 
     get_orig_val_pixel_func = invocation->orig_val_func;
 
-    mmframe->xy_vars = xy_vars = (xy_const_vars_t_$name*)pools_alloc(pools, sizeof(xy_const_vars_t_$name));
+    mmframe->xy_vars = xy_vars = (xy_const_vars_t_$name*)mathmap_pools_alloc(pools, sizeof(xy_const_vars_t_$name));
 
     {
 	$xy_code
@@ -340,12 +342,12 @@ init_slice_$name (mathmap_slice_t *slice, image_t *closure)
     int __renderPixelW = invocation->render_width;
     int __renderPixelH = invocation->render_height;
     float R = invocation->image_R;
-    pools_t *pools = &slice->pools;
+    mathmap_pools_t *pools = &slice->pools;
     userval_t *arguments = closure->v.closure.args;
 
     get_orig_val_pixel_func = invocation->orig_val_func;
 
-    slice->y_vars = (y_const_vars_t_$name*)pools_alloc(pools, sizeof(y_const_vars_t_$name) * slice->region_width);
+    slice->y_vars = (y_const_vars_t_$name*)mathmap_pools_alloc(pools, sizeof(y_const_vars_t_$name) * slice->region_width);
 
     {
 	xy_const_vars_t_$name *xy_vars = mmframe->xy_vars;
@@ -364,7 +366,7 @@ init_slice_$name (mathmap_slice_t *slice, image_t *closure)
 }
 
 static float*
-filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, pools_t *pools)
+filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float y, float t, mathmap_pools_t *pools)
 {
     color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int);
     int frame = 0;
@@ -383,9 +385,9 @@ filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float
 
     if (closure->v.closure.xy_vars == 0)
     {
-	pools_t *pools = closure->v.closure.pools;
+	mathmap_pools_t *pools = closure->v.closure.pools;
 
-	xy_vars = closure->v.closure.xy_vars = pools_alloc(pools, sizeof(xy_const_vars_t_$name));
+	xy_vars = closure->v.closure.xy_vars = mathmap_pools_alloc(pools, sizeof(xy_const_vars_t_$name));
 
 	{
 	    $xy_code

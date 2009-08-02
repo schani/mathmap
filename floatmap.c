@@ -28,9 +28,9 @@
 #include "rwimg/writeimage.h"
 
 image_t*
-floatmap_alloc (int width, int height, pools_t *pools)
+floatmap_alloc (int width, int height, mathmap_pools_t *pools)
 {
-    image_t *img = pools_alloc(pools, sizeof(image_t));
+    image_t *img = mathmap_pools_alloc(pools, sizeof(image_t));
 
     img->type = IMAGE_FLOATMAP;
     img->pixel_width = width;
@@ -39,13 +39,13 @@ floatmap_alloc (int width, int height, pools_t *pools)
     img->v.floatmap.ay = img->v.floatmap.by = (float)(height - 1) / 2.0;
     img->v.floatmap.ay *= -1.0;
 
-    img->v.floatmap.data = pools_alloc(pools, sizeof(float) * width * height * NUM_FLOATMAP_CHANNELS);
+    img->v.floatmap.data = mathmap_pools_alloc(pools, sizeof(float) * width * height * NUM_FLOATMAP_CHANNELS);
 
     return img;
 }
 
 image_t*
-floatmap_copy (image_t *floatmap, pools_t *pools)
+floatmap_copy (image_t *floatmap, mathmap_pools_t *pools)
 {
     image_t *copy;
 

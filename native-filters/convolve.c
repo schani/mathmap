@@ -27,7 +27,7 @@
 #include <string.h>
 
 #include "../drawable.h"
-#include "../lispreader/pools.h"
+#include "../mmpools.h"
 
 #include "native-filters.h"
 
@@ -66,7 +66,7 @@ copy_and_add (double *dest, float *src, int n)
 
 CALLBACK_SYMBOL
 image_t*
-native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     image_t *in_image = args[0].v.image;
     image_t *filter_image = args[1].v.image;
@@ -168,7 +168,7 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, pools
 
 CALLBACK_SYMBOL
 image_t*
-native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     image_t *in_image = args[0].v.image;
     image_t *filter_image = args[1].v.image;
@@ -254,7 +254,7 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
 
 CALLBACK_SYMBOL
 image_t*
-native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     image_t *in_image = args[0].v.image;
     gboolean ignore_alpha = args[1].v.bool_const != 0.0;

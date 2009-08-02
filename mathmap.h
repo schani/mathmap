@@ -38,14 +38,13 @@
 #include "color.h"
 #include "designer/designer.h"
 #include "expression_db.h"
-
-#include "lispreader/pools.h"
+#include "mmpools.h"
 
 #ifndef OPENSTEP
 #include <libgimp/gimp.h>
 #endif
 
-#define MATHMAP_DATE		"January 2008"
+#define MATHMAP_DATE		"August 2009"
 
 #ifdef USE_LLVM
 #define MAIN_TEMPLATE_FILENAME  "llvm_template.o"
@@ -62,7 +61,8 @@
 
 struct _mathmap_invocation_t;
 
-typedef image_t* (*native_filter_func_t) (struct _mathmap_invocation_t *invocation, userval_t *args, pools_t *pools);
+typedef image_t* (*native_filter_func_t) (struct _mathmap_invocation_t *invocation, userval_t *args,
+					  mathmap_pools_t *pools);
 
 typedef struct _filter_t
 {
@@ -197,7 +197,7 @@ typedef struct _mathmap_frame_t
     float current_t;
 
     void *xy_vars;
-    pools_t pools;
+    mathmap_pools_t pools;
 } mathmap_frame_t;
 
 typedef struct _mathmap_slice_t
@@ -208,7 +208,7 @@ typedef struct _mathmap_slice_t
     int region_x, region_y, region_width, region_height;
 
     void *y_vars;
-    pools_t pools;
+    mathmap_pools_t pools;
 } mathmap_slice_t;
 /* END */
 

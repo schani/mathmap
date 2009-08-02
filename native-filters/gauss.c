@@ -31,7 +31,7 @@
 #include <glib.h>
 
 #include "../drawable.h"
-#include "../lispreader/pools.h"
+#include "../mmpools.h"
 
 #include "native-filters.h"
 
@@ -124,7 +124,7 @@ transfer_pixels (const double *src1, const double *src2, float *dest, int width)
 }
 
 static image_t*
-gauss_iir (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, pools_t *pools)
+gauss_iir (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, mathmap_pools_t *pools)
 {
     image_t *out;
     int width = floatmap->pixel_width;
@@ -498,7 +498,7 @@ do_full_lre (const float *src, float *dest, int width, int length, int dist, con
 }
 
 static image_t*
-gauss_rle (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, pools_t *pools)
+gauss_rle (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, mathmap_pools_t *pools)
 {
     int width = floatmap->pixel_width;
     int height = floatmap->pixel_height;
@@ -640,7 +640,7 @@ gauss_rle (image_t *floatmap, float horizontal_std_dev, float vertical_std_dev, 
 
 CALLBACK_SYMBOL
 image_t*
-native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, pools_t *pools)
+native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
     image_t *floatmap = args[0].v.image;
     float horizontal_std_dev = args[1].v.float_const;

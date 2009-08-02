@@ -114,7 +114,7 @@ CXX = g++
 
 export CFLAGS CC
 
-COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
+COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o mmpools.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o compopt/dce.o compopt/resize.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -122,7 +122,7 @@ GIMP_OBJECTS = mathmap.o
 
 OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
-TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
+TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h mmpools.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
 mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)

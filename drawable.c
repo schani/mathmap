@@ -198,9 +198,9 @@ get_nth_input_drawable (int n)
 
 CALLBACK_SYMBOL
 image_t*
-make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools)
+make_resize_image (image_t *image, float x_factor, float y_factor, mathmap_pools_t *pools)
 {
-    image_t *resize = pools_alloc(pools, sizeof(image_t));
+    image_t *resize = mathmap_pools_alloc(pools, sizeof(image_t));
 
     g_assert(image->type != IMAGE_RESIZE);
 
@@ -227,8 +227,8 @@ closure_image_alloc (mathfuncs_t *mathfuncs, filter_func_t filter_func,
     image->v.closure.funcs = mathfuncs;
     image->v.closure.func = filter_func;
     image->v.closure.num_args = num_uservals;
-    image->v.closure.pools = g_new(pools_t, 1);
-    init_pools(image->v.closure.pools);
+    image->v.closure.pools = g_new0(mathmap_pools_t, 1);
+    mathmap_pools_init_global(image->v.closure.pools);
     memcpy(image->v.closure.args, uservals, num_uservals * sizeof(userval_t));
 
     return image;
@@ -237,6 +237,8 @@ closure_image_alloc (mathfuncs_t *mathfuncs, filter_func_t filter_func,
 void
 closure_image_free (image_t *closure)
 {
-    free_pools(closure->v.closure.pools);
+    g_assert(closure->type == IMAGE_CLOSURE);
+    mathmap_pools_free(closure->v.closure.pools);
+    g_free(closure->v.closure.pools);
     g_free(closure);
 }

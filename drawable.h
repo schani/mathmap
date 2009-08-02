@@ -35,7 +35,7 @@
 
 #include "color.h"
 #include "userval.h"
-#include "lispreader/pools.h"
+#include "mmpools.h"
 
 #define INPUT_DRAWABLE_GIMP			1
 #define INPUT_DRAWABLE_CMDLINE_IMAGE		2
@@ -62,18 +62,18 @@ typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, struct _image_t*, i
 typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
 				 struct _image_t*,
 				 float, float, float,
-				 pools_t*);
+				 mathmap_pools_t*);
 
 /* FIXME: just for LLVM - remove eventually */
 typedef void* (*llvm_init_frame_func_t) (struct _mathmap_invocation_t*,
 					 struct _image_t*,
 					 float,
-					 pools_t*);
+					 mathmap_pools_t*);
 typedef float* (*llvm_filter_func_t) (struct _mathmap_slice_t*,
 				      struct _image_t*,
 				      void*, void*,
 				      float, float, float,
-				      pools_t*);
+				      mathmap_pools_t*);
 typedef void* (*init_x_or_y_func_t) (struct _mathmap_slice_t*,
 				     struct _image_t*,
 				     float, float);
@@ -101,7 +101,7 @@ typedef struct _image_t
 	    struct _mathfuncs_t *funcs;
 	    /* for getting single pixels - never called for the root closure */
 	    filter_func_t func;
-	    pools_t *pools;
+	    mathmap_pools_t *pools;
 	    void *xy_vars;
 	    int num_args;
 	    userval_t args[];
@@ -195,11 +195,11 @@ input_drawable_t* alloc_cmdline_image_input_drawable (const char *filename);
 input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 #endif
 
-image_t* floatmap_alloc (int width, int height, pools_t *pools);
-image_t* floatmap_copy (image_t *floatmap, pools_t *pools);
+image_t* floatmap_alloc (int width, int height, mathmap_pools_t *pools);
+image_t* floatmap_copy (image_t *floatmap, mathmap_pools_t *pools);
 
 /* TEMPLATE make_resize_image */
-image_t* make_resize_image (image_t *image, float x_factor, float y_factor, pools_t *pools);
+image_t* make_resize_image (image_t *image, float x_factor, float y_factor, mathmap_pools_t *pools);
 /* END */
 
 void floatmap_get_channel_column (float *dst, image_t *img, int col, int channel);

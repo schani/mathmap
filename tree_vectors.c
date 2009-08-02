@@ -45,7 +45,7 @@ get_depth_for_length (int length)
 }
 
 static void
-populate (pools_t *pools, tree_vector_node_t *node, int length, int depth, float *data)
+populate (mathmap_pools_t *pools, tree_vector_node_t *node, int length, int depth, float *data)
 {
     int i;
 
@@ -62,7 +62,7 @@ populate (pools_t *pools, tree_vector_node_t *node, int length, int depth, float
 	{
 	    int sub_length = MIN(length, LENGTH_FOR_DEPTH(depth - 1));
 
-	    node->subs[i] = pools_alloc(pools, sizeof(tree_vector_node_t));
+	    node->subs[i] = mathmap_pools_alloc(pools, sizeof(tree_vector_node_t));
 	    populate(pools, node->subs[i], sub_length, depth - 1, data);
 	    length -= sub_length;
 	    data += sub_length;
@@ -74,9 +74,9 @@ populate (pools_t *pools, tree_vector_node_t *node, int length, int depth, float
 }
 
 tree_vector_t*
-new_tree_vector (pools_t *pools, int length, float *data)
+new_tree_vector (mathmap_pools_t *pools, int length, float *data)
 {
-    tree_vector_t *tv = pools_alloc(pools, sizeof(tree_vector_t));
+    tree_vector_t *tv = mathmap_pools_alloc(pools, sizeof(tree_vector_t));
 
     g_assert(length > 0);
 
@@ -108,7 +108,7 @@ tree_vector_get (tree_vector_t *tv, int index)
 }
 
 tree_vector_t*
-tree_vector_set (pools_t *pools, tree_vector_t *tv, int index, float value)
+tree_vector_set (mathmap_pools_t *pools, tree_vector_t *tv, int index, float value)
 {
     int depth = tv->depth;
     tree_vector_t *new;
@@ -126,7 +126,7 @@ tree_vector_set (pools_t *pools, tree_vector_t *tv, int index, float value)
 	return new;
     }
 
-    new = pools_alloc(pools, sizeof(tree_vector_t));
+    new = mathmap_pools_alloc(pools, sizeof(tree_vector_t));
     new->length = tv->length;
     new->depth = tv->depth;
     memcpy(new->root.subs, tv->root.subs, sizeof(tree_vector_node_t*) * TREE_VECTOR_ARITY);
@@ -134,7 +134,7 @@ tree_vector_set (pools_t *pools, tree_vector_t *tv, int index, float value)
 
     while (depth > 0)
     {
-	tree_vector_node_t *new_sub = pools_alloc(pools, sizeof(tree_vector_node_t));
+	tree_vector_node_t *new_sub = mathmap_pools_alloc(pools, sizeof(tree_vector_node_t));
 	int sub_index = index >> (depth * TREE_VECTOR_SHIFT);
 
 	memcpy(new_sub->subs, node->subs[sub_index]->subs, sizeof(tree_vector_node_t*) * TREE_VECTOR_ARITY);
@@ -161,7 +161,7 @@ check (int length, tree_vector_t *tv, float *data)
 static void
 run_test (int length)
 {
-    pools_t pools;
+    mathmap_pools_t pools;
     float data[length];
     tree_vector_t *tv;
     int i;
@@ -171,7 +171,7 @@ run_test (int length)
     for (i = 0; i < length; ++i)
 	data[i] = (float)i;
 
-    init_pools(&pools);
+    mathmap_pools_init_local(&pools);
 
     tv = new_tree_vector(&pools, length, data);
 
@@ -186,7 +186,7 @@ run_test (int length)
     }
     check(length, tv, data);
 
-    free_pools(&pools);
+    mathmap_pools_free(&pools);
 
 }
 

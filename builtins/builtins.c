@@ -30,8 +30,7 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_linalg.h>
 
-#include "lispreader/pools.h"
-
+#include "mmpools.h"
 #include "builtins.h"
 #include "tags.h"
 #include "overload.h"
@@ -267,7 +266,7 @@ get_floatmap_pixel (mathmap_invocation_t *invocation, image_t *image, float x, f
 
 CALLBACK_SYMBOL
 image_t*
-render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, pools_t *pools, int force)
+render_image (mathmap_invocation_t *invocation, image_t *image, int width, int height, mathmap_pools_t *pools, int force)
 {
     image_t *new_image;
 
@@ -307,7 +306,7 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 	color_t (*get_orig_val_pixel_func) (mathmap_invocation_t*, float, float, image_t*, int) = get_orig_val_pixel;
 	int x, y;
 	float *p;
-	pools_t filter_pools;
+	mathmap_pools_t filter_pools;
 
 #ifdef DEBUG_OUTPUT
 	g_print("image is not closure: %d\n", image->type);
@@ -318,7 +317,7 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 	ay = new_image->v.floatmap.ay;
 	by = new_image->v.floatmap.by;
 
-	init_pools(&filter_pools);
+	mathmap_pools_init_local(&filter_pools);
 	pools = &filter_pools;
 
 	p = new_image->v.floatmap.data;
@@ -331,7 +330,7 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 		float fx = ((float)x - bx) / ax;
 		float *tuple;
 
-		reset_pools(&filter_pools);
+		mathmap_pools_reset(&filter_pools);
 		tuple = ORIG_VAL(fx, fy, image, 0.0);
 
 		memcpy(p, tuple, sizeof(float) * 4);
@@ -340,7 +339,7 @@ render_image (mathmap_invocation_t *invocation, image_t *image, int width, int h
 	    }
 	}
 
-	free_pools(&filter_pools);
+	mathmap_pools_free(&filter_pools);
     }
 
     return new_image;

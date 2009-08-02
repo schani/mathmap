@@ -27,7 +27,7 @@
 
 #include <stdio.h>
 
-#include "lispreader/pools.h"
+#include "mmpools.h"
 #include "tuples.h"
 #include "color.h"
 
@@ -44,7 +44,8 @@ color_t get_orig_val_intersample_pixel (struct _mathmap_invocation_t *invocation
 
 float* get_floatmap_pixel (struct _mathmap_invocation_t *invocation, struct _image_t *image, float x, float y, float frame);
 
-struct _image_t* render_image (struct _mathmap_invocation_t *invocation, struct _image_t *image, int width, int height, pools_t *pools, int force);
+struct _image_t* render_image (struct _mathmap_invocation_t *invocation, struct _image_t *image,
+			       int width, int height, mathmap_pools_t *pools, int force);
 /* END */
 
 void init_builtins (void);

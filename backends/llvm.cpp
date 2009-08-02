@@ -269,7 +269,7 @@ get_slice_ptr_type (Module *module)
 static const Type*
 get_pools_ptr_type (Module *module)
 {
-    const Type *pools_type = module->getTypeByName(string("struct.pools_t"));
+    const Type *pools_type = module->getTypeByName(string("struct.mathmap_pools_t"));
     g_assert(pools_type);
     return PointerType::getUnqual(pools_type);
 }
@@ -1196,7 +1196,7 @@ code_emitter::setup_init_frame_function ()
 
     set_internals_from_invocation(invocation_arg);
 
-    ret_var = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
+    ret_var = builder->CreateCall2(module->getFunction(string("_mathmap_pools_alloc")),
 				   pools_arg, emit_sizeof(xy_vars_type));
     xy_vars_var = builder->CreateBitCast(ret_var, PointerType::getUnqual(xy_vars_type));
 
@@ -1233,7 +1233,7 @@ code_emitter::setup_init_x_or_y_function (string function_name, const char *inte
 
     set_xy_vars_from_frame();
 
-    ret_var = builder->CreateCall2(module->getFunction(string("_pools_alloc")),
+    ret_var = builder->CreateCall2(module->getFunction(string("_mathmap_pools_alloc")),
 				   pools_arg, emit_sizeof(vars_type));
 
     Value *vars_var = builder->CreateBitCast(ret_var, PointerType::getUnqual(vars_type));

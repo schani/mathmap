@@ -23,7 +23,7 @@
 #ifndef __TREE_VECTORS_H__
 #define __TREE_VECTORS_H__
 
-#include "lispreader/pools.h"
+#include "mmpools.h"
 
 #define TREE_VECTOR_ARITY	4
 #define TREE_VECTOR_SHIFT	2
@@ -42,9 +42,9 @@ typedef struct _tree_vector_t
 } tree_vector_t;
 
 /* TEMPLATE tree_vector_funcs */
-extern tree_vector_t* new_tree_vector (pools_t *pools, int length, float *data);
+extern tree_vector_t* new_tree_vector (mathmap_pools_t *pools, int length, float *data);
 extern float tree_vector_get (tree_vector_t *tv, int index);
-extern tree_vector_t* tree_vector_set (pools_t *pools, tree_vector_t *tv, int index, float value);
+extern tree_vector_t* tree_vector_set (mathmap_pools_t *pools, tree_vector_t *tv, int index, float value);
 /* END */
 
 #endif
