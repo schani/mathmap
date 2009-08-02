@@ -152,7 +152,6 @@
 (defop 'ceil 1 "ceil" :type 'int)
 (defop '= 2 "EQ" :type 'int :c-define "OP_EQ")
 (defop '< 2 "LESS" :type 'int :c-define "OP_LESS")
-(defop '<i 2 "LESS" :type 'int :arg-type 'int :c-define "OP_LESS_INT")
 (defop '<= 2 "LEQ" :type 'int :c-define "OP_LEQ")
 (defop 'not 1 "NOT" :type 'int :arg-type 'int)
 
