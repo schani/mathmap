@@ -33,6 +33,9 @@
 #endif
 #include <locale.h>
 #include <unistd.h>
+#ifdef __MINGW32__
+#include <windows.h>
+#endif
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -1236,25 +1239,22 @@ get_num_cpus (void)
 {
     static int num_cpus = 0;
 
-    FILE *info;
-
-    if (num_cpus != 0)
+    if (num_cpus > 0)
 	return num_cpus;
 
-    info = fopen("/proc/cpuinfo", "r");
-
-    if (info != 0)
+#if defined(_SC_NPROCESSORS_ONLN)
+    num_cpus = sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined(__MINGW32__)
     {
-	char buf[512];
-
-	while (fgets(buf, 512, info) != 0)
-	    if (strncmp(buf, "processor", strlen("processor")) == 0)
-		++num_cpus;
-
-	fclose(info);
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	num_cpus = info.dwNumberOfProcessors;
     }
+#else
+#warning Have no method of acquiring the number of processors.
+#endif
 
-    if (num_cpus == 0)
+    if (num_cpus <= 0)
 	num_cpus = 4;
 
 #ifdef DEBUG_OUTPUT
