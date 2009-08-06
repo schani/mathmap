@@ -108,6 +108,7 @@ private:
     Value* promote (Value *val, int type);
 
     void alloc_complex_copy_var ();
+    Value* convert_complex_return_value (Value *result);
 
     void build_const_value_info (value_t *value, statement_t *stmt, int const_type,
 				 vector<const Type*> *struct_elems);
@@ -439,6 +440,28 @@ code_emitter::promote (Value *val, int type)
 }
 
 Value*
+code_emitter::convert_complex_return_value (Value *result)
+{
+    /* The result is complex, whose representation
+       differs between archs, and we need to transform
+       it into another arch-dependent
+       representation. */
+    if (sizeof(gpointer) == 4)
+    {
+	Value *local = complex_copy_var;
+	Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
+	builder->CreateStore(result, local_ptr);
+	result = builder->CreateLoad(local);
+    }
+    else if (sizeof(gpointer) == 8)
+	result = builder->CreateExtractValue(result, 0);
+    else
+	g_assert_not_reached();
+
+    return result;
+}
+
+Value*
 code_emitter::emit_primary (primary_t *primary, bool need_float)
 {
     switch (primary->kind)
@@ -477,10 +500,13 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
 		case TYPE_FLOAT :
 		    return make_float_const(primary->v.constant.float_value);
 		case TYPE_COMPLEX :
-		    assert(!need_float);
-		    return builder->CreateCall2(module->getFunction(string("make_complex")),
-						make_float_const(creal(primary->v.constant.complex_value)),
-						make_float_const(cimag(primary->v.constant.complex_value)));
+		    {
+			assert(!need_float);
+			Value *val = builder->CreateCall2(module->getFunction(string("make_complex")),
+							  make_float_const(creal(primary->v.constant.complex_value)),
+							  make_float_const(cimag(primary->v.constant.complex_value)));
+			return convert_complex_return_value(val);
+		    }
 		case TYPE_COLOR :
 		    assert(!need_float);
 		    return builder->CreateCall4(module->getFunction(string("make_color")),
@@ -706,7 +732,7 @@ code_emitter::emit_rhs (rhs_t *rhs)
 #ifndef __MINGW32__
 		    if (sizeof(gpointer) == 4 && val->getType() == llvm_type_for_type(module, TYPE_COMPLEX))
 		    {
-			Value *copy = complex_copy_var;
+			Value *copy = builder->CreateAlloca(llvm_type_for_type(module, TYPE_COMPLEX));
 			builder->CreateStore(val, copy);
 			val = copy;
 		    }
@@ -724,23 +750,7 @@ code_emitter::emit_rhs (rhs_t *rhs)
 		/* FIXME: this is ugly - we should check for the type
 		   of the operation or resulting value */
 		if (is_complex_return_type(result->getType()))
-		{
-		    /* The result is complex, whose representation
-		       differs between archs, and we need to transform
-		       it into another arch-dependent
-		       representation. */
-		    if (sizeof(gpointer) == 4)
-		    {
-			Value *local = complex_copy_var;
-			Value *local_ptr = builder->CreateBitCast(local, PointerType::getUnqual(Type::Int64Ty));
-			builder->CreateStore(result, local_ptr);
-			result = builder->CreateLoad(local);
-		    }
-		    else if (sizeof(gpointer) == 8)
-			result = builder->CreateExtractValue(result, 0);
-		    else
-			g_assert_not_reached();
-		}
+		    result = convert_complex_return_value(result);
 		return result;
 	    }
 
