@@ -1680,6 +1680,35 @@ load_pixbuf (char *name)
     return pixbuf;
 }
 
+static GtkSourceLanguageManager*
+make_source_language_manager (void)
+{
+    GtkSourceLanguageManager *manager = gtk_source_language_manager_new();
+    const gchar* const* paths = gtk_source_language_manager_get_search_path(manager);
+    gchar **new_paths;
+    int count, i;
+
+    for (count = 0; paths[count] != NULL; ++count)
+	;
+
+    new_paths = g_new(gchar*, count + 3);
+
+    for (i = 0; i < count; ++i)
+	new_paths[i] = (gchar*)paths[i];
+
+    new_paths[count + 0] = get_rc_file_name(NULL, FALSE);
+    new_paths[count + 1] = get_rc_file_name(NULL, TRUE);
+    new_paths[count + 2] = NULL;
+
+    gtk_source_language_manager_set_search_path(manager, new_paths);
+
+    g_free(new_paths[count + 0]);
+    g_free(new_paths[count + 1]);
+    g_free(new_paths);
+
+    return manager;
+}
+
 #define NOTEBOOK_PAGE_EXPRESSION	0
 #define NOTEBOOK_PAGE_SETTINGS		1
 #define NOTEBOOK_PAGE_USERVALS		2
@@ -1772,7 +1801,7 @@ mathmap_dialog (int mutable_expression)
 	    GtkSourceLanguage *language;
 
 	    /* Language */
-	    manager = gtk_source_language_manager_new();
+	    manager = make_source_language_manager();
 	    language = get_language_from_mime_type(manager, "application/x-mathmap");
 
 	    /* Source Buffer */
