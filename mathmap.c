@@ -290,41 +290,6 @@ static designer_design_t *the_current_design = NULL;
 
 /*****/
 
-static GtkSourceLanguage*
-get_language_from_mime_type (GtkSourceLanguageManager *manager, const gchar *mime_type)
-{
-    const gchar* const* ids = gtk_source_language_manager_get_language_ids(manager);
-    const gchar* const* id;
-
-    if (ids == NULL)
-	return NULL;
-
-    for (id = ids; *id != NULL; ++ id)
-    {
-        GtkSourceLanguage* language = gtk_source_language_manager_get_language(manager, *id);
-        gchar** mime_types;
-
-        g_assert(language != NULL);
-	mime_types = gtk_source_language_get_mime_types(GTK_SOURCE_LANGUAGE(language));
-
-        if (mime_types != NULL)
-        {
-	    gchar **type;
-
-            for (type = mime_types; *type != NULL; ++type)
-            {
-                if (strcmp(mime_type, *type) == 0)
-                {
-                    g_strfreev(mime_types);
-                    return language;
-                }
-            }
-            g_strfreev(mime_types);
-        }
-    }
-    return NULL;
-}
-
 static void
 expression_copy (gchar *dest, const gchar *src)
 {
@@ -1802,7 +1767,7 @@ mathmap_dialog (int mutable_expression)
 
 	    /* Language */
 	    manager = make_source_language_manager();
-	    language = get_language_from_mime_type(manager, "application/x-mathmap");
+	    language = gtk_source_language_manager_get_language(manager, "mathmap");
 
 	    /* Source Buffer */
 	    source_buffer = gtk_source_buffer_new(NULL);

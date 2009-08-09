@@ -50,6 +50,7 @@ Source: "plug-ins\libfftw3-3.dll";               DestDir: "{userdesktop}\..\.gim
 Source: "plug-ins\libgsl.dll";               DestDir: "{userdesktop}\..\.gimp-2.6\plug-ins";            Components: core;         Flags: overwritereadonly
 Source: "plug-ins\libgslcblas.dll";          DestDir: "{userdesktop}\..\.gimp-2.6\plug-ins";            Components: core;         Flags: overwritereadonly
 Source: "plug-ins\libgtksourceview-2.0-0.dll"; DestDir: "{userdesktop}\..\.gimp-2.6\plug-ins";            Components: core;         Flags: overwritereadonly
+Source: "plug-ins\share\*";              DestDir: "{userdesktop}\..\.gimp-2.6\plug-ins\share"; Components: core;  Flags:  overwritereadonly recursesubdirs
 ; template
 Source: "mathmap\llvm_template.o";            DestDir: "{userdesktop}\..\.gimp-2.6\mathmap";             Components: core;         Flags: overwritereadonly
 Source: "mathmap\error.png";                  DestDir: "{userdesktop}\..\.gimp-2.6\mathmap";             Components: core;         Flags: overwritereadonly
