@@ -50,9 +50,15 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 #include <gsl/gsl_errno.h>
+#ifdef USE_GTKSOURCEVIEW
 #include <gtksourceview/gtksourceview.h>
 #include <gtksourceview/gtksourcelanguage.h>
+#ifdef USE_GTKSOURCEVIEW1
+#include <gtksourceview/gtksourcelanguagesmanager.h>
+#else
 #include <gtksourceview/gtksourcelanguagemanager.h>
+#endif
+#endif
 
 #include "exprtree.h"
 #include "builtins/builtins.h"
@@ -239,10 +245,8 @@ static gboolean ignore_designer_tree_changes = FALSE;
 //static int debug_tuples = 0;
 //static pixel_debug_info_t pixel_debug_infos[PREVIEW_SIZE * PREVIEW_SIZE];
 
-GtkSourceBuffer *source_buffer;
-#ifdef GTK_SOURCE_MARK
-GtkSourceMark *source_marker = NULL;
-#endif
+GtkTextBuffer *source_buffer;
+GtkTextMark *source_marker = NULL;
 GtkWidget *mathmap_dialog_window,
     *expression_entry,
     *animation_table,
@@ -1645,6 +1649,7 @@ load_pixbuf (char *name)
     return pixbuf;
 }
 
+#if defined(USE_GTKSOURCEVIEW) && !defined(USE_GTKSOURCEVIEW1)
 static GtkSourceLanguageManager*
 make_source_language_manager (void)
 {
@@ -1673,6 +1678,7 @@ make_source_language_manager (void)
 
     return manager;
 }
+#endif
 
 #define NOTEBOOK_PAGE_EXPRESSION	0
 #define NOTEBOOK_PAGE_SETTINGS		1
@@ -1762,18 +1768,36 @@ mathmap_dialog (int mutable_expression)
 	{
 	    PangoFontDescription *font_desc;
 	    GtkWidget *scrolled_window;
+#ifdef USE_GTKSOURCEVIEW
+#ifdef USE_GTKSOURCEVIEW1
+	    GtkSourceLanguagesManager *manager;
+#else
 	    GtkSourceLanguageManager *manager;
+#endif
 	    GtkSourceLanguage *language;
 
 	    /* Language */
+#ifdef USE_GTKSOURCEVIEW1
+	    manager = gtk_source_languages_manager_new();
+	    language = gtk_source_languages_manager_get_language_from_mime_type(manager, "application/x-mathmap");
+#else
 	    manager = make_source_language_manager();
 	    language = gtk_source_language_manager_get_language(manager, "mathmap");
+#endif
 
 	    /* Source Buffer */
-	    source_buffer = gtk_source_buffer_new(NULL);
+	    source_buffer = GTK_TEXT_BUFFER(gtk_source_buffer_new(NULL));
 	    if (language != NULL)
-		gtk_source_buffer_set_language(source_buffer, language);
-	    gtk_source_buffer_set_highlight_syntax(source_buffer, TRUE);
+		gtk_source_buffer_set_language(GTK_SOURCE_BUFFER(source_buffer), language);
+#ifdef USE_GTKSOURCEVIEW1
+	    gtk_source_buffer_set_highlight(GTK_SOURCE_BUFFER(source_buffer), TRUE);
+#else
+	    gtk_source_buffer_set_highlight_syntax(GTK_SOURCE_BUFFER(source_buffer), TRUE);
+#endif
+#else
+	    /* Source Buffer */
+	    source_buffer = gtk_text_buffer_new(NULL);
+#endif
 
 	    /* Scrolled Window */
 	    scrolled_window = gtk_scrolled_window_new(NULL, NULL);
@@ -1782,7 +1806,11 @@ mathmap_dialog (int mutable_expression)
 	    gtk_widget_show(scrolled_window);
 
 	    /* Source View */
-	    expression_entry = gtk_source_view_new_with_buffer(source_buffer);
+#ifdef USE_GTKSOURCEVIEW
+	    expression_entry = gtk_source_view_new_with_buffer(GTK_SOURCE_BUFFER(source_buffer));
+#else
+	    expression_entry = gtk_text_view_new_with_buffer(source_buffer);
+#endif
 	    gtk_widget_show(expression_entry);
 
 #ifdef GTK_SOURCE_MARK
@@ -1801,7 +1829,7 @@ mathmap_dialog (int mutable_expression)
 			     G_CALLBACK(dialog_text_changed),
 			     (gpointer)NULL);
 
-	    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(source_buffer), mmvals.expression,
+	    gtk_text_buffer_set_text(source_buffer, mmvals.expression,
 			    	     strlen(mmvals.expression));
 
 	    font_desc = pango_font_description_from_string("Courier 10");
@@ -2277,13 +2305,11 @@ dialog_text_update (void)
 void
 delete_expression_marker (void)
 {
-#ifdef GTK_SOURCE_MARK
     if (source_marker != NULL)
     {
-        gtk_text_buffer_delete_mark(GTK_TEXT_BUFFER(source_buffer), GTK_TEXT_MARK(source_marker));
+        gtk_text_buffer_delete_mark(source_buffer, source_marker);
 	source_marker = 0;
     }
-#endif
 }
 
 void
@@ -2302,14 +2328,14 @@ set_expression_marker (int start_line, int start_column, int end_line, int end_c
 	if (start_line == end_line && start_column == end_column)
 	    ++end_column;
 
-	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &start_iter, start_line, start_column);
-	gtk_text_buffer_get_iter_at_line_index(GTK_TEXT_BUFFER(source_buffer), &end_iter, end_line, end_column);
+	gtk_text_buffer_get_iter_at_line_index(source_buffer, &start_iter, start_line, start_column);
+	gtk_text_buffer_get_iter_at_line_index(source_buffer, &end_iter, end_line, end_column);
 #ifdef GTK_SOURCE_MARK
-	source_marker = gtk_source_buffer_create_source_mark(source_buffer, NULL, "one", &start_iter);
+	source_marker = GTK_TEXT_MARK(gtk_source_buffer_create_source_mark(GTK_SOURCE_BUFFER(source_buffer), NULL, "one", &start_iter));
 #endif
-	gtk_text_buffer_select_range(GTK_TEXT_BUFFER(source_buffer), &start_iter, &end_iter);
+	gtk_text_buffer_select_range(source_buffer, &start_iter, &end_iter);
 	gtk_text_view_scroll_mark_onscreen(GTK_TEXT_VIEW(expression_entry),
-					   gtk_text_buffer_get_insert(GTK_TEXT_BUFFER(source_buffer)));
+					   gtk_text_buffer_get_insert(source_buffer));
     }
 }
 

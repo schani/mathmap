@@ -55,10 +55,14 @@ endif
 ifeq ($(MINGW32),YES)
 MINGW_CFLAGS = -mms-bitfields -I/include
 MINGW_LDFLAGS = -lpsapi -limagehlp -mwindows
+GTKSOURCEVIEW_CFLAGS = -DUSE_GTKSOURCEVIEW -DUSE_GTKSOURCEVIEW1 $(shell pkg-config --cflags gtksourceview-1.0)
+GTKSOURCEVIEW_LDFLAGS = $(shell pkg-config --libs gtksourceview-1.0)
 LLVM_GCC = /local/llvm-gcc-4.2/bin/llvm-gcc
 FORMATDEFS = -DRWIMG_PNG
 FORMAT_LDFLAGS = -lpng12
 else
+GTKSOURCEVIEW_CFLAGS = -DUSE_GTKSOURCEVIEW $(shell pkg-config --cflags gtksourceview-2.0)
+GTKSOURCEVIEW_LDFLAGS = $(shell pkg-config --libs gtksourceview-2.0)
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 FORMAT_LDFLAGS = -ljpeg -lpng $(GIFLIB)
 LLVM_GCC = llvm-gcc
@@ -84,8 +88,8 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 GIMPDATADIR := $(PREFIX)/share/gimp/2.0
-GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gtksourceview-2.0 $(FFTW))
-GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gtksourceview-2.0 $(FFTW))
+GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 $(FFTW))
+GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 $(FFTW))
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
@@ -93,10 +97,10 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(OPT_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS)
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(OPT_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS) $(GTKSOURCEVIEW_CFLAGS)
 MATHMAP_CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 MATHMAP_CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS) $(CXXFLAGS)
-MATHMAP_LDFLAGS = $(LDFLAGS) $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS)
+MATHMAP_LDFLAGS = $(LDFLAGS) $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS) $(GTKSOURCEVIEW_LDFLAGS)
 
 ifeq ($(MOVIES),YES)
 MATHMAP_CFLAGS += -I/usr/local/include/quicktime -DMOVIES
