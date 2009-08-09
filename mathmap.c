@@ -80,6 +80,12 @@
 #define CHECK_DARK  ((int) (1.0 / 3.0 * 255))
 #define CHECK_LIGHT ((int) (2.0 / 3.0 * 255))
 
+#ifdef __MINGW32__
+#define SOURCEVIEW_FONT "Courier New 10"
+#else
+#define SOURCEVIEW_FONT "Courier 10"
+#endif
+
 #define EXPRESSIONS_DIR         "expressions"
 
 #define DEFAULT_EXPRESSION \
@@ -1832,7 +1838,7 @@ mathmap_dialog (int mutable_expression)
 	    gtk_text_buffer_set_text(source_buffer, mmvals.expression,
 			    	     strlen(mmvals.expression));
 
-	    font_desc = pango_font_description_from_string("Courier 10");
+	    font_desc = pango_font_description_from_string(SOURCEVIEW_FONT);
 	    if (font_desc != NULL)
 	    {
 		gtk_widget_modify_font(expression_entry, font_desc);

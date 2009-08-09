@@ -55,14 +55,10 @@ endif
 ifeq ($(MINGW32),YES)
 MINGW_CFLAGS = -mms-bitfields -I/include
 MINGW_LDFLAGS = -lpsapi -limagehlp -mwindows
-GTKSOURCEVIEW_CFLAGS = -DUSE_GTKSOURCEVIEW -DUSE_GTKSOURCEVIEW1 $(shell pkg-config --cflags gtksourceview-1.0)
-GTKSOURCEVIEW_LDFLAGS = $(shell pkg-config --libs gtksourceview-1.0)
 LLVM_GCC = /local/llvm-gcc-4.2/bin/llvm-gcc
 FORMATDEFS = -DRWIMG_PNG
 FORMAT_LDFLAGS = -lpng12
 else
-GTKSOURCEVIEW_CFLAGS = -DUSE_GTKSOURCEVIEW $(shell pkg-config --cflags gtksourceview-2.0)
-GTKSOURCEVIEW_LDFLAGS = $(shell pkg-config --libs gtksourceview-2.0)
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 FORMAT_LDFLAGS = -ljpeg -lpng $(GIFLIB)
 LLVM_GCC = llvm-gcc
@@ -75,6 +71,9 @@ LLVM_CXXFLAGS = `llvm-config --cxxflags`
 LLVM_OBJECTS = backends/llvm.o
 LLVM_TARGETS = llvm_template.o
 endif
+
+GTKSOURCEVIEW_CFLAGS = -DUSE_GTKSOURCEVIEW $(shell pkg-config --cflags gtksourceview-2.0)
+GTKSOURCEVIEW_LDFLAGS = $(shell pkg-config --libs gtksourceview-2.0)
 
 FFTW = fftw3
 FFTW_OBJECTS = native-filters/convolve.o
