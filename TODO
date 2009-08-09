@@ -3,15 +3,13 @@
 * 1.3.5
 
 ** Windows
-FFTW
+FFTW packaging
 .lang file
-threads?
+threads? (pthreads in gnome/dependencies?)
 installer (from yuval)
 
-** LLVM
-update exported_symbols
-
 ** Packaging
+credits to Xavier Martin (rwimg), yuval (installer)
 make all filters into test cases
 check out Robin Norwood's spec file changes (for Fedora)
 update homepage

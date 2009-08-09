@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <map>
+#include <complex>
 
 #include <llvm/Module.h>
 #include <llvm/Function.h>
@@ -503,8 +504,8 @@ code_emitter::emit_primary (primary_t *primary, bool need_float)
 		    {
 			assert(!need_float);
 			Value *val = builder->CreateCall2(module->getFunction(string("make_complex")),
-							  make_float_const(creal(primary->v.constant.complex_value)),
-							  make_float_const(cimag(primary->v.constant.complex_value)));
+							  make_float_const(__real__ primary->v.constant.complex_value),
+							  make_float_const(__imag__ primary->v.constant.complex_value));
 			return convert_complex_return_value(val);
 		    }
 		case TYPE_COLOR :

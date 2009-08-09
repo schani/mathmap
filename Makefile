@@ -53,14 +53,12 @@ CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 endif
 
 ifeq ($(MINGW32),YES)
+MINGW_CFLAGS = -mms-bitfields -I/include
 MINGW_LDFLAGS = -lpsapi -limagehlp -mwindows
-LLVM_GCC = /usr/local/llvm-gcc-4.2/bin/llvm-gcc
+LLVM_GCC = /local/llvm-gcc-4.2/bin/llvm-gcc
 else
-GIF_CFLAGS = -DRWIMG_GIF
-GIF_LDFLAGS = $(GIFLIB)
-FFTW = fftw3
-FFTW_OBJECTS = native-filters/convolve.o
-FFTW_CFLAGS = -DHAVE_FFTW
+FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
+FORMAT_LDFLAGS = -ljpeg -lpng $(GIFLIB)
 PTHREADS = -DUSE_GTHREADS
 LLVM_GCC = llvm-gcc
 endif
@@ -72,6 +70,10 @@ LLVM_CXXFLAGS = `llvm-config --cxxflags`
 LLVM_OBJECTS = backends/llvm.o
 LLVM_TARGETS = llvm_template.o
 endif
+
+FFTW = fftw3
+FFTW_OBJECTS = native-filters/convolve.o
+FFTW_CFLAGS = -DHAVE_FFTW
 
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
@@ -88,7 +90,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(OPT_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS)
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(OPT_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS)
 MATHMAP_CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 MATHMAP_CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS) $(CXXFLAGS)
 MATHMAP_LDFLAGS = $(LDFLAGS) $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS)
@@ -101,9 +103,8 @@ endif
 CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
-FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG $(GIF_CFLAGS)
 MATHMAP_CFLAGS += -DGIMPDATADIR=\"$(GIMPDATADIR)\"
-MATHMAP_LDFLAGS += -ljpeg -lpng $(GIF_LDFLAGS)
+MATHMAP_LDFLAGS += $(FORMAT_LDFLAGS)
 
 NLS_CFLAGS = -DENABLE_NLS
 MOS = fr.mo ru.mo
