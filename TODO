@@ -10,7 +10,6 @@ installer (from yuval)
 
 ** Packaging
 credits to Xavier Martin (rwimg), yuval (installer)
-make all filters into test cases
 check out Robin Norwood's spec file changes (for Fedora)
 update homepage
 
@@ -61,6 +60,10 @@ we only have comparison ops with float args, so we always promote ints, even in 
 ** Packaging
 Generate keyword list in sourceview spec file from builtins.lisp
 add a few new tests, especially for native filters
+
+** Testing
+make random function testable
+missing test cases
 
 ** Rendering
 strip resize images manually
