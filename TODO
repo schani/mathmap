@@ -14,10 +14,6 @@ make all filters into test cases
 check out Robin Norwood's spec file changes (for Fedora)
 update homepage
 
-** Language
-builtin == for tuples of length >1
-builtin == for ri:2 with nil:1
-
 * 1.3.x
 
 ** GIMP Plug-In
@@ -32,6 +28,7 @@ use -O3
 do we need uservals, image size in invocation when we have them in the closure?
 
 ** Language
+builtin == for tuples of length >1 (we'll need additional features for that in builtins.lisp)
 builtin for getting size of an image
 real gamma function buggy
 

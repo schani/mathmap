@@ -1129,8 +1129,26 @@ More formally, computes <tt>((a-fl)/(fu-fl))*(tu-tl)+tl</tt>."
 
 ;;; comparison
 
-(defbuiltin "__equal" equal (nil 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__equal" equal_ri (nil 1) ((a (ri 2)) (b (ri 2)))
   "Returns 1 if the arguments are equal, otherwise 0."
+  (if (and (= (nth 0 a) (nth 0 b))
+	   (= (nth 1 a) (nth 1 b)))
+      (set result (make (nil 1) 1))
+      (set result (make (nil 1) 0))))
+
+(defbuiltin "__equal" equal_ri_1 (nil 1) ((a (ri 2)) (b (? 1)))
+  (if (and (= (nth 0 a) (nth 0 b))
+	   (= (nth 1 a) 0))
+      (set result (make (nil 1) 1))
+      (set result (make (nil 1) 0))))
+
+(defbuiltin "__equal" equal_1_ri (nil 1) ((b (? 1)) (a (ri 2)))
+  (if (and (= (nth 0 a) (nth 0 b))
+	   (= (nth 1 a) 0))
+      (set result (make (nil 1) 1))
+      (set result (make (nil 1) 0))))
+
+(defbuiltin "__equal" equal (nil 1) ((a (?T 1)) (b (?T 1)))
   (set result (make (?T 1) (= (nth 0 a) (nth 0 b)))))
 
 (defbuiltin "__less" less (nil 1) ((a (?T 1)) (b (?T 1)))
