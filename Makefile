@@ -56,6 +56,8 @@ ifeq ($(MINGW32),YES)
 MINGW_CFLAGS = -mms-bitfields -I/include
 MINGW_LDFLAGS = -lpsapi -limagehlp -mwindows
 LLVM_GCC = /local/llvm-gcc-4.2/bin/llvm-gcc
+FORMATDEFS = -DRWIMG_PNG
+FORMAT_LDFLAGS = -lpng12
 else
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 FORMAT_LDFLAGS = -ljpeg -lpng $(GIFLIB)
@@ -130,7 +132,7 @@ mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader 
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)
 
 librwimg :
-	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)"
+	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)" "CFLAGS=$(MINGW_CFLAGS)"
 
 liblispreader :
 	$(MAKE) -C lispreader -f Makefile.dist
