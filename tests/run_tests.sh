@@ -26,6 +26,8 @@ run_test () {
     fi
 
     if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
+	true
+    else
 	echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
 	exit 1
     fi
