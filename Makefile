@@ -61,7 +61,6 @@ FORMAT_LDFLAGS = -lpng12
 else
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 FORMAT_LDFLAGS = -ljpeg -lpng $(GIFLIB)
-PTHREADS = -DUSE_GTHREADS
 LLVM_GCC = llvm-gcc
 endif
 
@@ -76,6 +75,8 @@ endif
 FFTW = fftw3
 FFTW_OBJECTS = native-filters/convolve.o
 FFTW_CFLAGS = -DHAVE_FFTW
+
+PTHREADS = -DUSE_GTHREADS
 
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
@@ -263,10 +264,9 @@ mingw-dist : mathmap llvm_template.o
 	mkdir mathmap-$(VERSION)-mingw32/plug-ins
 	mkdir mathmap-$(VERSION)-mingw32/mathmap
 	cp README.windows mathmap-$(VERSION)-mingw32/README.txt
+	cp mathmap.iss COPYING mathmap-$(VERSION)-mingw32/
 	strip mathmap.exe
 	cp mathmap.exe mathmap-$(VERSION)-mingw32/plug-ins/
-	cp /usr/local/bin/libgsl-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
-	cp /usr/local/bin/libgslcblas-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
-	cp /c/mingw/bin/libgtksourceview-2.0-0.dll mathmap-$(VERSION)-mingw32/plug-ins/
+	cp /bin/intl.dll /bin/libgsl.dll /bin/libgslcblas.dll /bin/libgtksourceview-2.0-0.dll /bin/libfftw3-3.dll mathmap-$(VERSION)-mingw32/plug-ins/
 	cp llvm_template.o pixmaps/*.png mathmap-$(VERSION)-mingw32/mathmap/
 	cp -a examples mathmap-$(VERSION)-mingw32/mathmap/expressions
