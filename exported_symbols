@@ -70,3 +70,16 @@ ceilf
 llvm_filter_init_frame
 llvm_filter_init_slice
 llvm_filter_calc_lines
+mathmap_pools_init_global
+mathmap_pools_init_local
+mathmap_pools_reset
+mathmap_pools_free
+_mathmap_pools_alloc
+native_filter_gaussian_blur
+native_filter_convolve
+native_filter_half_convolve
+native_filter_visualize_fft
+libnoise_perlin
+libnoise_billow
+libnoise_ridged_multi
+libnoise_voronoi
