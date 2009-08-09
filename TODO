@@ -14,6 +14,10 @@ make all filters into test cases
 check out Robin Norwood's spec file changes (for Fedora)
 update homepage
 
+** Language
+builtin == for tuples of length >1
+builtin == for ri:2 with nil:1
+
 * 1.3.x
 
 ** GIMP Plug-In

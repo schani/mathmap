@@ -1129,39 +1129,39 @@ More formally, computes <tt>((a-fl)/(fu-fl))*(tu-tl)+tl</tt>."
 
 ;;; comparison
 
-(defbuiltin "__equal" equal (?T 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__equal" equal (nil 1) ((a (?T 1)) (b (?T 1)))
   "Returns 1 if the arguments are equal, otherwise 0."
   (set result (make (?T 1) (= (nth 0 a) (nth 0 b)))))
 
-(defbuiltin "__less" less (?T 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__less" less (nil 1) ((a (?T 1)) (b (?T 1)))
   "Returns 1 if <tt>a</tt> is less than <tt>b</tt>, otherwise 0."
   (set result (make (?T 1) (< (nth 0 a) (nth 0 b)))))
 
-(defbuiltin "__greater" greater (?T 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__greater" greater (nil 1) ((a (?T 1)) (b (?T 1)))
   "Returns 1 if <tt>a</tt> is greater than <tt>b</tt>, otherwise 0."
   (set result (make (?T 1) (< (nth 0 b) (nth 0 a)))))
 
-(defbuiltin "__lessequal" lessequal (?T 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__lessequal" lessequal (nil 1) ((a (?T 1)) (b (?T 1)))
   "Returns 1 if <tt>a</tt> is less or equal than <tt>b</tt>, otherwise
 0."
   (set result (make (?T 1) (<= (nth 0 a) (nth 0 b)))))
 
-(defbuiltin "__greaterequal" greaterequal (?T 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__greaterequal" greaterequal (nil 1) ((a (?T 1)) (b (?T 1)))
   "Returns 1 if <tt>a</tt> is greater or equal than <tt>b</tt>,
 otherwise 0."
   (set result (make (?T 1) (<= (nth 0 b) (nth 0 a)))))
 
-(defbuiltin "__notequal" notequal (?T 1) ((a (?T 1)) (b (?T 1)))
+(defbuiltin "__notequal" notequal (nil 1) ((a (?T 1)) (b (?T 1)))
   "Returns 1 if the arguments are not equal, otherwise 0."
   (set result (make (?T 1) (not (= (nth 0 a) (nth 0 b))))))
 
-(defbuiltin "inintv" inintv (?T 1) ((a (?T 1)) (l (?T 1)) (u (?T 1)))
+(defbuiltin "inintv" inintv (nil 1) ((a (?T 1)) (l (?T 1)) (u (?T 1)))
   "Returns 1 if <tt>a</tt> lies in the interval defined by the lower
 bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0."
   (if (and (<= (nth 0 l) (nth 0 a))
 	   (<= (nth 0 a) (nth 0 u)))
-      (set result (make (?T 1) 1))
-      (set result (make (?T 1) 0))))
+      (set result (make (nil 1) 1))
+      (set result (make (nil 1) 0))))
 
 ;;; application
 
