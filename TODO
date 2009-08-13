@@ -1,50 +1,54 @@
--*- outline -*-
+-*- org -*-
 
 * 1.3.5
 
 ** Windows
-why does syntax highlighting not work completely in WinGimp?
+*** TODO why does syntax highlighting not work completely in WinGimp?
 
 ** Packaging
-check out Robin Norwood's spec file changes (for Fedora)
-update homepage
+*** TODO check out Robin Norwood's spec file changes (for Fedora)
+*** TODO update homepage
 
 * 1.3.x
 
 ** GIMP Plug-In
-speed up rendering of GIMP drawables by processing tile for tile
-make preview input drawables to be floatmaps
+*** TODO speed up rendering of GIMP drawables by processing tile for tile
+*** TODO make preview input drawables to be floatmaps
+*** TODO UI via GtkBuilder/Glade
 
 ** General
-tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves
-move everything from invocation to frame that belongs there
-pass through frame and t everwhere
-use -O3
-do we need uservals, image size in invocation when we have them in the closure?
+*** TODO tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves
+*** TODO move everything from invocation to frame that belongs there
+*** TODO pass through frame and t everwhere
+*** TODO use -O3
+*** TODO do we need uservals, image size in invocation when we have them in the closure?
 
 ** Language
-builtin == for tuples of length >1 (we'll need additional features for that in builtins.lisp)
-builtin for getting size of an image
-real gamma function buggy
+*** TODO builtin == for tuples of length >1
+    we'll need additional features for that in builtins.lisp
+*** TODO builtin for getting size of an image
+*** TODO real gamma function buggy
+*** TODO sqrt for complex
 
 ** Compiler
-Make exprtree and scanner use compiler pools as well
-Generator for simplifiers
-Simplify coordinate stuff (non-stretched ident filter)
-calculate R in the filter code
-optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
-replace resize with a simple internal filter
-don't use x_consts and y_consts structs in filter_func
-make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
-make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth (requires pools in the folders)
-make internals typed
-don't produce functions for filters which have been optimized away
+*** TODO Make exprtree and scanner use compiler pools as well
+*** TODO Generator for simplifiers
+*** TODO Simplify coordinate stuff (non-stretched ident filter)
+*** TODO calculate R in the filter code
+*** TODO optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
+*** TODO replace resize with a simple internal filter
+*** TODO don't use x_consts and y_consts structs in filter_func
+*** TODO make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
+*** TODO make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth (requires pools in the folders)
+*** TODO make internals typed
+*** TODO don't produce functions for filters which have been optimized away
+*** TODO short circuit execution for && etc in compiler
 
 ** LLVM
-implement mathfuncs
-pass t properly (test with recursive filters)
-remove pools in root closure image once mathfuncs work
-we only have comparison ops with float args, so we always promote ints, even in loops, eg:
+*** TODO implement mathfuncs
+*** TODO pass t properly (test with recursive filters)
+*** TODO remove pools in root closure image once mathfuncs work
+*** TODO we only have comparison ops with float args, so we always promote ints, even in loops
   filter loop ()
     g = 0;
     for i = 0 .. 10 do
@@ -54,207 +58,139 @@ we only have comparison ops with float args, so we always promote ints, even in 
   end
 
 ** Packaging
-Generate keyword list in sourceview spec file from builtins.lisp
-add a few new tests, especially for native filters
+*** TODO Generate keyword list in sourceview spec file from builtins.lisp
+*** TODO add a few new tests, especially for native filters
+*** TODO rewrite HACKING and include it in distro
 
 ** Testing
-make random function testable
-missing test cases
+*** TODO make random function testable
+*** TODO missing test cases
 
 ** Rendering
-strip resize images manually
-specifiable size
-antialiasing from rendered images
-do rendering multi-threaded if possible
+*** TODO strip resize images manually
+*** TODO specifiable size
+*** TODO antialiasing from rendered images
+*** TODO do rendering multi-threaded if possible
 
 ** Designer
-native filters should show up directly, without .mm filters (really? - why?)
-do migration with save/load
-free widget_data in designs
-akklimatisierungsbug (bertl)
-when bigger fonts are used the nodes look funny
+*** TODO native filters should show up directly, without .mm filters
+    really? - why?
+*** TODO do migration with save/load
+*** TODO free widget_data in designs
+*** TODO akklimatisierungsbug (bertl)
+*** TODO when bigger fonts are used the nodes look funny
 
 ** Filters
-sharp blur
-math filters with constants for composer
-better layer modes: http://pegtop.net/delphi/articles/blendmodes/
-color gimp layer mode
+*** TODO sharp blur
+*** TODO math filters with constants for composer
+*** TODO better layer modes: http://pegtop.net/delphi/articles/blendmodes/
+*** TODO color gimp layer mode
 
 ** Native filters
-figure out how much faster 2^n ffts are
-do gaussian multithreaded if possible
-see if there are faster gauss implementations available (some intel stuff?)
-take aspect ratio of kernel into consideration - don't stretch it
-normalize argument for convolve should not be bool but be the value to normalize to
-image segmentation
-edge detection
+*** TODO figure out how much faster 2^n ffts are
+*** TODO do gaussian multithreaded if possible
+*** TODO see if there are faster gauss implementations available (some intel stuff?)
+*** TODO take aspect ratio of kernel into consideration - don't stretch it
+*** TODO normalize argument for convolve should not be bool but be the value to normalize to
+*** TODO image segmentation
+*** TODO edge detection
 
 ** Command Line Tool
-Report error positions
-Colors as definable user values
+*** TODO Report error positions
+*** TODO Colors as definable user values
+*** TODO Make input drawables be floatmaps
 
 * 1.3.y
 
 ** Designer
-catch and forbid recursive compositions
+*** TODO catch and forbid recursive compositions
 
 ** GIMP Plug-In
-auto-completion?
-Histogram
-ask to save before quitting or selecting another expression or composition
-Different fast image source size per drawable
-Adapt fast image source size to preview size
-zoom via preview (?)
-Get preview background gray from GtkStyle
-figure out how to pass user values to gimp so that Filters->Repeat works properly
+*** TODO auto-completion?
+*** TODO Histogram
+*** TODO ask to save before quitting or selecting another expression or composition
+*** TODO Different fast image source size per drawable
+*** TODO Adapt fast image source size to preview size
+*** TODO zoom in preview
+    Do we really need this?
+*** TODO Get preview background gray from GtkStyle
+*** TODO figure out how to pass user values to gimp so that Filters->Repeat works properly
+    We can do this by encoding them in a string.
 
 ** Language
-provide syntactic sugar for returning images instead of colors
-indirectly recursive filters
-Hypercomplex-Complex multiplication
-XYZ, Lab color space support
-filters as first class values
+*** TODO provide syntactic sugar for returning images instead of colors
+*** TODO indirectly recursive filters
+*** TODO Hypercomplex-Complex multiplication
+*** TODO XYZ, Lab color space support
+*** TODO filters as first class values
 
 ** General
-Logarithmic sliders
-Debug tuples
-Better source reference for error messages
-Remove i18n?
+*** TODO Logarithmic sliders
+*** TODO Debug tuples
+*** TODO Better source reference for error messages
+*** TODO Remove i18n?
 
 ** Rendering
-lazy rendering
+*** TODO lazy rendering
 
 ** Packaging
-Real dependencies
-Add Lomoize to test suite
-
-** Image Processing
-
-** Examples
+*** TODO Real dependencies
+*** TODO Add Lomoize to test suite
 
 ** Compiler
-check why lots of ops (like RED_FLOAT) are not foldable
-pass colors as tuples
-more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2))
-catch duplicate filter names
-passing of colors, curves and gradients to filters
-filter call argument checking
-number*image must trigger an error!
-optimization for filters which use the "current" pixel
-Copy elimination for phis in pre-native code
-Remove dead whiles
-XY constants for interpreter code
-don't use const vars for int/float constants
-
-** Documentation/Homepage
+*** TODO check why lots of ops (like RED_FLOAT) are not foldable
+*** TODO pass colors as tuples
+*** TODO more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2))
+*** TODO catch duplicate filter names
+*** TODO passing of colors, curves and gradients to filters
+*** TODO filter call argument checking
+*** TODO number*image must trigger an error!
+*** TODO optimization for filters which use the "current" pixel
+*** TODO Copy elimination for phis in pre-native code
+*** TODO Remove dead whiles
+*** TODO XY constants for interpreter code
+*** TODO don't use const vars for int/float constants
 
 * long term
 
 ** GIMP Plug-In
-Preview in thread
-UI names for user values
+*** TODO Preview in thread
+*** TODO UI names for user values
 
 ** General
-Edge behaviour as image attributes
+*** TODO Edge behaviour as image attributes
 
 * probably never
 
 ** Blender
-noise, gamma, vector/matrix division do not work
-edge behaviour is not implemented
-antialiasing and supersampling are not implemented
+*** TODO noise, gamma, vector/matrix division do not work
+*** TODO edge behaviour is not implemented
+*** TODO antialiasing and supersampling are not implemented
 
+* Ideas for world domination
 
+** Make MathMap create plug-ins for GStreamer
 
+** GEGL
 
+*** MathMap could create plug-ins for GEGL
+*** MathMap could optimize GEGL graphs
 
+    We could take a GEGL graph, and if we have MathMap filters for all
+    the filters in the graph involved, we can create one single
+    MathMap filter that does the work of the whole graph and should be
+    much faster.
 
-short circuit execution for && in compiler
-sqrt for complex
-rewrite HACKING and include it in distro
-
-
-
-
-
-unload c code in openstep
-library
-
-
-
-
-
-
-
-
-macos:
-gruen fuer ints, floats und konstanten duenkler
-"Informational Text" in library?
-tool tips
-library at startup
-
-
-
-
-manual: WH,W,H statt wh,w,h
-koordinatensystem erklaeren
-scanner default action auf error!
-
-short circuit logic eval
-
-
-> (i) Die Möglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
-> und 'minimum' Ausdrücke anzugeben, die von den Variablen 'X(nil:1)' und
-> 'Y(nil:1)' abhängen.
-> 
-> (ii) Einen voreingestellten Wert für 'userslider' festzulegen (mit der
-> gleichen Methode wie unter (i)).
-> 
-> (iii) Die Möglichkeit über den Dialog 'User Values' Werte direkt
-> einzugeben (sowas wie das Eigabefeld <input> in HTML).
-
-
-macos x:
-  altivec
-  multithreading (smp)
-  movies (realtime!)
-
-
-
-web pages:
+* Links
 
   http://www.sf.edu/jhlavacek/gallery.html
   http://www.mai.liu.se/~halun/complex/complex.html
   http://www.ukuug.org/events/linux2001/papers/html/TRathborne_mathmap-fractals/Paper.html
 
+* Various filters
 
+** Konrad Stania
 
-
-gimptool in Makefile statt gimp-config verwenden
-radio buttons
-NaN und Infty ausprobieren
-init optimization
-save expression in image
-
-
-
-
-normalisierung von matrizen (matrix/determinante)
-inverse matrix
-pixel konvertieren schneller machen
-abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
-
-
-
-
-
-
-
-
-
-
-
-#konrad stania
 winkelrotz=0;
 winkelrothor=0;
 shiftx=0;
@@ -284,46 +220,24 @@ shiftx/shifty: shift the resulting imgae
 fa ... fd    : to scale image and remove optical distortion
                in polar koordinates radius = fa * radius + fb * radius ^ 2 + fc * radius ^ 3 + fd * radius ^ 4
 
+** make vertically seamless
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# make vertically seamless
 # Thanks to Martin Weber
 origValXY(x,y-sign(y)*Y)*abs(y)/Y+origVal(xy)*(1-(abs(y)/Y))
 
-# make horizontally seamless
+** make horizontally seamless
+
 # Thanks to Martin Weber
 origValXY(x-sign(x)*X,y)*abs(x)/X+origVal(xy)*(1-(abs(x)/X))
 
-
-
-
-
-
+** Unknown
 
 g = user_slider("granularity",0,50);
 nxy = xy/R*g;
 n = noise3([nxy[0],nxy[1],t*g]);
 grayColor(n)*0.5+0.5
 
-
-
-
-
-
-
+** Unknown
 
 g = user_slider("granularity",0,50);
 nxy = xy/R*g;
@@ -336,58 +250,7 @@ offset = [noise1(offset[0]),noise1(offset[1]),noise1(offset[2])] * user_slider("
 n = noise3(point+offset);
 grayColor(n)*0.5+0.5
 
-
-
-
-
-
-
-
-
-
-
-
-defun map ((nil:1)->nil:1 f, _:_ x)
-    construct(x.tag:x.length, lambda (nil:1 i) f(x[i]) end)
-end
-
-defun map ((nil:1, nil:1)->nil:1 f, T:L x, T:L y)
-    construct(x.tag:x.length, lambda (nil:1 i) f(x[i],y[i]) end)
-end
-
-defun __add (ri:2 a, ri:2 b)
-    ri:[a[0]+b[0],a[1]+b[1]]
-end
-
-defun __add (T:L a, _:1 b)
-    map(lambda (nil:1 x) x+b end, a)
-end
-
-defun __add (T:L a, T:L b)
-    map(lambda (nil:1 x, nil:1 y)
-            x+y
-        end, a, b)
-end
-
-defun __mul (ri:2 a, ri:2 b)
-    ri:[a[0]*b[0] - a[1]*b[1], a[0]*b[1] + b[0]*a[1]]
-end
-
-defun __div (ri:2 a, ri:2 b)
-    if b == ri:[0,0] then
-        ri:[0,0]
-    else
-        q = b[0] * b[0] + b[1] * b[1];
-        ri:[(a[0]*b[0] + a[1]*b[1]) / q, (-a[0]*b[1] + b[0]*a[1]) / q]
-    end
-end
-
-
-
-
-
-
-
+** Unknown
 
 dx=-5;
 dy=-5;
@@ -403,17 +266,7 @@ while dy < 6 do
 end;
 sum / num
 
-
-
-
-
-
-
-
-
-
-
-
+** Unknown
 
 alpha = user_slider("alpha",0,360);
 dir = xy:[cos(alpha),sin(alpha)];
@@ -429,15 +282,8 @@ upper = user_curve("upper",pos) * 2 - 0.5;
 f = ((dist + 1) / 2 - lower) / (upper - lower);
 origVal(pt + ndir * (f*2-1) * )R
 
+** Fractal Noise
 
-
-
-
-
-
-
-
-# fractal noise
 z = user_slider("z",0,10);
 depth = floor(user_slider("depth",1,10));
 pers = user_slider("persistence",0,1);
@@ -454,15 +300,8 @@ while i < depth + 1 do
 end;
 grayColor(sum / (max * 2) + 0.5)
 
+** Fractal Noise Displace
 
-
-
-
-
-
-
-
-# fractal noise displace
 z = user_float("z",0,10);
 depth = user_int("depth",1,10);
 pers = user_float("persistence",0,1);
@@ -482,19 +321,8 @@ end;
 val = sum / max;
 origVal(xy + val * strength)
 
+** Smooth Mugl
 
-
-
-
-
-
-
-
-
-
-
-
-# smooth mugl
 sl=30;
 nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
 alpha=[0,0,0,0];
@@ -533,11 +361,7 @@ else
     end
 end
 
-
-
-
-
-
+** Unknown
 
 dur = user_slider("duration",0,5);
 amp = exp(-t / dur);
@@ -548,11 +372,7 @@ disp = sin(dropr * 360 / user_slider("length",0,100) + t * 360 * user_slider("sp
 dispxy = toXY(ra:[disp,0]);
 origVal(xy+dispxy)
 
-
-
-
-
-
+** Unknown
 
 dur = user_slider("duration",0,5);
 amp = exp(-t / dur);
@@ -571,105 +391,25 @@ while i < n do
 end;
 origVal(xy+dispxy)
 
-
-
-
-
-
-
-
-
-
-# frame diff
+** Frame Diff
 (origVal(xy,frame)-origVal(xy,frame-1))/2+rgba:[1/2,1/2,1/2,1]
 
-
-
-
-# fade
+** Fade
 origVal(xy,image:0,frame)*(1-t)+origVal(xy,image:1,frame)*t
 
-
-
-
-
-
-
-
-
-# movie spiral
+** Movie Spiral
 q=sin((r-a*0.1)*10+t*5*360)*0.5+0.5;
 origVal(xy,image:0,frame)*(1-q)+origVal(xy,image:1,frame)*q
 
+** Slide (left->right) Transition
 
-
-
-
-
-
-
-
-# pink ball
-p=toHSVA(origVal(xy));
-hg=0.9647;
-dh=min(abs(p[0]-hg),abs(p[0]-(hg-1)));
-ds=p[1]-0.6941;
-if dh*dh+ds*ds < 0.05 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end
-
-
-
-
-# yellow ball
-p=toHSVA(origVal(xy));
-dh=p[0]-0.2;
-ds=p[1]-0.65;
-if dh*dh+ds*ds < 0.01 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end
-
-
-
-
-# green ball
-p=toHSVA(origVal(xy));
-dh=p[0]-0.3725;
-ds=p[1]-0.7;
-if dh*dh < 0.003 then rgba:[1,1,1,1] else rgba:[0,0,0,1] end
-
-
-
-
-
-
-# slide (left->right) transition
 if (x+X)/W < t then origVal(xy,image:0,frame) else origVal(xy,image:1,frame) end
+
+** Unknown
 
 st=15;p=clamp((x+X-t*W)/st+0.5,0,1);origVal(xy,image:0,frame)*(1-p)+origVal(xy,image:1,frame)*p
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-craig kaplan:
+** Craig Kaplan
 
 Okay.  Well, part of the talk was about how some of Escher's
 patterns with shapes that diminish towards the centre of the
@@ -702,3 +442,95 @@ MathMap:
 
         origVal( xy:[ssx+4,ssy-1] )
 
+* Language extension ideas
+
+defun map ((nil:1)->nil:1 f, _:_ x)
+    construct(x.tag:x.length, lambda (nil:1 i) f(x[i]) end)
+end
+
+defun map ((nil:1, nil:1)->nil:1 f, T:L x, T:L y)
+    construct(x.tag:x.length, lambda (nil:1 i) f(x[i],y[i]) end)
+end
+
+defun __add (ri:2 a, ri:2 b)
+    ri:[a[0]+b[0],a[1]+b[1]]
+end
+
+defun __add (T:L a, _:1 b)
+    map(lambda (nil:1 x) x+b end, a)
+end
+
+defun __add (T:L a, T:L b)
+    map(lambda (nil:1 x, nil:1 y)
+            x+y
+        end, a, b)
+end
+
+defun __mul (ri:2 a, ri:2 b)
+    ri:[a[0]*b[0] - a[1]*b[1], a[0]*b[1] + b[0]*a[1]]
+end
+
+defun __div (ri:2 a, ri:2 b)
+    if b == ri:[0,0] then
+        ri:[0,0]
+    else
+        q = b[0] * b[0] + b[1] * b[1];
+        ri:[(a[0]*b[0] + a[1]*b[1]) / q, (-a[0]*b[1] + b[0]*a[1]) / q]
+    end
+end
+
+* Junk - file properly
+
+unload c code in openstep
+library
+
+
+
+
+
+
+
+
+macos:
+gruen fuer ints, floats und konstanten duenkler
+"Informational Text" in library?
+tool tips
+library at startup
+
+
+
+
+manual: WH,W,H statt wh,w,h
+koordinatensystem erklaeren
+
+
+> (i) Die Möglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
+> und 'minimum' Ausdrücke anzugeben, die von den Variablen 'X(nil:1)' und
+> 'Y(nil:1)' abhängen.
+> 
+> (ii) Einen voreingestellten Wert für 'userslider' festzulegen (mit der
+> gleichen Methode wie unter (i)).
+
+
+macos x:
+  movies (realtime!)
+
+
+
+
+
+
+
+gimptool in Makefile statt gimp-config verwenden
+radio buttons
+NaN und Infty ausprobieren
+init optimization
+save expression in image
+
+
+
+
+normalisierung von matrizen (matrix/determinante)
+inverse matrix
+pixel konvertieren schneller machen
+abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
