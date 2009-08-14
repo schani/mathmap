@@ -1,54 +1,62 @@
 -*- org -*-
+#+FILETAGS: :mathmap:
 
 * 1.3.5
 
 ** Windows
-*** TODO why does syntax highlighting not work completely in WinGimp?
+*** TODO why does syntax highlighting not work completely in WinGimp?	   :bug:
 
 ** Packaging
 *** TODO check out Robin Norwood's spec file changes (for Fedora)
-*** TODO update homepage
+*** TODO update homepage					 :documentation:
 
 * 1.3.x
 
 ** GIMP Plug-In
-*** TODO speed up rendering of GIMP drawables by processing tile for tile
-*** TODO make preview input drawables to be floatmaps
-*** TODO UI via GtkBuilder/Glade
+*** TODO speed up rendering of GIMP drawables by processing tile for tile :performance:
+*** TODO make preview input drawables to be floatmaps		      :simplify:
+*** TODO UI via GtkBuilder/Glade				      :simplify:
 
 ** General
-*** TODO tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves
-*** TODO move everything from invocation to frame that belongs there
-*** TODO pass through frame and t everwhere
-*** TODO use -O3
-*** TODO do we need uservals, image size in invocation when we have them in the closure?
+*** TODO tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves :performance:
+*** TODO move everything from invocation to frame that belongs there  :simplify:
+*** TODO pass through frame and t everwhere				   :bug:
+*** TODO use -O3						   :performance:
+*** TODO do we need uservals, image size in invocation when we have them in the closure? :simplify:
 
 ** Language
-*** TODO builtin == for tuples of length >1
+*** TODO builtin == for tuples of length >1			       :feature:
     we'll need additional features for that in builtins.lisp
-*** TODO builtin for getting size of an image
-*** TODO real gamma function buggy
-*** TODO sqrt for complex
+*** TODO builtin for getting size of an image			       :feature:
+*** TODO real gamma function buggy					   :bug:
+*** TODO sqrt for complex					       :feature:
 
 ** Compiler
-*** TODO Make exprtree and scanner use compiler pools as well
-*** TODO Generator for simplifiers
-*** TODO Simplify coordinate stuff (non-stretched ident filter)
-*** TODO calculate R in the filter code
-*** TODO optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)
-*** TODO replace resize with a simple internal filter
+*** TODO number*image must trigger an error!				   :bug:
+    This means that the compiler will have to know about types other
+    than tuples.
+*** TODO Make exprtree and scanner use compiler pools as well	      :simplify:
+*** TODO Generator for simplifiers				      :simplify:
+*** TODO Simplify coordinate stuff (non-stretched ident filter) :performance:feature:
+*** TODO calculate R in the filter code				      :simplify:
+*** TODO optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)		   :performance:
+*** TODO replace resize with a simple internal filter		      :simplify:
 *** TODO don't use x_consts and y_consts structs in filter_func
-*** TODO make two different filter_XXX functions: one for calling in closure, one without closure, so as not to require building the closure
-*** TODO make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth (requires pools in the folders)
+*** TODO make two different filter_XXX functions		   :performance:
+    one for calling in closure, one without closure, so as not to require building the closure
+*** TODO make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth :performance:
+    requires pools in the folders
 *** TODO make internals typed
-*** TODO don't produce functions for filters which have been optimized away
-*** TODO short circuit execution for && etc in compiler
+*** TODO don't produce functions for filters which have been optimized away :performance:
+*** TODO short circuit execution for && etc in compiler	   :feature:performance:
 
 ** LLVM
-*** TODO implement mathfuncs
-*** TODO pass t properly (test with recursive filters)
-*** TODO remove pools in root closure image once mathfuncs work
-*** TODO we only have comparison ops with float args, so we always promote ints, even in loops
+*** TODO implement mathfuncs				  :performance:simplify:
+*** TODO pass t properly (test with recursive filters)			   :bug:
+*** TODO remove pools in root closure image once mathfuncs work	      :simplify:
+*** TODO implement comparison ops with float args		   :performance:
+    we only have comparison ops with float args, so we always promote ints, even in loops:
+
   filter loop ()
     g = 0;
     for i = 0 .. 10 do
@@ -58,47 +66,51 @@
   end
 
 ** Packaging
-*** TODO Generate keyword list in sourceview spec file from builtins.lisp
-*** TODO add a few new tests, especially for native filters
-*** TODO rewrite HACKING and include it in distro
+*** TODO Generate keyword list in sourceview spec file from builtins.lisp :simplify:
+*** TODO rewrite HACKING and include it in distro		 :documentation:
 
 ** Testing
 *** TODO make random function testable
 *** TODO missing test cases
 
 ** Rendering
-*** TODO strip resize images manually
-*** TODO specifiable size
-*** TODO antialiasing from rendered images
-*** TODO do rendering multi-threaded if possible
+*** TODO strip resize images manually		       :performance:simplify:
+    We don't strip resize, so we take the slow rendering path.  This
+    would be obsolete if we used a [[*replace resize][filter for resizing]].
+*** TODO specifiable size					    :feature:
+*** TODO antialiasing from rendered images			    :feature:
+*** TODO do rendering multi-threaded if possible		:performance:
 
 ** Designer
 *** TODO native filters should show up directly, without .mm filters
     really? - why?
-*** TODO do migration with save/load
-*** TODO free widget_data in designs
-*** TODO akklimatisierungsbug (bertl)
-*** TODO when bigger fonts are used the nodes look funny
+*** TODO do migration with save/load				   :simplify:
+*** TODO free widget_data in designs					:bug:
+*** TODO akklimatisierungsbug (bertl)					:bug:
+    When loading a composition and then switching to the composer
+    view, the edges are wrong first and then jump into the correct
+    configuration.
+*** TODO when bigger fonts are used the nodes look funny		:bug:
 
 ** Filters
-*** TODO sharp blur
-*** TODO math filters with constants for composer
-*** TODO better layer modes: http://pegtop.net/delphi/articles/blendmodes/
-*** TODO color gimp layer mode
+*** TODO sharp blur						    :feature:
+*** TODO math filters with constants for composer		    :feature:
+*** TODO better layer modes: http://pegtop.net/delphi/articles/blendmodes/ :feature:
+*** TODO color gimp layer mode					    :feature:
 
 ** Native filters
-*** TODO figure out how much faster 2^n ffts are
-*** TODO do gaussian multithreaded if possible
-*** TODO see if there are faster gauss implementations available (some intel stuff?)
+*** TODO figure out how much faster 2^n ffts are		:performance:
+*** TODO do gaussian multithreaded if possible			:performance:
+*** TODO see if there are faster gauss implementations available (some intel stuff?) :performance:
 *** TODO take aspect ratio of kernel into consideration - don't stretch it
-*** TODO normalize argument for convolve should not be bool but be the value to normalize to
-*** TODO image segmentation
-*** TODO edge detection
+*** TODO normalize argument for convolve should not be bool but be the value to normalize to :feature:
+*** TODO image segmentation					    :feature:
+*** TODO edge detection						    :feature:
 
 ** Command Line Tool
-*** TODO Report error positions
-*** TODO Colors as definable user values
-*** TODO Make input drawables be floatmaps
+*** TODO Report error positions					    :feature:
+*** TODO Colors as definable user values			    :feature:
+*** TODO Make input drawables be floatmaps			   :simplify:
 
 * 1.3.y
 
@@ -106,59 +118,57 @@
 *** TODO catch and forbid recursive compositions
 
 ** GIMP Plug-In
-*** TODO auto-completion?
-*** TODO Histogram
+*** TODO auto-completion					    :feature:
+*** TODO Histogram						    :feature:
 *** TODO ask to save before quitting or selecting another expression or composition
-*** TODO Different fast image source size per drawable
-*** TODO Adapt fast image source size to preview size
-*** TODO zoom in preview
+*** TODO Different fast image source size per drawable		    :feature:
+    Would be trivial if [[*input drawables to be floatmaps][fast image sources were floatmaps]].
+*** TODO Adapt fast image source size to preview size		    :feature:
+*** TODO zoom in preview					    :feature:
     Do we really need this?
-*** TODO Get preview background gray from GtkStyle
-*** TODO figure out how to pass user values to gimp so that Filters->Repeat works properly
+*** TODO Get preview background gray from GtkStyle		  :cosmetics:
+*** TODO figure out how to pass user values to gimp so that Filters->Repeat works properly :feature:
     We can do this by encoding them in a string.
 
 ** Language
-*** TODO provide syntactic sugar for returning images instead of colors
-*** TODO indirectly recursive filters
-*** TODO Hypercomplex-Complex multiplication
-*** TODO XYZ, Lab color space support
-*** TODO filters as first class values
+*** TODO provide syntactic sugar for returning images instead of colors :feature:
+*** TODO indirectly recursive filters				    :feature:
+*** TODO Hypercomplex-Complex multiplication			    :feature:
+*** TODO XYZ, Lab color space support				    :feature:
+*** TODO filters as first class values				    :feature:
 
 ** General
-*** TODO Logarithmic sliders
-*** TODO Debug tuples
-*** TODO Better source reference for error messages
-*** TODO Remove i18n?
+*** TODO Logarithmic sliders					    :feature:
+*** TODO Debug tuples						    :feature:
+*** TODO Remove i18n?						   :simplify:
 
 ** Rendering
-*** TODO lazy rendering
+*** TODO lazy rendering						:performance:
 
 ** Packaging
 *** TODO Real dependencies
-*** TODO Add Lomoize to test suite
 
 ** Compiler
-*** TODO check why lots of ops (like RED_FLOAT) are not foldable
-*** TODO pass colors as tuples
-*** TODO more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2))
-*** TODO catch duplicate filter names
-*** TODO passing of colors, curves and gradients to filters
-*** TODO filter call argument checking
-*** TODO number*image must trigger an error!
-*** TODO optimization for filters which use the "current" pixel
-*** TODO Copy elimination for phis in pre-native code
-*** TODO Remove dead whiles
-*** TODO XY constants for interpreter code
+*** TODO check why lots of ops (like RED_FLOAT) are not foldable :performance:
+*** TODO pass colors as tuples					   :simplify:
+*** TODO more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2)) :performance:
+    Implement [[*Generator for simplifiers][simplifier generator]] first.
+*** TODO catch duplicate filter names					:bug:
+*** TODO passing of colors, curves and gradients to filters	    :feature:
+*** TODO filter call argument checking					:bug:
+*** TODO optimization for filters which use the "current" pixel :performance:
+*** TODO Remove dead whiles					:performance:
 *** TODO don't use const vars for int/float constants
+    What does that mean?
 
 * long term
 
 ** GIMP Plug-In
-*** TODO Preview in thread
-*** TODO UI names for user values
+*** TODO Preview in thread					    :feature:
+*** TODO UI names for user values				    :feature:
 
 ** General
-*** TODO Edge behaviour as image attributes
+*** TODO Edge behaviour as image attributes			    :feature:
 
 * probably never
 
