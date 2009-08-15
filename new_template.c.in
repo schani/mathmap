@@ -392,11 +392,13 @@ filter_$name (mathmap_invocation_t *invocation, image_t *closure, float x, float
     {
 	mathmap_pools_t *pools = closure->v.closure.pools;
 
-	xy_vars = closure->v.closure.xy_vars = mathmap_pools_alloc(pools, sizeof(xy_const_vars_t_$name));
+	xy_vars = mathmap_pools_alloc(pools, sizeof(xy_const_vars_t_$name));
 
 	{
 	    $xy_code
 	}
+
+	closure->v.closure.xy_vars = xy_vars;
     }
     else
 	xy_vars = closure->v.closure.xy_vars;

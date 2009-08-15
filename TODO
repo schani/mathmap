@@ -22,7 +22,8 @@
 *** DONE Gaussian Blur->Droste still has some loop issues		:bug:
     CLOSED: [2009-08-15 Sat 22:16]
 Will be solved by [[*caching of native filter results]].
-*** TODO Gaussian Blur->Spin Zoom->Droste crashes 			:bug:
+*** DONE Gaussian Blur->Spin Zoom->Droste crashes			:bug:
+    CLOSED: [2009-08-15 Sat 22:59]
 So does Gaussian Blur->Random Blur->Droste
 
 * 1.3.x
