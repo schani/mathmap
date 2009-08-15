@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2004 Mark Probst
+ * Copyright (C) 2004-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -90,6 +90,28 @@ bit_vector_bit (bit_vector_t *bitvec, unsigned long which)
     assert(which < bitvec->size);
 
     return (bitvec->data[which >> LONG_SHIFT] & BIT(which & LONG_MASK)) != 0;
+}
+
+void
+bit_vector_add (bit_vector_t *bitvec, bit_vector_t *addee)
+{
+    int i;
+
+    g_assert(bitvec->size == addee->size);
+
+    for (i = 0; i < BIT_SIZE_TO_LONG_SIZE(bitvec->size); ++i)
+	bitvec->data[i] |= addee->data[i];
+}
+
+void
+bit_vector_dump (bit_vector_t *bitvec)
+{
+    int i;
+
+    for (i = 0; i < bitvec->size; ++i)
+	if (bit_vector_bit(bitvec, i))
+	    printf("%d ", i);
+    printf("\n");
 }
 
 #ifdef TEST_BITVECTOR

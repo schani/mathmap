@@ -812,7 +812,7 @@ generate_plug_in (char *filter, char *output_filename,
 	return 0;
     }
 
-    compiler_generate_ir_code(mathmap->main_filter, analyze_constants, 0, -1);
+    compiler_generate_ir_code(mathmap->main_filter, analyze_constants, 0, -1, FALSE);
 
     out = fopen(output_filename, "w");
 

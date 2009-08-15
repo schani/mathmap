@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2004 Mark Probst
+ * Copyright (C) 2004-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,3 +38,7 @@ void bit_vector_set (bit_vector_t *bitvec, unsigned long which);
 void bit_vector_clear (bit_vector_t *bitvec, unsigned long which);
 
 int bit_vector_bit (bit_vector_t *bitvec, unsigned long which);
+
+void bit_vector_add (bit_vector_t *bitvec, bit_vector_t *addee);
+
+void bit_vector_dump (bit_vector_t *bitvec);

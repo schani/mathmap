@@ -302,20 +302,28 @@ extern void compiler_replace_op_rhs_arg (statement_t *stmt, int arg_num, primary
 
 extern value_set_t* compiler_new_value_set (void);
 extern void compiler_value_set_add (value_set_t *set, value_t *val);
+extern void compiler_value_set_add_set (value_set_t *set, value_set_t *addee);
 extern gboolean compiler_value_set_contains (value_set_t *set, value_t *val);
+extern value_set_t* compiler_value_set_copy (value_set_t *set);
 extern void compiler_free_value_set (value_set_t *set);
+
+extern statement_t* compiler_stmt_unlink (statement_t **stmtp);
+extern statement_t** compiler_stmt_insert_before (statement_t *stmt, statement_t **insertion_point);
 
 extern void compiler_for_each_value_in_rhs (rhs_t *rhs, void (*func) (value_t *value, void *info),
 					    void *info);
 extern void compiler_for_each_value_in_statements (statement_t *stmt,
 						   void (*func) (value_t *value, statement_t *stmt, void *info),
 						   void *info);
+extern void compiler_for_each_value_in_statement (statement_t *stmt,
+						  void (*func) (value_t *value, statement_t *stmt, void *info),
+						  void *info);
 
 extern int compiler_slice_code (statement_t *stmt, unsigned int slice_flag,
 				int (*predicate) (statement_t *stmt, void *info), void *info);
 
 extern filter_code_t* compiler_generate_ir_code (filter_t *filter, int constant_analysis,
-						 int convert_types, int timeout);
+						 int convert_types, int timeout, gboolean debug_output);
 
 extern filter_code_t** compiler_compile_filters (mathmap_t *mathmap, int timeout);
 
@@ -327,9 +335,11 @@ extern void compiler_slice_code_for_const (statement_t *stmt, int const_type);
 extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
 extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);
 extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
+extern gboolean compiler_opt_loop_invariant_code_motion (statement_t **first_stmt);
 
 #define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
 #define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)
+#define COMPILER_FOR_EACH_VALUE_IN_STATEMENT(stmt,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statement((stmt),(func),__clos); } while (0)
 #define COMPILER_SLICE_CODE(stmt,flag,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_slice_code((stmt),(flag),(func),__clos); } while (0)
 
 #ifdef __cplusplus

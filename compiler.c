@@ -173,14 +173,20 @@ compiler_value_set_add (value_set_t *set, value_t *val)
     bit_vector_set(set, val->global_index);
 }
 
+void
+compiler_value_set_add_set (value_set_t *set, value_set_t *addee)
+{
+    bit_vector_add(set, addee);
+}
+
 gboolean
 compiler_value_set_contains (value_set_t *set, value_t *val)
 {
     return bit_vector_bit(set, val->global_index);
 }
 
-static value_set_t*
-value_set_copy (value_set_t *set)
+value_set_t*
+compiler_value_set_copy (value_set_t *set)
 {
     return copy_bit_vector(set);
 }
@@ -189,6 +195,32 @@ void
 compiler_free_value_set (value_set_t *set)
 {
     free_bit_vector(set);
+}
+
+statement_t*
+compiler_stmt_unlink (statement_t **stmtp)
+{
+    statement_t *stmt = *stmtp;
+
+    g_assert(stmt != NULL);
+
+    *stmtp = stmt->next;
+    stmt->next = NULL;
+    stmt->parent = NULL;
+    return stmt;
+}
+
+statement_t**
+compiler_stmt_insert_before (statement_t *stmt, statement_t **insertion_point)
+{
+    g_assert(stmt != NULL && stmt->next == NULL && stmt->parent == NULL);
+    g_assert(*insertion_point != NULL);
+
+    stmt->next = *insertion_point;
+    stmt->parent = stmt->next->parent;
+    *insertion_point = stmt;
+
+    return &stmt->next;
 }
 
 int
@@ -742,39 +774,44 @@ _call_func (value_t *value, void *info)
 }
 
 void
+compiler_for_each_value_in_statement (statement_t *stmt, void (*func) (value_t *value, statement_t *stmt, void *info), void *info)
+{
+    switch (stmt->kind)
+    {
+	case STMT_NIL :
+	    break;
+
+	case STMT_PHI_ASSIGN :
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_call_func, func, stmt, info);
+	case STMT_ASSIGN :
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_call_func, func, stmt, info);
+	    func(stmt->v.assign.lhs, stmt, info);
+	    break;
+
+	case STMT_IF_COND :
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_call_func, func, stmt, info);
+	    compiler_for_each_value_in_statements(stmt->v.if_cond.consequent, func, info);
+	    compiler_for_each_value_in_statements(stmt->v.if_cond.alternative, func, info);
+	    compiler_for_each_value_in_statements(stmt->v.if_cond.exit, func, info);
+	    break;
+
+	case STMT_WHILE_LOOP :
+	    COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_call_func, func, stmt, info);
+	    compiler_for_each_value_in_statements(stmt->v.while_loop.entry, func, info);
+	    compiler_for_each_value_in_statements(stmt->v.while_loop.body, func, info);
+	    break;
+
+	default :
+	    g_assert_not_reached();
+    }
+}
+
+void
 compiler_for_each_value_in_statements (statement_t *stmt, void (*func) (value_t *value, statement_t *stmt, void *info), void *info)
 {
     while (stmt != 0)
     {
-	switch (stmt->kind)
-	{
-	    case STMT_NIL :
-		break;
-
-	    case STMT_PHI_ASSIGN :
-		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs2, &_call_func, func, stmt, info);
-	    case STMT_ASSIGN :
-		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.assign.rhs, &_call_func, func, stmt, info);
-		func(stmt->v.assign.lhs, stmt, info);
-		break;
-
-	    case STMT_IF_COND :
-		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.if_cond.condition, &_call_func, func, stmt, info);
-		compiler_for_each_value_in_statements(stmt->v.if_cond.consequent, func, info);
-		compiler_for_each_value_in_statements(stmt->v.if_cond.alternative, func, info);
-		compiler_for_each_value_in_statements(stmt->v.if_cond.exit, func, info);
-		break;
-
-	    case STMT_WHILE_LOOP :
-		COMPILER_FOR_EACH_VALUE_IN_RHS(stmt->v.while_loop.invariant, &_call_func, func, stmt, info);
-		compiler_for_each_value_in_statements(stmt->v.while_loop.entry, func, info);
-		compiler_for_each_value_in_statements(stmt->v.while_loop.body, func, info);
-		break;
-
-	    default :
-		g_assert_not_reached();
-	}
-
+	compiler_for_each_value_in_statement(stmt, func, info);
 	stmt = stmt->next;
     }
 }
@@ -3117,7 +3154,7 @@ analyze_least_const_type_multiply_used_in (statement_t *stmt, int in_loop, value
 		sub_least_const = analyze_least_const_type_multiply_used_in(stmt->v.while_loop.entry,
 									    in_loop, multiply_assigned_set, changed);
 
-		copy = value_set_copy(multiply_assigned_set);
+		copy = compiler_value_set_copy(multiply_assigned_set);
 		assert(copy != 0);
 
 		/* we have to process the body twice because
@@ -4435,7 +4472,7 @@ check_ssa_with_undo (statement_t *stmts, statement_t *parent, GHashTable *curren
     value_set_t *defined_set_copy;
 
     current_value_hash_copy = direct_hash_table_copy(current_value_hash);
-    defined_set_copy = value_set_copy(defined_set);
+    defined_set_copy = compiler_value_set_copy(defined_set);
 
     check_ssa_recursively(stmts, parent, current_value_hash_copy, defined_set_copy);
 
@@ -4636,7 +4673,7 @@ optimization_time_out (struct timeval *start, int timeout)
 }
 
 filter_code_t*
-compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types, int timeout)
+compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types, int timeout, gboolean debug_output)
 {
     gboolean changed;
     filter_code_t *code;
@@ -4669,10 +4706,11 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	check_ssa(first_stmt);
 #endif
 
-#ifdef DEBUG_OUTPUT
-	printf("--------------------------------\n");
-	dump_code(first_stmt, 0);
-#endif
+	if (debug_output)
+	{
+	    printf("--------------------------------\n");
+	    dump_code(first_stmt, 0);
+	}
 
 	optimize_closure_application(first_stmt);
 	CHECK_SSA;
@@ -4687,6 +4725,8 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	CHECK_SSA;
 	changed = optimize_make_tuple() || changed;
 	CHECK_SSA;
+	changed = compiler_opt_loop_invariant_code_motion(&first_stmt) || changed;
+	CHECK_SSA;
 	changed = common_subexpression_elimination() || changed;
 	CHECK_SSA;
 	changed = copy_propagation() || changed;
@@ -4696,16 +4736,18 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	changed = simplify_ops() || changed;
 	CHECK_SSA;
 
-#ifdef DEBUG_OUTPUT
-	printf("-------------------------------- before resize\n");
-	dump_code(first_stmt, 0);
-#endif
+	if (debug_output)
+	{
+	    printf("-------------------------------- before resize\n");
+	    dump_code(first_stmt, 0);
+	}
 	changed = compiler_opt_orig_val_resize(&first_stmt) || changed;
 	CHECK_SSA;
-#ifdef DEBUG_OUTPUT
-	printf("-------------------------------- after resize\n");
-	dump_code(first_stmt, 0);
-#endif
+	if (debug_output)
+	{
+	    printf("-------------------------------- after resize\n");
+	    dump_code(first_stmt, 0);
+	}
 
 	changed = compiler_opt_strip_resize(&first_stmt) || changed;
 	CHECK_SSA;
@@ -4729,10 +4771,11 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	analyze_constants();
 #endif
 
-#ifdef DEBUG_OUTPUT
-    printf("----------- final ---------------------\n");
-    dump_code(first_stmt, 0);
-#endif
+    if (debug_output)
+    {
+	printf("----------- final ---------------------\n");
+	dump_code(first_stmt, 0);
+    }
     check_ssa(first_stmt);
 
     /* no statement reordering after this point */
@@ -4753,6 +4796,11 @@ compiler_compile_filters (mathmap_t *mathmap, int timeout)
     filter_code_t **filter_codes;
     int num_filters, i;
     filter_t *filter;
+#ifdef DEBUG_OUTPUT
+    gboolean debug_output = TRUE;
+#else
+    gboolean debug_output = FALSE;
+#endif
 
     init_pools(&compiler_pools);
     vector_variables = g_hash_table_new(g_direct_hash, g_direct_equal);
@@ -4773,7 +4821,7 @@ compiler_compile_filters (mathmap_t *mathmap, int timeout)
 #ifdef DEBUG_OUTPUT
 	g_print("compiling filter %s\n", filter->name);
 #endif
-	filter_codes[i] = compiler_generate_ir_code(filter, 1, 0, timeout);
+	filter_codes[i] = compiler_generate_ir_code(filter, 1, 0, timeout, debug_output && filter == mathmap->main_filter);
     }
 
     return filter_codes;
