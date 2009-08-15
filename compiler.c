@@ -4725,8 +4725,10 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	CHECK_SSA;
 	changed = optimize_make_tuple() || changed;
 	CHECK_SSA;
+	/*
 	changed = compiler_opt_loop_invariant_code_motion(&first_stmt) || changed;
 	CHECK_SSA;
+	*/
 	changed = common_subexpression_elimination() || changed;
 	CHECK_SSA;
 	changed = copy_propagation() || changed;

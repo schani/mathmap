@@ -19,8 +19,6 @@
     CLOSED: [2009-08-15 Sat 22:16]
 
 ** Compiler
-*** TODO Loop-invariant code motion does not honor non-pure ops		:bug:
-Turn it off for 1.3.5, implement it properly for 1.3.6.
 *** DONE Gaussian Blur->Droste still has some loop issues		:bug:
     CLOSED: [2009-08-15 Sat 22:16]
 Will be solved by [[*caching of native filter results]].
@@ -49,6 +47,7 @@ So does Gaussian Blur->Random Blur->Droste
 *** TODO sqrt for complex					       :feature:
 
 ** Compiler
+*** TODO Loop-invariant code motion does not honor non-pure ops		:bug:
 *** TODO We put loops into const code even if they're not necessary 	:bug:
 For example, Gaussian Blur->Random Blur without loop invariant code
 motion.
