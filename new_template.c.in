@@ -120,6 +120,8 @@ $def_invocation_frame_slice
 
 $def_builtins
 
+$def_image_new_id
+
 $def_make_resize_image
 
 $def_libnoise

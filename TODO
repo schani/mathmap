@@ -22,7 +22,12 @@
     CLOSED: [2009-08-15 Sat 22:16]
 
 ** Compiler
-*** TODO Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
+*** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
+    CLOSED: [2009-08-16 Sun 00:24]
+    Most of the time is spent in GCC compiling the C code.  Without
+    the backend we compile in 0.4s, with the GCC backend in over 3s.
+    Just compiling the C code on the command-line takes about 2.5s.
+    With LLVM we're much faster - about 0.8s including the backend.
 *** DONE Gaussian Blur->Droste still has some loop issues		:bug:
     CLOSED: [2009-08-15 Sat 22:16]
 Will be solved by [[*caching of native filter results]].

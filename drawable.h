@@ -173,7 +173,9 @@ typedef struct _input_drawable_t {
     } v;
 } input_drawable_t;
 
+/* TEMPLATE image_new_id */
 int image_new_id (void);
+/* END */
 
 input_drawable_t* alloc_input_drawable (int kind, int width, int height);
 
