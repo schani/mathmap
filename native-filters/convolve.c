@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2008 Mark Probst
+ * Copyright (C) 2008-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ CALLBACK_SYMBOL
 image_t*
 native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
+    native_filter_cache_entry_t *cache_entry;
     image_t *in_image = args[0].v.image;
     image_t *filter_image = args[1].v.image;
     gboolean normalize = args[2].v.bool_const != 0.0;
@@ -78,6 +79,10 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, mathm
     fftw_plan in_plan, filter_plan, inverse_plan;
     int i, n, nhalf, cn, channel, num_channels;
 
+    cache_entry = invocation_lookup_native_filter_invocation(invocation, args, &native_filter_convolve);
+    if (cache_entry->image != NULL)
+	return cache_entry->image;
+
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
 				invocation->render_width, invocation->render_height, pools, TRUE);
@@ -87,7 +92,7 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, mathm
 	filter_image = render_image(invocation, filter_image,
 				    in_image->pixel_width, in_image->pixel_height, pools, TRUE);
 
-    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, pools);
+    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, &invocation->pools);
 
     n = in_image->pixel_height * in_image->pixel_width;
     nhalf = in_image->pixel_width * (in_image->pixel_height / 2) + in_image->pixel_width / 2;
@@ -163,6 +168,8 @@ native_filter_convolve (mathmap_invocation_t *invocation, userval_t *args, mathm
     fftw_free(image_out);
     fftw_free(filter_out);
 
+    native_filter_cache_entry_set_image(invocation, cache_entry, out_image);
+
     return out_image;
 }
 
@@ -170,6 +177,7 @@ CALLBACK_SYMBOL
 image_t*
 native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
+    native_filter_cache_entry_t *cache_entry;
     image_t *in_image = args[0].v.image;
     image_t *filter_image = args[1].v.image;
     gboolean copy_alpha = args[2].v.bool_const != 0.0;
@@ -178,6 +186,10 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
     fftw_complex *image_out;
     fftw_plan in_plan, inverse_plan;
     int i, n, nhalf, cn, cw, channel, num_channels;
+
+    cache_entry = invocation_lookup_native_filter_invocation(invocation, args, &native_filter_half_convolve);
+    if (cache_entry->image != NULL)
+	return cache_entry->image;
 
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
@@ -188,7 +200,7 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
 	filter_image = render_image(invocation, filter_image,
 				    in_image->pixel_width, in_image->pixel_height, pools, TRUE);
 
-    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, pools);
+    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, &invocation->pools);
 
     n = in_image->pixel_height * in_image->pixel_width;
     nhalf = in_image->pixel_width * (in_image->pixel_height / 2) + in_image->pixel_width / 2;
@@ -249,6 +261,8 @@ native_filter_half_convolve (mathmap_invocation_t *invocation, userval_t *args, 
     fftw_free(fftw_in);
     fftw_free(image_out);
 
+    native_filter_cache_entry_set_image(invocation, cache_entry, out_image);
+
     return out_image;
 }
 
@@ -256,6 +270,7 @@ CALLBACK_SYMBOL
 image_t*
 native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
+    native_filter_cache_entry_t *cache_entry;
     image_t *in_image = args[0].v.image;
     gboolean ignore_alpha = args[1].v.bool_const != 0.0;
     image_t *out_image;
@@ -265,11 +280,15 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
     int i, n, nhalf, cn, cw, channel, num_channels;
     double sqrtn;
 
+    cache_entry = invocation_lookup_native_filter_invocation(invocation, args, &native_filter_visualize_fft);
+    if (cache_entry->image != NULL)
+	return cache_entry->image;
+
     if (in_image->type != IMAGE_FLOATMAP)
 	in_image = render_image(invocation, in_image,
 				invocation->render_width, invocation->render_height, pools, TRUE);
 
-    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, pools);
+    out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, &invocation->pools);
 
     n = in_image->pixel_height * in_image->pixel_width;
     nhalf = in_image->pixel_width * (in_image->pixel_height / 2) + in_image->pixel_width / 2;
@@ -331,6 +350,8 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
 
     fftw_free(fftw_in);
     fftw_free(image_out);
+
+    native_filter_cache_entry_set_image(invocation, cache_entry, out_image);
 
     return out_image;
 }

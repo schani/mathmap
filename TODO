@@ -16,7 +16,8 @@
 *** TODO update homepage 				      :documentation:
 
 ** Native Filters
-*** TODO Cache convolution filters as well				:bug:
+*** DONE Cache convolution filters as well				:bug:
+    CLOSED: [2009-08-15 Sat 23:27]
 *** DONE Implement caching of native filter results			:bug:
     CLOSED: [2009-08-15 Sat 22:16]
 
