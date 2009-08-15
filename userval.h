@@ -98,8 +98,6 @@ typedef struct
 
 typedef struct _userval_t
 {
-    int type;
-
     union
     {
 	int int_const;

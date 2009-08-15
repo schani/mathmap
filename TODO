@@ -7,7 +7,9 @@
 *** TODO why does syntax highlighting not work completely in WinGimp? 	:bug:
 
 ** General
-*** TODO What's userval_t->type for?				   :simplify:
+*** DONE What's userval_t->type for?				   :simplify:
+    CLOSED: [2009-08-15 Sat 23:09]
+    Not needed anymore.
 
 ** Packaging
 *** TODO check out Robin Norwood's spec file changes (for Fedora)
@@ -19,6 +21,7 @@
     CLOSED: [2009-08-15 Sat 22:16]
 
 ** Compiler
+*** TODO Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
 *** DONE Gaussian Blur->Droste still has some loop issues		:bug:
     CLOSED: [2009-08-15 Sat 22:16]
 Will be solved by [[*caching of native filter results]].

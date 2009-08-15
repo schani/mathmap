@@ -392,7 +392,6 @@ set_userval_to_default (userval_t *val, userval_info_t *info, mathmap_invocation
 void
 instantiate_userval (userval_t *val, userval_info_t *info, mathmap_invocation_t *invocation)
 {
-    val->type = info->type;
     set_userval_to_default(val, info, invocation);
 }
 
@@ -513,7 +512,6 @@ void
 assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawable_t *drawable)
 {
     g_assert(info->type == USERVAL_IMAGE);
-    g_assert(val->type == USERVAL_IMAGE);
 
     if (val->v.image != NULL)
     {
