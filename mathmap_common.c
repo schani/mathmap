@@ -47,6 +47,7 @@
 #include "compiler.h"
 #include "mathmap.h"
 #include "compiler-internals.h"
+#include "native-filters/native-filters.h"
 
 int cmd_line_mode = 0;
 
@@ -302,12 +303,18 @@ free_invocation (mathmap_invocation_t *invocation)
     }
 
     free(invocation->rows_finished);
+
+    g_mutex_free(invocation->native_filter_cache_mutex);
+    g_cond_free(invocation->native_filter_cache_cond);
+    mathmap_pools_free(&invocation->pools);
+
     free(invocation);
 }
 
 static filter_t*
 register_native_filter (mathmap_t *mathmap, const char *name, userval_info_t *userval_infos,
-			gboolean needs_rendered_images, gboolean is_pure, const char *filter_func_name)
+			gboolean needs_rendered_images, gboolean is_pure,
+			const char *filter_func_name, native_filter_func_t func)
 {
     filter_t *filter = g_new0(filter_t, 1);
 
@@ -320,6 +327,7 @@ register_native_filter (mathmap_t *mathmap, const char *name, userval_info_t *us
     filter->v.native.needs_rendered_images = needs_rendered_images;
     filter->v.native.is_pure = is_pure;
     filter->v.native.func_name = g_strdup(filter_func_name);
+    filter->v.native.func = func;
 
     filter->next = mathmap->filters;
     mathmap->filters = filter;
@@ -336,25 +344,29 @@ register_native_filters (mathmap_t *mathmap)
     register_image(&infos, "in", 0);
     register_float_const(&infos, "horizontal_std_dev", 0.0, 2.0, 0.01);
     register_float_const(&infos, "vertical_std_dev", 0.0, 2.0, 0.01);
-    register_native_filter(mathmap, "gaussian_blur", infos, TRUE, TRUE, "native_filter_gaussian_blur");
+    register_native_filter(mathmap, "gaussian_blur", infos, TRUE, TRUE,
+			   "native_filter_gaussian_blur", &native_filter_gaussian_blur);
 
     infos = NULL;
     register_image(&infos, "in", 0);
     register_image(&infos, "kernel", 0);
     register_bool(&infos, "normalize", 1.0);
     register_bool(&infos, "copy_alpha", 1.0);
-    register_native_filter(mathmap, "convolve", infos, TRUE, TRUE, "native_filter_convolve");
+    register_native_filter(mathmap, "convolve", infos, TRUE, TRUE,
+			   "native_filter_convolve", &native_filter_convolve);
 
     infos = NULL;
     register_image(&infos, "in", 0);
     register_image(&infos, "mask", 0);
     register_bool(&infos, "copy_alpha", 1.0);
-    register_native_filter(mathmap, "half_convolve", infos, TRUE, TRUE, "native_filter_half_convolve");
+    register_native_filter(mathmap, "half_convolve", infos, TRUE, TRUE,
+			   "native_filter_half_convolve", &native_filter_half_convolve);
 
     infos = NULL;
     register_image(&infos, "in", 0);
     register_bool(&infos, "ignore_alpha", 1.0);
-    register_native_filter(mathmap, "visualize_fft", infos, TRUE, TRUE, "native_filter_visualize_fft");
+    register_native_filter(mathmap, "visualize_fft", infos, TRUE, TRUE,
+			   "native_filter_visualize_fft", &native_filter_visualize_fft);
 }
 
 #define X_INTERNAL_INDEX         0
@@ -762,6 +774,14 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 	carry_over_uservals_from_template(invocation, template);
 
     init_invocation(invocation);
+
+    if (!g_thread_supported())
+	g_thread_init (NULL);
+
+    mathmap_pools_init_global(&invocation->pools);
+    invocation->native_filter_cache_mutex = g_mutex_new();
+    invocation->native_filter_cache_cond = g_cond_new();
+    invocation->native_filter_cache = NULL;
 
     return invocation;
 }

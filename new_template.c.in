@@ -111,6 +111,11 @@ $def_mathfuncs
 
 $def_orig_val_pixel_func
 
+/* dummy declarations - we never need those here */
+typedef void* GMutex;
+typedef void* GCond;
+typedef void* native_filter_cache_entry_t;
+
 $def_invocation_frame_slice
 
 $def_builtins

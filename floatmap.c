@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2008 Mark Probst
+ * Copyright (C) 2008-2009 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,6 +33,7 @@ floatmap_alloc (int width, int height, mathmap_pools_t *pools)
     image_t *img = mathmap_pools_alloc(pools, sizeof(image_t));
 
     img->type = IMAGE_FLOATMAP;
+    img->id = image_new_id();
     img->pixel_width = width;
     img->pixel_height = height;
     img->v.floatmap.ax = img->v.floatmap.bx = (float)(width - 1) / 2.0;

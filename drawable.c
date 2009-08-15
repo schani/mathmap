@@ -24,8 +24,19 @@
 
 #include <string.h>
 
+#include <glib.h>
+
 #include "drawable.h"
 #include "mathmap.h"
+
+static volatile gint image_counter = 0;
+
+CALLBACK_SYMBOL
+int
+image_new_id (void)
+{
+    return g_atomic_int_exchange_and_add(&image_counter, 1);
+}
 
 #define MAX_INPUT_DRAWABLES 64
 
@@ -51,6 +62,7 @@ alloc_input_drawable (int kind, int width, int height)
     drawable->kind = kind;
 
     drawable->image.type = IMAGE_DRAWABLE;
+    drawable->image.id = image_new_id();
     drawable->image.pixel_width = width;
     drawable->image.pixel_height = height;
     drawable->image.v.drawable = drawable;
@@ -205,6 +217,7 @@ make_resize_image (image_t *image, float x_factor, float y_factor, mathmap_pools
     g_assert(image->type != IMAGE_RESIZE);
 
     resize->type = IMAGE_RESIZE;
+    resize->id = image_new_id();
     resize->pixel_width = image->pixel_width;
     resize->pixel_height = image->pixel_height;
     resize->v.resize.original = image;
@@ -222,6 +235,7 @@ closure_image_alloc (mathfuncs_t *mathfuncs, filter_func_t filter_func,
     image_t *image = g_malloc0(sizeof(image_t) + num_uservals * sizeof(userval_t));
 
     image->type = IMAGE_CLOSURE;
+    image->id = image_new_id();
     image->pixel_width = pixel_width;
     image->pixel_height = pixel_height;
     image->v.closure.funcs = mathfuncs;

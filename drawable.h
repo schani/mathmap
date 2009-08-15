@@ -91,6 +91,7 @@ struct _mathfuncs_t;
 typedef struct _image_t
 {
     int type;
+    int id;			/* globally unique */
     int pixel_width;
     int pixel_height;
     union
@@ -171,6 +172,8 @@ typedef struct _input_drawable_t {
 	} cmdline;
     } v;
 } input_drawable_t;
+
+int image_new_id (void);
 
 input_drawable_t* alloc_input_drawable (int kind, int width, int height);
 

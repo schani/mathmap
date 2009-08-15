@@ -153,6 +153,7 @@
 #define POOLS_ALLOC(s)			(mathmap_pools_alloc(pools, (s)))
 #define ALLOC_CLOSURE_IMAGE(n)		({ image_t *image = (image_t*)(POOLS_ALLOC(sizeof(image_t) + (n) * sizeof(userval_t))); \
 	    				   image->type = IMAGE_CLOSURE; \
+					   image->id = image_new_id();	\
 					   image->v.closure.num_args = (n); \
 					   image; })
 

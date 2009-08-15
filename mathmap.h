@@ -87,6 +87,7 @@ typedef struct _filter_t
 	    gboolean needs_rendered_images;
 	    gboolean is_pure;
 	    char *func_name;
+	    native_filter_func_t func; /* we only store this for easy lookup for caching */
 	} native;
     } v;
 
@@ -149,6 +150,14 @@ extern int fast_image_source_scale;
 typedef color_t (*orig_val_pixel_func_t) (struct _mathmap_invocation_t*, float, float, image_t*, int);
 /* END */
 
+typedef struct _native_filter_cache_entry_t
+{
+    filter_t *filter;
+    userval_t *args;
+    image_t *image;		/* NULL if not done */
+    struct _native_filter_cache_entry_t *next;
+} native_filter_cache_entry_t;
+
 /* TEMPLATE invocation_frame_slice */
 typedef struct _mathmap_invocation_t
 {
@@ -178,6 +187,11 @@ typedef struct _mathmap_invocation_t
     int row_stride;
 
     unsigned char * volatile rows_finished;
+
+    mathmap_pools_t pools;	/* used exclusively for the native filter cache */
+    GMutex *native_filter_cache_mutex;
+    GCond *native_filter_cache_cond;
+    native_filter_cache_entry_t *native_filter_cache;
 
     /* FIXME: remove - it's in the closure */
     mathfuncs_t mathfuncs;
@@ -283,6 +297,12 @@ void call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure
 void join_invocation_call (gpointer *_call);
 void kill_invocation_call (gpointer *_call);
 gboolean invocation_call_is_done (gpointer *_call);
+
+native_filter_cache_entry_t* invocation_lookup_native_filter_invocation (mathmap_invocation_t *invocation, userval_t *args,
+									 native_filter_func_t filter_func);
+void native_filter_cache_entry_set_image (mathmap_invocation_t *invocation,
+					  native_filter_cache_entry_t *cache_entry,
+					  image_t *image);
 
 void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template_invocation);
 

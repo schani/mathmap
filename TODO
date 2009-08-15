@@ -4,11 +4,28 @@
 * 1.3.5
 
 ** Windows
-*** TODO why does syntax highlighting not work completely in WinGimp?	   :bug:
+*** TODO why does syntax highlighting not work completely in WinGimp? 	:bug:
+
+** General
+*** TODO What's userval_t->type for?				   :simplify:
 
 ** Packaging
 *** TODO check out Robin Norwood's spec file changes (for Fedora)
-*** TODO update homepage					 :documentation:
+*** TODO update homepage 				      :documentation:
+
+** Native Filters
+*** TODO Cache convolution filters as well				:bug:
+*** DONE Implement caching of native filter results			:bug:
+    CLOSED: [2009-08-15 Sat 22:16]
+
+** Compiler
+*** TODO Loop-invariant code motion does not honor non-pure ops		:bug:
+Turn it off for 1.3.5, implement it properly for 1.3.6.
+*** DONE Gaussian Blur->Droste still has some loop issues		:bug:
+    CLOSED: [2009-08-15 Sat 22:16]
+Will be solved by [[*caching of native filter results]].
+*** TODO Gaussian Blur->Spin Zoom->Droste crashes 			:bug:
+So does Gaussian Blur->Random Blur->Droste
 
 * 1.3.x
 
@@ -18,7 +35,7 @@
 *** TODO UI via GtkBuilder/Glade				      :simplify:
 
 ** General
-*** TODO tree_vector_node_t shouldn't be a union - don't alloc a pointer array for the leaves :performance:
+*** TODO =tree_vector_node_t= shouldn't be a union - don't alloc a pointer array for the leaves  :performance:
 *** TODO move everything from invocation to frame that belongs there  :simplify:
 *** TODO pass through frame and t everwhere				   :bug:
 *** TODO use -O3						   :performance:
@@ -32,6 +49,51 @@
 *** TODO sqrt for complex					       :feature:
 
 ** Compiler
+*** TODO We put loops into const code even if they're not necessary 	:bug:
+For example, Gaussian Blur->Random Blur without loop invariant code
+motion.
+*** TODO We need something to handle loop-invariant conditional closures :bug:
+Obsoleted by [[*caching of native filter results]].
+
+Consider this code:
+
+#+BEGIN_SRC mathmap
+while ... do
+  cond = ...;
+  if cond then
+    img = gaussian_blur(abc)
+  else
+    img = gaussian_blur(def)
+  end;
+  p = img(xy)
+end
+#+END_SRC
+
+If =cond= is not loop-invariant then we cannot move the =if= statement
+out of the loop, and neither of the invocations of =gaussian_blur=,
+which means that for every pixel we will render either one or the
+other.
+
+We need a lazy evaluation operation that makes sure that the rendering
+happens only once.  Something that transforms the above code to:
+
+#+BEGIN_SRC mathmap
+img_true = lazy(gaussian_blur(abc));
+img_false = lazy(gaussian_blur(def));
+while ... do
+  cond = ...;
+  if ... then
+    img = force(img_true)
+  else
+    img = force(img_false)
+  end;
+  p = img(xy)
+end
+#+END_SRC
+
+The =lazy= operation would create a kind of closure which =force=
+would invoke at most once and then store and reuse the result.  Of
+course =lazy= would only be used for expensive operations.
 *** TODO number*image must trigger an error!				   :bug:
     This means that the compiler will have to know about types other
     than tuples.
@@ -39,10 +101,10 @@
 *** TODO Generator for simplifiers				      :simplify:
 *** TODO Simplify coordinate stuff (non-stretched ident filter) :performance:feature:
 *** TODO calculate R in the filter code				      :simplify:
-*** TODO optimize IMAGE_PIXEL_WIDTH/HEIGHT(closure)		   :performance:
+*** TODO optimize =IMAGE_PIXEL_WIDTH/HEIGHT(closure)= 		:performance:
 *** TODO replace resize with a simple internal filter		      :simplify:
-*** TODO don't use x_consts and y_consts structs in filter_func
-*** TODO make two different filter_XXX functions		   :performance:
+*** TODO don't use =x_consts= and =y_consts= structs in =filter_func=
+*** TODO make two different =filter_XXX= functions 		:performance:
     one for calling in closure, one without closure, so as not to require building the closure
 *** TODO make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth :performance:
     requires pools in the folders
@@ -57,14 +119,15 @@
 *** TODO implement comparison ops with float args		   :performance:
     we only have comparison ops with float args, so we always promote ints, even in loops:
 
-  filter loop ()
-    g = 0;
-    for i = 0 .. 10 do
-      g = g + (x + y)/30
-    end;
-    grayColor(g)
-  end
-
+#+BEGIN_SRC mathmap
+filter loop ()
+  g = 0;
+  for i = 0 .. 10 do
+    g = g + (x + y)/30
+  end;
+  grayColor(g)
+end
+#+END_SRC
 ** Packaging
 *** TODO Generate keyword list in sourceview spec file from builtins.lisp :simplify:
 *** TODO rewrite HACKING and include it in distro		 :documentation:
@@ -85,7 +148,7 @@
 *** TODO native filters should show up directly, without .mm filters
     really? - why?
 *** TODO do migration with save/load				   :simplify:
-*** TODO free widget_data in designs					:bug:
+*** TODO free =widget_data= in designs 					:bug:
 *** TODO akklimatisierungsbug (bertl)					:bug:
     When loading a composition and then switching to the composer
     view, the edges are wrong first and then jump into the correct
@@ -99,6 +162,11 @@
 *** TODO color gimp layer mode					    :feature:
 
 ** Native filters
+*** TODO We're superfluously copying floatmaps in Gauss 	:performance:
+When Gauss isn't given a floatmap, it renders it into a new floatmap,
+and then that floatmap is copied again.
+*** TODO Images in the native filter cache are never freed		:bug:
+Use some form of reference counting.
 *** TODO figure out how much faster 2^n ffts are		:performance:
 *** TODO do gaussian multithreaded if possible			:performance:
 *** TODO see if there are faster gauss implementations available (some intel stuff?) :performance:
@@ -149,7 +217,7 @@
 *** TODO Real dependencies
 
 ** Compiler
-*** TODO check why lots of ops (like RED_FLOAT) are not foldable :performance:
+*** TODO check why lots of ops (like =RED_FLOAT=) are not foldable  :performance:
 *** TODO pass colors as tuples					   :simplify:
 *** TODO more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2)) :performance:
     Implement [[*Generator for simplifiers][simplifier generator]] first.
@@ -200,7 +268,7 @@
 * Various filters
 
 ** Konrad Stania
-
+#+BEGIN_SRC mathmap
 winkelrotz=0;
 winkelrothor=0;
 shiftx=0;
@@ -229,26 +297,26 @@ winkelrothor : perspectively tilt the image around horizont.
 shiftx/shifty: shift the resulting imgae
 fa ... fd    : to scale image and remove optical distortion
                in polar koordinates radius = fa * radius + fb * radius ^ 2 + fc * radius ^ 3 + fd * radius ^ 4
-
+#+END_SRC
 ** make vertically seamless
-
+#+BEGIN_SRC mathmap
 # Thanks to Martin Weber
 origValXY(x,y-sign(y)*Y)*abs(y)/Y+origVal(xy)*(1-(abs(y)/Y))
-
+#+END_SRC
 ** make horizontally seamless
-
+#+BEGIN_SRC mathmap
 # Thanks to Martin Weber
 origValXY(x-sign(x)*X,y)*abs(x)/X+origVal(xy)*(1-(abs(x)/X))
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 g = user_slider("granularity",0,50);
 nxy = xy/R*g;
 n = noise3([nxy[0],nxy[1],t*g]);
 grayColor(n)*0.5+0.5
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 g = user_slider("granularity",0,50);
 nxy = xy/R*g;
 point = [nxy[0],nxy[1],t*g];
@@ -259,9 +327,9 @@ offset = [noise1(offset[0]),noise1(offset[1]),noise1(offset[2])] * user_slider("
 #grayColor(offset[0]*0.5+0.5)
 n = noise3(point+offset);
 grayColor(n)*0.5+0.5
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 dx=-5;
 dy=-5;
 sum=rgba:[0,0,0,0];
@@ -275,9 +343,9 @@ while dy < 6 do
     dy = dy + 1
 end;
 sum / num
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 alpha = user_slider("alpha",0,360);
 dir = xy:[cos(alpha),sin(alpha)];
 ndir = xy:[-dir[1],dir[0]];
@@ -291,9 +359,9 @@ lower = user_curve("lower",pos) * 2 - 0.5;
 upper = user_curve("upper",pos) * 2 - 0.5;
 f = ((dist + 1) / 2 - lower) / (upper - lower);
 origVal(pt + ndir * (f*2-1) * )R
-
+#+END_SRC
 ** Fractal Noise
-
+#+BEGIN_SRC mathmap
 z = user_slider("z",0,10);
 depth = floor(user_slider("depth",1,10));
 pers = user_slider("persistence",0,1);
@@ -309,9 +377,9 @@ while i < depth + 1 do
     i = i + 1
 end;
 grayColor(sum / (max * 2) + 0.5)
-
+#+END_SRC
 ** Fractal Noise Displace
-
+#+BEGIN_SRC mathmap
 z = user_float("z",0,10);
 depth = user_int("depth",1,10);
 pers = user_float("persistence",0,1);
@@ -330,9 +398,9 @@ while i < depth + 1 do
 end;
 val = sum / max;
 origVal(xy + val * strength)
-
+#+END_SRC
 ** Smooth Mugl
-
+#+BEGIN_SRC mathmap
 sl=30;
 nx=floor(x/sl-0.5); ny=floor(y/sl-0.5);
 alpha=[0,0,0,0];
@@ -370,9 +438,9 @@ else
         rgba:[0,0,0,1]
     end
 end
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 dur = user_slider("duration",0,5);
 amp = exp(-t / dur);
 front = t * R * 2;
@@ -381,9 +449,9 @@ dropr = toRA(xy - dropxy)[0];
 disp = sin(dropr * 360 / user_slider("length",0,100) + t * 360 * user_slider("speed",0,100)) * cos(clamp(if front == 0 then 90 else dropr/front end * 90,0,90))^2 * user_slider("amp",0,100) * amp;
 dispxy = toXY(ra:[disp,0]);
 origVal(xy+dispxy)
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 dur = user_slider("duration",0,5);
 amp = exp(-t / dur);
 front = t * R * 2;
@@ -400,25 +468,28 @@ while i < n do
     i = i + 1
 end;
 origVal(xy+dispxy)
-
+#+END_SRC
 ** Frame Diff
+#+BEGIN_SRC mathmap
 (origVal(xy,frame)-origVal(xy,frame-1))/2+rgba:[1/2,1/2,1/2,1]
-
+#+END_SRC
 ** Fade
+#+BEGIN_SRC mathmap
 origVal(xy,image:0,frame)*(1-t)+origVal(xy,image:1,frame)*t
-
+#+END_SRC
 ** Movie Spiral
+#+BEGIN_SRC mathmap
 q=sin((r-a*0.1)*10+t*5*360)*0.5+0.5;
 origVal(xy,image:0,frame)*(1-q)+origVal(xy,image:1,frame)*q
-
+#+END_SRC
 ** Slide (left->right) Transition
-
+#+BEGIN_SRC mathmap
 if (x+X)/W < t then origVal(xy,image:0,frame) else origVal(xy,image:1,frame) end
-
+#+END_SRC
 ** Unknown
-
+#+BEGIN_SRC mathmap
 st=15;p=clamp((x+X-t*W)/st+0.5,0,1);origVal(xy,image:0,frame)*(1-p)+origVal(xy,image:1,frame)*p
-
+#+END_SRC
 ** Craig Kaplan
 
 Okay.  Well, part of the talk was about how some of Escher's
@@ -439,21 +510,22 @@ and to pass the image through the function f(z)=log(z) in
 the complex plane.  More precisely, I used this function in 
 MathMap:
 
-        y = y/H*360.0*1.6;
-        cy = cos( ay );
-        sy = sin( ay );
-        ax =-0.8+(x+X)/W*9;
-        ex = exp( ax );
-        mx = ex*cy;
-        my = ex*sy;
+#+BEGIN_SRC mathmap
+y = y/H*360.0*1.6;
+cy = cos( ay );
+sy = sin( ay );
+ax =-0.8+(x+X)/W*9;
+ex = exp( ax );
+mx = ex*cy;
+my = ex*sy;
 
-        ssx = mx*3;
-        ssy = my*3;
+ssx = mx*3;
+ssy = my*3;
 
-        origVal( xy:[ssx+4,ssy-1] )
-
+origVal( xy:[ssx+4,ssy-1] )
+#+END_SRC
 * Language extension ideas
-
+#+BEGIN_SRC mathmap
 defun map ((nil:1)->nil:1 f, _:_ x)
     construct(x.tag:x.length, lambda (nil:1 i) f(x[i]) end)
 end
@@ -488,7 +560,7 @@ defun __div (ri:2 a, ri:2 b)
         ri:[(a[0]*b[0] + a[1]*b[1]) / q, (-a[0]*b[1] + b[0]*a[1]) / q]
     end
 end
-
+#+END_SRC
 * Junk - file properly
 
 unload c code in openstep
@@ -544,3 +616,9 @@ normalisierung von matrizen (matrix/determinante)
 inverse matrix
 pixel konvertieren schneller machen
 abs cool machen (abs([-3,4]) sollt 5 sein, ned [3,4])
+
+#+TITLE:     MathMap TODO
+#+LANGUAGE:  en
+#+OPTIONS:   H:3 num:nil toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js

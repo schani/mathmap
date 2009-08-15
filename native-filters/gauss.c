@@ -642,9 +642,15 @@ CALLBACK_SYMBOL
 image_t*
 native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, mathmap_pools_t *pools)
 {
+    native_filter_cache_entry_t *cache_entry;
+    image_t *result;
     image_t *floatmap = args[0].v.image;
     float horizontal_std_dev = args[1].v.float_const;
     float vertical_std_dev = args[2].v.float_const;
+
+    cache_entry = invocation_lookup_native_filter_invocation(invocation, args, &native_filter_gaussian_blur);
+    if (cache_entry->image != NULL)
+	return cache_entry->image;
 
     if (floatmap->type != IMAGE_FLOATMAP)
 	floatmap = render_image(invocation, floatmap,
@@ -654,7 +660,11 @@ native_filter_gaussian_blur (mathmap_invocation_t *invocation, userval_t *args, 
     vertical_std_dev = fabs(vertical_std_dev * floatmap->v.floatmap.ay);
 
     if (horizontal_std_dev < 0.5 || vertical_std_dev < 0.5)
-	return gauss_rle(floatmap, horizontal_std_dev, vertical_std_dev, pools);
+	result = gauss_rle(floatmap, horizontal_std_dev, vertical_std_dev, &invocation->pools);
     else
-	return gauss_iir(floatmap, horizontal_std_dev, vertical_std_dev, pools);
+	result = gauss_iir(floatmap, horizontal_std_dev, vertical_std_dev, &invocation->pools);
+
+    native_filter_cache_entry_set_image(invocation, cache_entry, result);
+
+    return result;
 }
