@@ -54,6 +54,8 @@ So does Gaussian Blur->Random Blur->Droste
     we'll need additional features for that in builtins.lisp
 *** TODO builtin for getting size of an image			       :feature:
 *** TODO real gamma function buggy					   :bug:
+*** TODO check out LCH color space
+    http://github.com/schani/mathmap/issues/#issue/3
 *** TODO sqrt for complex					       :feature:
 
 ** Compiler

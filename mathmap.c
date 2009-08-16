@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -2111,10 +2112,41 @@ user_value_changed (void)
 	dialog_update_preview();
 }
 
+#ifdef PRINT_FPS
+static void
+calculate_and_print_fps (void)
+{
+    static gboolean have_last_tv = FALSE;
+    static struct timeval last_tv;
+
+    struct timeval tv;
+    int micros;
+
+    if (!have_last_tv)
+    {
+	gettimeofday(&last_tv, NULL);
+	have_last_tv = TRUE;
+	return;
+    }
+
+    gettimeofday(&tv, NULL);
+
+    micros = (tv.tv_sec - last_tv.tv_sec) * 1000000 + (tv.tv_usec - last_tv.tv_usec);
+
+    g_printf("%f fps\n", 1000000.0 / micros);
+
+    last_tv = tv;
+}
+#endif
+
 static gboolean
 recalculate_preview (void)
 {
     static int in_recalculate = 0;
+
+#ifdef PRINT_FPS
+    calculate_and_print_fps();
+#endif
 
     if (in_recalculate > 0)
 	return FALSE;
