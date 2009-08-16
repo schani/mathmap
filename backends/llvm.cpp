@@ -553,7 +553,6 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 {
     int num_args = compiler_num_filter_args(closure_filter) - 3;
     Value *closure = NULL, *uservals;
-    bool have_size;
     userval_info_t *info;
     int i;
 
@@ -580,7 +579,6 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 					pools_arg,
 					make_int_const(compiler_num_filter_args(closure_filter) - 3));
 
-    have_size = FALSE;
     for (i = 0, info = closure_filter->userval_infos;
 	 info != 0;
 	 ++i, info = info->next)
@@ -593,23 +591,13 @@ code_emitter::emit_closure (filter_t *closure_filter, primary_t *args)
 	    arg = promote(arg, TYPE_FLOAT);
 
 	builder->CreateCall3(module->getFunction(string(set_func_name)), uservals, make_int_const(i), arg);
-
-	if (closure_filter->kind == FILTER_MATHMAP
-	    && info->type == USERVAL_IMAGE
-	    && !have_size)
-	{
-	    builder->CreateCall2(module->getFunction(string("set_closure_size_from_image")), closure, arg);
-	    have_size = true;
-	}
     }
     g_assert(i == num_args);
 
     if (closure_filter->kind == FILTER_MATHMAP)
     {
-	if (!have_size)
-	    builder->CreateCall3(module->getFunction(string("set_closure_pixel_size")),
-				 closure, lookup_internal("__canvasPixelW"), lookup_internal("__canvasPixelH"));
-
+	builder->CreateCall3(module->getFunction(string("set_closure_pixel_size")),
+			     closure, lookup_internal("__canvasPixelW"), lookup_internal("__canvasPixelH"));
 	return closure;
     }
     else

@@ -160,7 +160,6 @@ output_make_mathmap_filter_closure (FILE *out, const char *var_name,
 {
     int num_args = compiler_num_filter_args(filter) - 3;
     int i;
-    gboolean have_size;
     userval_info_t *info;
 
     g_assert(filter->kind == FILTER_MATHMAP);
@@ -177,7 +176,6 @@ output_make_mathmap_filter_closure (FILE *out, const char *var_name,
 	    var_name, filter->name,
 	    var_name, filter->name);
 
-    have_size = FALSE;
     for (i = 0, info = filter->userval_infos;
 	 info != 0;
 	 ++i, info = info->next)
@@ -185,20 +183,10 @@ output_make_mathmap_filter_closure (FILE *out, const char *var_name,
 	fprintf(out, "CLOSURE_IMAGE_ARGS(%s)[%d].v.%s = ", var_name, i, userval_element_name(info));
 	output_primary(out, &args[i]);
 	fprintf(out, "; ");
-	if (info->type == USERVAL_IMAGE && !have_size)
-	{
-	    fprintf(out,
-		    "%s->pixel_width = IMAGE_PIXEL_WIDTH(CLOSURE_IMAGE_ARGS(%s)[%d].v.image);"
-		    "%s->pixel_height = IMAGE_PIXEL_HEIGHT(CLOSURE_IMAGE_ARGS(%s)[%d].v.image);\n",
-		    var_name, var_name, i,
-		    var_name, var_name, i);
-	    have_size = TRUE;
-	}
     }
     g_assert(i == num_args);
 
-    if (!have_size)
-	fprintf(out, "image->pixel_width = __canvasPixelW; image->pixel_height = __canvasPixelH;\n");
+    fprintf(out, "image->pixel_width = __canvasPixelW; image->pixel_height = __canvasPixelH;\n");
 }
 
 static void

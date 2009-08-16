@@ -7,7 +7,7 @@
 *** TODO why does syntax highlighting not work completely in WinGimp? 	:bug:
 
 ** General
-*** DONE What's userval_t->type for?				   :simplify:
+*** DONE What's =userval_t->type= for? 				   :simplify:
     CLOSED: [2009-08-15 Sat 23:09]
     Not needed anymore.
 
@@ -22,6 +22,24 @@
     CLOSED: [2009-08-15 Sat 22:16]
 
 ** Compiler
+*** DONE We still have some bugs in the coordinate transformations	:bug:
+    CLOSED: [2009-08-16 Sun 23:17]
+    This does not work as expected if the aspect ratios of in1 and in2
+    are different:
+
+    #+BEGIN_SRC mathmap
+    filter bla_ident (image in)
+      in(xy)
+    end
+
+    filter bla (image in, image in2)
+      bla_ident(in2,xy)
+    end
+    #+END_SRC
+
+    It turns out the problem here is that closures get their pixel
+    size from their first image, which is wrong.  It should always be
+    the same for all closures, namely the canvas size.
 *** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
     CLOSED: [2009-08-16 Sun 00:24]
     Most of the time is spent in GCC compiling the C code.  Without
@@ -38,6 +56,9 @@ So does Gaussian Blur->Random Blur->Droste
 * 1.3.x
 
 ** GIMP Plug-In
+*** TODO We have a one-pixel offset between fast and slow preview again :bug:
+    Just try ident filter and turn fast preview on and off.
+*** TODO MathMap crashes if a drawable is selected that was already closed in GIMP :bug:
 *** TODO speed up rendering of GIMP drawables by processing tile for tile :performance:
 *** TODO make preview input drawables to be floatmaps		      :simplify:
 *** TODO UI via GtkBuilder/Glade				      :simplify:
@@ -121,7 +142,7 @@ course =lazy= would only be used for expensive operations.
     requires pools in the folders
 *** TODO make internals typed
 *** TODO don't produce functions for filters which have been optimized away :performance:
-*** TODO short circuit execution for && etc in compiler	   :feature:performance:
+*** TODO short circuit execution for =&&= etc in compiler  :feature:performance:
 
 ** LLVM
 *** TODO implement mathfuncs				  :performance:simplify:
@@ -597,11 +618,11 @@ manual: WH,W,H statt wh,w,h
 koordinatensystem erklaeren
 
 
-> (i) Die Möglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
-> und 'minimum' Ausdrücke anzugeben, die von den Variablen 'X(nil:1)' und
-> 'Y(nil:1)' abhängen.
+> (i) Die Moeglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
+> und 'minimum' Ausdruecke anzugeben, die von den Variablen 'X(nil:1)' und
+> 'Y(nil:1)' abhaengen.
 > 
-> (ii) Einen voreingestellten Wert für 'userslider' festzulegen (mit der
+> (ii) Einen voreingestellten Wert fuer 'userslider' festzulegen (mit der
 > gleichen Methode wie unter (i)).
 
 
