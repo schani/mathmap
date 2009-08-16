@@ -7,7 +7,7 @@
 *** TODO why does syntax highlighting not work completely in WinGimp? 	:bug:
 
 ** General
-*** DONE What's userval_t->type for?				   :simplify:
+*** DONE What's =userval_t->type= for? 				   :simplify:
     CLOSED: [2009-08-15 Sat 23:09]
     Not needed anymore.
 
@@ -24,6 +24,24 @@
 ** Compiler
 *** DONE Make min/max builtins use min/max ops	       :performance:simplify:
     CLOSED: [2009-08-16 Sun 16:56]
+*** DONE We still have some bugs in the coordinate transformations	:bug:
+    CLOSED: [2009-08-16 Sun 23:17]
+    This does not work as expected if the aspect ratios of in1 and in2
+    are different:
+
+    #+BEGIN_SRC mathmap
+    filter bla_ident (image in)
+      in(xy)
+    end
+
+    filter bla (image in, image in2)
+      bla_ident(in2,xy)
+    end
+    #+END_SRC
+
+    It turns out the problem here is that closures get their pixel
+    size from their first image, which is wrong.  It should always be
+    the same for all closures, namely the canvas size.
 *** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
     CLOSED: [2009-08-16 Sun 00:24]
     Most of the time is spent in GCC compiling the C code.  Without
@@ -41,15 +59,29 @@ So does Gaussian Blur->Random Blur->Droste
 ** Language
 *** TODO sqrt for complex					       :feature:
 ** Compiler
-*** TODO Top-level filters taking images should never use the pixel-size internals :simplify:
+*** TODO The pixel-size simplifier must be updated			:bug:
+    Simply use the canvas size.  The "compositing with opacity"
+    filters should then simplify to only fetch two pixels and should
+    be just as fast as the native versions.
+*** DONE Top-level filters taking images should never use the pixel-size internals :simplify:
+    CLOSED: [2009-08-16 Sun 23:45]
     Instead they should bind =IMAGE_PIXEL_WIDTH/HEIGHT(first_image)=
     to =__canvasPixelW/H=.  Only if a filter doesn't take an input
     image should it use those builtins directly.  That will allow the
     compiler to further simplify more code, like the "compositing with
     opacity" filters.
-*** TODO Add pixel-size arguments to closure                          :simplify:
+
+    Wrong, we must always use the canvas pixel-size internals, because
+    our brain-dead coordinate system stretches pixels so that the
+    canvas always goes from -1 to 1 in both directions.  If we use a
+    different pixel-size for a closure, its pixels are stretched
+    differently which screws things up.
+*** DONE Add pixel-size arguments to closure			   :simplify:
+    CLOSED: [2009-08-16 Sun 23:48]
     That simplifies cc.c and llvm.c (they both with deal with the
     pixel-size issue separately), and it makes the simplifier trivial.
+
+    Wrong, see [[*Top-level filters taking images should][above]].
 *** TODO Loop-invariant code motion does not honor non-pure ops		:bug:
 *** TODO Transform as many optimizations to use the simplifier 	   :simplify:
 *** TODO Simplify coordinate stuff (non-stretched ident filter) :performance:feature:
@@ -113,6 +145,9 @@ course =lazy= would only be used for expensive operations.
 *** TODO Compositions should work, too				    :feature:
 * 1.3.x
 ** GIMP Plug-In
+*** TODO We have a one-pixel offset between fast and slow preview again :bug:
+    Just try ident filter and turn fast preview on and off.
+*** TODO MathMap crashes if a drawable is selected that was already closed in GIMP :bug:
 *** TODO speed up rendering of GIMP drawables by processing tile for tile :performance:
 *** TODO make preview input drawables to be floatmaps		      :simplify:
 *** TODO UI via GtkBuilder/Glade				      :simplify:
@@ -147,7 +182,7 @@ motion.
 *** TODO make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth :performance:
     requires pools in the folders
 *** TODO make internals typed
-*** TODO short circuit execution for && etc in compiler	   :feature:performance:
+*** TODO short circuit execution for =&&= etc in compiler  :feature:performance:
 
 ** LLVM
 *** TODO implement mathfuncs				  :performance:simplify:
@@ -619,11 +654,11 @@ manual: WH,W,H statt wh,w,h
 koordinatensystem erklaeren
 
 
-> (i) Die Möglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
-> und 'minimum' Ausdrücke anzugeben, die von den Variablen 'X(nil:1)' und
-> 'Y(nil:1)' abhängen.
+> (i) Die Moeglichkeit, bei 'user_slider(name,minimum,maximum)' als 'maximum'
+> und 'minimum' Ausdruecke anzugeben, die von den Variablen 'X(nil:1)' und
+> 'Y(nil:1)' abhaengen.
 > 
-> (ii) Einen voreingestellten Wert für 'userslider' festzulegen (mit der
+> (ii) Einen voreingestellten Wert fuer 'userslider' festzulegen (mit der
 > gleichen Methode wie unter (i)).
 
 
