@@ -22,7 +22,8 @@
     CLOSED: [2009-08-15 Sat 22:16]
 
 ** Compiler
-*** TODO Make min/max builtins use min/max ops         :performance:simplify:
+*** DONE Make min/max builtins use min/max ops	       :performance:simplify:
+    CLOSED: [2009-08-16 Sun 16:56]
 *** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
     CLOSED: [2009-08-16 Sun 00:24]
     Most of the time is spent in GCC compiling the C code.  Without
@@ -36,29 +37,9 @@ Will be solved by [[*caching of native filter results]].
     CLOSED: [2009-08-15 Sat 22:59]
 So does Gaussian Blur->Random Blur->Droste
 
-* 1.3.x
-
-** GIMP Plug-In
-*** TODO speed up rendering of GIMP drawables by processing tile for tile :performance:
-*** TODO make preview input drawables to be floatmaps		      :simplify:
-*** TODO UI via GtkBuilder/Glade				      :simplify:
-
-** General
-*** TODO =tree_vector_node_t= shouldn't be a union - don't alloc a pointer array for the leaves  :performance:
-*** TODO move everything from invocation to frame that belongs there  :simplify:
-*** TODO pass through frame and t everwhere				   :bug:
-*** TODO use -O3						   :performance:
-*** TODO do we need uservals, image size in invocation when we have them in the closure? :simplify:
-
+* 1.3.6
 ** Language
-*** TODO builtin == for tuples of length >1			       :feature:
-    we'll need additional features for that in builtins.lisp
-*** TODO builtin for getting size of an image			       :feature:
-*** TODO real gamma function buggy					   :bug:
-*** TODO check out LCH color space
-    http://github.com/schani/mathmap/issues/#issue/3
 *** TODO sqrt for complex					       :feature:
-
 ** Compiler
 *** TODO Top-level filters taking images should never use the pixel-size internals :simplify:
     Instead they should bind =IMAGE_PIXEL_WIDTH/HEIGHT(first_image)=
@@ -70,10 +51,11 @@ So does Gaussian Blur->Random Blur->Droste
     That simplifies cc.c and llvm.c (they both with deal with the
     pixel-size issue separately), and it makes the simplifier trivial.
 *** TODO Loop-invariant code motion does not honor non-pure ops		:bug:
-*** TODO We put loops into const code even if they're not necessary 	:bug:
-For example, Gaussian Blur->Random Blur without loop invariant code
-motion.
-*** TODO We need something to handle loop-invariant conditional closures :bug:
+*** TODO Transform as many optimizations to use the simplifier 	   :simplify:
+*** TODO Simplify coordinate stuff (non-stretched ident filter) :performance:feature:
+*** TODO don't produce functions for filters which have been optimized away :performance:
+*** DONE We need something to handle loop-invariant conditional closures :bug:
+    CLOSED: [2009-08-16 Sun 17:45]
 Obsoleted by [[*caching of native filter results]].
 
 Consider this code:
@@ -115,16 +97,49 @@ end
 The =lazy= operation would create a kind of closure which =force=
 would invoke at most once and then store and reuse the result.  Of
 course =lazy= would only be used for expensive operations.
+*** DONE Generator for simplifiers 				   :simplify:
+    CLOSED: [2009-08-16 Sun 16:39]
+*** DONE optimize =IMAGE_PIXEL_WIDTH/HEIGHT(closure)=		:performance:
+    CLOSED: [2009-08-16 Sun 17:45]
+** Testing
+*** TODO missing test cases
+    For most of the missing ones it's required that
+    [[*Compositions should work][compositions work on the command-line]].
+** Native filters
+*** TODO We're superfluously copying floatmaps in Gauss 	:performance:
+    When Gauss isn't given a floatmap, it renders it into a new
+    floatmap, and then that floatmap is copied again.
+** Command Line Tool
+*** TODO Compositions should work, too				    :feature:
+* 1.3.x
+** GIMP Plug-In
+*** TODO speed up rendering of GIMP drawables by processing tile for tile :performance:
+*** TODO make preview input drawables to be floatmaps		      :simplify:
+*** TODO UI via GtkBuilder/Glade				      :simplify:
+
+** General
+*** TODO =tree_vector_node_t= shouldn't be a union - don't alloc a pointer array for the leaves  :performance:
+*** TODO move everything from invocation to frame that belongs there  :simplify:
+*** TODO pass through frame and t everwhere				   :bug:
+*** TODO use -O3						   :performance:
+*** TODO do we need uservals, image size in invocation when we have them in the closure? :simplify:
+
+** Language
+*** TODO builtin == for tuples of length >1			       :feature:
+    we'll need additional features for that in builtins.lisp
+*** TODO builtin for getting size of an image			       :feature:
+*** TODO real gamma function buggy					   :bug:
+*** TODO check out LCH color space
+    http://github.com/schani/mathmap/issues/#issue/3
+** Compiler
+*** TODO We put loops into const code even if they're not necessary 	:bug:
+For example, Gaussian Blur->Random Blur without loop invariant code
+motion.
 *** TODO number*image must trigger an error!				   :bug:
     This means that the compiler will have to know about types other
     than tuples.
 *** TODO Make exprtree and scanner use compiler pools as well 	   :simplify:
-*** DONE Generator for simplifiers 				   :simplify:
-    CLOSED: [2009-08-16 Sun 16:39]
-*** TODO Transform as many optimizations to use the simplifier 	   :simplify:
-*** TODO Simplify coordinate stuff (non-stretched ident filter) :performance:feature:
 *** TODO calculate R in the filter code				      :simplify:
-*** TODO optimize =IMAGE_PIXEL_WIDTH/HEIGHT(closure)= 		:performance:
 *** TODO replace resize with a simple internal filter		      :simplify:
 *** TODO don't use =x_consts= and =y_consts= structs in =filter_func=
 *** TODO make two different =filter_XXX= functions 		:performance:
@@ -132,7 +147,6 @@ course =lazy= would only be used for expensive operations.
 *** TODO make solve ops and ell-jac foldable, also tuple-nth, tree-vector-nth :performance:
     requires pools in the folders
 *** TODO make internals typed
-*** TODO don't produce functions for filters which have been optimized away :performance:
 *** TODO short circuit execution for && etc in compiler	   :feature:performance:
 
 ** LLVM
@@ -157,7 +171,6 @@ end
 
 ** Testing
 *** TODO make random function testable
-*** TODO missing test cases
 
 ** Rendering
 *** TODO strip resize images manually		       :performance:simplify:
@@ -185,9 +198,6 @@ end
 *** TODO color gimp layer mode					    :feature:
 
 ** Native filters
-*** TODO We're superfluously copying floatmaps in Gauss 	:performance:
-When Gauss isn't given a floatmap, it renders it into a new floatmap,
-and then that floatmap is copied again.
 *** TODO Images in the native filter cache are never freed		:bug:
 Use some form of reference counting.
 *** TODO figure out how much faster 2^n ffts are		:performance:
