@@ -2,6 +2,15 @@
 
 OUTFILE=/tmp/mathtest_$$.png
 
+# Some versions of perceptualdiff are broken - they return 0 on
+# failure.  Test which one this is and then behave accordingly.
+
+if perceptualdiff marlene.png marlene.png ; then
+    PDIFF_BROKEN=0
+else
+    PDIFF_BROKEN=1
+fi
+
 run_test () {
     SCRIPT=$1
     REFERENCE=$2
@@ -25,11 +34,18 @@ run_test () {
 	exit 1
     fi
 
-    if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
-	true
+    if [ $PDIFF_BROKEN -eq 0 ] ; then
+	if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
+	    true
+	else
+	    echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
+	    exit 1
+	fi
     else
-	echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
-	exit 1
+	if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
+	    echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
+	    exit 1
+	fi
     fi
 }
 
