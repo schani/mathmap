@@ -482,7 +482,7 @@ make_compvar_rhs (compvar_t *compvar)
 }
 
 rhs_t*
-make_internal_rhs (internal_t *internal)
+compiler_make_internal_rhs (internal_t *internal)
 {
     rhs_t *rhs = alloc_rhs();
 
@@ -1986,7 +1986,7 @@ gen_code (filter_t *filter, exprtree *tree, compvar_t **dest, int is_alloced)
 		if (bv != NULL)
 		    emit_assign(make_lhs(dest[0]), make_value_rhs(bv->values[0]));
 		else
-		    emit_assign(make_lhs(dest[0]), make_internal_rhs(tree->val.internal));
+		    emit_assign(make_lhs(dest[0]), compiler_make_internal_rhs(tree->val.internal));
 	    }
 	    break;
 
@@ -2294,7 +2294,7 @@ get_internal_value (filter_t *filter, const char *name, gboolean allow_bindings)
     else
     {
 	compvar_t *temp = make_temporary(TYPE_INT);
-	emit_assign(make_lhs(temp), make_internal_rhs(internal));
+	emit_assign(make_lhs(temp), compiler_make_internal_rhs(internal));
 	return current_value(temp);
     }
 }
@@ -4752,6 +4752,8 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
 	}
 
 	changed = compiler_opt_strip_resize(&first_stmt) || changed;
+	CHECK_SSA;
+	changed = compiler_opt_simplify(filter, first_stmt) || changed;
 	CHECK_SSA;
 
 	changed = compiler_opt_remove_dead_assignments(first_stmt) || changed;

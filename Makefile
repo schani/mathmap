@@ -122,7 +122,7 @@ CXX = g++
 
 export CFLAGS CC
 
-COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o mmpools.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/cache.o compopt/dce.o compopt/resize.o compopt/licm.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
+COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o mmpools.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/cache.o compopt/dce.o compopt/resize.o compopt/licm.o compopt/simplify.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
 #COMMON_OBJECTS += designer/widget.o
 COMMON_OBJECTS += designer/cairo_widget.o
 
@@ -166,6 +166,8 @@ parser.c parser.h : parser.y
 compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 	$(CC) $(MATHMAP_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
 
+compopt/simplify.o : compopt/simplify_func.c
+
 backends/cc.o : compiler_types.h
 
 backends/llvm.o : backends/llvm.cpp compiler_types.h
@@ -180,7 +182,7 @@ backends/lazy_creator.o : backends/lazy_creator.cpp
 builtins/libnoise.o : builtins/libnoise.cpp builtins/libnoise.h
 	$(CXX) $(MATHMAP_CXXFLAGS) -Ilibnoise/noise/include -o $@ -c builtins/libnoise.cpp
 
-new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h : builtins.lisp ops.lisp
+new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h compopt/simplify_func.c : builtins.lisp ops.lisp simplify.lisp
 	clisp builtins.lisp
 
 new_template.c : make_template.pl new_template.c.in $(TEMPLATE_INPUTS)

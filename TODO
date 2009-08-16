@@ -22,6 +22,7 @@
     CLOSED: [2009-08-15 Sat 22:16]
 
 ** Compiler
+*** TODO Make min/max builtins use min/max ops         :performance:simplify:
 *** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
     CLOSED: [2009-08-16 Sun 00:24]
     Most of the time is spent in GCC compiling the C code.  Without
@@ -59,6 +60,15 @@ So does Gaussian Blur->Random Blur->Droste
 *** TODO sqrt for complex					       :feature:
 
 ** Compiler
+*** TODO Top-level filters taking images should never use the pixel-size internals :simplify:
+    Instead they should bind =IMAGE_PIXEL_WIDTH/HEIGHT(first_image)=
+    to =__canvasPixelW/H=.  Only if a filter doesn't take an input
+    image should it use those builtins directly.  That will allow the
+    compiler to further simplify more code, like the "compositing with
+    opacity" filters.
+*** TODO Add pixel-size arguments to closure                          :simplify:
+    That simplifies cc.c and llvm.c (they both with deal with the
+    pixel-size issue separately), and it makes the simplifier trivial.
 *** TODO Loop-invariant code motion does not honor non-pure ops		:bug:
 *** TODO We put loops into const code even if they're not necessary 	:bug:
 For example, Gaussian Blur->Random Blur without loop invariant code
@@ -108,8 +118,10 @@ course =lazy= would only be used for expensive operations.
 *** TODO number*image must trigger an error!				   :bug:
     This means that the compiler will have to know about types other
     than tuples.
-*** TODO Make exprtree and scanner use compiler pools as well	      :simplify:
-*** TODO Generator for simplifiers				      :simplify:
+*** TODO Make exprtree and scanner use compiler pools as well 	   :simplify:
+*** DONE Generator for simplifiers 				   :simplify:
+    CLOSED: [2009-08-16 Sun 16:39]
+*** TODO Transform as many optimizations to use the simplifier 	   :simplify:
 *** TODO Simplify coordinate stuff (non-stretched ident filter) :performance:feature:
 *** TODO calculate R in the filter code				      :simplify:
 *** TODO optimize =IMAGE_PIXEL_WIDTH/HEIGHT(closure)= 		:performance:

@@ -271,6 +271,7 @@ extern rhs_t* make_primary_rhs (primary_t primary);
 #define compiler_make_primary_rhs make_primary_rhs
 extern rhs_t* make_value_rhs (value_t *val);
 #define compiler_make_value_rhs make_value_rhs
+rhs_t* compiler_make_internal_rhs (internal_t *internal);
 
 extern void compiler_reset_have_defined (statement_t *stmt);
 
@@ -336,6 +337,7 @@ extern gboolean compiler_opt_remove_dead_assignments (statement_t *first_stmt);
 extern gboolean compiler_opt_orig_val_resize (statement_t **first_stmt);
 extern gboolean compiler_opt_strip_resize (statement_t **first_stmt);
 extern gboolean compiler_opt_loop_invariant_code_motion (statement_t **first_stmt);
+extern gboolean compiler_opt_simplify (filter_t *filter, statement_t *first_stmt);
 
 #define COMPILER_FOR_EACH_VALUE_IN_RHS(rhs,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_rhs((rhs),(func),__clos); } while (0)
 #define COMPILER_FOR_EACH_VALUE_IN_STATEMENTS(stmt,func,...) do { long __clos[] = { __VA_ARGS__ }; compiler_for_each_value_in_statements((stmt),(func),__clos); } while (0)

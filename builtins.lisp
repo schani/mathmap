@@ -28,6 +28,7 @@
 (in-package :mathmap)
 
 (load "ops.lisp")
+(load "simplify.lisp")
 
 (defparameter *only-ansi* nil)
 
@@ -333,7 +334,7 @@
 				     (gen-op (third op-entry) args (fifth op-entry) lval allocatedp #'gen-primary)
 				     (error "unknown condition op ~A" op))))
 			      (t
-			       (error "unknown condition ~A"))))
+			       (error "unknown condition ~A" expr))))
 			  (gen-expr (expr lval allocatedp length)
 			    (let ((ctr (make-tmp-name)))
 			      (format nil "{~%int ~A;~%for (~A = 0; ~A < ~A; ++~A)~%{~%~A}~%}~%"
