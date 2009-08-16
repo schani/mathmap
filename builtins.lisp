@@ -1038,17 +1038,13 @@ number is negative, 1 if the number is positive and 0 if the number is
   "The smaller of two numbers.  For tuples, the smaller number for
 each pair of elements is determined."
   (forarglength a i
-    (if (< (nth i a) (nth i b))
-	(set (nth i result) (nth i a))
-	(set (nth i result) (nth i b)))))
+    (set (nth i result) (min (nth i a) (nth i b)))))
 
 (defbuiltin "max" max_n (?T ?L) ((a (?T ?L)) (b (?T ?L)))
   "The larger of two numbers.  For tuples, the larger number for
 each pair of elements is determined."
   (forarglength a i
-    (if (< (nth i a) (nth i b))
-	(set (nth i result) (nth i b))
-	(set (nth i result) (nth i a)))))
+    (set (nth i result) (max (nth i a) (nth i b)))))
 
 (defbuiltin "clamp" clamp (?T ?L) ((a (?T ?L)) (l (?T ?L)) (u (?T ?L)))
   "Clamp each element of tuple <tt>a</tt> to be not less than the
