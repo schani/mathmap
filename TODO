@@ -13,7 +13,8 @@
 ** Windows
 *** TODO why does syntax highlighting not work completely in WinGimp? 	:bug:
 ** Designer
-*** TODO make order of inputs in composer deterministic		    :feature:
+*** DONE make order of inputs in composer deterministic		    :feature:
+    CLOSED: [2009-08-22 Sat 13:58]
 ** General
 *** DONE What's =userval_t->type= for? 				   :simplify:
     CLOSED: [2009-08-15 Sat 23:09]
@@ -27,6 +28,10 @@
     When the user presses "Help", those files should be used, unless
     they don't exist.
 
+** Filters
+*** TODO Dissolve doesn't work properly					:bug:
+    It probably shouldn't be a pixel filter, and the opacity control
+    misses the 0 and 1 marks.
 ** Native Filters
 *** DONE Cache convolution filters as well				:bug:
     CLOSED: [2009-08-15 Sat 23:27]

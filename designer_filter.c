@@ -148,22 +148,29 @@ make_filter_source (designer_design_t *design, const char *filter_name, GString 
 	for (list = nodes; list != NULL; list = list->next)
 	{
 	    designer_node_t *node = list->data;
-	    GSList *slot_list;
+	    expression_db_t *edb = node->type->data;
+	    userval_info_t *args = get_expression_args(edb, node->design->type);
 
-	    for (slot_list = node->input_slots; slot_list != NULL; slot_list = slot_list->next)
+	    while (args != NULL)
 	    {
-		designer_slot_t *slot = slot_list->data;
-		designer_node_t *partner = slot->source;
+		designer_slot_t *slot = designer_node_get_input_slot_by_name(node, args->name);
 
-		if (partner != NULL && g_slist_find(nodes, partner) == NULL)
+		if (slot != NULL)
 		{
-		    nodes = g_slist_prepend(nodes, partner);
-		    finished = FALSE;
+		    designer_node_t *partner = slot->source;
 
-		    if (g_slist_find(types, partner->type) == NULL
-			&& g_slist_find(*already_included, partner->type) == NULL)
-			types = g_slist_prepend(types, partner->type);
+		    if (partner != NULL && g_slist_find(nodes, partner) == NULL)
+		    {
+			nodes = g_slist_append(nodes, partner);
+			finished = FALSE;
+
+			if (g_slist_find(types, partner->type) == NULL
+			    && g_slist_find(*already_included, partner->type) == NULL)
+			    types = g_slist_prepend(types, partner->type);
+		    }
 		}
+
+		args = args->next;
 	    }
 	}
 
