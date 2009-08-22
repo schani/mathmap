@@ -33,7 +33,7 @@ PREFIX = /usr
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.3.4
+VERSION = 1.3.5
 
 CFLAGS = -O2 -Wall
 #CFLAGS = -O0 -g -Wall #-fgnu89-inline
