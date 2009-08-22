@@ -56,6 +56,20 @@ Will be solved by [[*caching of native filter results]].
 So does Gaussian Blur->Random Blur->Droste
 
 * 1.3.6
+** General
+*** TODO Rework the whole coordinate-transformation thing	   :simplify:
+    Use a -1 to 1 coordinate system natively, but for square pixels.
+    For non-square images, make the shorter edge go from -1 to 1, the
+    longer edge will go beyond.
+
+    That way, we can get completely rid of the whole resizing stuff.
+    Although, maybe we'll want an image attribute which makes the
+    longer edge be -1 to 1, which again would require resizing.  Leave
+    it out at first, though.
+
+    The only way in which a filter's =xy= would now depend on the size
+    of the canvas or its image arguments would be for pixel filters,
+    for which =xy= would be =xy*max(pixel_width*pixel_height)=
 ** Language
 *** TODO sqrt for complex					       :feature:
 ** Compiler
