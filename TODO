@@ -4,7 +4,8 @@
 * 1.3.5
 
 ** GIMP Plug-In
-*** TODO The main input image can be overwritten			:bug:
+*** DONE The main input image can be overwritten			:bug:
+    CLOSED: [2009-08-22 Sat 13:04]
     Copying over uservals from one filter to the next even overwrites
     the first image userval if the names match.  This is an issue if
     the new filter names its first input image after a non-first input

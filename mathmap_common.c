@@ -737,7 +737,8 @@ invocation_set_antialiasing (mathmap_invocation_t *invocation, gboolean antialia
 }
 
 mathmap_invocation_t*
-invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height)
+invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_width, int img_height,
+		gboolean copy_first_image)
 {
     mathmap_invocation_t *invocation = (mathmap_invocation_t*)malloc(sizeof(mathmap_invocation_t));
 
@@ -770,8 +771,8 @@ invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template, int img_widt
 
     invocation->uservals = instantiate_uservals(mathmap->main_filter->userval_infos, invocation);
 
-    if (template != 0)
-	carry_over_uservals_from_template(invocation, template);
+    if (template != NULL)
+	carry_over_uservals_from_template(invocation, template, copy_first_image);
 
     init_invocation(invocation);
 
@@ -1114,13 +1115,21 @@ call_invocation_parallel_and_join (mathmap_frame_t *frame, image_t *closure,
 #endif
 
 void
-carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template)
+carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template,
+				   gboolean copy_first_image)
 {
     userval_info_t *info;
+    gboolean have_first_image = copy_first_image;
 
     for (info = invocation->mathmap->main_filter->userval_infos; info != 0; info = info->next)
     {
 	userval_info_t *template_info = lookup_matching_userval(template->mathmap->main_filter->userval_infos, info);
+
+	if (info->type == USERVAL_IMAGE && !have_first_image)
+	{
+	    have_first_image = TRUE;
+	    continue;
+	}
 
 	if (template_info != 0)
 	    copy_userval(&invocation->uservals[info->index], &template->uservals[template_info->index], info->type);

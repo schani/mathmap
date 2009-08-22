@@ -1009,7 +1009,7 @@ generate_code (void)
 	{
 	    mathmap_invocation_t *new_invocation;
 
-	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height);
+	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height, FALSE);
 	    assert(new_invocation != 0);
 
 	    new_invocation->output_bpp = output_bpp;

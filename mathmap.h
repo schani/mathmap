@@ -275,7 +275,7 @@ int check_mathmap (char *expression);
 mathmap_t* parse_mathmap (char *expression);
 mathmap_t* compile_mathmap (char *expression, char **support_paths, int timeout, gboolean no_backend);
 mathmap_invocation_t* invoke_mathmap (mathmap_t *mathmap, mathmap_invocation_t *template_invocation,
-				      int img_width, int img_height);
+				      int img_width, int img_height, gboolean copy_first_image);
 
 mathmap_frame_t* invocation_new_frame (mathmap_invocation_t *invocation, image_t *closure,
 				       int current_frame, float current_t);
@@ -304,7 +304,8 @@ void native_filter_cache_entry_set_image (mathmap_invocation_t *invocation,
 					  native_filter_cache_entry_t *cache_entry,
 					  image_t *image);
 
-void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template_invocation);
+void carry_over_uservals_from_template (mathmap_invocation_t *invocation, mathmap_invocation_t *template_invocation,
+					gboolean copy_first_image);
 
 color_t mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y);
 
