@@ -270,7 +270,8 @@ mingw-dist : mathmap llvm_template.o
 	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0
 	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/language-specs
 	cp README.windows mathmap-$(VERSION)-mingw32/README.txt
-	cp mathmap.iss COPYING mathmap-$(VERSION)-mingw32/
+	cp COPYING mathmap-$(VERSION)-mingw32/
+	sed "s/\$$version/$(VERSION)/g" <mathmap.iss.in >mathmap-$(VERSION)-mingw32/mathmap.iss
 	strip mathmap.exe
 	cp mathmap.exe mathmap-$(VERSION)-mingw32/plug-ins/
 	cp /bin/intl.dll /bin/libgsl.dll /bin/libgslcblas.dll /bin/libgtksourceview-2.0-0.dll /bin/libfftw3-3.dll mathmap-$(VERSION)-mingw32/plug-ins/
