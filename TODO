@@ -29,7 +29,8 @@
     they don't exist.
 
 ** Filters
-*** TODO Dissolve doesn't work properly					:bug:
+*** DONE Dissolve doesn't work properly					:bug:
+    CLOSED: [2009-08-22 Sat 14:15]
     It probably shouldn't be a pixel filter, and the opacity control
     misses the 0 and 1 marks.
 ** Native Filters
