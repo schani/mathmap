@@ -1,3 +1,3 @@
-stretched filter util_ident (stretched image in)
+filter util_ident (image in)
     in(xy)
 end
