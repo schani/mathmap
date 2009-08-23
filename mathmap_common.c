@@ -1370,9 +1370,13 @@ add_filter_node_type (designer_design_type_t *design_type, expression_db_t **edb
     designer_add_output_slot_spec(type, "out", userval_type_name(USERVAL_IMAGE), NULL);
 }
 
-static void
+/* returns a list of the designer-filter edb entries
+   (expression_db_t**) that failed to load */
+static GSList*
 add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboolean compositions, gboolean *did_add)
 {
+    GSList *failed_edbs = NULL;
+
     while (*edb != NULL)
     {
 	expression_db_t *current = *edb;
@@ -1403,7 +1407,8 @@ add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboo
 		break;
 
 	    case EXPRESSION_DB_GROUP :
-		add_node_types(design_type, &(*edb)->v.group.subs, compositions, did_add);
+		failed_edbs = g_slist_concat(failed_edbs,
+					     add_node_types(design_type, &(*edb)->v.group.subs, compositions, did_add));
 		break;
 
 	    case EXPRESSION_DB_DESIGN :
@@ -1415,15 +1420,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboo
 
 		    if (design == NULL)
 		    {
-			char *message;
-
-			message = g_strdup_printf(_("Could not load composition from file\n"
-						    "`%s'.\n"),
-						  get_expression_path(*edb));
-			mathmap_message_dialog(message);
-			g_free(message);
-
-			remove_edb(edb);
+			failed_edbs = g_slist_prepend(failed_edbs, edb);
 			break;
 		    }
 
@@ -1465,6 +1462,8 @@ add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboo
 	if (*edb == current)
 	    edb = &(*edb)->next;
     }
+
+    return failed_edbs;
 }
 
 designer_design_type_t*
@@ -1472,13 +1471,31 @@ design_type_from_expression_db (expression_db_t **edb)
 {
     designer_design_type_t *type = make_mathmap_design_type();
     gboolean did_add;
+    GSList *failed_edbs = NULL;
+    GSList *list;
 
     add_node_types(type, edb, FALSE, NULL);
     do
     {
 	did_add = FALSE;
-	add_node_types(type, edb, TRUE, &did_add);
+	g_slist_free(failed_edbs);
+	failed_edbs = add_node_types(type, edb, TRUE, &did_add);
     } while (did_add);
+
+    for (list = failed_edbs; list != NULL; list = list->next)
+    {
+	expression_db_t **edb = list->data;
+	char *message;
+
+	message = g_strdup_printf(_("Could not load composition from file\n"
+				    "`%s'.\n"),
+				  get_expression_path(*edb));
+	mathmap_message_dialog(message);
+	g_free(message);
+
+	remove_edb(edb);
+    }
+    g_slist_free(failed_edbs);
 
     return type;
 }

@@ -11,7 +11,9 @@
     the new filter names its first input image after a non-first input
     image of the last filter.
 ** Designer
-*** TODO Filters can be included twice					:bug:
+*** TODO The Sharp-Blur filter can't be loaded into the expression db	:bug:
+*** DONE Filters can be included twice					:bug:
+    CLOSED: [2009-08-23 Sun 12:23]
     When a sub-designer-filter includes a filter and the main filter
     (or probably some other sub-filter) uses them, too, they are
     included twice.  See Blur->Sharp Blur.

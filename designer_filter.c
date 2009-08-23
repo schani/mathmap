@@ -164,8 +164,7 @@ make_filter_source (designer_design_t *design, const char *filter_name, GString 
 			nodes = g_slist_append(nodes, partner);
 			finished = FALSE;
 
-			if (g_slist_find(types, partner->type) == NULL
-			    && g_slist_find(*already_included, partner->type) == NULL)
+			if (g_slist_find(types, partner->type) == NULL)
 			    types = g_slist_prepend(types, partner->type);
 		    }
 		}
@@ -184,6 +183,9 @@ make_filter_source (designer_design_t *design, const char *filter_name, GString 
 	designer_node_type_t *type = list->data;
 	expression_db_t *edb = type->data;
 	char *source;
+
+	if (g_slist_find(*already_included, type) != NULL)
+	    continue;
 
 	if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
