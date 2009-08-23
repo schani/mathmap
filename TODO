@@ -212,6 +212,7 @@ filter loop ()
 end
 #+END_SRC
 ** Packaging
+*** TODO Generate still and animation examples for homepage automatically :homepage:
 *** TODO Email address of Andy Thomas in contributor credits
 *** TODO Generate keyword list in sourceview spec file from builtins.lisp :simplify:
 *** TODO rewrite HACKING and include it in distro		 :documentation:
