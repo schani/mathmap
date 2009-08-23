@@ -10,7 +10,6 @@
     the first image userval if the names match.  This is an issue if
     the new filter names its first input image after a non-first input
     image of the last filter.
-** Windows
 ** Designer
 *** DONE make order of inputs in composer deterministic		    :feature:
     CLOSED: [2009-08-22 Sat 13:58]
@@ -23,10 +22,6 @@
 *** DONE check out Robin Norwood's spec file changes (for Fedora)
     CLOSED: [2009-08-22 Sat 12:15]
 *** TODO update homepage 				      :documentation:
-*** TODO ship documentation in package			      :documentation:
-    When the user presses "Help", those files should be used, unless
-    they don't exist.
-
 ** Filters
 *** DONE Dissolve doesn't work properly					:bug:
     CLOSED: [2009-08-22 Sat 14:15]
@@ -209,7 +204,9 @@ end
 ** Packaging
 *** TODO Generate keyword list in sourceview spec file from builtins.lisp :simplify:
 *** TODO rewrite HACKING and include it in distro		 :documentation:
-
+*** TODO ship documentation in package			      :documentation:
+    When the user presses "Help", those files should be used, unless
+    they don't exist.
 ** Testing
 *** TODO make random function testable
 *** TODO missing test cases
