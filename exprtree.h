@@ -228,6 +228,7 @@ typedef struct _top_level_decl_t
     int type;
     char *name;
     char *docstring;
+    scanner_region_t region;
     union
     {
 	struct
@@ -244,6 +245,8 @@ extern top_level_decl_t *the_top_level_decls;
 top_level_decl_t* make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options);
 
 void free_top_level_decl (top_level_decl_t *list);
+
+struct _filter_t* lookup_filter (struct _filter_t *filters, const char *name);
 
 option_t* make_option (scanner_ident_t *name, option_t *suboptions);
 option_t* options_append (option_t *o1, option_t *o2);

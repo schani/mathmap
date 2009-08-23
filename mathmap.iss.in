@@ -68,7 +68,7 @@ Source: "mathmap\expressions\*";              DestDir: "{userdesktop}\..\.gimp-2
 [Code]
 function Version (Param: String) : String;
 begin
-  Result := '20090809';
+  Result := '$version';
 end;
 
 

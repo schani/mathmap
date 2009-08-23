@@ -146,24 +146,26 @@ free_arg_decls (arg_decl_t *list)
 }
 
 static top_level_decl_t*
-make_top_level_decl (int type, const char *name, const char *docstring)
+make_top_level_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring)
 {
     top_level_decl_t *top_level = (top_level_decl_t*)malloc(sizeof(top_level_decl_t));
 
-    assert(top_level != 0);
+    assert(top_level != NULL);
 
     top_level->type = type;
 
-    top_level->name = strdup(name);
-    assert(top_level->name != 0);
+    top_level->name = strdup(name->str);
+    assert(top_level->name != NULL);
 
-    if (docstring != 0)
+    top_level->region = name->region;
+
+    if (docstring != NULL)
     {
-	top_level->docstring = strdup(docstring);
-	assert(top_level->docstring != 0);
+	top_level->docstring = strdup(docstring->str);
+	assert(top_level->docstring != NULL);
     }
     else
-	top_level->docstring = 0;
+	top_level->docstring = NULL;
 
     return top_level;
 }
@@ -171,7 +173,7 @@ make_top_level_decl (int type, const char *name, const char *docstring)
 top_level_decl_t*
 make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options)
 {
-    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name->str, docstring ? docstring->str : NULL);
+    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
 
     top_level->v.filter.args = args;
     top_level->v.filter.options = options;
@@ -802,7 +804,7 @@ make_convert (scanner_ident_t *tagname_ident, exprtree *tuple)
     return tree;
 }
 
-static filter_t*
+filter_t*
 lookup_filter (filter_t *filters, const char *name)
 {
     filter_t *filter;

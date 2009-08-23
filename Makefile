@@ -33,7 +33,7 @@ PREFIX = /usr
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
 
-VERSION = 1.3.4
+VERSION = 1.3.5
 
 CFLAGS = -O2 -Wall
 #CFLAGS = -O0 -g -Wall #-fgnu89-inline
@@ -96,7 +96,7 @@ LOCALEDIR = $(PREFIX)/share/locale
 #FIXME: does not honor PREFIX
 LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(OPT_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS) $(GTKSOURCEVIEW_CFLAGS)
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS) $(GTKSOURCEVIEW_CFLAGS)
 MATHMAP_CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 MATHMAP_CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS) $(CXXFLAGS)
 MATHMAP_LDFLAGS = $(LDFLAGS) $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS) $(GTKSOURCEVIEW_LDFLAGS)
@@ -272,7 +272,8 @@ mingw-dist : mathmap llvm_template.o
 	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0
 	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/language-specs
 	cp README.windows mathmap-$(VERSION)-mingw32/README.txt
-	cp mathmap.iss COPYING mathmap-$(VERSION)-mingw32/
+	cp COPYING mathmap-$(VERSION)-mingw32/
+	sed "s/\$$version/$(VERSION)/g" <mathmap.iss.in >mathmap-$(VERSION)-mingw32/mathmap.iss
 	strip mathmap.exe
 	cp mathmap.exe mathmap-$(VERSION)-mingw32/plug-ins/
 	cp /bin/intl.dll /bin/libgsl.dll /bin/libgslcblas.dll /bin/libgtksourceview-2.0-0.dll /bin/libfftw3-3.dll mathmap-$(VERSION)-mingw32/plug-ins/

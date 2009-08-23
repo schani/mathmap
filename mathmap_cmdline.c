@@ -751,7 +751,7 @@ cmdline_main (int argc, char *argv[])
 	    exit(1);
 	}
 
-	invocation = invoke_mathmap(mathmap, 0, img_width, img_height);
+	invocation = invoke_mathmap(mathmap, NULL, img_width, img_height, TRUE);
 
 	for (userval_info = mathmap->main_filter->userval_infos;
 	     userval_info != NULL;

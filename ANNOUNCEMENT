@@ -1,270 +1,35 @@
-MathMap 1.3.4
+MathMap 1.3.5
 =============
 
-MathMap is a GIMP plug-in and a standalone command-line tool which
-allows distortion of images and animations specified by mathematical
-formulae.  For each pixel in the generated image, an expression is
-evaluated which should return a pixel value.  The expression can
-either refer to a pixel in the source image or can generate pixels
-completely independent of the source.  MathMap allows the generation
-of still images and of animations.
+The MathMap GIMP plug-in is an image processing tool that works on
+several levels:
+
+* Without any prerequisite knowledge about image processing, one can
+  use any of the more than one hundred filters that come bundled with
+  MathMap.
+
+* More advanced users can combine filters intuitively in the Composer,
+  a graphical user interface similar to Yahoo Pipes! and the Quartz
+  Composer.
+
+* For expert users MathMap provides a simple but very efficient
+  programming language.  This is the core of MathMap and the language
+  that almost all MathMap filters are implemented in.
+
+MathMap allows the generation of still images and of animations.
 
 The MathMap homepage is
 
     http://www.complang.tuwien.ac.at/schani/mathmap/
 
-It features a user's manual as well as screenshots and examples.
+It provides links for downloading MathMap binaries for several Linux
+distributions and for Windows, as well as the source tarball.  It also
+features a user's manual, screen-shots and many examples.
 
 There is a Google group for discussing everything related to MathMap,
 from questions to bug reports to feature requests, and so on:
 
     http://groups.google.com/group/mathmap
 
-Binaries for several Linux distributions are available here:
-
-    http://download.opensuse.org/repositories/home:/mark_probst/
-
-The source package can be downloaded here:
-
-    http://www.complang.tuwien.ac.at/schani/mathmap/files/mathmap-1.3.4.tar.gz
-
-For instructions on how to get the absolutely latest MathMap sources
-via Mercurial, read this:
-
-    http://www.complang.tuwien.ac.at/schani/mathmap/README.mercurial
-
-Changes in 1.3.4:
-
-  * Performance improvements.
-  * Convolution filters.
-  * New and improved filters.
-  * Bugfixes.
-
-Changes in 1.3.3:
-
-  * Optically much improved composer (thanks to Herbert Pötzl).
-  * Gaussian blur filter.
-  * Animations can be up to 9999 frames.
-  * Bugfixes.
-
-Changes in 1.3.2:
-
-  * Compositions can be saved and used as parts of other compositions.
-  * Colors, gradients and curves can be passed to filters, which now
-    makes all filters usable in the composer.
-  * More filters for use in the composer (including almost all GIMP
-    layer modes).
-  * Optional multi-threaded final rendering (compile-time option).
-  * Bugfixes.
-
-Changes in 1.3.1:
-
-  * The MathMap Composer, which allows combining filters in a
-    graphical user interface similar to Yahoo Pipes and Quartz
-    Composer.
-  * New and improved filters.
-  * Bugfixes.
-
-Changes in 1.3.0:
-
-  * Filters can call other filters and can be applied to images to
-    yield "virtual" images.
-  * Slightly improved command line front-end.
-  * New and improved examples.
-  * The interpreter is broken.
-
-Changes in 1.2.4:
-
-  * Bugfixes.
-
-Changes in 1.2.3:
-
-  * GtkSourceView for filter editing, with syntax highlighting.
-  * Int and float user values now also have spin buttons.
-  * Resizable preview.
-  * Improved examples.
-
-Changes in 1.2.2:
-
-  * Input images can now have arbitrary dimensions.
-  * New "for" loop construct.
-  * Basic support (multiplication and magnitude) for three types of
-    hypercomplex numbers.
-  * Defaults for boolean user values.
-  * Parallelization via multithreading.
-  * New optimizations in the compiler.
-  * New and improved examples.
-  * Bugfixes.
-
-Changes in 1.2.1:
-
-  * New "beta" function.
-  * New examples.
-  * Bugfixes.
-
-Changes in 1.2.0:
-
-  * Updated documentation.
-  * Bugfixes.
-
-Changes in 1.1.3:
-
-  * "unit" scaling for filters and images.
-  * Edge behaviour for x and y uncoupled.
-  * "Reflect" edge behaviour.
-  * Tuple length limit removed.
-  * New and improved examples.
-  * Bugfixes and cosmetics.
-
-Changes in 1.1.2:
-
-  * The command-line tool is optional to remove dependencies on image
-    IO libraries.
-  * Bison and Flex are not required for compiling the distribution.
-  * Should work with GIMP 2.3 as well (untested).
-  * A working interpreter.
-  * Elliptic Jacobi functions for real and complex arguments.
-  * New "ceil" function.
-  * New and improved examples.
-  * Several bugfixes.
-
-Changes in 1.1.1:
-
-  * A new syntax for declaring filters and user values.
-  * Default values for integer and float user values.
-  * Functions for elliptic integrals and elliptic Jacobi functions.
-  * Better error reporting from the compiler.
-  * The interpreter is broken (will be fixed soon).
-  * Expressions can be saved from within MathMap.
-  * The preview is bigger.
-  * Works only with GIMP 2.2.
-  * Unified binary for plug-in and command-line tool.
-
-Changes in 1.1.0:
-
-  * Compiler does several optimizations.
-  * MathMap can now generate sequence plug-ins for Blender.
-
-Changes in 0.14:
-
-  * Compiles and runs with both GIMP 1.2 and GIMP 2.0.
-  * Comes with a Language Tutorial!
-  * Lots of new and improved examples.
-  * Features a new compiler, which doesn't yet generate better code
-    than the old one, but offers a much better platform for future
-    improvements.
-  * MathMap now automatically uses the compiler and if that doesn't
-    work, falls back to the interpreter without user intervention.
-  * All functions now use radians instead of degrees (which is The
-    Right Thing).
-  * Compiles on MacOS X (tested with GIMP 1.2 on Fink).
-  * Bug fixes.
-
-Changes in 0.13:
-
-  * The command-line version can now read and write animations in the
-    MJPEG Quicktime format.
-  * A french translation (thanks to Laurent Despeyroux).
-  * Bug fixes.
-
-Changes in 0.12:
-
-  * Requires at least GIMP 1.1.26.
-  * MathMap now has a GIMP-independant command line version.
-  * Much improved complex arithmetic (thanks to Hans Lundmark).
-  * New/improved functions: scale, toRGBA, toHSVA, gamma, sinh, cosh,
-    tanh, asinh, acosh, atanh, arg, conj, exp (most of them
-    contributed by Hans Lundmark).
-  * Some bug fixes.
-
-Changed in 0.11:
-
-  * Requires at least GIMP 1.1.
-  * More than one input image can be specified!!!
-  * MathMap now registers all examples in the PDB.
-  * Several new/improved examples.
-  * New/improved functions: lerp, clamp, noise.
-  * Some internal changes.
-  * Fixes some bugs.
-
-Changes in 0.10:
-
-  * Expressions can now contain values which the user can specify
-    through the GUI (numbers, colors, booleans, curves). This is
-    a mega-feature!
-  * Pixels outside the image can now also be reflected back into
-    the image (thanks to Eric Kidd <eric.kidd@pobox.com>).
-  * More matrix/vector algebra (including gaussian elimination).
-  * The positive Y-axis direction is now upwards which is clearly
-    The Right Thing.
-  * Some minor C code generator changes which should not affect the
-    user but easy writing of built-ins.
-  * New/improved functions: print.
-  * Some bug fixes.
-
-Changes in 0.9:
-
-  * Lots of bug fixes.
-  * Simplified build procedure.
-  * The parser is now a little more forgiving.
-  * Generalized tuple subscription.
-  * Tuple subscripts can now be assigned to (making morph obsolete).
-  * New/improved functions: det, crossp, atan, sum.
-
-Changes in 0.8:
-
-  * Now runs under both GIMP 1.0 and GIMP 1.1.
-  * Features a transparent MathMap->C compiler under GIMP 1.1 boosting
-    performance by a factor 2 to 8.
-  * Simple vector and matrix algebra.
-  * Pixels outside the image can now be either wrapped or given any
-    color (including transparency).
-
-Changes in 0.7:
-
-  * Implemented the tagged tuples type system. This is major feature!
-  * Implemented better error handling by borrowing a piece of code
-    from the current development tree of chpp.
-
-Changes in 0.6:
-
-  * Alpha channel now shows up in the preview (thanks to Andy Thomas).
-  * Added the exponentation operator (^).
-
-Changes in 0.5:
-
-  * Completely redesigned the dialog.
-  * Added a curve widget which allows the user to intuitively specify
-    a function which can be accessed from the expression (curve).
-  * Added the function gradient which accesses the user-defined
-    gradient.
-  * Made it possible to change the parameter t when not animating.
-  * Implemented a fast-preview option.
-  * Put the examples into a file which is displayed in a tree widget.
-  * Expressions are now edited in a text widget, which allows for
-    multi-line expressions.
-  * Moved the plug-in to Filters/Generic, so as to conform to the new
-    menu hierarchy.
-
-Changes in 0.4:
-
-  * Added syntactic sugar for some functions (especially logical
-    operators).
-  * Added a pow function.
-  * Support for alpha layer.
-  * Support for grayscale images.
-  * Animation capability.
-
-Changes in 0.3:
-
-  * if is now a language-level construct.
-  * I have introduced while and do-while loops.
-
-Changes in 0.2:
-
-  * Fixed the bug that caused it to crash after the first preview.
-  * Added a few more functions: red, green, blue and rgbColor.
-  * Added the assignment (=) and the sequence operator (;).
-
 --- 
-Mark Probst <schani@complang.tuwien.ac.at>
+Mark Probst <mark.probst@gmail.com>

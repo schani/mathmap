@@ -1009,7 +1009,7 @@ generate_code (void)
 	{
 	    mathmap_invocation_t *new_invocation;
 
-	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height);
+	    new_invocation = invoke_mathmap(new_mathmap, invocation, sel_width, sel_height, FALSE);
 	    assert(new_invocation != 0);
 
 	    new_invocation->output_bpp = output_bpp;
@@ -2934,6 +2934,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			"Simone Demmel <neko@greenie.muc.de>",
 			"Carlos A. Furuti <carlos.furuti@progonos.com>",
 			"Alexander Heide <heide@ra.physik.uni-halle.de>",
+			"Eric Kidd <eric.kidd@pobox.com>",
 			"Yuval Levy <yuval@levy.ch>",
 			"Hans Lundmark <h.lundmark@gmail.com>",
 			"Xavier Martin <xavier.martin@avedya.com>",
@@ -2941,6 +2942,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			"Ben Reichardt <ben.reichardt@gmail.com>",
 			"Josh Sommers <josh@sommers.net>",
 			"Serge van Thillo <nulleke@hotmail.com>",
+			"Andy Thomas",
 			NULL };
     char *artists[] = { "Herbert Poetzl <herbert@13thfloor.at>", NULL };
     char *translators = "Laurent Despeyroux <not@fgrev.no>\nYury Aliaev <mutabor@altlinux.org>";
