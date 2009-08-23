@@ -221,6 +221,13 @@ start_parsing_filter (mathmap_t *mathmap, top_level_decl_t *decl)
 
     g_assert(mathmap->current_filter == NULL);
 
+    if (lookup_filter(mathmap->filters, decl->name) != NULL)
+    {
+	sprintf(error_string, _("Filter `%s' is defined more than once."), decl->name);
+	error_region = decl->region;
+	JUMP(1);
+    }
+
     filter = g_new0(filter_t, 1);
 
     filter->kind = FILTER_MATHMAP;
