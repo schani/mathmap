@@ -11,7 +11,8 @@
     the new filter names its first input image after a non-first input
     image of the last filter.
 ** Designer
-*** TODO The Sharp-Blur filter can't be loaded into the expression db	:bug:
+*** DONE The Sharp-Blur filter can't be loaded into the expression db	:bug:
+    CLOSED: [2009-08-23 Sun 12:55]
 *** DONE Filters can be included twice					:bug:
     CLOSED: [2009-08-23 Sun 12:23]
     When a sub-designer-filter includes a filter and the main filter
@@ -27,7 +28,8 @@
 ** Packaging
 *** DONE check out Robin Norwood's spec file changes (for Fedora)
     CLOSED: [2009-08-22 Sat 12:15]
-*** TODO update homepage 				      :documentation:
+*** DONE update homepage				      :documentation:
+    CLOSED: [2009-08-23 Sun 14:20]
 ** Filters
 *** DONE Dissolve doesn't work properly					:bug:
     CLOSED: [2009-08-22 Sat 14:15]
@@ -210,6 +212,7 @@ filter loop ()
 end
 #+END_SRC
 ** Packaging
+*** TODO Email address of Andy Thomas in contributor credits
 *** TODO Generate keyword list in sourceview spec file from builtins.lisp :simplify:
 *** TODO rewrite HACKING and include it in distro		 :documentation:
 *** TODO ship documentation in package			      :documentation:
@@ -228,6 +231,7 @@ end
 *** TODO do rendering multi-threaded if possible		:performance:
 
 ** Designer
+*** TODO give better error reports when loading a design fails	    :feature:
 *** TODO native filters should show up directly, without .mm filters
     really? - why?
 *** TODO do migration with save/load				   :simplify:
@@ -239,7 +243,8 @@ end
 *** TODO when bigger fonts are used the nodes look funny		:bug:
 
 ** Filters
-*** TODO sharp blur						    :feature:
+*** DONE sharp blur						    :feature:
+    CLOSED: [2009-08-23 Sun 12:56]
 *** TODO math filters with constants for composer		    :feature:
 *** TODO better layer modes: http://pegtop.net/delphi/articles/blendmodes/ :feature:
 *** TODO color gimp layer mode					    :feature:

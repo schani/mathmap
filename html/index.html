@@ -16,22 +16,62 @@ pageTracker._trackPageview();
   <body>
     <center><h1><img src="mathmap.png" align=middle> The MathMap GIMP Plug-In <img src="mathmap.png" align=middle></h1></center>
 
+    <center><img src="mm_composer2.png" alt="MathMap Screenshot"></center>
+
     <h2>What is it?</h2>
 
     <blockquote>
-      MathMap is a <a href="http://www.gimp.org/">GIMP</a> plug-in
-      which allows distortion of images specified in a simple
-      programming language. For each pixel in the generated image, a
-      script is evaluated which returns a color value. The script can
-      either refer to a pixel in the source image or can generate
-      colors completely independent of the source.
+      MathMap is an image processing application that works on several
+      levels:
 
-      <p>If you have any suggestions, bugs to report, scripts which
-      generate cool effects, or if you just happen to like or dislike
-      this plug-in, please let us know via the <a
-      href="http://groups.google.com/group/mathmap">MathMap Google
-      group</a>, or <a href="mailto:schani@complang.tuwien.ac.at">
-      email the author directly</a>.
+      <ul>
+	<li>Without any prerequisite knowledge about image processing,
+	  one can use any of the more than one hundred filters that
+	  come bundled with MathMap.
+
+	<li>More advanced users can combine filters intuitively in the
+	  Composer, as pictured above.
+
+	<li>For expert users MathMap provides a simple but very
+	  efficient programming language.  This is the core of MathMap
+	  and the language that almost all MathMap filters are
+	  implemented in.
+      </ul>
+
+      <p>MathMap can be used as
+	a <a href="http://www.gimp.org/">GIMP</a> plug-in as well as a
+	command-line tool.  It is distributed
+	as <a href="http://www.gnu.org/philosophy/free-sw.html">Free
+	Software</a> under the terms of the <a href="COPYING">GNU
+	General Public Licence</a>.
+    </blockquote>
+
+    <h2>Downloads</h2>
+
+    <blockquote>
+      <h3>Latest stable release: 1.3.5</h3>
+      <blockquote>
+	<h4><a href="http://download.opensuse.org/repositories/home:/mark_probst/">Linux</a></h4>
+	<h4><a href="files/mathmap-1.3.5-setup.exe">Windows</a></h4>
+	<h4><a href="files/mathmap-1.3.5.tar.gz">Source</a></h4>
+      </blockquote>
+
+      We also periodically release builds from the current development
+      state.  They are announced on
+      the <a href="http://groups.google.com/group/mathmap">MathMap
+      Google Group</a>.  Use at your own risk!
+
+      <h3>Mac OS X</h3>
+
+      <blockquote>
+        We have implemented a stand-alone version of MathMap for Mac
+        OS X called "MathMap Cocoa".  Unfortunately it is somewhat
+        outdated.  The latest release is 1.2.4-1 which you can
+        download <a href="files/MathMap-Cocoa-1.2.4-1.dmg">here</a>.
+        It includes an introductory video presentation.  The complete
+        source code (including the XCode project) can be
+        downloaded <a href="files/MathMap-Cocoa-Src-1.2.4-1.tar.gz">here</a>.
+      </blockquote>
     </blockquote>
 
     <h2>Screencast Presentations</h2>
@@ -63,170 +103,43 @@ pageTracker._trackPageview();
 
       <h3><a href="reference.html">Language Reference</a></h2>
 
-      <h3><a href="http://groups.google.com/group/mathmap">The MathMap Google group</a></h2>
-
       <h3><a href="README.filters">New language features in MathMap 1.3 (unstable)</a></h2>
     </blockquote>
 
-    <h2>Downloads</h2>
+    <h2>Community and Contacts</h2>
 
     <blockquote>
-      <h3>Stable Release</h3>
+      <p>The MathMap community hangs out at
+	the <a href="http://groups.google.com/group/mathmap">MathMap
+	Google group</a>.  Feel free to join, ask questions, and
+	present your own filters!
 
-      <blockquote>
-        <p>The latest stable release is MathMap 1.2.4 which works with
-	GIMP 2.2 and 2.4.  It's available for several Linux
-	distributions (Ubuntu, Debian, Fedora, openSUSE) <a
-	href="http://software.opensuse.org/search?p=1&q=mathmap&baseproject=ALL">here</a>
-	or <a
-	href="http://download.opensuse.org/repositories/home:/mark_probst/">here</a>
-	(make sure to choose your distribution and download the
-	package for release 1.2.4), as well as in <a
-	href="files/mathmap-1.2.4.tar.gz">source form</a>.
+      <p>There is also an active community on
+	the <a href="http://www.flickr.com/groups/mathmap/">MathMap
+	Flickr group</a>, where people share images they've created.
 
-	<p>The latest version that works with GIMP 1.2 and 2.0 is
-        <a href="mathmap-1.0.1.tar.gz">MathMap 1.0.1</a>.  Its syntax is
-	not compatible with MathMap 1.2, though, so its use is discouraged.
-      </blockquote>
-
-      <h3>Unstable Release</h3>
-
-      <blockquote>
-        <p>We are currently implementing <a
-        href="README.filters">major new language features</a> in MathMap,
-        as well as a <a href="http://video.google.de/videoplay?docid=-7171501518308861626">graphical filter composition tool</a>,
-        requiring some internal restructuring, which in turn leads to
-        bugs and instabilities.  Until all of that is ironed out we
-        label these releases "unstable", meaning that you should only
-        use them if you are brave enough to endure those bugs.  The
-        current unstable MathMap release is 1.3.4, and you can also
-        get it pre-built for several Linux distributions (Ubuntu, Debian, Fedora, openSUSE, Mandriva) <a
-        href="http://software.opensuse.org/search?p=1&q=mathmap&baseproject=ALL">here</a>
-        as well as <a
-        href="http://download.opensuse.org/repositories/home:/mark_probst/">here</a>,
-        as well as in source from <a
-        href="files/mathmap-1.3.4.tar.gz">here</a>.
-      </blockquote>
-
-      <h3>Version Control Repository</h3>
-
-      <blockquote>
-        <p>We also provide a public <a
-        href="http://www.selenic.com/mercurial/wiki/">Mercurial</a>
-        repository for MathMap <a
-        href="http://hg.13thfloor.at/hg/">here</a>.  It always
-        contains the latest sources.  <a href="README.mercurial">Read
-        this</a> for instructions.
-      </blockquote>
-
-      <h3>Mac OS X</h3>
-
-      <blockquote>
-        We have implemented a stand-alone version of MathMap for Mac
-        OS X called "MathMap Cocoa".  The latest release is 1.2.4-1
-        which you can download <a
-        href="files/MathMap-Cocoa-1.2.4-1.dmg">here</a>.  It includes
-        an introductory video presentation.  The complete source code
-        (including the XCode project) can be downloaded <a
-        href="files/MathMap-Cocoa-Src-1.2.4-1.tar.gz">here</a>.
-        </blockquote>
-
-      <h3>Windows</h3>
-
-      <blockquote>
-        There's a Windows release of MathMap 1.2.4 available <a
-        href="files/mathmap-1.2.4-win32.zip">here</a> which was compiled by
-        JamesH and provided by
-        <a href="http://photocomix-resources.deviantart.com/art/Gimp-MathMap-1-2-4-Windows-95950939">photocomix</a>.
-	The ZIP file includes a text file with installation instructions.
-      </blockquote>
+      <p>You can also contact the
+	maintainer, <a href="mailto:mark.probst@gmail.com">Mark
+	Probst</a>, directly.
     </blockquote>
 
-    <h2>Legal Conditions</h2>
+    <h2>Bug Reports</h2>
 
     <blockquote>
-      The MathMap plug-in as well as this hypertext document are
-      <a href="http://www.gnu.org/philosophy/free-sw.html">free software</a>
-      provided under the terms of the <a href="COPYING">GNU General
-	Public Licence</a>.
+      <p>Please report bugs on
+      our <a href="http://github.com/schani/mathmap/issues">GitHub
+      issue tracker</a>.
     </blockquote>
 
-    <h2>News</h2>
+    <h2>Development</h2>
 
     <blockquote>
-      <p><b>01-09-2008</b> Released version 1.3.4.
-
-      <p><b>27-08-2008</b> Released version 1.3.3.
-
-      <p><b>03-03-2008</b> Released MathMap Cocoa 1.2.4-1.
-
-      <p><b>02-16-2008</b> Released version 1.3.2.
-
-      <p><b>01-13-2008</b> Released version 1.3.1.
-
-      <p><b>01-01-2008</b> Released version 1.3.0 and opened up the
-      Mercurial repositories.
-
-      <p><b>11-23-2007</b> Released version 1.2.4.
-
-      <p><b>11-11-2007</b> Released version 1.2.3.
-
-      <p><b>11-04-2007</b> Released version 1.2.2.
-
-      <p><b>07-29-2007</b> Released version 1.2.1.
-
-      <p><b>05-05-2007</b> Released version 1.2.0.
-
-      <p><b>04-14-2007</b> Released version 1.1.3.
-
-      <p><b>04-01-2007</b> Released version 1.1.2.
-
-      <p><b>03-13-2007</b> Released version 1.1.1.
-
-      <p><b>03-15-2005</b> Released version 1.0.1.
-
-      <p><b>09-24-2004</b> Released version 1.0.
-
-      <p><b>06-15-2004</b> Released version 1.1.0.
-
-      <p><b>04-19-2004</b> Released version 0.14.
-
-      <p><b>03-23-2001</b> Released version 0.13.
-
-      <p><b>09-26-2000</b> Released version 0.12.
-
-      <p><b>04-21-2000</b> Released version 0.11.
-
-      <p><b>07-13-1999</b> Released version 0.10.
-
-      <p><b>05-09-1999</b> Released version 0.9.
-
-      <p><b>04-05-1999</b> Released version 0.8.
-
-      <p><b>09-19-1998</b> Released version 0.7.
-
-      <p><b>07-13-1998</b> There is now a MathMap mailing-list.
-
-      <p><b>06-04-1998</b> Released version 0.6.
-
-      <p><b>03-18-1998</b> Released version 0.5.
-
-      <p><b>01-12-1998</b> Released version 0.4.
-
-      <p><b>11-21-1997</b> Released version 0.3.
-
-      <h3><a href="changes_stable.html">Changes in the stable releases</a></h3>
-
-      <h3><a href="changes_dev.html">Changes in the unstable releases</a></h3>
-
+      The <a href="http://github.com/schani/mathmap/tree/master">MathMap
+      source repository</a> is hosted
+      on <a href="http://github.com/">GitHub</a>.  See the
+      file <tt>README.git</tt> there for instructions.
     </blockquote>
 
-    <h2>The Author</h2>
-
-    <blockquote>
-      Check out <a href="../index.html">other projects</a> I'm involved
-      with!
-    </blockquote>
-
+    <h2><a href="history.html">Version History</a></h2>
   </body>
 </html>
