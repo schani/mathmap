@@ -1,6 +1,11 @@
 #!/bin/bash
 
 OUTFILE=/tmp/mathtest_$$.png
+FAILEDFILE=/tmp/mathtest_failed_$$
+
+TESTS_FAILED=0
+
+rm -f $FAILEDFILE
 
 # Some versions of perceptualdiff are broken - they return 0 on
 # failure.  Test which one this is and then behave accordingly.
@@ -10,6 +15,13 @@ if perceptualdiff marlene.png marlene.png ; then
 else
     PDIFF_BROKEN=1
 fi
+
+test_failed () {
+    SCRIPT=$1
+    echo "Error: Script $SCRIPT failed."
+    TESTS_FAILED=1
+    echo "$SCRIPT" >>$FAILEDFILE
+}
 
 run_test () {
     SCRIPT=$1
@@ -38,13 +50,11 @@ run_test () {
 	if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
 	    true
 	else
-	    echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
-	    exit 1
+	    test_failed "$1"
 	fi
     else
 	if perceptualdiff "$OUTFILE" "$REFERENCE" -fov 85 -threshold 50 ; then
-	    echo "Error: Output image $OUTFILE doesn't match reference $REFERENCE."
-	    exit 1
+	    test_failed "$1"
 	fi
     fi
 }
@@ -173,3 +183,12 @@ run_modify_test "../examples/Utilities/Render.mm" utilities_render.png
 run_modify_test "../examples/Utilities/Visualize FFT.mm" utilities_visualize_fft.png
 run_modify_test "../examples/Utilities/Visualize Magnitude.mm" utilities_visualize_magnitude.png
 run_modify_test "../examples/Utilities/Visualize Sum.mm" utilities_visualize_sum.png
+
+if [ $TESTS_FAILED -ne 0 ] ; then
+    echo "The following tests failed:"
+    cat "$FAILEDFILE"
+    exit 1
+else
+    echo "All tests passed."
+    exit 0
+fi
