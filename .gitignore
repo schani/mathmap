@@ -1,6 +1,7 @@
 *.o
 *~
 *.orig
+*.swp
 builtins_doc.html
 compiler_types.h
 new_builtins.c
@@ -16,3 +17,4 @@ backends/lazy_creator.cpp
 compopt/simplify_func.c
 examples/Test
 libnoise
+
