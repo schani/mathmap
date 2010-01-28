@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2009 Mark Probst
+ * Copyright (C) 1997-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -35,6 +35,7 @@
 #include "userval.h"
 #include "tags.h"
 #include "drawable.h"
+#include "curve/curve_widget.h"
 
 static userval_info_t*
 alloc_and_register_userval (userval_info_t **p, const char *name, int type)
@@ -281,6 +282,7 @@ static curve_t*
 get_default_curve (void)
 {
     static curve_t curve;
+    static double xs[2], ys[2];
     static float points[USER_CURVE_POINTS];
     static gboolean inited = FALSE;
 
@@ -288,8 +290,15 @@ get_default_curve (void)
     {
 	int i;
 
+	xs[0] = ys[0] = 0.0;
+	xs[1] = ys[1] = 1.0;
+
 	for (i = 0; i < USER_CURVE_POINTS; ++i)
 	    points[i] = (float)i / (float)(USER_CURVE_POINTS - 1);
+
+	curve.num_control_points = 2;
+	curve.control_xs = xs;
+	curve.control_ys = ys;
 
 	curve.values = points;
 
@@ -303,6 +312,14 @@ static curve_t*
 copy_curve (curve_t *curve)
 {
     curve_t *copy = g_new(curve_t, 1);
+
+    copy->num_control_points = curve->num_control_points;
+
+    copy->control_xs = g_new(double, copy->num_control_points);
+    memcpy(copy->control_xs, curve->control_xs, sizeof(double) * copy->num_control_points);
+
+    copy->control_ys = g_new(double, copy->num_control_points);
+    memcpy(copy->control_ys, curve->control_ys, sizeof(double) * copy->num_control_points);
 
     copy->values = g_new(float, USER_CURVE_POINTS);
     memcpy(copy->values, curve->values, sizeof(float) * USER_CURVE_POINTS);
@@ -326,6 +343,8 @@ free_curve (curve_t *curve)
 {
     g_assert(curve != get_default_curve());
 
+    g_free(curve->control_xs);
+    g_free(curve->control_ys);
     g_free(curve->values);
     g_free(curve);
 }
@@ -604,6 +623,38 @@ user_image_update (gint32 id, void **user_data)
     user_value_changed();
 }
 
+static void
+update_curve (curve_t *curve_val, GeglCurve *curve)
+{
+    static gdouble xs[USER_CURVE_POINTS]; /* we don't use these */
+
+    gdouble ys[USER_CURVE_POINTS];
+    int i;
+
+    curve_val->num_control_points = gegl_curve_num_points (curve);
+
+    g_free (curve_val->control_xs);
+    curve_val->control_xs = g_new(double, curve_val->num_control_points);
+
+    g_free (curve_val->control_ys);
+    curve_val->control_ys = g_new(double, curve_val->num_control_points);
+
+    for (i = 0; i < curve_val->num_control_points; ++i)
+	gegl_curve_get_point (curve, i, &curve_val->control_xs[i], &curve_val->control_ys[i]);
+
+    gegl_curve_calc_values(curve, 0.0, 1.0, USER_CURVE_POINTS, xs, ys);
+
+    for (i = 0; i < USER_CURVE_POINTS; ++i)
+	curve_val->values[i] = ys[i];
+}
+
+static void
+userval_curve_update (GtkWidget *curve_widget, userval_t *userval)
+{
+    update_curve(userval->v.curve, curve_widget_get_curve(curve_widget));
+    user_value_changed();
+}
+
 static int
 make_table_entry_for_userval (userval_info_t *info, int *have_input_image)
 {
@@ -807,19 +858,17 @@ make_userval_table (userval_info_t *infos, userval_t *uservals)
 
 	    case USERVAL_CURVE :
 		{
-		    gfloat vector[USER_CURVE_POINTS];
 		    int j;
+		    GeglCurve *curve = gegl_curve_new (0.0, 1.0);
 
-		    for (j = 0; j < USER_CURVE_POINTS; ++j)
-			vector[j] = uservals[info->index].v.curve->values[j] * (USER_CURVE_POINTS - 1);
+		    for (j = 0; j < uservals[info->index].v.curve->num_control_points; ++j)
+			gegl_curve_add_point (curve,
+					      uservals[info->index].v.curve->control_xs[j],
+					      uservals[info->index].v.curve->control_ys[j]);
 
-		    widget = gtk_gamma_curve_new();
+		    widget = curve_widget_new ((curve_widget_curve_changed_callback_t)userval_curve_update, &uservals[info->index]);
+		    curve_widget_set_curve (widget, curve);
 		    object = GTK_OBJECT (widget);
-		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
-					0, USER_CURVE_POINTS - 1, 0, USER_CURVE_POINTS - 1);
-		    gtk_curve_set_vector(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve),
-					 USER_CURVE_POINTS, vector);
-		    gtk_curve_set_range(GTK_CURVE(GTK_GAMMA_CURVE(widget)->curve), 0, 1, 0, 1);
 
 		    yoptions = GTK_FILL | GTK_EXPAND;
 		}
@@ -907,8 +956,6 @@ update_uservals (userval_info_t *infos, userval_t *uservals)
 
     for (info = infos; info != 0; info = info->next)
 	if (uservals[info->index].widget_object != NULL && info->type == USERVAL_CURVE)
-	    gtk_curve_get_vector(GTK_CURVE(GTK_GAMMA_CURVE(uservals[info->index].widget_object)->curve),
-				 USER_CURVE_POINTS,
-				 uservals[info->index].v.curve->values);
+	    update_curve (uservals[info->index].v.curve, curve_widget_get_curve(GTK_WIDGET (uservals[info->index].widget_object)));
 }
 #endif
