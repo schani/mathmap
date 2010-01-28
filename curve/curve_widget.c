@@ -46,7 +46,9 @@ typedef struct
 	int last_mouse_x;
 	int last_mouse_y;
 
+	int drag_mode;
 	int drag_index;
+
 	GdkCursor *cursor_move;
 	GdkCursor *cursor_add;
 	curve_widget_curve_changed_callback_t curve_changed_callback;
@@ -280,6 +282,25 @@ static void process_mouse_crossing(GtkWidget *widget, int mouse_x, int mouse_y) 
 	data->last_mouse_y = mouse_y;
 }
 
+gboolean is_valid_point(widget_data_t *data, int index, double val_x, double val_y) {
+	int i;
+	double point_x, point_y;
+	double threshold = 0.25 / (double)data->width; // one fourth of pixel
+	double dist;
+
+	for (i = 0; i < gegl_curve_num_points(data->curve); i++) {
+		if (index >= 0 && i == index) // don't compare point with itself
+			continue;
+		gegl_curve_get_point(data->curve, i, &point_x, &point_y);
+		dist = val_x - point_x;
+		if (dist < 0.0)
+			dist = -dist;
+		if (dist < threshold)
+			return FALSE;
+	}
+	return TRUE;
+}
+
 static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int is_press) {
 	widget_data_t *data = get_widget_data(widget);
 	double val_x, val_y, dx, dy, w, h;
@@ -309,11 +330,30 @@ static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int
 	if (val_y > data->max_y)
 		val_y = data->max_y;
 
-	if (data->drag_index >= 0) { // drag mode
-		gegl_curve_set_point(data->curve, data->drag_index, val_x, val_y);
+	if (! is_inside_margin(data, mouse_x, mouse_y))
+		return;
+
+	gboolean valid = is_valid_point(data, data->drag_index, val_x, val_y);
+
+	if (valid && data->drag_mode && data->drag_index == -1 && ! is_press) { // invalid point became valid again
+		data->drag_index = gegl_curve_num_points(data->curve);
+		gegl_curve_add_point(data->curve, val_x, val_y);
 		points_changed(data);
 		gdk_window_set_cursor ((GTK_WIDGET(data->drawing_area)->window), data->cursor_move);
 		return;
+	} else {
+		if (data->drag_index >= 0) { // drag mode
+			if (! valid) { // valid point became invalid
+				remove_point(data, data->drag_index);
+				data->drag_index = -1;
+			} else {
+				gegl_curve_set_point(data->curve, data->drag_index, val_x, val_y);
+			}
+		
+			points_changed(data);
+			gdk_window_set_cursor ((GTK_WIDGET(data->drawing_area)->window), data->cursor_move);
+			return;
+		}
 	}
 
 	// check points
@@ -371,7 +411,8 @@ static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int
 
 
 static gboolean motion_notify_event (GtkWidget *widget, GdkEventMotion *event) {
-	if (event->state) // only if mouse button is held down
+	widget_data_t *data = get_widget_data(widget);
+	if (data->drag_mode) // only if mouse button is held down
 		process_mouse_crossing(widget, (int)event->x, (int)event->y);
 
 	process_mouse(widget, event->x, event->y, 0);
@@ -384,6 +425,7 @@ static gboolean button_press_event (GtkWidget *widget, GdkEventButton *event) {
 	data->last_mouse_x = 1;
 	data->last_mouse_y = 1;
 
+	data->drag_mode = TRUE;
 	process_mouse(widget, event->x, event->y, 1);
 	return FALSE;
 }
@@ -391,6 +433,7 @@ static gboolean button_press_event (GtkWidget *widget, GdkEventButton *event) {
 static gboolean button_release_event (GtkWidget *widget, GdkEventButton *event) {
 	widget_data_t *data = get_widget_data(widget);
 	data->drag_index = -1;
+	data->drag_mode = FALSE;
 	return FALSE;
 }
 
@@ -398,7 +441,7 @@ GtkWidget *curve_widget_new(curve_widget_curve_changed_callback_t curve_changed_
 	widget_data_t *data;
 	GtkWidget *drawing_area;
 
-	data = g_new(widget_data_t, 1);
+	data = g_new0(widget_data_t, 1);
 
 	data->curve_changed_callback = curve_changed_callback;
 	data->callback_data = callback_data;
