@@ -73,6 +73,8 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *event) {
 	double scale_x;
 	double scale_y;
 
+	double grid_cell_size;
+
 	int i;
 
 	widget_data_t *data = get_widget_data(widget);
@@ -99,12 +101,36 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *event) {
 	cairo_set_source_rgb(cr, CURVE_WIDGET_BG_COLOR);
 	cairo_paint(cr);
 
+	// draw grid
+	cairo_set_source_rgb(cr, CURVE_WIDGET_GRID_COLOR);
+
+	grid_cell_size = max_px / (double)CURVE_GRID_RESOLUTION_X;
+	for (i = 1; i < CURVE_GRID_RESOLUTION_X; i++) {
+		double x = i * grid_cell_size;
+		cairo_move_to(cr, x, 0.0);
+		cairo_line_to(cr, x, max_py);
+		cairo_stroke(cr);
+	}
+	grid_cell_size = max_py / (double)CURVE_GRID_RESOLUTION_Y;
+	for (i = 1; i < CURVE_GRID_RESOLUTION_Y; i++) {
+		double y = i * grid_cell_size;
+		cairo_move_to(cr, 0.0, y);
+		cairo_line_to(cr, max_px, y);
+		cairo_stroke(cr);
+	}
+
+	// draw border
+	cairo_set_source_rgb(cr, CURVE_WIDGET_BORDER_COLOR);
+	cairo_move_to(cr, 0.0, 0.0);
+	cairo_line_to(cr, max_px, 0.0);
+	cairo_line_to(cr, max_px, max_py);
+	cairo_line_to(cr, 0.0, max_py);
+	cairo_line_to(cr, 0.0, 0.0);
+	cairo_stroke(cr);
+
 
 	cairo_set_source_rgb(cr, CURVE_WIDGET_CURVE_COLOR);
 	cairo_move_to(cr, xs[0] * max_px, ys[0] * max_py);
-
-	// printf("-----------------------\n");
-	// printf("move to %f:%f\n", xs[0], ys[0]);
 
 	for (i = 1; i < data->num_samples; i++) {
 		cairo_line_to(cr, xs[i] * max_px, ys[i] * max_py);

@@ -33,9 +33,14 @@
 #define CURVE_WIDGET_POINT_RADIUS 3.0
 #define CURVE_WIDGET_MAX_POINT_GRAB_DISTANCE 5.0
 
-#define CURVE_WIDGET_BG_COLOR 0.9, 0.9, 0.9
+#define CURVE_GRID_RESOLUTION_X 4
+#define CURVE_GRID_RESOLUTION_Y 4
+
+#define CURVE_WIDGET_BG_COLOR 1.0, 1.0, 1.0
 #define CURVE_WIDGET_CURVE_COLOR 1.0, 0.0, 0.0
 #define CURVE_WIDGET_POINT_COLOR 0.0, 0.0, 0.0
+#define CURVE_WIDGET_BORDER_COLOR 0.0, 0.0, 0.0
+#define CURVE_WIDGET_GRID_COLOR 0.7, 0.7, 0.7
 
 
 typedef void (*curve_widget_curve_changed_callback_t) (GtkWidget *widget, void *data);
