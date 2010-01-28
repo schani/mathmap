@@ -43,12 +43,23 @@ typedef struct
 	double min_y;
 	double max_y;
 
+	int last_mouse_x;
+	int last_mouse_y;
+
 	int drag_index;
 	GdkCursor *cursor_move;
 	GdkCursor *cursor_add;
 	curve_widget_curve_changed_callback_t curve_changed_callback;
 	void *callback_data;
 } widget_data_t;
+
+
+typedef enum {
+	CR_NONE = 0,
+	CR_ENTER_MARGIN,
+	CR_LEAVE_MARGIN
+} crossing_type_t;
+
 
 static widget_data_t *get_widget_data(GtkWidget *widget)
 {
@@ -221,10 +232,60 @@ static void points_changed(widget_data_t *data) {
 		data->curve_changed_callback(data->drawing_area, data->callback_data);
 }
 
+static gboolean is_inside_margin(widget_data_t *data, int x, int y) {
+	int m = CURVE_WIDGET_MOUSE_MARGIN_SIZE;
+	return (x > - m
+		&& y > - m
+		&& x < data->width + m
+		&& y < data->height + m);
+}
+
+static void process_mouse_crossing(GtkWidget *widget, int mouse_x, int mouse_y) {
+	crossing_type_t type;	
+	gboolean was_inside, is_inside;
+	widget_data_t *data = get_widget_data(widget);
+
+	was_inside = is_inside_margin(data, data->last_mouse_x, data->last_mouse_y);
+	is_inside = is_inside_margin(data, mouse_x, mouse_y);
+
+	type = CR_NONE;
+	if (! was_inside && is_inside) {
+		type = CR_ENTER_MARGIN;
+	} else {
+		if (was_inside && ! is_inside)
+			type = CR_LEAVE_MARGIN;
+	}
+		
+	switch (type) {
+		case CR_ENTER_MARGIN:
+			printf("ENTER\n");
+			data->drag_index = gegl_curve_num_points(data->curve);
+			gegl_curve_add_point(data->curve, 0.0, 0.0);
+			gdk_window_set_cursor((GTK_WIDGET(data->drawing_area)->window), data->cursor_move);
+			points_changed(data);
+			break;
+		case CR_LEAVE_MARGIN:
+			printf("LEAVE\n");
+			if (data->drag_index >= 0) {
+				remove_point(data, data->drag_index);
+				data->drag_index = -1;
+				points_changed(data);
+			}
+			gdk_window_set_cursor((GTK_WIDGET(data->drawing_area)->window), data->cursor_add);
+			break;
+		case CR_NONE:
+			break;
+		default:
+			assert(0);
+	}
+	data->last_mouse_x = mouse_x;
+	data->last_mouse_y = mouse_y;
+}
+
 static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int is_press) {
 	widget_data_t *data = get_widget_data(widget);
 	double val_x, val_y, dx, dy, w, h;
-	GdkCursor *cursor=NULL;
+	GdkCursor *cursor = NULL;
 	int i;
 	int nearest_index = -1;
 	double nearest_distS = 10000000.0;
@@ -237,15 +298,23 @@ static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int
 	w = (double)data->width;
 	h = (double)data->height;
 
-	if (mouse_x >= (double)data->num_samples || mouse_x < 0.0)
-		return;
-
 	val_x = mouse_x / w;
 	val_y = (h - mouse_y) / h;
+
+	if (val_x < data->min_x)
+		val_x = data->min_x;
+	if (val_x > data->max_x)
+		val_x = data->max_x;
+
+	if (val_y < data->min_y)
+		val_y = data->min_y;
+	if (val_y > data->max_y)
+		val_y = data->max_y;
 
 	if (data->drag_index >= 0) { // drag mode
 		gegl_curve_set_point(data->curve, data->drag_index, val_x, val_y);
 		points_changed(data);
+		gdk_window_set_cursor ((GTK_WIDGET(data->drawing_area)->window), data->cursor_move);
 		return;
 	}
 
@@ -265,7 +334,7 @@ static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int
 	}
 	if (nearest_index >= 0) { // found point near enough
 		cursor = data->cursor_move;
-		if (is_press && data->drag_index == -1) {
+		if (is_press) {
 			data->drag_index = nearest_index;
 			gegl_curve_set_point(data->curve, nearest_index, val_x, val_y);
 			points_changed(data);
@@ -302,24 +371,21 @@ static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int
 	gdk_window_set_cursor ((GTK_WIDGET(data->drawing_area)->window), cursor);
 }
 
-// on enter/leave remove dragged point
-static gboolean crossing_event (GtkWidget *widget, GdkEventCrossing *event) {
-	widget_data_t *data = get_widget_data(widget);
-	if (data->drag_index >= 0) {
-		remove_point(data, data->drag_index);
-		data->drag_index = -1;
-		points_changed(data);
-	}
-	data->drag_index = -1;
-	return FALSE;
-}
 
 static gboolean motion_notify_event (GtkWidget *widget, GdkEventMotion *event) {
+	if (event->state) // only if mouse button is held down
+		process_mouse_crossing(widget, (int)event->x, (int)event->y);
+
 	process_mouse(widget, event->x, event->y, 0);
 	return FALSE;
 }
 
 static gboolean button_press_event (GtkWidget *widget, GdkEventButton *event) {
+	// to ensure was_inside is true.
+	widget_data_t *data = get_widget_data(widget);
+	data->last_mouse_x = 1;
+	data->last_mouse_y = 1;
+
 	process_mouse(widget, event->x, event->y, 1);
 	return FALSE;
 }
@@ -368,8 +434,6 @@ GtkWidget *curve_widget_new(curve_widget_curve_changed_callback_t curve_changed_
 		(GtkSignalFunc)expose_event, NULL);
 	gtk_signal_connect(GTK_OBJECT(drawing_area), "configure_event",
 		(GtkSignalFunc)configure_event, NULL);
-	gtk_signal_connect(GTK_OBJECT(drawing_area), "leave_notify_event",
-		(GtkSignalFunc)crossing_event, NULL);
 	gtk_signal_connect(GTK_OBJECT(drawing_area), "motion_notify_event",
 		(GtkSignalFunc)motion_notify_event, NULL);
 	gtk_signal_connect(GTK_OBJECT(drawing_area), "button_press_event",
