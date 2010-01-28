@@ -2,8 +2,8 @@
  * Copyright (C) 1995 Spencer Kimball and Peter Mattis
  *
  * MathMap plug-in --- generate an image by means of a mathematical expression
- * Copyright (C) 1997-2009 Mark Probst
- * schani@complang.tuwien.ac.at
+ * Copyright (C) 1997-2010 Mark Probst
+ * mark.probst@gmail.com
  *
  * Copyright (C) 2008 Serge van Thillo
  * nulleke@hotmail.com
@@ -2929,8 +2929,9 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 	"You should have received a copy of the GNU General Public License\n"\
 	"along with MathMap; if not, write to the Free Software Foundation,\n"\
 	"Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.";
-    char *authors[] = { "Mark Probst <schani@complang.tuwien.ac.at>",
+    char *authors[] = { "Mark Probst <mark.probst@gmail.com>",
 			"Herbert Poetzl <herbert@13thfloor.at>",
+			"Genadz Batsyan <gbatyan@gmail.com>",
 			"Simone Demmel <neko@greenie.muc.de>",
 			"Carlos A. Furuti <carlos.furuti@progonos.com>",
 			"Alexander Heide <heide@ra.physik.uni-halle.de>",
@@ -2960,7 +2961,7 @@ dialog_about_callback (GtkWidget *widget, gpointer data)
 			   "translator-credits", translators,
 			   "comments", _("An image generation and manipulation system"),
 			   "website", "http://www.complang.tuwien.ac.at/schani/mathmap/",
-			   "copyright", "Copyright © 1997-2009 Mark Probst, Herbert Poetzl",
+			   "copyright", "Copyright © 1997-2009 Mark Probst, Herbert Poetzl, Genadz Batsyan",
 			   "license", gpl,
 			   "logo", mathmap_logo,
 			   NULL);
