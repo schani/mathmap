@@ -258,14 +258,12 @@ static void process_mouse_crossing(GtkWidget *widget, int mouse_x, int mouse_y) 
 		
 	switch (type) {
 		case CR_ENTER_MARGIN:
-			printf("ENTER\n");
 			data->drag_index = gegl_curve_num_points(data->curve);
 			gegl_curve_add_point(data->curve, 0.0, 0.0);
 			gdk_window_set_cursor((GTK_WIDGET(data->drawing_area)->window), data->cursor_move);
 			points_changed(data);
 			break;
 		case CR_LEAVE_MARGIN:
-			printf("LEAVE\n");
 			if (data->drag_index >= 0) {
 				remove_point(data, data->drag_index);
 				data->drag_index = -1;
