@@ -23,6 +23,7 @@ typedef struct
 	GdkCursor *cursor_move;
 	GdkCursor *cursor_add;
 	curve_widget_curve_changed_callback_t curve_changed_callback;
+	void *callback_data;
 } widget_data_t;
 
 static widget_data_t *get_widget_data(GtkWidget *widget)
@@ -169,7 +170,7 @@ static void points_changed(widget_data_t *data) {
 	GtkWidget *widget = data->drawing_area;
 	gtk_widget_queue_draw(widget);
 	if (data->curve_changed_callback)
-		data->curve_changed_callback(data->drawing_area);
+		data->curve_changed_callback(data->drawing_area, data->callback_data);
 }
 
 static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int is_press) {
@@ -281,13 +282,14 @@ static gboolean button_release_event (GtkWidget *widget, GdkEventButton *event) 
 	return FALSE;
 }
 
-GtkWidget *curve_widget_new(curve_widget_curve_changed_callback_t curve_changed_callback) {
+GtkWidget *curve_widget_new(curve_widget_curve_changed_callback_t curve_changed_callback, void *callback_data) {
 	widget_data_t *data;
 	GtkWidget *drawing_area;
 
 	data = g_new(widget_data_t, 1);
 
 	data->curve_changed_callback = curve_changed_callback;
+	data->callback_data = callback_data;
 
 	data->xs = NULL;
 	data->ys = NULL;

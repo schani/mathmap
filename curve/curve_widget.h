@@ -14,9 +14,9 @@
 #define CURVE_WIDGET_POINT_COLOR 0.0, 0.0, 0.0
 
 
-typedef void (*curve_widget_curve_changed_callback_t) (GtkWidget *widget);
+typedef void (*curve_widget_curve_changed_callback_t) (GtkWidget *widget, void *data);
 
-GtkWidget *curve_widget_new(curve_widget_curve_changed_callback_t curve_changed_callback);
+GtkWidget *curve_widget_new(curve_widget_curve_changed_callback_t curve_changed_callback, void *callback_data);
 void curve_widget_set_curve(GtkWidget *widget, GeglCurve *curve);
 GeglCurve *curve_widget_get_curve(GtkWidget *widget);
 
