@@ -64,9 +64,7 @@ static gboolean expose_event(GtkWidget *widget, GdkEventExpose *event) {
 	cairo_t *cr;
 
 	// cairo coordinate ranges
-	double min_px = 0.0;
 	double max_px;
-	double min_py = 0.0;
 	double max_py;
 
 	double *xs;
@@ -199,7 +197,7 @@ static void points_changed(widget_data_t *data) {
 
 static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int is_press) {
 	widget_data_t *data = get_widget_data(widget);
-	double val_x, val_y, dx, dy, w, h, ydiff;
+	double val_x, val_y, dx, dy, w, h;
 	GdkCursor *cursor=NULL;
 	int i;
 	int nearest_index = -1;
@@ -259,7 +257,7 @@ static void process_mouse(GtkWidget *widget, double mouse_x, double mouse_y, int
 			double y_at_x = data->ys[(int)mouse_x]; // assumes that num_samples == width
 			y_at_x = h - y_at_x * h;
 
-			ydiff = y_at_x - (double)mouse_y;
+			double ydiff = y_at_x - (double)mouse_y;
 			if (ydiff < 0.0)
 				ydiff = -ydiff;
 
