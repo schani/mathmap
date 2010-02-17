@@ -80,4 +80,7 @@ scanner_ident_t* scanner_make_ident (scanner_region_t region, const char *str);
 gboolean scanner_region_is_valid (scanner_region_t r);
 scanner_region_t scanner_region_merge (scanner_region_t r1, scanner_region_t r2);
 
+typedef void (*scanner_comment_callback_t) (char *comment);
+void scanner_set_comment_callback(scanner_comment_callback_t callback);
+
 #endif

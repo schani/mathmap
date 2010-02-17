@@ -8,6 +8,9 @@
  * Copyright (C) 2008 Serge van Thillo
  * nulleke@hotmail.com
  *
+ * Copyright (C) 2010 Genadz Batsyan
+ * gbatyan@gmail.com
+ *
  * Plug-In structure based on:
  *   Whirl plug-in --- distort an image into a whirlpool
  *   Copyright (C) 1997 Federico Mena Quintero
@@ -73,6 +76,8 @@
 #include "mathmap.h"
 #include "expression_db.h"
 #include "designer/designer.h"
+
+#include "expression_panel.h"
 
 #define DEFAULT_PREVIEW_SIZE	384
 
@@ -205,10 +210,10 @@ static void dialog_save_as_callback (GtkWidget *widget, gpointer data);
 static void dialog_ok_callback (GtkWidget *widget, gpointer data);
 static void dialog_help_callback (GtkWidget *widget, gpointer data);
 static void dialog_about_callback (GtkWidget *widget, gpointer data);
-static void dialog_tree_changed (GtkTreeSelection *tree, gpointer data);
+static void dialog_tree_changed(GtkWidget *widget);
 static void dialog_response (GtkWidget *widget, gint response_id, gpointer data);
 
-static void designer_tree_callback (GtkTreeSelection *tree, gpointer data);
+static void designer_tree_callback (GtkWidget *widget);
 static void design_save_callback (GtkWidget *widget, gpointer data);
 static void design_save_as_callback (GtkWidget *widget, gpointer data);
 
@@ -262,9 +267,9 @@ GtkWidget *mathmap_dialog_window,
     *edge_color_y_well,
     *uservalues_scrolled_window,
     *uservalues_table,
-    *tree_scrolled_window,
+    *filters_expression_panel,
+    *designer_expression_panel,
     *designer_widget,
-    *designer_tree_scrolled_window,
     *notebook;
 
 #ifdef THREADED_FINAL_RENDER
@@ -1328,73 +1333,6 @@ drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *draw
 
 /*****/
 
-#define TREE_VALUE_NAME			0
-#define TREE_VALUE_EDB			1
-
-static void
-tree_from_expression_db (GtkTreeStore *store, GtkTreeIter *parent, expression_db_t *edb)
-{
-    for (; edb != 0; edb = edb->next)
-    {
-	GtkTreeIter iter;
-
-	if (edb->kind == EXPRESSION_DB_GROUP)
-	{
-	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter,
-			       TREE_VALUE_NAME, edb->name,
-			       -1);
-
-	    tree_from_expression_db(store, &iter, edb->v.group.subs);
-	}
-	else if (edb->kind == EXPRESSION_DB_EXPRESSION || edb->kind == EXPRESSION_DB_DESIGN)
-	{
-	    gtk_tree_store_append(store, &iter, parent);
-	    gtk_tree_store_set(store, &iter,
-			       TREE_VALUE_NAME, edb->name,
-			       TREE_VALUE_EDB, edb,
-			       -1);
-	}
-	else
-	    assert(0);
-    }
-}
-
-static GtkWidget*
-make_tree_from_edb (expression_db_t *edb, GCallback callback)
-{
-    GtkTreeStore *store;
-    GtkCellRenderer *renderer;
-    GtkTreeViewColumn *column;
-    GtkTreeSelection *selection;
-    GtkWidget *tree;
-
-    /* model */
-    store = gtk_tree_store_new(2, G_TYPE_STRING, G_TYPE_POINTER);
-
-    if (edb != 0)
-    	tree_from_expression_db(store, NULL, edb);
-
-    /* view */
-    tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
-    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
-    gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
-    g_signal_connect(G_OBJECT(selection), "changed",
-		     G_CALLBACK(callback),
-		     (gpointer)NULL);
-
-    renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes(_("Filters"), renderer,
-		    				      "text", 0,
-						      NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-
-    gtk_widget_show(tree);
-
-    return tree;
-}
-
-/*****/
 
 static void
 update_userval_table (void)
@@ -1415,21 +1353,6 @@ update_userval_table (void)
 	gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(uservalues_scrolled_window), uservalues_table);
 #endif
     }
-}
-
-static void
-update_expression_tree_from_edb (GtkWidget *tree_scrolled_window, expression_db_t *edb, GCallback callback)
-{
-    GtkWidget *tree;
-
-    if (gtk_bin_get_child(GTK_BIN(tree_scrolled_window)) != 0)
-	gtk_container_remove(GTK_CONTAINER(tree_scrolled_window), gtk_bin_get_child(GTK_BIN(tree_scrolled_window)));
-
-    tree = make_tree_from_edb(edb, callback);
-
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(tree_scrolled_window), tree);
-    gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)), GTK_SELECTION_BROWSE);
-    gtk_widget_show(tree);
 }
 
 typedef struct
@@ -1457,8 +1380,11 @@ update_expression_tree (void)
     designer_edb = copy_expression_db(filters_edb);
     new_design_type = design_type_from_expression_db(&designer_edb);
 
-    update_expression_tree_from_edb(tree_scrolled_window, filters_edb, G_CALLBACK(dialog_tree_changed));
-    update_expression_tree_from_edb(designer_tree_scrolled_window, designer_edb, G_CALLBACK(designer_tree_callback));
+    expression_panel_set_edb(filters_expression_panel, filters_edb);
+    expression_panel_refresh(filters_expression_panel);
+
+    expression_panel_set_edb(designer_expression_panel, designer_edb);
+    expression_panel_refresh(designer_expression_panel);
 
     if (the_current_design != NULL)
     {
@@ -1587,19 +1513,6 @@ make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_colo
     gtk_widget_show(toggle);
 
     return frame;
-}
-
-static GtkWidget*
-make_tree_scrolled_window (void)
-{
-    GtkWidget *tree_scrolled_window;
-
-    tree_scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW(tree_scrolled_window),
-				    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_widget_show (tree_scrolled_window);
-
-    return tree_scrolled_window;
 }
 
 static GtkWidget*
@@ -2050,19 +1963,19 @@ mathmap_dialog (int mutable_expression)
 
 	/* Examples */
 
-	    tree_scrolled_window = make_tree_scrolled_window();
+	    filters_expression_panel = expression_panel_new(dialog_tree_changed);
 
 	    label = gtk_label_new(_("Filters"));
 	    gtk_widget_show(label);
-	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), tree_scrolled_window, label, label);
+	    gtk_notebook_append_page_menu(GTK_NOTEBOOK(notebook), filters_expression_panel, label, label);
 
 	/* Designer */
 
 	    hpaned = gtk_hpaned_new();
 
-	    designer_tree_scrolled_window = make_tree_scrolled_window();
-	    gtk_widget_set_size_request(designer_tree_scrolled_window, 150, 200);
-	    gtk_paned_add1(GTK_PANED(hpaned), designer_tree_scrolled_window);
+	    designer_expression_panel = expression_panel_new(designer_tree_callback);
+	    gtk_widget_set_size_request(designer_expression_panel, 250, 200);
+	    gtk_paned_add1(GTK_PANED(hpaned), designer_expression_panel);
 
 	    designer_widget = designer_widget_new(NULL,
 						  design_changed_callback,
@@ -3000,31 +2913,12 @@ dialog_response (GtkWidget *widget,
 
 /****/
 
+
 static void
-dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
+dialog_tree_changed (GtkWidget *widget)
 {
-    GtkTreeModel *model;
-    GtkTreeIter iter;
-
-    if (ignore_dialog_tree_changes)
-    {
-	ignore_dialog_tree_changes = FALSE;
-	return;
-    }
-
-    if (selection == 0)
-	return;
-
-    if (gtk_tree_selection_get_selected(selection, &model, &iter))
-    {
-	GValue value = { 0, };
-	expression_db_t *edb;
-
-	gtk_tree_model_get_value(model, &iter, TREE_VALUE_EDB, &value);
-	edb = g_value_get_pointer(&value);
-	if (edb == NULL)
-	    return;
-
+    expression_db_t *edb = expression_panel_get_selected_expression(widget);
+    if (edb) {
 	if (edb->kind == EXPRESSION_DB_EXPRESSION)
 	{
 	    char *path = edb->v.expression.path;
@@ -3063,34 +2957,15 @@ dialog_tree_changed (GtkTreeSelection *selection, gpointer data)
 }
 
 static void
-designer_tree_callback (GtkTreeSelection *selection, gpointer data)
+designer_tree_callback (GtkWidget *widget)
 {
-    GtkTreeModel *model;
-    GtkTreeIter iter;
-
-    if (ignore_designer_tree_changes)
-    {
-	ignore_designer_tree_changes = FALSE;
-	return;
-    }
-
-    if (selection == 0)
-	return;
-
-    if (gtk_tree_selection_get_selected(selection, &model, &iter))
-    {
-	GValue value = { 0, };
+    expression_db_t *edb = expression_panel_get_selected_expression(widget);
+    if (edb) {
 	const gchar *name;
 	designer_design_t *design = the_current_design;
 	designer_node_t *node;
 	designer_node_type_t *type;
 	int i;
-	expression_db_t *edb;
-
-	gtk_tree_model_get_value(model, &iter, TREE_VALUE_EDB, &value);
-	edb = g_value_get_pointer(&value);
-	if (edb == NULL)
-	    return;
 
 	name = get_expression_name(edb, the_design_type);
 	if (name == NULL)

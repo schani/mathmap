@@ -36,6 +36,13 @@
 #include "expression_db.h"
 #include "mathmap.h"
 
+#include "expression_panel.h"
+
+
+static mathmap_t*
+fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_type);
+
+
 static expression_db_t*
 new_expression_db (int kind)
 {
@@ -85,6 +92,9 @@ read_expression_sub_db (char *path, char *name)
 
 	    edb->name = g_strndup(name, name_len - 3);
 	    edb->v.expression.path = g_strdup(filename);
+	    // Need this immediately to ensure that filter metadata is loaded
+		// Maybe the metadata parsing code should be moved to parse_mathmap() function instead
+	    (void)fetch_expression_mathmap(edb, NULL);
 
 	    return edb;
 	}
@@ -94,6 +104,11 @@ read_expression_sub_db (char *path, char *name)
 
 	    edb->name = g_strndup(name, name_len - 4);
 	    edb->v.design.path = g_strdup(filename);
+
+	    // temporary workaround, constructing meta from other information
+	    edb->meta = expression_metadata_new();
+	    edb->meta->title = g_strdup(edb->name);
+	    edb->meta->tags = g_list_append(NULL, g_strdup("DESIGN")); // TODO: assume from folder name
 
 	    return edb;
 	}
@@ -227,6 +242,8 @@ free_expression_db (expression_db_t *edb)
 	    default :
 		g_assert_not_reached();
 	}
+	if (edb->meta)
+	    expression_metadata_free(edb->meta);
 
 	edb = next;
     }
@@ -267,6 +284,9 @@ copy_expression (expression_db_t *edb)
 	default :
 	    g_assert_not_reached();
     }
+
+    if (edb->meta)
+	copy->meta = expression_metadata_copy(edb->meta);
 
     if (edb->v.expression.docstring != NULL)
 	copy->v.expression.docstring = g_strdup(edb->v.expression.docstring);
@@ -387,7 +407,19 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 		if (source == NULL)
 		    return NULL;
 
+		if (! expr->meta) {
+		    // cur_meta and expression_comment_callback are defined in expression_panel.c
+		    cur_meta = expression_metadata_new();
+		    scanner_set_comment_callback(expression_comment_callback);
+		}
+
 		expr->v.expression.mathmap = parse_mathmap(source);
+		
+		if (! expr->meta) {
+		    scanner_set_comment_callback(NULL);
+		    expr->meta = cur_meta;
+		    cur_meta = NULL;
+		}
 
 		g_free(source);
 	    }

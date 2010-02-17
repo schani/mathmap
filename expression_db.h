@@ -34,6 +34,11 @@
 
 struct _mathmap_t;
 
+typedef struct _expression_metadata_t {
+    gchar *title;
+    GList *tags;
+} expression_metadata_t;
+
 typedef struct _expression_db_t
 {
     char *name;
@@ -56,6 +61,9 @@ typedef struct _expression_db_t
 	    struct _expression_db_t *subs;
 	} group;
     } v;
+
+    expression_metadata_t *meta;
+
     struct _expression_db_t *next;
 } expression_db_t;
 
@@ -75,5 +83,8 @@ extern expression_db_t* merge_expression_dbs (expression_db_t *edb1, expression_
 extern char* get_expression_name (expression_db_t *expr, designer_design_type_t *design_type);
 extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);
 extern char* get_expression_path (expression_db_t *expr);
+
+// defined in expression_panel.c
+extern expression_metadata_t *read_expression_metadata(expression_db_t *expr);
 
 #endif

@@ -63,6 +63,8 @@ find_name (name_value_pair_t *list, const char *name)
     return 0;
 }
 
+static scanner_comment_callback_t comment_callback = NULL;
+
 #define RETURN_HIGHLIGHT(r,h)	\
     do {			\
     if (highlight)		\
@@ -219,6 +221,7 @@ static int
 scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 {
     char c;
+    int comment_start_pos;
 
  restart:
     c = skip_ws(state);
@@ -229,8 +232,18 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 
     if (c == '#')
     {
+	comment_start_pos = state->location.pos;
 	while (advance_char(state) != '\n' && !is_eof(state))
 	    ;
+	if (comment_callback) {
+	    int comment_end_pos = state->location.pos;
+	    int len = comment_end_pos - comment_start_pos;
+	    char *comment = malloc((len + 1) * sizeof(char));
+	    comment[len] = 0;
+	    strncpy(comment, state->text + comment_start_pos, len);
+	    comment_callback(comment);
+	}
+
 	if (highlight)
 	    RETURN_HIGHLIGHT(RESULT_HIGHLIGHT, HIGHLIGHT_COMMENT);
 	if (is_eof(state))
@@ -576,3 +589,8 @@ scanner_last_token_region (void)
 {
     return last_token_region;
 }
+
+void scanner_set_comment_callback(scanner_comment_callback_t callback) {
+	comment_callback = callback;
+}
+
