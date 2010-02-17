@@ -371,19 +371,23 @@ static gboolean expression_has_tag(expression_db_t *expr, char *tag) {
 	return ptr ? TRUE : FALSE;
 }
 static void find_expressions_matching_selected_tags(expression_db_t *expr) {
-	GList *ptr;
-	if (! selected_tags || ! expr->meta || ! expr->meta->tags)
-		return;
-
-	ptr = selected_tags;
-
-	while (ptr) {
-		if (! expression_has_tag(expr, ptr->data))
-			break;
-		ptr = g_list_next(ptr);
-	}
-	if (! ptr)
+	if (! selected_tags) { // selecting all expressions
 		visible_expressions = g_list_append(visible_expressions, expr);
+	} else {
+		GList *ptr;
+		if (! expr->meta || ! expr->meta->tags)
+			return;
+
+		ptr = selected_tags;
+
+		while (ptr) {
+			if (! expression_has_tag(expr, ptr->data))
+				break;
+			ptr = g_list_next(ptr);
+		}
+		if (! ptr)
+			visible_expressions = g_list_append(visible_expressions, expr);
+	}
 }
 
 
