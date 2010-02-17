@@ -1,3 +1,6 @@
+# @title Sphere
+# @tags map
+
 # by Herbert Poetzl
 filter map_sphere (image in,
                    float alpha: 0-6.2831853 (3.4), float beta: 0-6.2831853 (4.2),

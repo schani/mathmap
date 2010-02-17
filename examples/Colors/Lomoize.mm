@@ -1,3 +1,6 @@
+# @title Lomoize
+# @tags colors
+
 filter brightness_contrast (image in, float brightness: 0-8, float contrast: 0-8)
     p=in(xy);
     re=clamp(red(p)*2*brightness,0,2);

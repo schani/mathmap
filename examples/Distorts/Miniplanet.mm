@@ -1,3 +1,6 @@
+# @title Miniplanet
+# @tags distorts
+
 ##working stereo 1.13 inc zoom, twist, warp
 ## Original by Nathan de gargoyle, mangled by VMOS
 

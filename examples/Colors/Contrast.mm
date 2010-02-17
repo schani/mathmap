@@ -1,3 +1,6 @@
+# @title Contrast
+# @tags colors
+
 filter color_contrast (image in, float contrast: -1-1 (0))
   p = in(xy);
   slant = tan((contrast + 0.9999) * (pi / 4));

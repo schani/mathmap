@@ -1,3 +1,6 @@
+# @title Wobbly Transition
+# @tags combine
+
 # by Herbert Poetzl
 filter wobbly_transition (float scale: 0-50 (5), float speed: 0-10,
                           float smoothness: 1-5,

@@ -1,3 +1,6 @@
+# @title Perlin Noise
+# @tags render
+
 filter perlin_noise (int num_octaves: 1-32 (5),
                      float persistence: 0-1 (0.5),
                      float lacunarity: 0-10 (2),

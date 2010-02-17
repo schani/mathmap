@@ -1,3 +1,6 @@
+# @title Over
+# @tags compositing
+
 filter comp_over (image top, image bottom)
   pa = top(xy);
   ma = alpha(pa);

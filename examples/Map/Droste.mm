@@ -1,3 +1,6 @@
+# @title Droste
+# @tags map
+
 ################################################################
 # Droste effect code version 10 for Mathmap 1.2.0
 # Original Droste formula by:

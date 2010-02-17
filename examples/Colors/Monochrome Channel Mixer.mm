@@ -1,3 +1,6 @@
+# @title Monochrome Channel Mixer
+# @tags colors
+
 filter bwmixer (image in,
                 float red_weight: -4-4 (0.299),
                 float green_weight: -4-4 (0.587),

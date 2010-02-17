@@ -1,3 +1,6 @@
+# @title Subtraction
+# @tags compositing
+
 filter comp_subtraction (image in1, image in2)
   p1 = in1(xy);
   p2 = in2(xy);

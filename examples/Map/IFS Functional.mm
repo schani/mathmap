@@ -1,3 +1,6 @@
+# @title IFS Functional
+# @tags map
+
 filter rotate (image in, float angle: 0-6.29)
   in(ra:[r,a+angle])
 end

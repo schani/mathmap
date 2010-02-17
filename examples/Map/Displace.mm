@@ -1,3 +1,6 @@
+# @title Displace
+# @tags map
+
 filter displace (image in,
                  image x_image, float x_disp: 0-1 (0.1),
                  image y_image, float y_disp: 0-1 (0.1))

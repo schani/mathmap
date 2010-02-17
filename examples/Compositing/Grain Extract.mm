@@ -1,3 +1,6 @@
+# @title Grain Extract
+# @tags compositing
+
 filter comp_grain_extract (image in1, image in2)
   p1 = in1(xy);
   p2 = in2(xy);

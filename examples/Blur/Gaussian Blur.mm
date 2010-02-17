@@ -1,3 +1,6 @@
+# @title Gaussian Blur
+# @tags blur
+
 stretched filter blur_gauss (stretched image in, float dev: 0 - 0.5)
   size = pixelSize(in);
   maxdim = max(size[0], size[1]);

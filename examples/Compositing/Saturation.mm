@@ -1,3 +1,6 @@
+# @title Saturation
+# @tags compositing
+
 filter comp_saturation (image in1, image in2)
   p1 = toHSVA(in1(xy));
   p2 = toHSVA(in2(xy));

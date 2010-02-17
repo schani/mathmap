@@ -1,3 +1,6 @@
+# @title Mugl
+# @tags map
+
 # by Herbert Poetzl
 pixel
 filter mugl (pixel image in, int edges: 3-10 (5),

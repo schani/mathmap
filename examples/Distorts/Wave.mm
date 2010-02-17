@@ -1,3 +1,6 @@
+# @title Wave
+# @tags distorts
+
 filter wave (image in,
              float wv: 0-1 (0.05),
              float amp: 0-1 (0.03))

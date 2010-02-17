@@ -1,3 +1,6 @@
+# @title Visualize Magnitude
+# @tags utilities
+
 filter visualize_magnitude (image in)
   p = in(xy);
   g = abs(v3:p[0..2])/sqrt(3);

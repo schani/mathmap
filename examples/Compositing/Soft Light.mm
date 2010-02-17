@@ -1,3 +1,6 @@
+# @title Soft Light
+# @tags compositing
+
 # we should have an "include" facility for this
 
 filter soft_light_multiply (image in1, image in2)

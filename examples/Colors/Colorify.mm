@@ -1,3 +1,6 @@
+# @title Colorify
+# @tags colors
+
 filter colorify (image in, gradient colors)
   p = in(xy);
   c = colors((gray(p)+t)%1);

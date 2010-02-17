@@ -1,3 +1,6 @@
+# @title Spin-Zoom
+# @tags blur
+
 # by tomr@aceldama.com
 filter spin_zoom (image in, float zoom: 0-1 (0.2), float angle: 0-6.2831853,
                   int samples: 2-64 (10), curve zoom_at_r, curve position_at_t)

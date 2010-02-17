@@ -1,3 +1,6 @@
+# @title Rotation
+# @tags distorts
+
 # by Alexander Heide <heide@ra.physik.uni-halle.de>
 # see http://www.physik.uni-halle.de/~heide/crystal/crystal.html
 pixel filter rotation (pixel image in,

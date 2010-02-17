@@ -1,3 +1,6 @@
+# @title Bilinear Interpolation
+# @tags distorts
+
 stretched
 filter bilin_int (stretched image in,
                   float a0: -1-1 (0), float a1: -1-1 (0), float a2: -1-1 (1), float a3: -1-1 (0),

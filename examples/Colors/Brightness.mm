@@ -1,3 +1,6 @@
+# @title Brightness
+# @tags colors
+
 filter color_brightness (image in, float brightness: -1-1 (0))
   p = in(xy);
   if brightness < 0 then

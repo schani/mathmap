@@ -1,3 +1,6 @@
+# @title Domain Coloring
+# @tags render
+
 # Domain coloring.
 # Paint the point z=x+iy according to the value of w=f(z), where f is a complex-valued function.
 # by Hans Lundmark, http://www.mai.liu.se/~halun/

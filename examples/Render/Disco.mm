@@ -1,3 +1,6 @@
+# @title Disco
+# @tags render
+
 filter disco (int red_wavelength: 1-50 (10),  int green_wavelength: 1-50 (15),
               int blue_wavelength: 1-50 (20), float zoom: 0-3000 (500))
     rl=red_wavelength;

@@ -1,3 +1,6 @@
+# @title IFS Iterative
+# @tags map
+
 # Code for a simple IFS effect in mathmap
 
 filter IFS (image in,

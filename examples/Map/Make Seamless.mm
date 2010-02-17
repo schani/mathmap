@@ -1,3 +1,6 @@
+# @title Make Seamless
+# @tags map
+
 # Edge Behaviour must be Wrap
 filter make_seamless (image in)
 "Make sure you set `Edge Behaviour' to `Wrap'."

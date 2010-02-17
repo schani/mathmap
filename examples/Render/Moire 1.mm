@@ -1,3 +1,6 @@
+# @title Moire 1
+# @tags render
+
 filter moire1 ()
     q=t*2*pi;
     abs(rgba:[sin(r*300+q)+sin(15*a+q),

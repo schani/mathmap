@@ -1,3 +1,6 @@
+# @title Grid
+# @tags render
+
 filter grid (float width: 0-1 (0.2), float height: 0-1 (0.2),
              float thickness: 0-1 (0.02))
   nxy = abs(xy) + thickness/2;

@@ -1,3 +1,6 @@
+# @title Zoom-Twist
+# @tags blur
+
 # by tomr@aceldama.com
 filter zoom_twist (image in, int samples: 4-64 (10),
                    float zoom: 0-1 (0.2), float twist: 0-6.2831853,

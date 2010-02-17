@@ -1,3 +1,6 @@
+# @title RGB Solid Noise
+# @tags render
+
 filter rgb_solid_noise (float granularity: 0-50 (10),
                         float rz: 0-10, float gz: 0-10, float bz: 0-10)
     g = granularity;

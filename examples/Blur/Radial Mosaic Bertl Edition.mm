@@ -1,3 +1,6 @@
+# @title Radial Mosaic Bertl Edition
+# @tags blur
+
 # by Herbert Poetzl
 filter rmbe (image in,
              float pixel_area: 0-0.1 (0.005),

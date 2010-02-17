@@ -1,3 +1,6 @@
+# @title Fancy Mandelbrot
+# @tags render
+
 filter mandelbrot (float zoom: 0-2 (1.5), float xoff: -1-2 (0.5), float yoff: -1-1 (0),
                    float pj: -2-2 (0), float pk: -2-2 (0),
                    float c1: -2-2 (0), float ci: -2-2 (0),

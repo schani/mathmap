@@ -1,3 +1,6 @@
+# @title Flag
+# @tags distorts
+
 # Simone Demmel <neko@greenie.muc.de>
 filter flag (image in, float amp: 0-1 (0.05),
              float len: 0-50 (5), int speed: 1-5 (1))

@@ -1,3 +1,6 @@
+# @title Plot function
+# @tags render
+
 #########
 #
 # Function graph plotter

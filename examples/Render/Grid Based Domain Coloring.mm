@@ -1,3 +1,6 @@
+# @title Grid Based Domain Coloring
+# @tags render
+
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
