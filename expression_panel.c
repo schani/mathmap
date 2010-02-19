@@ -276,7 +276,7 @@ static gint expression_glist_comparator(gconstpointer a, gconstpointer b) {
 	expression_db_t *ae = (expression_db_t *)a;
 	expression_db_t *be = (expression_db_t *)b;
 
-	return strcasecmp(ae->name, be->name);
+	return strcasecmp(ae->meta.title, be->meta.title);
 }
 
 GList *get_tag_list_from_edb(expression_db_t *edb) {
@@ -287,12 +287,12 @@ GList *get_tag_list_from_edb(expression_db_t *edb) {
 		GList *all_tags_ptr;
 		GList *tags_ptr;
 
-		if (! edb->meta || ! edb->meta->tags) {
+		if (! edb->meta.tags) {
 			have_tagless = TRUE;
 			continue;
 		}
 
-		tags_ptr = edb->meta->tags;
+		tags_ptr = edb->meta.tags;
 		while (tags_ptr) {
 			gboolean found = FALSE;
 			all_tags_ptr = all_tags;
@@ -357,20 +357,20 @@ static void populate_expressions_store(GtkTreeStore *store, GtkTreeIter *parent,
 		expression_db_t *expr = (expression_db_t *)visible_expressions_ptr->data;
 		gtk_tree_store_append(store, &iter, parent);
 		gtk_tree_store_set(store, &iter,
-		       TREE_VALUE_NAME, expr->name,
+		       TREE_VALUE_NAME, expr->meta.title,
 		       TREE_VALUE_EDB, expr,
 		       -1);
 		visible_expressions_ptr = g_list_next(visible_expressions_ptr);
 	}
 }
 gboolean expression_has_tag(expression_db_t *expr, char *tag) {
-	if (! expr->meta || ! expr->meta->tags) {
+	if (! expr->meta.tags) {
 		if (strcasecmp(tag, NO_TAGS) == 0)
 			return TRUE;
 		else
 			return FALSE;
 	}
-	GList *ptr = expr->meta->tags;
+	GList *ptr = expr->meta.tags;
 	while (ptr && strcasecmp(ptr->data, tag))
 		ptr = g_list_next(ptr);
 	return ptr ? TRUE : FALSE;
@@ -397,42 +397,6 @@ static GList *find_expressions_matching_selected_tags(expression_db_t *edb) {
 	}
 
 	return result;
-}
-
-/* expression metadata functions */
-expression_metadata_t *expression_metadata_new() {
-	return g_new0(expression_metadata_t, 1);
-}
-expression_metadata_t *expression_metadata_copy(expression_metadata_t *meta) {
-	GList *tags;
-
-	expression_metadata_t *copy = expression_metadata_new();
-	if (meta->title)
-		copy->title = g_strdup(meta->title);
-
-	// copying tags
-	tags = meta->tags;
-	while (tags) {
-		copy->tags = g_list_append(copy->tags, g_strdup((char *)tags->data));
-		tags = g_list_next(tags);
-	}
-	return copy;
-}
-
-void expression_metadata_free(expression_metadata_t *meta) {
-return;
-	GList *tags;
-
-	if (meta->title)
-		g_free(meta->title);
-	tags = meta->tags;
-	while (tags) {
-		g_free(meta->tags->data);
-		tags = g_list_next(tags);
-	}
-	if (meta->tags)
-		g_list_free(meta->tags);
-	g_free(meta);
 }
 
 

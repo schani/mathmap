@@ -43,11 +43,10 @@ typedef struct _expression_metadata_t {
 
 typedef struct _expression_db_t
 {
-    char *name;
     char *symbol;
     int origin;
     int kind;
-    expression_metadata_t *meta;
+    expression_metadata_t meta;
     union
     {
 	struct

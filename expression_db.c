@@ -67,11 +67,7 @@ new_expression_db (int kind)
 static void fix_expression(expression_db_t *expr) {
     static GRegex *rex = NULL;
 
-    if (expr->meta && expr->meta->title) {
-	if (expr->name)
-	    g_free(expr->name);
-	expr->name = g_strdup(expr->meta->title);
-    } else {
+    if (! expr->meta.title) {
 	char *path = get_expression_path(expr);
 	if (path) {
 	    GMatchInfo *matches;
@@ -79,11 +75,11 @@ static void fix_expression(expression_db_t *expr) {
 		rex = g_regex_new("([^/]+)/([^/.]+)\\.[^.]+$", 0, 0, NULL);
 	    }
 	    if (g_regex_match(rex, path, 0, &matches)) {
-		expr->name = g_match_info_fetch(matches, 2);
+		expr->meta.title = g_match_info_fetch(matches, 2);
 	    }
 	    g_match_info_free(matches);
 	} else {
-	    expr->meta->title = g_strdup("untitled");
+	    expr->meta.title = g_strdup("untitled");
 	}
     }
     expr->symbol = generate_expression_symbol(expr);
@@ -202,7 +198,6 @@ free_expression_db (expression_db_t *edb)
     {
 	expression_db_t *next = edb->next;
 
-	free(edb->name);
 	if (edb->symbol)
 	    g_free(edb->symbol);
 
@@ -223,8 +218,18 @@ free_expression_db (expression_db_t *edb)
 	    default :
 		g_assert_not_reached();
 	}
-	if (edb->meta)
-	    expression_metadata_free(edb->meta);
+
+	// freeing metadata
+	if (edb->meta.title)
+	    g_free(edb->meta.title);
+
+	GList *tag = edb->meta.tags;
+	while(tag) {
+	    g_free(tag->data);
+	    tag = g_list_next(tag);
+	}
+	if (edb->meta.tags)
+		g_list_free(edb->meta.tags);
 
 	edb = next;
     }
@@ -237,7 +242,6 @@ copy_expression (expression_db_t *edb)
 
     copy = new_expression_db(edb->kind);
 
-    copy->name = g_strdup(edb->name);
     if (edb->symbol)
 	copy->symbol = g_strdup(edb->symbol);
 
@@ -255,8 +259,15 @@ copy_expression (expression_db_t *edb)
 	    g_assert_not_reached();
     }
 
-    if (edb->meta)
-	copy->meta = expression_metadata_copy(edb->meta);
+    if (edb->meta.title)
+	copy->meta.title = g_strdup(edb->meta.title);
+
+    GList *tag = edb->meta.tags;
+    while(tag)
+    {
+	copy->meta.tags = g_list_append(copy->meta.tags, tag->data);
+	tag = g_list_next(tag);
+    }
 
     if (edb->v.expression.docstring != NULL)
 	copy->v.expression.docstring = g_strdup(edb->v.expression.docstring);
@@ -317,19 +328,13 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 		if (source == NULL)
 		    return NULL;
 
-		if (! expr->meta) {
-		    // cur_meta and expression_comment_callback are defined in expression_panel.c
-		    cur_meta = expression_metadata_new();
-		    scanner_set_comment_callback(expression_comment_callback);
-		}
+		cur_meta = &expr->meta;
+		scanner_set_comment_callback(expression_comment_callback);
 
 		expr->v.expression.mathmap = parse_mathmap(source);
 
-		if (! expr->meta) {
-		    scanner_set_comment_callback(NULL);
-		    expr->meta = cur_meta;
-		    cur_meta = NULL;
-		}
+		scanner_set_comment_callback(NULL);
+		cur_meta = NULL;
 
 		g_free(source);
 	    }
@@ -446,7 +451,7 @@ static char *generate_expression_symbol(expression_db_t *expr) {
 	    symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, name);
     }
     if (! symbol)
-	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, expr->name);
+	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, expr->meta.title);
 
     len = strlen(symbol);
     for (i = 0; i < len; i++) {

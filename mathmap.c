@@ -474,7 +474,7 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 	    if (! expression_has_tag(expr, tag))
 		continue;
 
-	    menu = g_strdup_printf("%s/%s", tagged_menu_prefix, expr->name);
+	    menu = g_strdup_printf("%s/%s", tagged_menu_prefix, expr->meta.title);
 
 	    static GimpParamDef args[] = {
 		{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
