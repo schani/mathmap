@@ -93,6 +93,7 @@
 #endif
 
 #define EXPRESSIONS_DIR         "expressions"
+#define EXPRESSIONS_COMMUNITY_DIR "community"
 
 #define DEFAULT_EXPRESSION \
 "# Welcome to MathMap!\n" \
@@ -437,21 +438,45 @@ lookup_rc_file (char *name, gboolean report_error)
 
 /*****/
 
+static char *path_local = 0, *path_community, *path_global = 0;
+// copying global files to local community folder if community folder does not exist
+static void init_directories() {
+    struct stat st;
+
+    if (path_local)
+	return; // already initialized
+
+    path_local = get_rc_file_name(EXPRESSIONS_DIR, 0);
+    path_community = get_rc_file_name(EXPRESSIONS_COMMUNITY_DIR, 0);
+    path_global = get_rc_file_name(EXPRESSIONS_DIR, 1);
+
+    if (stat(path_community, &st)) {
+	expression_db_t *edb = NULL;
+	expression_db_t *expr;
+
+	if (mkdir(path_community, 0755)) {
+	    printf("Could not create directory %s\n", path_community);
+	    return;
+	}
+
+	// copying all global files to community folder
+	edb = extend_expression_db(edb, path_global, EXPRESSION_ORIGIN_COMMUNITY);
+	for (expr = edb; expr; expr = expr->next) {
+	    save_expression_to_dir(expr, path_community);
+	}
+	free_expression_db(edb);
+    }
+}
+
 static expression_db_t*
 read_expressions (void)
 {
-    static char *path_local = 0, *path_global = 0;
-
     expression_db_t *edb = 0;
 
-    if (path_local == 0)
-    {
-	path_local = get_rc_file_name(EXPRESSIONS_DIR, 0);
-	path_global = get_rc_file_name(EXPRESSIONS_DIR, 1);
-    }
+    init_directories();
 
     edb = extend_expression_db(edb, path_local, EXPRESSION_ORIGIN_LOCAL);
-    edb = extend_expression_db(edb, path_global, EXPRESSION_ORIGIN_COMMUNITY);
+    edb = extend_expression_db(edb, path_community, EXPRESSION_ORIGIN_COMMUNITY);
 
     return edb;
 }

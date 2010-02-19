@@ -71,14 +71,12 @@ extern void free_expression_db (expression_db_t *edb);
 extern expression_db_t* copy_expression_db (expression_db_t *edb);
 
 extern char* read_expression (const char *path);
+extern void save_expression_to_dir(expression_db_t *expr, char *dir);
 
 extern char* get_expression_docstring (expression_db_t *edb);
 
 extern char* get_expression_name (expression_db_t *expr, designer_design_type_t *design_type);
 extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);
 extern char* get_expression_path (expression_db_t *expr);
-
-// defined in expression_panel.c
-extern expression_metadata_t *read_expression_metadata(expression_db_t *expr);
 
 #endif

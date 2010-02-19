@@ -464,4 +464,41 @@ static char *generate_expression_symbol(expression_db_t *expr) {
     return symbol;
 }
 
+void save_expression_to_dir(expression_db_t *expr, char *dir) {
+    char *ext;
+    char *source;
+
+    switch (expr->kind) {
+	case EXPRESSION_DB_EXPRESSION:
+	    ext = "mm";
+	    break;
+	case EXPRESSION_DB_DESIGN:
+	    ext = "mmc";
+
+	    // TODO: get_expression_name(expr, NULL) will segfault, skipping .mmc's for better times
+	    printf("TODO: Ignoring design file: %s\n", get_expression_path(expr));
+	    return;
+
+	    break;
+	default:
+	    assert(0);
+	    return;
+    }
+
+    source = read_expression(get_expression_path(expr));
+
+    if (source) {
+	char *filename = g_strdup_printf("%s/%s.%s", dir, get_expression_name(expr, NULL), ext);
+	FILE *out = fopen(filename, "wb");
+	if (out) {
+	    fwrite(source, sizeof(char), strlen(source), out);
+	    fclose(out);
+	} else {
+	    printf("Could not write to file %s\n", filename);
+	}
+	g_free(filename);
+	g_free(source);
+    }
+}
+
 
