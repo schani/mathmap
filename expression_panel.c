@@ -281,7 +281,7 @@ static gint expression_glist_comparator(gconstpointer a, gconstpointer b) {
 
 GList *get_tag_list_from_edb(expression_db_t *edb) {
 	GList *all_tags = NULL;
-	gboolean have_tagless = TRUE;
+	gboolean have_tagless = FALSE;
 
 	for (; edb != 0; edb = edb->next) {
 		GList *all_tags_ptr;
