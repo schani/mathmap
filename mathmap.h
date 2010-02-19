@@ -59,6 +59,9 @@
 #define FILTER_MATHMAP		1
 #define FILTER_NATIVE		2
 
+#define EXPRESSIONS_DIR         "expressions"
+#define EXPRESSIONS_COMMUNITY_DIR   "community"
+
 struct _mathmap_invocation_t;
 
 typedef image_t* (*native_filter_func_t) (struct _mathmap_invocation_t *invocation, userval_t *args,
@@ -355,6 +358,8 @@ designer_design_type_t* make_mathmap_design_type (void);
 
 
 void init_gettext ();
+
+char* get_rc_file_name (char *name, int global);
 
 #define _(x)	gettext((x))
 

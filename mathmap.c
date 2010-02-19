@@ -64,6 +64,8 @@
 #endif
 #endif
 
+#include <couchdb-glib.h>
+
 #include "exprtree.h"
 #include "builtins/builtins.h"
 #include "tags.h"
@@ -78,6 +80,7 @@
 #include "designer/designer.h"
 
 #include "expression_panel.h"
+#include "communicator.h"
 
 #define DEFAULT_PREVIEW_SIZE	384
 
@@ -383,7 +386,7 @@ MAIN()
 
 /*****/
 
-static char*
+char*
 get_rc_file_name (char *name, int global)
 {
     gchar *mathmap_name = (name == 0) ? "mathmap" : g_strconcat("mathmap", G_DIR_SEPARATOR_S, name, NULL);
@@ -1450,6 +1453,7 @@ update_expression_tree (void)
 /*****/
 
 #define RESPONSE_ABOUT 1
+#define RESPONSE_COMMUNITY_UPDATE 2
 
 static GtkWidget*
 make_edge_behaviour_frame (char *name, int direction_flag, GtkWidget **edge_color_well, GimpRGB *edge_color)
@@ -1632,6 +1636,7 @@ mathmap_dialog (int mutable_expression)
 					    gimp_standard_help_func, "plug-in-mathmap",
 					    GTK_STOCK_HELP, GTK_RESPONSE_HELP,
 					    _("About"), RESPONSE_ABOUT,
+					    _("Community Update"), RESPONSE_COMMUNITY_UPDATE,
 					    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 					    GTK_STOCK_OK, GTK_RESPONSE_OK,
 					    NULL);
@@ -2890,6 +2895,10 @@ dialog_response (GtkWidget *widget,
     {
 	case RESPONSE_ABOUT :
 	    dialog_about_callback(0, 0);
+	    break;
+
+	case RESPONSE_COMMUNITY_UPDATE :
+	    community_update(widget);
 	    break;
 
 	case GTK_RESPONSE_OK :
