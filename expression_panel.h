@@ -30,6 +30,8 @@
 
 #include "expression_db.h"
 
+#define NO_TAGS "no tags"
+
 typedef void (*expression_panel_callback_t) (GtkWidget *widget);
 
 GtkWidget *expression_panel_new(expression_panel_callback_t callback);
@@ -44,6 +46,10 @@ extern expression_metadata_t *cur_meta;
 expression_metadata_t *expression_metadata_new();
 expression_metadata_t *expression_metadata_copy(expression_metadata_t *meta);
 void expression_metadata_free(expression_metadata_t *meta);
+
+gboolean expression_has_tag(expression_db_t *expr, char *tag);
+GList *get_tag_list_from_edb(expression_db_t *edb);
+void deep_glist_free(GList *list);
 
 #endif
 

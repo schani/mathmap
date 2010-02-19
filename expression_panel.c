@@ -48,12 +48,8 @@ typedef struct
 
 typedef void (*edb_callback_t) (expression_db_t *edb);
 
-static GRegex *meta_rex = NULL;
-static GRegex *comma_rex = NULL;
-
-static GList *all_tags = NULL;
+// used as temporary var to filter visible expressions
 static GList *selected_tags = NULL;
-static GList *visible_expressions = NULL;
 
 static expression_panel_data_t *get_widget_data(GtkWidget *widget);
 static void refresh_expressions(expression_panel_data_t *data);
@@ -61,13 +57,9 @@ static GtkWidget *make_tags_widget(expression_panel_data_t *data);
 static GtkWidget *make_expressions_widget(expression_panel_data_t *data);
 static GtkWidget* make_scrolled_window();
 
-// expression_metadata_t *read_expression_metadata(expression_db_t *edb);
-
-static void traverse_edb(expression_db_t *edb, edb_callback_t callback);
 static void populate_tags_store(GtkListStore *store, GtkTreeIter *parent, expression_db_t *edb);
 static void populate_expressions_store(GtkTreeStore *store, GtkTreeIter *parent, expression_db_t *edb);
-static void find_all_tags_callback(expression_db_t *edb);
-static void find_expressions_matching_selected_tags(expression_db_t *edb);
+static GList *find_expressions_matching_selected_tags(expression_db_t *edb);
 
 
 // TODO: move to mathmap.h
@@ -96,11 +88,6 @@ GtkWidget *expression_panel_new(expression_panel_callback_t callback) {
 	gtk_widget_show(data->container);
 
 	g_object_set_data(G_OBJECT(data->container), "panel-data", data);
-
-	if (! meta_rex) {
-		meta_rex = g_regex_new("@([a-z]+)\\s+(.*\\S)", 0, 0, NULL);
-		comma_rex = g_regex_new("\\s*,\\s*", 0, 0, NULL);
-	}
 
 	return data->container;
 }
@@ -283,24 +270,64 @@ static gboolean expressions_selection_changed_event (GtkTreeSelection *selection
 }
 
 static gint string_glist_comparator(gconstpointer a, gconstpointer b) {
-	return strcmp((char *)a, (char *)b);
+	return strcasecmp((char *)a, (char *)b);
 }
 static gint expression_glist_comparator(gconstpointer a, gconstpointer b) {
 	expression_db_t *ae = (expression_db_t *)a;
 	expression_db_t *be = (expression_db_t *)b;
 
-	if (ae->meta && ae->meta->title && be->meta && be->meta->title)
-		return strcmp(ae->meta->title, be->meta->title);
-	else
-		return 0;
+	return strcasecmp(ae->name, be->name);
+}
+
+GList *get_tag_list_from_edb(expression_db_t *edb) {
+	GList *all_tags = NULL;
+	gboolean have_tagless = TRUE;
+
+	for (; edb != 0; edb = edb->next) {
+		GList *all_tags_ptr;
+		GList *tags_ptr;
+
+		if (! edb->meta || ! edb->meta->tags) {
+			have_tagless = TRUE;
+			continue;
+		}
+
+		tags_ptr = edb->meta->tags;
+		while (tags_ptr) {
+			gboolean found = FALSE;
+			all_tags_ptr = all_tags;
+			while (all_tags_ptr && ! found) {
+				if (! strcasecmp(all_tags_ptr->data, tags_ptr->data)) {
+					found = TRUE;
+					// printf("FOUND: %s\n", (char *)tags_ptr->data);
+				}
+				all_tags_ptr = g_list_next(all_tags_ptr);
+			}
+			if (! found) {
+				all_tags = g_list_append(all_tags, g_strdup(tags_ptr->data));
+			}
+			tags_ptr = g_list_next(tags_ptr);
+		}
+	}
+
+	all_tags = g_list_sort(all_tags, string_glist_comparator);
+	if (have_tagless)
+		all_tags = g_list_append(all_tags, g_strdup(NO_TAGS));
+	return all_tags;
+}
+void deep_glist_free(GList *list) {
+	GList *ptr = list;
+	while (ptr) {
+	    g_free(ptr->data);
+	    ptr = g_list_next(ptr);
+	}
+	g_list_free(list);
 }
 
 static void populate_tags_store(GtkListStore *store, GtkTreeIter *parent, expression_db_t *edb) {
-	all_tags = NULL;
 	GList *all_tags_ptr;
-	traverse_edb(edb, find_all_tags_callback);
 
-	all_tags = g_list_sort(all_tags, string_glist_comparator);	
+	GList *all_tags = get_tag_list_from_edb(edb);
 
 	all_tags_ptr = all_tags;
 	while (all_tags_ptr) {
@@ -313,42 +340,16 @@ static void populate_tags_store(GtkListStore *store, GtkTreeIter *parent, expres
 		       -1);
 		all_tags_ptr = g_list_next(all_tags_ptr);
 	}
+
+	deep_glist_free(all_tags);
 }
-static void find_all_tags_callback(expression_db_t *edb) {
-	gboolean found;
-	GList *all_tags_ptr;
-	GList *tags_ptr;
-
-	if (! edb->meta)
-		return;
-	tags_ptr = edb->meta->tags;
-
-	while (tags_ptr) {
-		found = FALSE;
-		all_tags_ptr = all_tags;
-		while (all_tags_ptr && ! found) {
-			if (! strcmp(all_tags_ptr->data, tags_ptr->data)) {
-				found = TRUE;
-				// printf("FOUND: %s\n", (char *)tags_ptr->data);
-			}
-			all_tags_ptr = g_list_next(all_tags_ptr);
-		}
-		if (! found) {
-			all_tags = g_list_append(all_tags, tags_ptr->data); // TODO: maybe clone
-		}
-		tags_ptr = g_list_next(tags_ptr);
-	}
-}
-
 
 static void populate_expressions_store(GtkTreeStore *store, GtkTreeIter *parent, expression_db_t *edb) {
 	GList *visible_expressions_ptr;
 
-	visible_expressions = NULL;
-	traverse_edb(edb, find_expressions_matching_selected_tags);
+	GList *visible_expressions = find_expressions_matching_selected_tags(edb);
 
-	visible_expressions = g_list_sort(visible_expressions, expression_glist_comparator);	
-	visible_expressions = g_list_first(visible_expressions);
+	visible_expressions = g_list_sort(visible_expressions, expression_glist_comparator);
 
 	visible_expressions_ptr = visible_expressions;
 	while (visible_expressions_ptr) {
@@ -356,58 +357,46 @@ static void populate_expressions_store(GtkTreeStore *store, GtkTreeIter *parent,
 		expression_db_t *expr = (expression_db_t *)visible_expressions_ptr->data;
 		gtk_tree_store_append(store, &iter, parent);
 		gtk_tree_store_set(store, &iter,
-		       TREE_VALUE_NAME, expr->meta->title,
+		       TREE_VALUE_NAME, expr->name,
 		       TREE_VALUE_EDB, expr,
 		       -1);
 		visible_expressions_ptr = g_list_next(visible_expressions_ptr);
 	}
 }
-static gboolean expression_has_tag(expression_db_t *expr, char *tag) {
-	if (! expr->meta || ! expr->meta->tags)
-		return FALSE;
+gboolean expression_has_tag(expression_db_t *expr, char *tag) {
+	if (! expr->meta || ! expr->meta->tags) {
+		if (strcasecmp(tag, NO_TAGS) == 0)
+			return TRUE;
+		else
+			return FALSE;
+	}
 	GList *ptr = expr->meta->tags;
-	while (ptr && strcmp(ptr->data, tag))
+	while (ptr && strcasecmp(ptr->data, tag))
 		ptr = g_list_next(ptr);
 	return ptr ? TRUE : FALSE;
 }
-static void find_expressions_matching_selected_tags(expression_db_t *expr) {
-	if (! selected_tags) { // selecting all expressions
-		visible_expressions = g_list_append(visible_expressions, expr);
-	} else {
-		GList *ptr;
-		if (! expr->meta || ! expr->meta->tags)
-			return;
+static GList *find_expressions_matching_selected_tags(expression_db_t *edb) {
+	expression_db_t *expr;
 
-		ptr = selected_tags;
+	GList *result;
 
-		while (ptr) {
-			if (! expression_has_tag(expr, ptr->data))
-				break;
-			ptr = g_list_next(ptr);
+	for (expr = edb; expr; expr = expr->next) {
+		if (! selected_tags) { // selecting all expressions
+			result = g_list_append(result, expr);
+		} else {
+			GList *ptr = selected_tags;
+
+			while (ptr) {
+				if (! expression_has_tag(expr, ptr->data))
+					break;
+				ptr = g_list_next(ptr);
+			}
+			if (! ptr)
+				result = g_list_append(result, expr);
 		}
-		if (! ptr)
-			visible_expressions = g_list_append(visible_expressions, expr);
 	}
-}
 
-
-
-static void traverse_edb(expression_db_t *edb, edb_callback_t callback) {
-
-    for (; edb != 0; edb = edb->next)
-    {
-		if (edb->kind == EXPRESSION_DB_GROUP)
-		{
-		    traverse_edb(edb->v.group.subs, callback);
-		}
-		else if (edb->kind == EXPRESSION_DB_EXPRESSION || edb->kind == EXPRESSION_DB_DESIGN)
-		{
-			if (callback)
-				callback(edb);
-		}
-		else
-	    	assert(0);
-    }
+	return result;
 }
 
 /* expression metadata functions */
@@ -436,7 +425,6 @@ return;
 
 	if (meta->title)
 		g_free(meta->title);
-
 	tags = meta->tags;
 	while (tags) {
 		g_free(meta->tags->data);
@@ -454,12 +442,21 @@ void expression_comment_callback(char *comment) {
 	gchar *tag;
 	gchar *value;
 
+	static GRegex *meta_rex = NULL;
+	static GRegex *comma_rex = NULL;
+	if (! meta_rex) {
+		meta_rex = g_regex_new("@([a-z]+)\\s+(.*\\S)", 0, 0, NULL);
+		comma_rex = g_regex_new("\\s*,\\s*", 0, 0, NULL);
+	}
+
 	if (g_regex_match(meta_rex, comment, 0, &matches)) {
 		// printf("COMMENT: %s\n", comment);
 		tag = g_match_info_fetch(matches, 1);
 		value = g_match_info_fetch(matches, 2);
 		// printf("META: [%s]:[%s]\n", tag, value);
-		if (!strcmp(tag, "tags")) {
+		if (!strcmp(tag, "title")) {
+			cur_meta->title = g_strdup(value);
+		} else if (!strcmp(tag, "tags")) {
 			GList *list = NULL;
 			gchar **ptr;
 			gchar **parts = g_regex_split(comma_rex, value, 0);
@@ -471,8 +468,8 @@ void expression_comment_callback(char *comment) {
 			}
 			g_strfreev(parts);
 			cur_meta->tags = list;
-		} else if (!strcmp(tag, "title")) {
-			cur_meta->title = g_strdup(value);
+		} else {
+			printf("Unrecognized metadata tag: %s\n", tag);
 		}
 	}
 

@@ -1406,11 +1406,6 @@ add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboo
 		}
 		break;
 
-	    case EXPRESSION_DB_GROUP :
-		failed_edbs = g_slist_concat(failed_edbs,
-					     add_node_types(design_type, &(*edb)->v.group.subs, compositions, did_add));
-		break;
-
 	    case EXPRESSION_DB_DESIGN :
 		if (compositions)
 		{

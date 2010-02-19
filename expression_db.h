@@ -30,7 +30,9 @@
 
 #define EXPRESSION_DB_EXPRESSION	1
 #define EXPRESSION_DB_DESIGN		2
-#define EXPRESSION_DB_GROUP		3
+
+#define EXPRESSION_ORIGIN_COMMUNITY	1
+#define EXPRESSION_ORIGIN_LOCAL	2
 
 struct _mathmap_t;
 
@@ -42,7 +44,10 @@ typedef struct _expression_metadata_t {
 typedef struct _expression_db_t
 {
     char *name;
+    char *symbol;
+    int origin;
     int kind;
+    expression_metadata_t *meta;
     union
     {
 	struct
@@ -56,29 +61,19 @@ typedef struct _expression_db_t
 	    char *path;
 	    struct _mathmap_t *mathmap;
 	} design;
-	struct
-	{
-	    struct _expression_db_t *subs;
-	} group;
     } v;
-
-    expression_metadata_t *meta;
 
     struct _expression_db_t *next;
 } expression_db_t;
 
-extern expression_db_t* read_expression_db (char *path);
+extern expression_db_t* extend_expression_db (expression_db_t *edb, char *path, int origin);
 extern void free_expression_db (expression_db_t *edb);
 
 extern expression_db_t* copy_expression_db (expression_db_t *edb);
 
-extern expression_db_t* make_expression_db_group (const char *name, expression_db_t *subs);
-
 extern char* read_expression (const char *path);
 
 extern char* get_expression_docstring (expression_db_t *edb);
-
-extern expression_db_t* merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2);
 
 extern char* get_expression_name (expression_db_t *expr, designer_design_type_t *design_type);
 extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);

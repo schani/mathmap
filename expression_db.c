@@ -38,10 +38,16 @@
 
 #include "expression_panel.h"
 
+#define SYMBOL_PREFIX "mathmap"
 
 static mathmap_t*
 fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_type);
 
+static expression_db_t*
+remove_expression_db (expression_db_t *edb, expression_db_t *e);
+
+static char *
+generate_expression_symbol(expression_db_t *expr);
 
 static expression_db_t*
 new_expression_db (int kind)
@@ -57,91 +63,114 @@ new_expression_db (int kind)
     return edb;
 }
 
-expression_db_t*
-make_expression_db_group (const char *name, expression_db_t *subs)
-{
-    expression_db_t *edb = new_expression_db(EXPRESSION_DB_GROUP);
+// assume various expression fields if missing
+static void fix_expression(expression_db_t *expr) {
+    static GRegex *rex = NULL;
 
-    edb->name = g_strdup(name);
-    edb->v.group.subs = subs;
-
-    return edb;
+    if (expr->meta && expr->meta->title) {
+	if (expr->name)
+	    g_free(expr->name);
+	expr->name = g_strdup(expr->meta->title);
+    } else {
+	char *path = get_expression_path(expr);
+	if (path) {
+	    GMatchInfo *matches;
+	    if (! rex) {
+		rex = g_regex_new("([^/]+)/([^/.]+)\\.[^.]+$", 0, 0, NULL);
+	    }
+	    if (g_regex_match(rex, path, 0, &matches)) {
+		expr->name = g_match_info_fetch(matches, 2);
+	    }
+	    g_match_info_free(matches);
+	} else {
+	    expr->meta->title = g_strdup("untitled");
+	}
+    }
+    expr->symbol = generate_expression_symbol(expr);
 }
 
-static expression_db_t*
-read_expression_sub_db (char *path, char *name)
+// should be called only on regular files
+static expression_db_t *
+get_expression_from_file(char *filename) {
+    // does it have extension .mm?
+    if (g_str_has_suffix(filename, ".mm"))
+    {
+	expression_db_t *expr = new_expression_db(EXPRESSION_DB_EXPRESSION);
+
+	expr->v.expression.path = g_strdup(filename);
+	// Need this immediately to ensure that filter metadata is loaded
+	// Maybe the metadata parsing code should be moved to parse_mathmap() function instead
+	(void)fetch_expression_mathmap(expr, NULL);
+
+	fix_expression(expr);
+
+	return expr;
+    }
+    else if (g_str_has_suffix(filename, ".mmc"))
+    {
+	expression_db_t *expr = new_expression_db(EXPRESSION_DB_DESIGN);
+
+	expr->v.design.path = g_strdup(filename);
+
+	fix_expression(expr);
+
+	return expr;
+    } else {
+	return NULL;
+    }
+}
+
+expression_db_t *
+extend_expression_db(expression_db_t *edb, char *path, int origin)
 {
-    int name_len = strlen(name);
-    char filename[strlen(path) + name_len + 2];
     struct stat buf;
 
-    sprintf(filename, "%s/%s", path, name);
-
-    if (stat(filename, &buf) == -1)
+    if (stat(path, &buf) == -1)
     {
-	fprintf(stderr, "Error accessing `%s': %m\n", filename);
-	return 0;
+	fprintf(stderr, "Error accessing `%s': %m\n", path);
+	return edb;
     }
 
     if (S_ISREG(buf.st_mode))
     {
-	// does it have extension .mm?
-	if (g_str_has_suffix(name, ".mm"))
-	{
-	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_EXPRESSION);
-
-	    edb->name = g_strndup(name, name_len - 3);
-	    edb->v.expression.path = g_strdup(filename);
-	    // Need this immediately to ensure that filter metadata is loaded
-		// Maybe the metadata parsing code should be moved to parse_mathmap() function instead
-	    (void)fetch_expression_mathmap(edb, NULL);
-
-	    return edb;
-	}
-	else if (g_str_has_suffix(name, ".mmc"))
-	{
-	    expression_db_t *edb = new_expression_db(EXPRESSION_DB_DESIGN);
-
-	    edb->name = g_strndup(name, name_len - 4);
-	    edb->v.design.path = g_strdup(filename);
-
-	    // temporary workaround, constructing meta from other information
-	    edb->meta = expression_metadata_new();
-	    edb->meta->title = g_strdup(edb->name);
-	    edb->meta->tags = g_list_append(NULL, g_strdup("DESIGN")); // TODO: assume from folder name
-
-	    return edb;
+	expression_db_t *expr = get_expression_from_file(path);
+	if (expr) {
+	    expr->origin = origin;
+	    expr->next = edb;
+	    edb = expr;
 	}
     }
-    else if (S_ISDIR(buf.st_mode))
+    else if (S_ISDIR(buf.st_mode)) // recursing into directory
     {
-	expression_db_t *subs = read_expression_db(filename);
+	DIR *dir;
+	struct dirent *dirent;
 
-	if (subs != NULL)
-	    return make_expression_db_group(name, subs);
+	dir = opendir(path);
+
+	if (dir == 0)
+	{
+	    fprintf(stderr, "Cannot open directory `%s': %m\n", path);
+	    return edb;
+	}
+
+	for (;;)
+	{
+	    dirent = readdir(dir);
+
+	    if (dirent != 0 && dirent->d_name[0] != '.')
+	    {
+		char *name = dirent->d_name;
+		char subpath[strlen(path) + strlen(name) + 2];
+		sprintf(subpath, "%s/%s", path, name);
+		edb = extend_expression_db(edb, subpath, origin);
+	    }
+	    else if (dirent == 0)
+		break;
+	}
+	closedir(dir);
     }
 
-    return 0;
-}
-
-static expression_db_t*
-insert_expression_db (expression_db_t *edb, expression_db_t *sub)
-{
-    assert(sub != 0 && sub->next == 0);
-
-    if (edb == 0)
-	return sub;
-
-    if (strcmp(sub->name, edb->name) < 0)
-    {
-	sub->next = edb;
-	return sub;
-    }
-    else
-    {
-	edb->next = insert_expression_db(edb->next, sub);
-	return edb;
-    }
+    return edb;
 }
 
 static expression_db_t*
@@ -166,52 +195,6 @@ remove_expression_db (expression_db_t *edb, expression_db_t *e)
     }
 }
 
-expression_db_t*
-read_expression_db (char *path)
-{
-    DIR *dir;
-    struct dirent *dirent;
-    expression_db_t *edb = 0;
-
-    //fprintf(stderr, "checking out %s\n", path);
-
-    dir = opendir(path);
-
-    if (dir == 0)
-    {
-	fprintf(stderr, "Cannot open directory `%s': %m\n", path);
-	return 0;
-    }
-
-    for (;;)
-    {
-	dirent = readdir(dir);
-
-	if (dirent != 0 && dirent->d_name[0] != '.')
-	{
-	    char *name = strdup(dirent->d_name);
-	    expression_db_t *subs;
-
-	    //fprintf(stderr, "sub %s\n", name);
-
-	    assert(name != 0);
-
-	    subs = read_expression_sub_db(path, name);
-
-	    free(name);
-
-	    if (subs != 0)
-		edb = insert_expression_db(edb, subs);
-	}
-	else if (dirent == 0)
-	    break;
-    }
-
-    closedir(dir);
-
-    return edb;
-}
-
 void
 free_expression_db (expression_db_t *edb)
 {
@@ -220,6 +203,8 @@ free_expression_db (expression_db_t *edb)
 	expression_db_t *next = edb->next;
 
 	free(edb->name);
+	if (edb->symbol)
+	    g_free(edb->symbol);
 
 	switch (edb->kind)
 	{
@@ -235,10 +220,6 @@ free_expression_db (expression_db_t *edb)
 		free(edb->v.design.path);
 		break;
 
-	    case EXPRESSION_DB_GROUP :
-		free_expression_db(edb->v.group.subs);
-		break;
-
 	    default :
 		g_assert_not_reached();
 	}
@@ -250,19 +231,6 @@ free_expression_db (expression_db_t *edb)
 }
 
 static expression_db_t*
-lookup (expression_db_t *edb, char *name, int kind)
-{
-    while (edb != 0)
-    {
-	if (edb->kind == kind && strcmp(edb->name, name) == 0)
-	    return edb;
-	edb = edb->next;
-    }
-
-    return 0;
-}
-
-static expression_db_t*
 copy_expression (expression_db_t *edb)
 {
     expression_db_t *copy;
@@ -270,6 +238,8 @@ copy_expression (expression_db_t *edb)
     copy = new_expression_db(edb->kind);
 
     copy->name = g_strdup(edb->name);
+    if (edb->symbol)
+	copy->symbol = g_strdup(edb->symbol);
 
     switch (edb->kind)
     {
@@ -304,10 +274,7 @@ copy_expression_db (expression_db_t *edb)
     {
 	expression_db_t *copy;
 
-	if (edb->kind == EXPRESSION_DB_GROUP)
-	    copy = make_expression_db_group(edb->name, copy_expression_db(edb->v.group.subs));
-	else
-	    copy = copy_expression(edb);
+	copy = copy_expression(edb);
 
 	if (last == NULL)
 	{
@@ -321,63 +288,6 @@ copy_expression_db (expression_db_t *edb)
     }
 
     return head;
-}
-
-expression_db_t*
-merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2)
-{
-    while (edb2 != 0)
-    {
-	expression_db_t *e = lookup(edb1, edb2->name, edb2->kind);
-
-	if (e != 0)
-	{
-	    switch (edb2->kind)
-	    {
-		case EXPRESSION_DB_EXPRESSION :
-		case EXPRESSION_DB_DESIGN :
-		    edb1 = remove_expression_db(edb1, e);
-		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
-		    break;
-
-		case EXPRESSION_DB_GROUP :
-		    e->v.group.subs = merge_expression_dbs(e->v.group.subs, edb2->v.group.subs);
-		    break;
-
-		default :
-		    g_assert_not_reached();
-		    break;
-	    }
-	}
-	else
-	{
-	    switch (edb2->kind)
-	    {
-		case EXPRESSION_DB_EXPRESSION :
-		case EXPRESSION_DB_DESIGN :
-		    edb1 = insert_expression_db(edb1, copy_expression(edb2));
-		    break;
-
-		case EXPRESSION_DB_GROUP :
-		    e = new_expression_db(EXPRESSION_DB_GROUP);
-
-		    e->name = strdup(edb2->name);
-		    assert(e->name != 0);
-
-		    edb1 = insert_expression_db(edb1, e);
-		    e->v.group.subs = merge_expression_dbs(0, edb2->v.group.subs);
-		    break;
-
-		default :
-		    g_assert_not_reached();
-		    break;
-	    }
-	}
-
-	edb2 = edb2->next;
-    }
-
-    return edb1;
 }
 
 char*
@@ -414,7 +324,7 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 		}
 
 		expr->v.expression.mathmap = parse_mathmap(source);
-		
+
 		if (! expr->meta) {
 		    scanner_set_comment_callback(NULL);
 		    expr->meta = cur_meta;
@@ -522,3 +432,31 @@ get_expression_docstring (expression_db_t *edb)
 
     return edb->v.expression.docstring;
 }
+
+static char *generate_expression_symbol(expression_db_t *expr) {
+    int i;
+    int len;
+    char *symbol = NULL;
+
+    // TODO: designer
+    if (expr->kind == EXPRESSION_DB_EXPRESSION) {
+	char *name = get_expression_name(expr, NULL);
+	// TODO: check that names are available once fixed
+	if (name)
+	    symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, name);
+    }
+    if (! symbol)
+	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, expr->name);
+
+    len = strlen(symbol);
+    for (i = 0; i < len; i++) {
+	if (symbol[i] == ' ' || symbol[i] == '.')
+	    symbol[i] = '_';
+	else
+	    symbol[i] = g_ascii_tolower(symbol[i]);
+    }
+
+    return symbol;
+}
+
+

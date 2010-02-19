@@ -442,7 +442,7 @@ read_expressions (void)
 {
     static char *path_local = 0, *path_global = 0;
 
-    expression_db_t *edb_local, *edb_global;
+    expression_db_t *edb = 0;
 
     if (path_local == 0)
     {
@@ -450,46 +450,32 @@ read_expressions (void)
 	path_global = get_rc_file_name(EXPRESSIONS_DIR, 1);
     }
 
-    edb_local = read_expression_db(path_local);
-    edb_global = read_expression_db(path_global);
+    edb = extend_expression_db(edb, path_local, EXPRESSION_ORIGIN_LOCAL);
+    edb = extend_expression_db(edb, path_global, EXPRESSION_ORIGIN_COMMUNITY);
 
-    edb_global = merge_expression_dbs(edb_global, edb_local);
-
-    free_expression_db(edb_local);
-
-    return edb_global;
+    return edb;
 }
 
 static void
 register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_prefix)
 {
-    int symbol_prefix_len = strlen(symbol_prefix);
-    int menu_prefix_len = strlen(menu_prefix);
+    GList *tags_ptr;
+    GList *tags = get_tag_list_from_edb(edb);
 
-    for (; edb != 0; edb = edb->next)
-    {
-	char *symbol, *menu;
-	int i;
-	int name_len;
+    for (tags_ptr = tags; tags_ptr; tags_ptr = g_list_next(tags_ptr)) {
+	expression_db_t	*expr;
+	char *tagged_menu_prefix = g_strdup_printf("%s/%s", menu_prefix, (char *)tags_ptr->data);
+	char *tag = (char *)tags_ptr->data;
 
-	name_len = strlen(edb->name);
-
-	symbol = g_malloc(symbol_prefix_len + name_len + 2);
-	sprintf(symbol, "%s_%s", symbol_prefix, edb->name);
-
-	menu = g_malloc(menu_prefix_len + name_len + 2);
-	sprintf(menu, "%s/%s", menu_prefix, edb->name);
-
-	for (i = symbol_prefix_len + 1; i < symbol_prefix_len + 1 + name_len; ++i)
-	    if (symbol[i] == ' ')
-		symbol[i] = '_';
-	    else
-		symbol[i] = tolower(symbol[i]);
-
-	if (edb->kind == EXPRESSION_DB_GROUP)
-	    register_expression_db(edb->v.group.subs, symbol, menu);
-	else
+	for (expr = edb; expr != 0; expr = expr->next)
 	{
+	    char *menu;
+
+	    if (! expression_has_tag(expr, tag))
+		continue;
+
+	    menu = g_strdup_printf("%s/%s", tagged_menu_prefix, expr->name);
+
 	    static GimpParamDef args[] = {
 		{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
 		{ GIMP_PDB_IMAGE,      "image",            "Input image" },
@@ -507,26 +493,28 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 	    fprintf(stderr, "registering %s (%s)\n", symbol, menu);
 #endif
 
-	    gimp_install_procedure(symbol,
-				   "Generate an image using a mathematical expression.",
-				   "Generates an image by means of a mathematical expression. The expression "
-				   "can also refer to the data of an original image. Thus, arbitrary "
-				   "distortions can be constructed. Even animations can be generated.",
-				   "Mark Probst",
-				   "Mark Probst",
-				   MATHMAP_DATE ", " MATHMAP_VERSION,
-				   menu,
-				   "RGB*, GRAY*",
-				   GIMP_PLUGIN,
-				   nargs,
-				   nreturn_vals,
-				   args,
-				   return_vals);
-	}
+	    gimp_install_procedure(expr->symbol,
+				    "Generate an image using a mathematical expression.",
+				    "Generates an image by means of a mathematical expression. The expression "
+				    "can also refer to the data of an original image. Thus, arbitrary "
+				    "distortions can be constructed. Even animations can be generated.",
+				    "Mark Probst",
+				    "Mark Probst",
+				    MATHMAP_DATE ", " MATHMAP_VERSION,
+				    menu,
+				    "RGB*, GRAY*",
+				    GIMP_PLUGIN,
+				    nargs,
+				    nreturn_vals,
+				    args,
+				    return_vals);
 
-	g_free(menu);
-	g_free(symbol);
+
+	    g_free(menu);
+	}
+	g_free(tagged_menu_prefix);
     }
+    deep_glist_free(tags);
 }
 
 static void
@@ -538,6 +526,7 @@ register_examples (void)
 	return;
 
     register_expression_db(edb, "mathmap", "<Image>/Filters/Generic/MathMap");
+
     free_expression_db(edb);
 }
 
@@ -546,37 +535,8 @@ expression_for_symbol (const char *symbol, expression_db_t *edb)
 {
     for (; edb != 0; edb = edb->next)
     {
-	int i;
-	int name_len;
-	int is_group = edb->kind == EXPRESSION_DB_GROUP;
-
-	name_len = strlen(edb->name);
-
-	if (name_len > strlen(symbol))
-	    continue;
-	if ((!is_group && name_len != strlen(symbol))
-	    || (is_group && name_len == strlen(symbol)))
-	    continue;
-	if (is_group && symbol[name_len] != '_')
-	    continue;
-
-	for (i = 0; i < name_len; ++i)
-	    if ((edb->name[i] == ' ' && symbol[i] != '_')
-		|| (edb->name[i] != ' ' && symbol[i] != tolower(edb->name[i])))
-		break;
-
-	if (i == name_len)
-	{
-	    if (is_group)
-	    {
-		char *exp = expression_for_symbol(symbol + name_len + 1, edb->v.group.subs);
-
-		if (exp != 0)
-		    return exp;
-	    }
-	    else
-		return read_expression(edb->v.expression.path);
-	}
+	if (strcmp(symbol, edb->symbol) == 0)
+	    return read_expression(edb->v.expression.path);
     }
 
     return 0;
@@ -632,7 +592,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
     if (strncmp(name, "mathmap_", 8) == 0)
     {
-	char *exp = expression_for_symbol(name + 8, read_expressions());
+	char *exp = expression_for_symbol(name, read_expressions());
 
 	if (exp != 0)
 	{
@@ -915,26 +875,26 @@ load_design (const char *filename)
 
 /*****/
 
-static gint32 
+static gint32
 mathmap_layer_copy(gint32 layerID)
 {
     GimpParam *return_vals;
     int nreturn_vals;
     gint32 nlayer;
 
-    return_vals = gimp_run_procedure ("gimp_layer_copy", 
+    return_vals = gimp_run_procedure ("gimp_layer_copy",
 				      &nreturn_vals,
 				      GIMP_PDB_LAYER, layerID,
 				      GIMP_PDB_INT32, TRUE,
 				      GIMP_PDB_END);
- 
+
     if (return_vals[0].data.d_status == GIMP_PDB_SUCCESS)
 	nlayer = return_vals[1].data.d_layer;
     else
 	nlayer = -1;
     gimp_destroy_params(return_vals, nreturn_vals);
     return nlayer;
-} 
+}
 
 /*****/
 
@@ -1782,7 +1742,7 @@ mathmap_dialog (int mutable_expression)
             table = gtk_table_new(2, 1, FALSE);
 	    gtk_container_border_width(GTK_CONTAINER(table), 6);
 	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
-    
+
 	    frame = gtk_frame_new(NULL);
 	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
 	    gtk_container_add(GTK_CONTAINER(frame), table);
@@ -1802,7 +1762,7 @@ mathmap_dialog (int mutable_expression)
 		gtk_widget_show(toggle);
 
 		/* Supersampling */
-	    
+
 		toggle = gtk_check_button_new_with_label(_("Supersampling"));
 		gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(toggle),
 					    mmvals.flags & FLAG_SUPERSAMPLING);
@@ -1816,7 +1776,7 @@ mathmap_dialog (int mutable_expression)
             table = gtk_table_new(2, 1, FALSE);
 	    gtk_container_border_width(GTK_CONTAINER(table), 6);
 	    gtk_table_set_row_spacings(GTK_TABLE(table), 4);
-    
+
 	    frame = gtk_frame_new(NULL);
 	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
 	    gtk_container_add(GTK_CONTAINER(frame), table);
@@ -1858,7 +1818,7 @@ mathmap_dialog (int mutable_expression)
 	    gtk_table_set_row_spacings(GTK_TABLE(animation_table), 4);
 	    gtk_table_set_col_spacings(GTK_TABLE(animation_table), 4);
 	    gtk_widget_set_sensitive(GTK_WIDGET(animation_table), FALSE);
-    
+
 	    frame = gtk_frame_new(NULL);
 	    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
 	    gtk_container_add(GTK_CONTAINER(frame), animation_table);
@@ -2806,14 +2766,14 @@ dialog_help_callback (GtkWidget *widget, gpointer data)
     GimpPDBProcType proc_type;
 
     if (gimp_procedural_db_proc_info("plug-in-web-browser",
-				     &proc_blurb, &proc_help, 
+				     &proc_blurb, &proc_help,
 				     &proc_author, &proc_copyright, &proc_date,
 				     &proc_type, &nparams, &nreturn_vals,
 				     &params, &return_vals))
 	gimp_run_procedure("plug-in-web-browser", &baz,
 			   GIMP_PDB_STRING, MATHMAP_MANUAL_URL,
 			   GIMP_PDB_END);
-    else 
+    else
     {
 	gchar *message = g_strdup_printf(_("See %s"), MATHMAP_MANUAL_URL);
 
