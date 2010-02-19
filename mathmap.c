@@ -543,6 +543,15 @@ expression_for_symbol (const char *symbol, expression_db_t *edb)
 }
 
 static void
+init_mathmap_engine ()
+{
+    init_builtins();
+    init_tags();
+    init_macros();
+    init_compiler();
+}
+
+static void
 query(void)
 {
     static GimpParamDef args[] = {
@@ -574,6 +583,7 @@ query(void)
 			   args,
 			   return_vals);
 
+    init_mathmap_engine();
     register_examples();
 }
 
@@ -639,11 +649,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
     gimp_drawable = get_gimp_input_drawable(drawable);
 
-    /* Init MathMap engine */
-    init_builtins();
-    init_tags();
-    init_macros();
-    init_compiler();
+    init_mathmap_engine();
 
 #ifdef THREADED_FINAL_RENDER
     pthread_mutex_init(&get_gimp_pixel_mutex, NULL);
