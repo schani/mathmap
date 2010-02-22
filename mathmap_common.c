@@ -1300,7 +1300,7 @@ get_num_cpus (void)
     return num_cpus;
 }
 
-static designer_design_type_t*
+designer_design_type_t*
 make_mathmap_design_type (void)
 {
     designer_design_type_t *type = designer_make_design_type(FALSE);

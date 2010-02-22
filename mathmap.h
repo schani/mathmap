@@ -351,6 +351,9 @@ char* make_filter_source_from_design (designer_design_t *design, const char *fil
 
 void mathmap_message_dialog (const char *message);
 
+designer_design_type_t* make_mathmap_design_type (void);
+
+
 void init_gettext ();
 
 #define _(x)	gettext((x))
