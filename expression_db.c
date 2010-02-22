@@ -75,7 +75,15 @@ static void fix_expression(expression_db_t *expr) {
 		rex = g_regex_new("([^/]+)/([^/.]+)\\.[^.]+$", 0, 0, NULL);
 	    }
 	    if (g_regex_match(rex, path, 0, &matches)) {
-		expr->meta.title = g_match_info_fetch(matches, 2);
+		int len;
+		char *title = g_match_info_fetch(matches, 2);
+		int i;
+		len = strlen(title);
+		// underscores are interpreted in a special way in menu, replacing with spaces
+		for (i = 0; i < len; i++)
+		    if (title[i] == '_')
+			title[i] = ' ';
+		expr->meta.title = title;
 	    }
 	    g_match_info_free(matches);
 	} else {
@@ -438,20 +446,38 @@ get_expression_docstring (expression_db_t *edb)
     return edb->v.expression.docstring;
 }
 
+// necessary for get_expression_name
+static designer_design_type_t *get_design_type() {
+    static designer_design_type_t *design_type = NULL;
+    if (! design_type)
+	design_type = make_mathmap_design_type();
+    return design_type;
+}
+
 static char *generate_expression_symbol(expression_db_t *expr) {
     int i;
     int len;
     char *symbol = NULL;
+    char *name;
 
-    // TODO: designer
-    if (expr->kind == EXPRESSION_DB_EXPRESSION) {
-	char *name = get_expression_name(expr, NULL);
-	// TODO: check that names are available once fixed
-	if (name)
-	    symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, name);
+    switch (expr->kind) {
+	case EXPRESSION_DB_EXPRESSION:
+	    name = get_expression_name(expr, NULL);
+	    break;
+	case EXPRESSION_DB_DESIGN:
+	    name = get_expression_name(expr, get_design_type());
+	    break;
+	default:
+	    assert(0);
+	    return NULL;
     }
-    if (! symbol)
+    if (name) {
+	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, name);
+    } else {
+	printf("Could not retrieve filter name from file: %s falling back to %s\n",
+	    get_expression_path(expr), expr->meta.title);
 	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, expr->meta.title);
+    }
 
     len = strlen(symbol);
     for (i = 0; i < len; i++) {
@@ -467,6 +493,8 @@ static char *generate_expression_symbol(expression_db_t *expr) {
 void save_expression_to_dir(expression_db_t *expr, char *dir) {
     char *ext;
     char *source;
+    char *name;
+    designer_design_type_t *design_type;
 
     switch (expr->kind) {
 	case EXPRESSION_DB_EXPRESSION:
@@ -474,30 +502,30 @@ void save_expression_to_dir(expression_db_t *expr, char *dir) {
 	    break;
 	case EXPRESSION_DB_DESIGN:
 	    ext = "mmc";
-
-	    // TODO: get_expression_name(expr, NULL) will segfault, skipping .mmc's for better times
-	    printf("TODO: Ignoring design file: %s\n", get_expression_path(expr));
-	    return;
-
+	    design_type = get_design_type();
 	    break;
 	default:
 	    assert(0);
 	    return;
     }
 
-    source = read_expression(get_expression_path(expr));
-
-    if (source) {
-	char *filename = g_strdup_printf("%s/%s.%s", dir, get_expression_name(expr, NULL), ext);
-	FILE *out = fopen(filename, "wb");
-	if (out) {
-	    fwrite(source, sizeof(char), strlen(source), out);
-	    fclose(out);
-	} else {
-	    printf("Could not write to file %s\n", filename);
+    name = get_expression_name(expr, design_type);
+    if (name) {
+	source = read_expression(get_expression_path(expr));
+	if (source) {
+	    char *filename = g_strdup_printf("%s/%s.%s", dir, name, ext);
+	    FILE *out = fopen(filename, "wb");
+	    if (out) {
+		fwrite(source, sizeof(char), strlen(source), out);
+		fclose(out);
+	    } else {
+		printf("Could not write to file %s\n", filename);
+	    }
+	    g_free(filename);
+	    g_free(source);
 	}
-	g_free(filename);
-	g_free(source);
+    } else {
+	printf("Could not retrieve filter name from file: %s\n", get_expression_path(expr));
     }
 }
 
