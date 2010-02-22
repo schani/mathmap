@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2009 Mark Probst
+ * Copyright (C) 1997-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -226,6 +226,7 @@ typedef struct _exprtree
 typedef struct _top_level_decl_t
 {
     int type;
+    char *name_space;
     char *name;
     char *docstring;
     scanner_region_t region;
@@ -242,11 +243,14 @@ typedef struct _top_level_decl_t
 
 extern top_level_decl_t *the_top_level_decls;
 
-top_level_decl_t* make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options);
+top_level_decl_t* make_filter_decl (scanner_ident_t *name_space, scanner_ident_t *name,
+				    scanner_ident_t *docstring, arg_decl_t *args, option_t *options);
 
 void free_top_level_decl (top_level_decl_t *list);
 
 struct _filter_t* lookup_filter (struct _filter_t *filters, const char *name);
+
+scanner_ident_t* concat_namespace (scanner_ident_t *a, scanner_ident_t *b);
 
 option_t* make_option (scanner_ident_t *name, option_t *suboptions);
 option_t* options_append (option_t *o1, option_t *o2);
