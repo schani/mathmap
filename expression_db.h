@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007-2008 Mark Probst
+ * Copyright (C) 2007-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -80,7 +80,11 @@ extern char* get_expression_docstring (expression_db_t *edb);
 
 extern expression_db_t* merge_expression_dbs (expression_db_t *edb1, expression_db_t *edb2);
 
+extern char* get_expression_name_space (expression_db_t *expr, designer_design_type_t *design_type);
 extern char* get_expression_name (expression_db_t *expr, designer_design_type_t *design_type);
+// result string must be freed by the caller
+extern char* get_expression_full_name (expression_db_t *expr, designer_design_type_t *design_type);
+
 extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);
 extern char* get_expression_path (expression_db_t *expr);
 
