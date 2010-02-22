@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007-2008 Mark Probst
+ * Copyright (C) 2007-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -379,6 +379,17 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 }
 
 char*
+get_expression_name_space (expression_db_t *expr, designer_design_type_t *design_type)
+{
+    mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+
+    if (mathmap == NULL)
+	return NULL;
+    g_assert(mathmap->main_filter->kind == FILTER_MATHMAP);
+    return mathmap->main_filter->v.mathmap.decl->name_space;
+}
+
+char*
 get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
 {
     mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
@@ -386,6 +397,20 @@ get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
     if (mathmap == NULL)
 	return NULL;
     return mathmap->main_filter->name;
+}
+
+char*
+get_expression_full_name (expression_db_t *expr, designer_design_type_t *design_type)
+{
+    char *name_space = get_expression_name_space(expr, design_type);
+    char *name = get_expression_name(expr, design_type);
+
+    if (name == NULL)
+	return NULL;
+
+    if (name_space == NULL)
+	return g_strdup(name);
+    return g_strdup_printf("%s.%s", name_space, name);
 }
 
 userval_info_t*

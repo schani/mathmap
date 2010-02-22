@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2009 Mark Probst
+ * Copyright (C) 1997-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -69,22 +69,33 @@ filters :
         | filters filter
         ;
 
-filter : options_opt T_FILTER T_IDENT '(' args_decl ')' docstring_opt
+filter : options_opt T_FILTER namespace_opt T_IDENT '(' args_decl ')' docstring_opt
                              {
-				 top_level_decl_t *decl = make_filter_decl($<ident>3, $<ident>7, $<arg_decl>5,
-									   $<options>1);
+				 top_level_decl_t *decl = make_filter_decl($<ident>3, $<ident>4, $<ident>8, $<arg_decl>6, $<options>1);
 				 start_parsing_filter(the_mathmap, decl);
-				 register_args_as_uservals(the_mathmap->current_filter, $<arg_decl>5);
+				 register_args_as_uservals(the_mathmap->current_filter, $<arg_decl>6);
 			     }
          expr T_END
 			     {
-				 free($<ident>3);
-				 if ($<ident>7 != NULL)
-				     free($<ident>7);
-				 the_mathmap->current_filter->v.mathmap.decl->v.filter.body = $<exprtree>9;
+				 free($<ident>4);
+				 if ($<ident>8 != NULL)
+				     free($<ident>8);
+				 the_mathmap->current_filter->v.mathmap.decl->v.filter.body = $<exprtree>10;
 				 finish_parsing_filter(the_mathmap);
 			     }
        ;
+
+namespace_opt :
+			     {
+				 $<ident>$ = NULL;
+			     }
+	      | namespace_opt T_IDENT '.'
+			     {
+				 $<ident>$ = concat_namespace($<ident>1, $<ident>2);
+				 free($<ident>1);
+				 free($<ident>2);
+			     }
+	      ;
 
 args_decl :                  { $<arg_decl>$ = 0; }
           | arg_decl_list    { $<arg_decl>$ = $<arg_decl>1; }

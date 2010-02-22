@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2002-2009 Mark Probst
+ * Copyright (C) 2002-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -339,9 +339,8 @@ scan_token (scanner_state_t *state, scanner_token_t *token, int *highlight)
 
 	if (!have_digits)
 	{
-	    sprintf(error_string, _("Misplaced decimal point"));
-	    error_region = make_region(token->region.start, state->location);
-	    RETURN_HIGHLIGHT(RESULT_ERROR, HIGHLIGHT_ERROR);
+	    token->token = '.';
+	    RETURN_HIGHLIGHT(RESULT_SUCCESS, HIGHLIGHT_SPECIAL);
 	}
 
 	token->token = have_comma ? T_FLOAT : T_INT;

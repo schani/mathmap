@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2009 Mark Probst
+ * Copyright (C) 1997-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,24 @@
 
 char error_string[1024];
 scanner_region_t error_region;
+
+scanner_ident_t*
+concat_namespace (scanner_ident_t *a, scanner_ident_t *b)
+{
+    char *str;
+    scanner_ident_t *result;
+
+    if (a == NULL)
+	return scanner_make_ident(b->region, b->str);
+    if (b == NULL)
+	return scanner_make_ident(a->region, a->str);
+
+    str = g_strdup_printf("%s.%s", a->str, b->str);
+    result = scanner_make_ident(scanner_region_merge(a->region, b->region), str);
+    g_free(str);
+
+    return result;
+}
 
 static char*
 gensym (char *buf)
@@ -146,7 +164,7 @@ free_arg_decls (arg_decl_t *list)
 }
 
 static top_level_decl_t*
-make_top_level_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring)
+make_top_level_decl (int type, scanner_ident_t *namespace, scanner_ident_t *name, scanner_ident_t *docstring)
 {
     top_level_decl_t *top_level = (top_level_decl_t*)malloc(sizeof(top_level_decl_t));
 
@@ -154,6 +172,10 @@ make_top_level_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring
 
     top_level->type = type;
 
+    if (namespace != NULL)
+	top_level->name_space = strdup(namespace->str);
+    else
+	top_level->name_space = NULL;
     top_level->name = strdup(name->str);
     assert(top_level->name != NULL);
 
@@ -171,9 +193,9 @@ make_top_level_decl (int type, scanner_ident_t *name, scanner_ident_t *docstring
 }
 
 top_level_decl_t*
-make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options)
+make_filter_decl (scanner_ident_t *namespace, scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t *args, option_t *options)
 {
-    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, name, docstring);
+    top_level_decl_t *top_level = make_top_level_decl(TOP_LEVEL_FILTER, namespace, name, docstring);
 
     top_level->v.filter.args = args;
     top_level->v.filter.options = options;
@@ -185,6 +207,8 @@ make_filter_decl (scanner_ident_t *name, scanner_ident_t *docstring, arg_decl_t 
 void
 free_top_level_decl (top_level_decl_t *list)
 {
+    if (list->name_space != NULL)
+	free(list->name_space);
     free(list->name);
     if (list->docstring != 0)
 	free(list->docstring);
