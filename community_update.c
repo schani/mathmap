@@ -152,26 +152,31 @@ static void save_doc(CouchDBDocument *doc) {
 	char *content;
 	char *path_local;
 	gchar *file_path;
-	int type;
+	char *kind;
 	char *ext;
 	FILE *out;
+
+	if (! couchdb_document_has_field(doc, "kind")) {
+		printf("kind field not found\n");
+		return;
+	}
+	if (! couchdb_document_has_field(doc, "content")) {
+		printf("content field not found\n");
+		return;
+	}
 
 	name = (char *)couchdb_document_get_id(doc);
 	content = (char *)couchdb_document_get_string_field(doc, "content");
 	path_local = get_rc_file_name(EXPRESSIONS_COMMUNITY_DIR, 0);
 
-	// TODO: rename to kind!
-	type = couchdb_document_get_int_field(doc, "type");
-	switch (type) {
-		case EXPRESSION_DB_EXPRESSION:
-			ext = "mm";
-			break;
-		case EXPRESSION_DB_DESIGN:
-			ext = "mmc";
-			break;
-		default:
-			assert(0);
-		// TODO: user value set
+	kind = couchdb_document_get_string_field(doc, "kind");
+	if (strcmp(kind, "expression") == 0) {
+		ext = "mm";
+	} else if (strcmp(kind, "design") == 0) {
+		ext = "mmc";
+	} else {
+		printf("Invalid expression kind: %s\n", kind);
+		return;
 	}
 
 	file_path = g_strdup_printf("%s/%s.%s", path_local, name, ext);
