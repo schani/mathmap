@@ -79,10 +79,10 @@ extern void save_expression_to_dir(expression_db_t *expr, char *dir);
 
 extern char* get_expression_docstring (expression_db_t *edb);
 
-extern char* get_expression_name_space (expression_db_t *expr, designer_design_type_t *design_type);
-extern char* get_expression_name (expression_db_t *expr, designer_design_type_t *design_type);
+extern char* get_expression_name_space (expression_db_t *expr);
+extern char* get_expression_name (expression_db_t *expr);
 // result string must be freed by the caller
-extern char* get_expression_full_name (expression_db_t *expr, designer_design_type_t *design_type);
+extern char* get_expression_full_name (expression_db_t *expr);
 
 extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);
 extern char* get_expression_path (expression_db_t *expr);

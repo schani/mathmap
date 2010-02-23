@@ -416,13 +416,13 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 }
 
 char*
-get_expression_name_space (expression_db_t *expr, designer_design_type_t *design_type)
+get_expression_name_space (expression_db_t *expr)
 {
     if (expr->kind == EXPRESSION_DB_DESIGN)
 	return expr->meta.name_space;
     else
     {
-	mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+	mathmap_t *mathmap = fetch_expression_mathmap(expr, NULL);
 
 	if (mathmap == NULL)
 	    return NULL;
@@ -432,13 +432,13 @@ get_expression_name_space (expression_db_t *expr, designer_design_type_t *design
 }
 
 char*
-get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
+get_expression_name (expression_db_t *expr)
 {
     if (expr->kind == EXPRESSION_DB_DESIGN)
 	return expr->meta.name;
     else
     {
-	mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+	mathmap_t *mathmap = fetch_expression_mathmap(expr, NULL);
 
 	if (mathmap == NULL)
 	    return NULL;
@@ -447,10 +447,10 @@ get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
 }
 
 char*
-get_expression_full_name (expression_db_t *expr, designer_design_type_t *design_type)
+get_expression_full_name (expression_db_t *expr)
 {
-    char *name_space = get_expression_name_space(expr, design_type);
-    char *name = get_expression_name(expr, design_type);
+    char *name_space = get_expression_name_space(expr);
+    char *name = get_expression_name(expr);
 
     if (name == NULL)
 	return NULL;
@@ -518,31 +518,13 @@ get_expression_docstring (expression_db_t *edb)
     return edb->v.expression.docstring;
 }
 
-// necessary for get_expression_name
-static designer_design_type_t *get_design_type() {
-    static designer_design_type_t *design_type = NULL;
-    if (! design_type)
-	design_type = make_mathmap_design_type();
-    return design_type;
-}
-
 static char *generate_expression_symbol(expression_db_t *expr) {
     int i;
     int len;
     char *symbol = NULL;
     char *name;
 
-    switch (expr->kind) {
-	case EXPRESSION_DB_EXPRESSION:
-	    name = get_expression_name(expr, NULL);
-	    break;
-	case EXPRESSION_DB_DESIGN:
-	    name = get_expression_name(expr, get_design_type());
-	    break;
-	default:
-	    assert(0);
-	    return NULL;
-    }
+    name = get_expression_name(expr);
     if (name) {
 	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, name);
     } else {
@@ -574,14 +556,13 @@ void save_expression_to_dir(expression_db_t *expr, char *dir) {
 	    break;
 	case EXPRESSION_DB_DESIGN:
 	    ext = "mmc";
-	    design_type = get_design_type();
 	    break;
 	default:
 	    assert(0);
 	    return;
     }
 
-    name = get_expression_name(expr, design_type);
+    name = get_expression_name(expr);
     if (name) {
 	source = read_expression(get_expression_path(expr));
 	if (source) {

@@ -1332,7 +1332,7 @@ remove_edb (expression_db_t **edb)
 static void
 add_filter_node_type (designer_design_type_t *design_type, expression_db_t **edb)
 {
-    char *name = get_expression_name(*edb, design_type);
+    char *name = get_expression_name(*edb);
     userval_info_t *args = get_expression_args(*edb, design_type);
     designer_node_type_t *type = designer_add_node_type(design_type, name, *edb);
 
@@ -1386,7 +1386,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboo
 	    case EXPRESSION_DB_EXPRESSION :
 		if (!compositions)
 		{
-		    char *name = get_expression_name(*edb, design_type);
+		    char *name = get_expression_name(*edb);
 
 		    if (name != NULL)
 			add_filter_node_type(design_type, edb);
@@ -1411,7 +1411,7 @@ add_node_types (designer_design_type_t *design_type, expression_db_t **edb, gboo
 		{
 		    designer_design_t *design = designer_load_design(design_type, (*edb)->v.design.path,
 								     NULL, NULL, NULL, NULL);
-		    char *name = get_expression_name ((*edb), design_type);
+		    char *name = get_expression_name (*edb);
 
 		    if (design == NULL)
 		    {

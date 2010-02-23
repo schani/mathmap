@@ -2958,7 +2958,7 @@ designer_tree_callback (GtkWidget *widget)
 	designer_node_type_t *type;
 	int i;
 
-	name = get_expression_name(edb, the_design_type);
+	name = get_expression_name(edb);
 	if (name == NULL)
 	    return;
 
