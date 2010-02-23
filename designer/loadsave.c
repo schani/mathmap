@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2008 Mark Probst
+ * Copyright (C) 2008-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,6 +23,88 @@
  */
 
 #include "designer.h"
+#include "../expression_db.h"
+
+static lisp_object_t*
+load_lisp (const char *filename, lisp_object_t **node_list)
+{
+    lisp_stream_t stream;
+    lisp_object_t *obj;
+
+    if (lisp_stream_init_path(&stream, filename) == NULL)
+	return NULL;
+    obj = lisp_read(&stream);
+    lisp_stream_free_path(&stream);
+
+    if (!lisp_match_string("(design . #?(list))", obj, node_list))
+    {
+	lisp_free(obj);
+	return NULL;
+    }
+
+    return obj;
+}
+
+static char*
+get_string_property (lisp_object_t *proplist, const char *name)
+{
+    lisp_object_t *val = lisp_proplist_lookup_symbol(proplist, name);
+
+    if (lisp_nil_p(val))
+	return NULL;
+    if (!lisp_string_p(val))
+	return NULL;
+
+    return g_strdup(lisp_string(val));
+}
+
+static void
+get_metadata_from_proplist (lisp_object_t *proplist, expression_metadata_t *meta)
+{
+    lisp_object_t *tags;
+
+    meta->name = get_string_property(proplist, ":name");
+    meta->name_space = get_string_property(proplist, ":name-space");
+    meta->title = get_string_property(proplist, ":title");
+
+    meta->tags = NULL;
+    tags = lisp_proplist_lookup_symbol(proplist, ":tags");
+
+    while (lisp_cons_p(tags))
+    {
+	lisp_object_t *tag = lisp_car(tags);
+
+	if (lisp_string_p(tag))
+	    meta->tags = g_list_prepend(meta->tags, g_strdup(lisp_string(tag)));
+
+	tags = lisp_cdr(tags);
+    }
+}
+
+gboolean
+designer_load_design_metadata (const char *filename, expression_metadata_t *meta)
+{
+    lisp_object_t *node_list;
+    lisp_object_t *obj = load_lisp(filename, &node_list);
+    lisp_object_t *proplist;
+
+    if (obj == NULL)
+	return FALSE;
+
+    proplist = obj;
+    while (lisp_cons_p(proplist))
+    {
+	if (lisp_symbol_p(lisp_car(proplist)) && lisp_symbol(lisp_car(proplist))[0] == ':')
+	    break;
+	proplist = lisp_cdr(proplist);
+    }
+
+    get_metadata_from_proplist(proplist, meta);
+
+    lisp_free(obj);
+
+    return TRUE;
+}
 
 designer_design_t*
 designer_load_design (designer_design_type_t *design_type, const char *filename,
@@ -31,21 +113,14 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 		      designer_design_aux_load_callback_t design_aux_load,
 		      gpointer user_data)
 {
-    lisp_stream_t stream;
     designer_design_t *design;
-    lisp_object_t *obj, *node_list, *iter, *design_aux, *name, *root;
+    lisp_object_t *obj, *node_list, *iter, *design_aux, *root;
     lisp_object_t *design_proplist = lisp_nil();
+    expression_metadata_t meta;
 
-    if (lisp_stream_init_path(&stream, filename) == NULL)
+    obj = load_lisp(filename, &node_list);
+    if (obj == NULL)
 	return NULL;
-    obj = lisp_read(&stream);
-    lisp_stream_free_path(&stream);
-
-    if (!lisp_match_string("(design . #?(list))", obj, &node_list))
-    {
-	lisp_free(obj);
-	return NULL;
-    }
 
     design = designer_make_design(design_type, "__untitled_design__");
     g_assert (design != NULL);
@@ -186,12 +261,11 @@ designer_load_design (designer_design_type_t *design_type, const char *filename,
 	iter = lisp_cdr(iter);
     }
 
-    name = lisp_proplist_lookup_symbol(design_proplist, ":name");
-    if (!lisp_nil_p(name))
-    {
-	g_assert(lisp_string_p(name));
-	designer_set_design_name(design, lisp_string(name));
-    }
+    get_metadata_from_proplist(design_proplist, &meta);
+    if (meta.name)
+	designer_set_design_name(design, meta.name);
+
+    free_expression_metadata_members(&meta);
 
     design_aux = lisp_proplist_lookup_symbol(design_proplist, ":aux");
     if (!lisp_nil_p(design_aux) && design_aux_load != NULL)

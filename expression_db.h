@@ -37,7 +37,9 @@
 struct _mathmap_t;
 
 typedef struct _expression_metadata_t {
-    gchar *title;
+    char *name_space;
+    char *name;
+    char *title;
     GList *tags;
 } expression_metadata_t;
 
@@ -64,6 +66,8 @@ typedef struct _expression_db_t
 
     struct _expression_db_t *next;
 } expression_db_t;
+
+extern void free_expression_metadata_members (expression_metadata_t *meta);
 
 extern expression_db_t* extend_expression_db (expression_db_t *edb, char *path, int origin);
 extern void free_expression_db (expression_db_t *edb);

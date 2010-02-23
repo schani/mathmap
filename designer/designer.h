@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007-2008 Mark Probst
+ * Copyright (C) 2007-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -167,6 +167,10 @@ extern designer_design_t* designer_migrate_design (designer_design_t *design, de
 extern void designer_node_push_back (designer_node_t *node);
 
 /* load/save */
+
+struct _expression_metadata_t;
+
+extern gboolean designer_load_design_metadata (const char *filename, struct _expression_metadata_t *meta);
 
 extern designer_design_t* designer_load_design (designer_design_type_t *design_type, const char *filename,
 						designer_design_loaded_callback_t loaded_callback,

@@ -116,6 +116,8 @@ get_expression_from_file(char *filename) {
 
 	expr->v.design.path = g_strdup(filename);
 
+	designer_load_design_metadata(filename, &expr->meta);
+
 	fix_expression(expr);
 
 	return expr;
@@ -200,6 +202,37 @@ remove_expression_db (expression_db_t *edb, expression_db_t *e)
 }
 
 void
+free_expression_metadata_members (expression_metadata_t *meta)
+{
+    GList *tag;
+
+    if (meta->name_space != NULL)
+    {
+	g_free(meta->name_space);
+	meta->name_space = NULL;
+    }
+    if (meta->name != NULL)
+    {
+	g_free(meta->name);
+	meta->name = NULL;
+    }
+    if (meta->title != NULL)
+    {
+	g_free(meta->title);
+	meta->title = NULL;
+    }
+
+    tag = meta->tags;
+    while (tag != NULL)
+    {
+	g_free(tag->data);
+	tag = g_list_next(tag);
+    }
+    g_list_free(meta->tags);
+    meta->tags = NULL;
+}
+
+void
 free_expression_db (expression_db_t *edb)
 {
     while (edb != 0)
@@ -227,19 +260,31 @@ free_expression_db (expression_db_t *edb)
 		g_assert_not_reached();
 	}
 
-	// freeing metadata
-	if (edb->meta.title)
-	    g_free(edb->meta.title);
-
-	GList *tag = edb->meta.tags;
-	while(tag) {
-	    g_free(tag->data);
-	    tag = g_list_next(tag);
-	}
-	if (edb->meta.tags)
-		g_list_free(edb->meta.tags);
+	free_expression_metadata_members(&edb->meta);
 
 	edb = next;
+    }
+}
+
+static void
+copy_expression_metadata (expression_metadata_t *dst, expression_metadata_t *src)
+{
+    GList *tag;
+
+    memset(dst, 0, sizeof(expression_metadata_t));
+
+    if (src->name_space != NULL)
+	dst->name_space = g_strdup(src->name_space);
+    if (src->name != NULL)
+	dst->name = g_strdup(src->name);
+    if (src->title != NULL)
+	dst->title = g_strdup(src->title);
+
+    tag = src->tags;
+    while (tag != NULL)
+    {
+	dst->tags = g_list_append(dst->tags, g_strdup(tag->data));
+	tag = g_list_next(tag);
     }
 }
 
@@ -267,15 +312,7 @@ copy_expression (expression_db_t *edb)
 	    g_assert_not_reached();
     }
 
-    if (edb->meta.title)
-	copy->meta.title = g_strdup(edb->meta.title);
-
-    GList *tag = edb->meta.tags;
-    while(tag)
-    {
-	copy->meta.tags = g_list_append(copy->meta.tags, tag->data);
-	tag = g_list_next(tag);
-    }
+    copy_expression_metadata(&copy->meta, &edb->meta);
 
     if (edb->v.expression.docstring != NULL)
 	copy->v.expression.docstring = g_strdup(edb->v.expression.docstring);
@@ -381,22 +418,32 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 char*
 get_expression_name_space (expression_db_t *expr, designer_design_type_t *design_type)
 {
-    mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+    if (expr->kind == EXPRESSION_DB_DESIGN)
+	return expr->meta.name_space;
+    else
+    {
+	mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
 
-    if (mathmap == NULL)
-	return NULL;
-    g_assert(mathmap->main_filter->kind == FILTER_MATHMAP);
-    return mathmap->main_filter->v.mathmap.decl->name_space;
+	if (mathmap == NULL)
+	    return NULL;
+	g_assert(mathmap->main_filter->kind == FILTER_MATHMAP);
+	return mathmap->main_filter->v.mathmap.decl->name_space;
+    }
 }
 
 char*
 get_expression_name (expression_db_t *expr, designer_design_type_t *design_type)
 {
-    mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
+    if (expr->kind == EXPRESSION_DB_DESIGN)
+	return expr->meta.name;
+    else
+    {
+	mathmap_t *mathmap = fetch_expression_mathmap(expr, design_type);
 
-    if (mathmap == NULL)
-	return NULL;
-    return mathmap->main_filter->name;
+	if (mathmap == NULL)
+	    return NULL;
+	return mathmap->main_filter->name;
+    }
 }
 
 char*
