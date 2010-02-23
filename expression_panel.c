@@ -378,7 +378,7 @@ gboolean expression_has_tag(expression_db_t *expr, char *tag) {
 static GList *find_expressions_matching_selected_tags(expression_db_t *edb) {
 	expression_db_t *expr;
 
-	GList *result;
+	GList *result = NULL;
 
 	for (expr = edb; expr; expr = expr->next) {
 		if (! selected_tags) { // selecting all expressions
