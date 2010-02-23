@@ -69,11 +69,11 @@ static void fix_expression(expression_db_t *expr) {
 	if (path) {
 	    GMatchInfo *matches;
 	    if (! rex) {
-		rex = g_regex_new("([^/]+)/([^/.]+)\\.[^.]+$", 0, 0, NULL);
+		rex = g_regex_new("([^/]+)/([^/]*?)([^/.]+)\\.[^.]+$", 0, 0, NULL);
 	    }
 	    if (g_regex_match(rex, path, 0, &matches)) {
 		int len;
-		char *title = g_match_info_fetch(matches, 2);
+		char *title = g_match_info_fetch(matches, 3);
 		int i;
 		len = strlen(title);
 		// underscores are interpreted in a special way in menu, replacing with spaces
@@ -83,9 +83,10 @@ static void fix_expression(expression_db_t *expr) {
 		expr->meta.title = title;
 	    }
 	    g_match_info_free(matches);
-	} else {
-	    expr->meta.title = g_strdup("untitled");
 	}
+    }
+    if (! expr->meta.title) {
+	expr->meta.title = g_strdup("untitled");
     }
 }
 
@@ -512,11 +513,13 @@ char *get_expression_symbol(expression_db_t *expr) {
     int i;
     int len;
     char *symbol = NULL;
-    char *name;
+    char *full_name;
 
-    name = get_expression_name(expr);
-    if (name) {
-	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, name);
+    full_name = get_expression_full_name(expr);
+
+    if (full_name) {
+	symbol = g_strdup_printf("%s_%s", SYMBOL_PREFIX, full_name);
+	g_free(full_name);
     } else {
 	printf("Could not retrieve filter name from file: %s falling back to %s\n",
 	    get_expression_path(expr), expr->meta.title);
@@ -535,9 +538,9 @@ char *get_expression_symbol(expression_db_t *expr) {
 }
 
 void save_expression_to_dir(expression_db_t *expr, char *dir) {
+    char *name;
     char *ext;
     char *source;
-    char *name;
 
     switch (expr->kind) {
 	case EXPRESSION_DB_EXPRESSION:
@@ -551,7 +554,7 @@ void save_expression_to_dir(expression_db_t *expr, char *dir) {
 	    return;
     }
 
-    name = get_expression_name(expr);
+    name = get_expression_full_name(expr);
     if (name) {
 	source = read_expression(get_expression_path(expr));
 	if (source) {
@@ -566,6 +569,7 @@ void save_expression_to_dir(expression_db_t *expr, char *dir) {
 	    g_free(filename);
 	    g_free(source);
 	}
+	g_free(name);
     } else {
 	printf("Could not retrieve filter name from file: %s\n", get_expression_path(expr));
     }
