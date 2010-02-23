@@ -27,6 +27,10 @@
 #include <couchdb-glib.h>
 #include <stdio.h>
 
+// #define COUCH_DB_HOST "http://localhost:5984"
+#define COUCH_DB_HOST "http://markprobst.couch.io"
+#define COUCH_DB_NAME "mathmap"
+
 struct _communicator_task_t;
 typedef void (*task_func_t) (struct _communicator_task_t *task);
 
@@ -51,8 +55,8 @@ static void initialize() {
 	if (! initialized) {
 		if (!g_thread_supported())
 			g_thread_init(NULL);
-		db = couchdb_new("http://localhost:5984");
-		dbname = "mathmap";
+		db = couchdb_new(COUCH_DB_HOST);
+		dbname = COUCH_DB_NAME;
 		initialized = TRUE;
 	}
 }
