@@ -34,8 +34,8 @@
 #include "communicator.h"
 
 static void show_dialog(GtkWidget *parent);
-static void doc_list_fetched(char *doc_id, GSList *docs);
-static void doc_fetched(char *doc_id, CouchDBDocument *doc);
+static void doc_list_fetched(char *doc_id, GSList *docs, GError *error);
+static void doc_fetched(char *doc_id, CouchDBDocument *doc, GError *error);
 static void fetch_next_doc();
 static void save_doc(CouchDBDocument *doc);
 
@@ -56,13 +56,33 @@ void community_update(GtkWidget *parent) {
 	show_dialog(parent);
 }
 
-static void doc_list_fetched(char *doc_id, GSList *docs) {
+static void dialog_set_error(char *error) {
+	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress), 1.0);
+	gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress), _("Error"));
+	char *msg = g_strdup_printf("%s: %s", _("Error"), error);
+	gtk_label_set_text(GTK_LABEL(status_label), msg);
+	g_free(msg);
+
+	gtk_widget_set_sensitive(ok, TRUE);
+	gtk_widget_set_sensitive(cancel, FALSE);
+	gtk_window_set_default(GTK_WINDOW(dialog), ok);
+}
+
+static void doc_list_fetched(char *doc_id, GSList *docs, GError *error) {
 	all_doc_infos = docs;
 	fetch_doc_count = g_slist_length(docs);
 	fetch_doc_cur = 0;
 	char *path_local;
 
 	struct stat st;
+
+	if (! dialog)
+		return;
+
+	if (error) {
+		dialog_set_error(error->message);
+		return;
+	}
 
 	all_doc_infos = docs;
 	doc_infos_ptr = docs;
@@ -113,7 +133,14 @@ static void fetch_next_doc() {
 
 
 
-static void doc_fetched(char *doc_id, CouchDBDocument *doc) {
+static void doc_fetched(char *doc_id, CouchDBDocument *doc, GError *error) {
+	if (! dialog)
+		return;
+	if (error) {
+		dialog_set_error(error->message);
+		return;
+	}
+
 	save_doc(doc);
 	// sleep(1);
 

@@ -27,7 +27,7 @@
 
 #include <glib.h>
 
-typedef void (*communicator_callback_t) (gpointer data, gpointer result);
+typedef void (*communicator_callback_t) (gpointer data, gpointer result, GError *error);
 
 // result: GSList of CouchDBDocumentInfo*
 void communicator_list_documents(communicator_callback_t callback, gpointer data);

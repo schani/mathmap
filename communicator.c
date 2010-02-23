@@ -73,7 +73,7 @@ static communicator_task_t *task_new(task_func_t task_func, communicator_callbac
 // executes in main thread after task is done
 static gboolean source_func(gpointer data) {
 	communicator_task_t *task = (communicator_task_t *)data;
-	task->callback(task->data, task->result);
+	task->callback(task->data, task->result, task->error);
 	g_free(task);
 	return FALSE; // kill source after execution
 }
@@ -89,7 +89,7 @@ static gpointer async_task_thread_func(gpointer data) {
 
 // execute the task asynchronously
 static void execute_task(communicator_task_t *task) {
-	GError *error;
+	GError *error = NULL;
 	initialize();
 	// GThread *thread =
 	(void)g_thread_create(async_task_thread_func, task, FALSE, &error);
