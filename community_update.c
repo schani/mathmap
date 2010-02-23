@@ -233,5 +233,8 @@ static void show_dialog(GtkWidget *parent)
 	}
 
 	gtk_widget_destroy(dialog);
+	dialog = NULL;
+
+	update_expression_tree();
 }
 
