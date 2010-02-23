@@ -39,17 +39,17 @@ static void doc_fetched(char *doc_id, CouchDBDocument *doc, GError *error);
 static void fetch_next_doc();
 static void save_doc(CouchDBDocument *doc);
 
-GtkWidget *dialog;
-GtkWidget *status_label;
-GtkWidget *progress;
+static GtkWidget *dialog;
+static GtkWidget *status_label;
+static GtkWidget *progress;
 
-GtkWidget *ok;
-GtkWidget *cancel;
+static GtkWidget *ok;
+static GtkWidget *cancel;
 
-GSList *all_doc_infos;
-GSList *doc_infos_ptr;
-int fetch_doc_count;
-int fetch_doc_cur;
+static GSList *all_doc_infos;
+static GSList *doc_infos_ptr;
+static int fetch_doc_count;
+static int fetch_doc_cur;
 
 void community_update(GtkWidget *parent) {
 	communicator_list_documents((communicator_callback_t)doc_list_fetched, NULL);
@@ -87,7 +87,7 @@ static void doc_list_fetched(char *doc_id, GSList *docs, GError *error) {
 	all_doc_infos = docs;
 	doc_infos_ptr = docs;
 
-	gtk_label_set_text(GTK_LABEL(status_label), "Fetching expressions...");
+	gtk_label_set_text(GTK_LABEL(status_label), "Fetching filters...");
 
 	// ensure community local folder exists
 	path_local = get_rc_file_name(EXPRESSIONS_COMMUNITY_DIR, 0);
@@ -118,7 +118,7 @@ static void fetch_next_doc() {
 		CouchDBDocumentInfo *doc_info = (CouchDBDocumentInfo *)doc_infos_ptr->data;
 		char *doc_id = (char *)couchdb_document_info_get_docid(doc_info);
 		doc_infos_ptr = g_slist_next(doc_infos_ptr);
-    	communicator_fetch_document(doc_id, (communicator_callback_t)doc_fetched, doc_id);
+		communicator_fetch_document(doc_id, (communicator_callback_t)doc_fetched, doc_id);
 
 	} else { // fetched all docs
 		gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progress), 1.0);
