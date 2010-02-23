@@ -633,7 +633,9 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 
     if (strncmp(name, "mathmap_", 8) == 0)
     {
-	char *exp = expression_for_symbol(name, read_expressions());
+	expression_db_t *edb = read_expressions();
+	char *exp = expression_for_symbol(name, edb);
+	free_expression_db(edb);
 
 	if (exp != 0)
 	{
