@@ -271,7 +271,7 @@ GtkWidget *mathmap_dialog_window,
     *edge_color_y_well,
     *uservalues_scrolled_window,
     *uservalues_table,
-    *filters_expression_panel,
+    *filters_expression_panel = NULL,
     *designer_expression_panel,
     *designer_widget,
     *notebook;
@@ -1364,13 +1364,15 @@ typedef struct
     double y;
 } node_and_position_t;
 
-static void
-update_expression_tree (void)
+void update_expression_tree (void)
 {
     designer_design_type_t *new_design_type;
     designer_design_t *new_design = NULL;
     int num_nodes = -1;
     node_and_position_t *positions = NULL;
+
+    if (! filters_expression_panel) // no tree
+	return;
 
     if (filters_edb != NULL)
 	free_expression_db(filters_edb);

@@ -356,6 +356,7 @@ void mathmap_message_dialog (const char *message);
 
 designer_design_type_t* make_mathmap_design_type (void);
 
+void update_expression_tree (void);
 
 void init_gettext ();
 
