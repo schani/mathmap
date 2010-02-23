@@ -46,9 +46,6 @@ fetch_expression_mathmap (expression_db_t *expr, designer_design_type_t *design_
 static expression_db_t*
 remove_expression_db (expression_db_t *edb, expression_db_t *e);
 
-static char *
-generate_expression_symbol(expression_db_t *expr);
-
 static expression_db_t*
 new_expression_db (int kind)
 {
@@ -90,7 +87,6 @@ static void fix_expression(expression_db_t *expr) {
 	    expr->meta.title = g_strdup("untitled");
 	}
     }
-    expr->symbol = generate_expression_symbol(expr);
 }
 
 // should be called only on regular files
@@ -239,9 +235,6 @@ free_expression_db (expression_db_t *edb)
     {
 	expression_db_t *next = edb->next;
 
-	if (edb->symbol)
-	    g_free(edb->symbol);
-
 	switch (edb->kind)
 	{
 	    case EXPRESSION_DB_EXPRESSION :
@@ -294,9 +287,6 @@ copy_expression (expression_db_t *edb)
     expression_db_t *copy;
 
     copy = new_expression_db(edb->kind);
-
-    if (edb->symbol)
-	copy->symbol = g_strdup(edb->symbol);
 
     switch (edb->kind)
     {
@@ -518,7 +508,7 @@ get_expression_docstring (expression_db_t *edb)
     return edb->v.expression.docstring;
 }
 
-static char *generate_expression_symbol(expression_db_t *expr) {
+char *get_expression_symbol(expression_db_t *expr) {
     int i;
     int len;
     char *symbol = NULL;
@@ -548,7 +538,6 @@ void save_expression_to_dir(expression_db_t *expr, char *dir) {
     char *ext;
     char *source;
     char *name;
-    designer_design_type_t *design_type;
 
     switch (expr->kind) {
 	case EXPRESSION_DB_EXPRESSION:

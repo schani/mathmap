@@ -494,12 +494,14 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 
 	for (expr = edb; expr != 0; expr = expr->next)
 	{
-	    char *menu;
+	    char *menu, *symbol;
 
 	    if (! expression_has_tag(expr, tag))
 		continue;
 
 	    menu = g_strdup_printf("%s/%s", tagged_menu_prefix, expr->meta.title);
+
+	    symbol = get_expression_symbol(expr);
 
 	    static GimpParamDef args[] = {
 		{ GIMP_PDB_INT32,      "run_mode",         "Interactive, non-interactive" },
@@ -518,7 +520,7 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 	    fprintf(stderr, "registering %s (%s)\n", symbol, menu);
 #endif
 
-	    gimp_install_procedure(expr->symbol,
+	    gimp_install_procedure(symbol,
 				    "Generate an image using a mathematical expression.",
 				    "Generates an image by means of a mathematical expression. The expression "
 				    "can also refer to the data of an original image. Thus, arbitrary "
@@ -536,6 +538,7 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 
 
 	    g_free(menu);
+	    g_free(symbol);
 	}
 	g_free(tagged_menu_prefix);
     }
@@ -560,7 +563,10 @@ expression_for_symbol (const char *symbol, expression_db_t *edb)
 {
     for (; edb != 0; edb = edb->next)
     {
-	if (strcmp(symbol, edb->symbol) == 0)
+	char *expr_symbol = get_expression_symbol(edb);
+	int diff = strcmp(symbol, expr_symbol);
+	g_free(expr_symbol);
+	if (diff == 0)
 	    return read_expression(edb->v.expression.path);
     }
 

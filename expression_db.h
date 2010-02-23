@@ -45,7 +45,6 @@ typedef struct _expression_metadata_t {
 
 typedef struct _expression_db_t
 {
-    char *symbol;
     int origin;
     int kind;
     expression_metadata_t meta;
@@ -86,5 +85,9 @@ extern char* get_expression_full_name (expression_db_t *expr);
 
 extern userval_info_t* get_expression_args (expression_db_t *expr, designer_design_type_t *design_type);
 extern char* get_expression_path (expression_db_t *expr);
+
+// result string must be freed by the caller
+extern char *get_expression_symbol(expression_db_t *expr);
+
 
 #endif
