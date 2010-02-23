@@ -1,7 +1,7 @@
 # @title Over
 # @tags compositing
 
-filter comp_over (image top, image bottom)
+filter org.mathmap.comp_over (image top, image bottom)
   pa = top(xy);
   ma = alpha(pa);
   pb = bottom(xy);

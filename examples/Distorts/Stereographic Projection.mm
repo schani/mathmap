@@ -3,7 +3,7 @@
 
 # by Alexander Heide <heide@ra.physik.uni-halle.de>
 # see http://www.physik.uni-halle.de/~heide/crystal/crystal.html
-pixel filter stereographic (pixel image in,
+pixel filter org.mathmap.stereographic (pixel image in,
                             float x_center: 0-2048 (200), float y_center: 0-2048 (200),
                             float distance: 0-1024 (200),
                             float zoom: -1-1 (0), bool trans_or_back (1), color background)

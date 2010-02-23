@@ -59,7 +59,7 @@
 ############################################################
 
 pixel
-filter droste (
+filter org.mathmap.droste (
     pixel image in,
     float InnerRadius: 1 - 100 (25),
     int OuterRadius: 1 - 100 (100),

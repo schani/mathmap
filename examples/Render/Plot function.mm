@@ -23,7 +23,7 @@
 #
 #########
 
-pixel filter function_plotter ()
+pixel filter org.mathmap.function_plotter ()
 
     #########
     #

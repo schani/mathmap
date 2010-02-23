@@ -1,6 +1,6 @@
 # @title Abs
 # @tags math
 
-filter math_abs (image in)
+filter org.mathmap.math_abs (image in)
   abs(in(xy))
 end

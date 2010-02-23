@@ -1,7 +1,7 @@
 # @title Fractal Noise
 # @tags render
 
-filter fractal_noise (float z: 0-10 (1.0), int depth: 1-10 (5),
+filter org.mathmap.fractal_noise (float z: 0-10 (1.0), int depth: 1-10 (5),
                       float persistence: 0-1 (0.6), float granularity: 0-50 (7.0))
 "This effects shows how to create cloud-like noise by superimposing solid noise functions with different dimensions."
     pers = persistence;

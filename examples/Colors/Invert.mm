@@ -1,7 +1,7 @@
 # @title Invert
 # @tags colors
 
-filter color_invert (image in)
+filter org.mathmap.color_invert (image in)
   p = in(xy);
   rgba:[1 - red(p), 1 - green(p), 1 - blue(p), alpha(p)]
 end

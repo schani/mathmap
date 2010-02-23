@@ -2,7 +2,7 @@
 # @tags distorts
 
 # Thanks to Carlos A. Furuti
-filter ilap (image in)
+filter org.mathmap.ilap (image in)
     c=2*asin(r/Y);
     phi =
         if r == 0 then

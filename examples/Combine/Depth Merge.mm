@@ -1,7 +1,7 @@
 # @title Depth Merge
 # @tags combine
 
-filter depth_merge (image image1, image image2, image depth1, image depth2, 
+filter org.mathmap.depth_merge (image image1, image image2, image depth1, image depth2, 
                     float overlap: 0.001-2 (1.0), float offset: -1-1 (0),
                     float scale1: -1-1 (0.5), float scale2: -1-1 (-0.5))
     d1 = gray(depth1(xy));

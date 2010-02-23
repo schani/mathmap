@@ -2,7 +2,7 @@
 # @tags blur
 
 # by tomr@aceldama.com
-filter zoom_twist (image in, int samples: 4-64 (10),
+filter org.mathmap.zoom_twist (image in, int samples: 4-64 (10),
                    float zoom: 0-1 (0.2), float twist: 0-6.2831853,
                    curve twist_at_t, curve twist_at_r,
                    curve zoom_at_t, curve zoom_at_r,

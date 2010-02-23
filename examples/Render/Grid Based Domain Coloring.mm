@@ -4,7 +4,7 @@
 # by Hans Lundmark, http://www.mai.liu.se/~halun/
 # see http://www.mai.liu.se/~halun/complex/complex.html
 
-filter grid_based_domain_coloring ()
+filter org.mathmap.grid_based_domain_coloring ()
 "Visualization of complex-valued functions by a technique called `domain coloring'.  See Hans Lundmark's page http://www.mai.liu.se/~halun/complex/complex.html"
     z = x + I*y;
     # This sets the corners of the window

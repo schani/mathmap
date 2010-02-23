@@ -3,7 +3,7 @@
 
 # Code for a simple IFS effect in mathmap
 
-filter IFS (image in,
+filter org.mathmap.IFS (image in,
             float scaling: 1-20 (1.3), float rotation: 0-6.283 (0.2),
             float translate_x: -1-1 (0.1), float translate_y: -1-1 (0.3),
             int num_iterations: 1-50 (10))

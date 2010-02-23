@@ -1,7 +1,7 @@
 # @title Dissolve
 # @tags compositing
 
-filter comp_dissolve (image in0,
+filter org.mathmap.comp_dissolve (image in0,
                       image in1,
                       float opacity: 0-1 (0.5))
   size = pixelSize(in0);

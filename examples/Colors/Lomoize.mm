@@ -1,7 +1,7 @@
 # @title Lomoize
 # @tags colors
 
-filter brightness_contrast (image in, float brightness: 0-8, float contrast: 0-8)
+filter org.mathmap.brightness_contrast (image in, float brightness: 0-8, float contrast: 0-8)
     p=in(xy);
     re=clamp(red(p)*2*brightness,0,2);
     gr=clamp(green(p)*2*brightness,0,2);
@@ -12,7 +12,7 @@ filter brightness_contrast (image in, float brightness: 0-8, float contrast: 0-8
           alpha(p)]
 end
 
-filter vignette (image in, float radius: 0-1, float hardness: 0-10)
+filter org.mathmap.vignette (image in, float radius: 0-1, float hardness: 0-10)
     dist=(toRA(xy/sqrt(2)))[0];
     if dist >= radius then
       f=(1-scale(dist,radius,1,0,1))^hardness
@@ -23,7 +23,7 @@ filter vignette (image in, float radius: 0-1, float hardness: 0-10)
 end
 
 stretched
-filter lomoize (stretched image in,
+filter org.mathmap.lomoize (stretched image in,
                 float brightness: 0-8 (1.0), float contrast: 0-8 (1.6),
                 float vignette_radius: 0-1 (0.4), float vignette_hardness: 0-10 (2.0))
   vignette(brightness_contrast(in, brightness, contrast),

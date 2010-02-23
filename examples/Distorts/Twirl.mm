@@ -1,6 +1,6 @@
 # @title Twirl
 # @tags distorts
 
-filter twirl (image in)
+filter org.mathmap.twirl (image in)
     in(ra+ra:[0,(r/R-1)*(t-0.5)*4*pi])
 end

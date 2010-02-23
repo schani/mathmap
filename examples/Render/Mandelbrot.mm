@@ -1,7 +1,7 @@
 # @title Mandelbrot
 # @tags render
 
-filter render_mandelbrot (float pj: -2-2 (0), float pk: -2-2 (0),
+filter org.mathmap.render_mandelbrot (float pj: -2-2 (0), float pk: -2-2 (0),
                           float c1: -2-2 (0), float ci: -2-2 (0),
                           float cj: -2-2 (0), float ck: -2-2 (0),
                           int num_iterations: 2-256 (32))

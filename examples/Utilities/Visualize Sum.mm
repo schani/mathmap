@@ -1,7 +1,7 @@
 # @title Visualize Sum
 # @tags utilities
 
-filter visualize_sum (image in)
+filter org.mathmap.visualize_sum (image in)
   p = in(xy);
   g = sum(p[0..2]) / 3;
   mr = if g > 0 then

@@ -2,7 +2,7 @@
 # @tags distorts
 
 # by tomr@aceldama.com
-filter radial_eversion (image in, color outside)
+filter org.mathmap.radial_eversion (image in, color outside)
     if (r > 1) then
         outside
     else

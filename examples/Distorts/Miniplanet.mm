@@ -5,7 +5,7 @@
 ## Original by Nathan de gargoyle, mangled by VMOS
 
 #REM setup controls
-pixel filter StereoNdeG (pixel image in,
+pixel filter org.mathmap.StereoNdeG (pixel image in,
                          float turn: 0-1 (0.00),
                          float zoom: 0-10 (1.00),
                          float sc: 0-4 (1),

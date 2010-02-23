@@ -1,7 +1,7 @@
 # @title Hard Light
 # @tags compositing
 
-filter comp_hard_light (image in1, image in2)
+filter org.mathmap.comp_hard_light (image in1, image in2)
   p1 = in1(xy);
   p2 = in2(xy);
   if red(p2) > 0.5 then

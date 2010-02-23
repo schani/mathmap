@@ -1,7 +1,7 @@
 # @title Curve Bend
 # @tags distorts
 
-filter curve_bend (image in, float alpha: 0-6.28318530,
+filter org.mathmap.curve_bend (image in, float alpha: 0-6.28318530,
                    curve lower, curve upper)
 "Bends or stretches an image to fit between two curves.  The `lower' curve should have values lower than the `upper' curve on all positions."
     dir = xy:[cos(alpha),sin(alpha)];

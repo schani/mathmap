@@ -2,7 +2,7 @@
 # @tags distorts
 
 # tomr@aceldama.com
-filter peel (image in, color outside)
+filter org.mathmap.peel (image in, color outside)
     if (r > 1) then
         outside
     else

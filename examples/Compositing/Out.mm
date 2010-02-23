@@ -1,6 +1,6 @@
 # @title Out
 # @tags compositing
 
-filter comp_out (image in, image stencil)
+filter org.mathmap.comp_out (image in, image stencil)
   in(xy) * (1 - alpha(stencil(xy)))
 end

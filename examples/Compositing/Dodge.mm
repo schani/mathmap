@@ -1,7 +1,7 @@
 # @title Dodge
 # @tags compositing
 
-filter comp_dodge (image in1, image in2)
+filter org.mathmap.comp_dodge (image in1, image in2)
   p1 = in1(xy);
   p2 = in2(xy);
   p2m = min(p2, rgba:[0.9999, 0.9999, 0.9999, 0.9999]);
