@@ -631,6 +631,8 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     GimpDrawable *gimp_drawable;
     int default_preview_width, default_preview_height;
 
+    init_mathmap_engine();
+
     if (strncmp(name, "mathmap_", 8) == 0)
     {
 	expression_db_t *edb = read_expressions();
@@ -681,8 +683,6 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
     output_bpp = drawable->v.gimp.bpp;
 
     gimp_drawable = get_gimp_input_drawable(drawable);
-
-    init_mathmap_engine();
 
 #ifdef THREADED_FINAL_RENDER
     pthread_mutex_init(&get_gimp_pixel_mutex, NULL);
