@@ -3,4 +3,4 @@
 (node :name "kernel_gauss" :type-name-space "org.mathmap" :type "kernel_gauss" :input-slots ():aux (:x 20.000000 :y 65.000000 ))
 (node :name "color_invert" :type-name-space "org.mathmap" :type "color_invert" :input-slots (("in" "kernel_gauss" "out" )):aux (:x 33.000000 :y 160.000000 ))
 (node :name "combine_half_convolve" :type-name-space "org.mathmap" :type "combine_half_convolve" :input-slots (("mask" "comp_addition" "out" )):aux (:x 248.000000 :y 97.000000 ))
-:name "local_contrast" :name-space "org.mathmap" :root "combine_half_convolve" )
+:name "local_contrast" :name-space "org.mathmap" :title "Local Contrast" :tags ("colors") :root "combine_half_convolve" )

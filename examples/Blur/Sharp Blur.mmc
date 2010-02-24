@@ -5,4 +5,4 @@
 (node :name "color_set_alpha" :type-name-space "org.mathmap" :type "color_set_alpha" :input-slots (("in" "util_ident" "out" )("mask" "color_brightness" "out" )):aux (:x 197.000000 :y 250.000000 ))
 (node :name "blur_gauss" :type-name-space "org.mathmap" :type "blur_gauss" :input-slots (("in" "util_ident" "out" )):aux (:x 48.000000 :y 316.000000 ))
 (node :name "comp_over" :type-name-space "org.mathmap" :type "comp_over" :input-slots (("top" "color_set_alpha" "out" )("bottom" "blur_gauss" "out" )):aux (:x 229.000000 :y 334.000000 ))
-:name "sharp_blur" :name-space "org.mathmap" :root "comp_over" )
+:name "sharp_blur" :name-space "org.mathmap" :title "Sharp Blur" :tags ("blur") :root "comp_over" )

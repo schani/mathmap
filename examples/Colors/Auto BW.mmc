@@ -3,4 +3,4 @@
 (node :name "desaturate" :type-name-space "org.mathmap" :type "desaturate" :input-slots ():aux (:x -5.000000 :y 75.000000 ))
 (node :name "comp_mix" :type-name-space "org.mathmap" :type "comp_mix" :input-slots (("in1" "gauss_blur" "out" )("in0" "desaturate" "out" )):aux (:x 299.000000 :y 78.000000 ))
 (node :name "color_contrast" :type-name-space "org.mathmap" :type "color_contrast" :input-slots (("in" "comp_mix" "out" )):aux (:x 341.000000 :y 178.000000 ))
-:name "auto_bw" :name-space "org.mathmap" :root "color_contrast" )
+:name "auto_bw" :name-space "org.mathmap" :title "Auto BW" :tags ("colors") :root "color_contrast" )
