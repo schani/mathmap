@@ -25,7 +25,7 @@ function (newDoc, oldDoc, userCtx) {
 	var oldmatch = /^org\.mathmap\.([_a-zA-Z][_0-9a-zA-Z]*)\.([_a-zA-Z][_0-9a-zA-Z]*)$/.exec (oldDoc._id);
 	log (oldmatch);
 
-	if (oldmatch [1] != userCtx.name) {
+	if (!oldmatch || oldmatch [1] != userCtx.name) {
 	    throw ({forbidden : 'cannot add or edit another user\'s filter'});
 	}
     }
