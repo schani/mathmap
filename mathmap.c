@@ -81,6 +81,7 @@
 
 #include "expression_panel.h"
 #include "communicator.h"
+#include "community_update.h"
 
 #define DEFAULT_PREVIEW_SIZE	384
 
