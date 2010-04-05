@@ -1,0 +1,21 @@
+telnet localhost 5984
+
+curl -X PUT http://localhost:5984/mathmap
+curl -X DELETE http://localhost:5984/mathmap
+
+curl -X PUT http://localhost:5984/mathmap/filter1
+
+curl -X POST http://localhost:5984/mathmap -H 'Content-Type: application/json' -d "{}"
+
+curl -X GET http://localhost:5984/mathmap/_all_docs
+
+MUST be in fuckin double quotes
+curl -X PUT -d '{"foo":"bar"}'  http://localhost:5984/mathmap/filter1
+
+/var/lib/couchdb
+
+// browser
+http://localhost:5984/_utils/
+
+curl http://localhost:5984/mathmap/_view/foodoc/byfoo
+
