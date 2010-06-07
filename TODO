@@ -1,103 +1,15 @@
 -*- org -*-
 #+FILETAGS: :mathmap:
 
-* 1.3.5
-
-** GIMP Plug-In
-*** DONE The main input image can be overwritten			:bug:
-    CLOSED: [2009-08-22 Sat 13:04]
-    Copying over uservals from one filter to the next even overwrites
-    the first image userval if the names match.  This is an issue if
-    the new filter names its first input image after a non-first input
-    image of the last filter.
-** Designer
-*** DONE The Sharp-Blur filter can't be loaded into the expression db	:bug:
-    CLOSED: [2009-08-23 Sun 12:55]
-*** DONE Filters can be included twice					:bug:
-    CLOSED: [2009-08-23 Sun 12:23]
-    When a sub-designer-filter includes a filter and the main filter
-    (or probably some other sub-filter) uses them, too, they are
-    included twice.  See Blur->Sharp Blur.
-*** DONE make order of inputs in composer deterministic		    :feature:
-    CLOSED: [2009-08-22 Sat 13:58]
-** General
-*** DONE What's =userval_t->type= for? 				   :simplify:
-    CLOSED: [2009-08-15 Sat 23:09]
-    Not needed anymore.
-
-** Packaging
-*** DONE check out Robin Norwood's spec file changes (for Fedora)
-    CLOSED: [2009-08-22 Sat 12:15]
-*** DONE update homepage				      :documentation:
-    CLOSED: [2009-08-23 Sun 14:20]
-** Filters
-*** DONE Dissolve doesn't work properly					:bug:
-    CLOSED: [2009-08-22 Sat 14:15]
-    It probably shouldn't be a pixel filter, and the opacity control
-    misses the 0 and 1 marks.
-*** DONE Remove "Addition with Opacity Native"
-** Native Filters
-*** DONE Cache convolution filters as well				:bug:
-    CLOSED: [2009-08-15 Sat 23:27]
-*** DONE Implement caching of native filter results			:bug:
-    CLOSED: [2009-08-15 Sat 22:16]
-
-** Compiler
-*** DONE Make min/max builtins use min/max ops	       :performance:simplify:
-    CLOSED: [2009-08-16 Sun 16:56]
-*** DONE The compiler should complain when two filters have the same name :bug:
-    CLOSED: [2009-08-23 Sun 12:00]
-*** DONE We still have some bugs in the coordinate transformations	:bug:
-    CLOSED: [2009-08-16 Sun 23:17]
-    This does not work as expected if the aspect ratios of in1 and in2
-    are different:
-
-    #+BEGIN_SRC mathmap
-    filter bla_ident (image in)
-      in(xy)
-    end
-
-    filter bla (image in, image in2)
-      bla_ident(in2,xy)
-    end
-    #+END_SRC
-
-    It turns out the problem here is that closures get their pixel
-    size from their first image, which is wrong.  It should always be
-    the same for all closures, namely the canvas size.
-*** DONE Still still bugs in the coordinate transformations		:bug:
-    CLOSED: [2009-08-22 Sat 11:13]
-    Doesn't work if the two images have different aspect rations:
-
-    #+BEGIN_SRC mathmap
-    stretched filter util_ident (stretched image in)
-      in(xy)
-    end
-
-    filter __composer_filter__ (image comp_burn_in1, image util_ident_in)
-      util_ident(util_ident_in, xy)
-    end
-    #+END_SRC
-
-    Actually no, this isn't a bug, but a consequence of our
-    half-hearted coordinate transformation fixes.  The stretched ident
-    filter now hands coordinates straight through to its input image,
-    but the coordinate it gets are in the aspect ratio of the main
-    filters first input image.
-*** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
-    CLOSED: [2009-08-16 Sun 00:24]
-    Most of the time is spent in GCC compiling the C code.  Without
-    the backend we compile in 0.4s, with the GCC backend in over 3s.
-    Just compiling the C code on the command-line takes about 2.5s.
-    With LLVM we're much faster - about 0.8s including the backend.
-*** DONE Gaussian Blur->Droste still has some loop issues		:bug:
-    CLOSED: [2009-08-15 Sat 22:16]
-Will be solved by [[*caching of native filter results]].
-*** DONE Gaussian Blur->Spin Zoom->Droste crashes			:bug:
-    CLOSED: [2009-08-15 Sat 22:59]
-So does Gaussian Blur->Random Blur->Droste
-
 * 1.3.6
+** GIMP Plug-In
+*** TODO Register example filters with proper plug-in arguments in GIMP :feature:
+    That would make them work with GAP, Script-Fu and other stuff.
+*** TODO MathMap crashes if a drawable is selected that was already closed in GIMP :bug:
+*** TODO Make first input image be selectable, too		    :feature:
+*** TODO Put icons into tree views				  :cosmetics:
+    http://arstechnica.com/open-source/guides/2009/08/howto-an-introduction-to-gtk-treeviews-and-autocompletion.ars
+*** TODO Sharing of filters via CouchDB				    :feature:
 ** General
 *** TODO Rework the whole coordinate-transformation thing	   :simplify:
     Use a -1 to 1 coordinate system natively, but for square pixels.
@@ -189,6 +101,7 @@ course =lazy= would only be used for expensive operations.
     CLOSED: [2009-08-16 Sun 16:39]
 *** DONE optimize =IMAGE_PIXEL_WIDTH/HEIGHT(closure)=		:performance:
     CLOSED: [2009-08-16 Sun 17:45]
+*** TODO passing of colors, curves and gradients to filters	    :feature:
 ** Testing
 *** TODO missing test cases
     For most of the missing ones it's required that
@@ -198,7 +111,12 @@ course =lazy= would only be used for expensive operations.
     When Gauss isn't given a floatmap, it renders it into a new
     floatmap, and then that floatmap is copied again.
 ** Command Line Tool
+*** TODO Make it work with multiple threads			:performance:
 *** TODO Compositions should work, too				    :feature:
+*** TODO Report error positions					    :feature:
+*** TODO Colors as definable user values			    :feature:
+** Packaging
+*** TODO Check whether tags are pushed to github
 * 1.3.x
 ** Windows
 *** TODO why does syntax highlighting not work completely in WinGimp? 	:bug:
@@ -211,9 +129,10 @@ course =lazy= would only be used for expensive operations.
     /bin is copied to /bim, neither one works there.
 *** TODO Why is random blur so slow?				:performance:
 ** GIMP Plug-In
+*** TODO Use GtkInfoBar to report error messages?		  :cosmetics:
+*** TODO Implement our own curve widget.  Use curve stuff from GEGL :feature:
 *** TODO We have a one-pixel offset between fast and slow preview again :bug:
     Just try ident filter and turn fast preview on and off.
-*** TODO MathMap crashes if a drawable is selected that was already closed in GIMP :bug:
 *** TODO speed up rendering of GIMP drawables by processing tile for tile :performance:
 *** TODO make preview input drawables to be floatmaps		      :simplify:
 *** TODO UI via GtkBuilder/Glade				      :simplify:
@@ -226,6 +145,17 @@ course =lazy= would only be used for expensive operations.
 *** TODO do we need uservals, image size in invocation when we have them in the closure? :simplify:
 
 ** Language
+*** TODO Voronoi cell function which gives distance to center	    :feature:
+    The function should return at least two numbers, namely the
+    coordinates of the center of the cell that was queried.  Ideally
+    it would also return a number "identifying" the cell, so that one
+    could for example give it a color manually via a gradient.  The
+    identifier should probably be between 0 and 1.
+
+    A better alternative to the identifier might be to get something
+    equivalent via a solid noise function, though.
+
+    The coordinates should probably be three-dimensional.
 *** TODO builtin == for tuples of length >1			       :feature:
     we'll need additional features for that in builtins.lisp
 *** TODO builtin for getting size of an image			       :feature:
@@ -286,9 +216,8 @@ end
 *** TODO do rendering multi-threaded if possible		:performance:
 
 ** Designer
+*** TODO save current user values as defaults in the design	    :feature:
 *** TODO give better error reports when loading a design fails	    :feature:
-*** TODO native filters should show up directly, without .mm filters
-    really? - why?
 *** TODO do migration with save/load				   :simplify:
 *** TODO free =widget_data= in designs 					:bug:
 *** TODO akklimatisierungsbug (bertl)					:bug:
@@ -316,9 +245,6 @@ Use some form of reference counting.
 *** TODO edge detection						    :feature:
 
 ** Command Line Tool
-*** TODO Compositions should work as well			    :feature:
-*** TODO Report error positions					    :feature:
-*** TODO Colors as definable user values			    :feature:
 *** TODO Make input drawables be floatmaps			   :simplify:
 
 * 1.3.y
@@ -363,7 +289,6 @@ Use some form of reference counting.
 *** TODO more arithmetic optimizations (like a*c1+a*c2 -> a*(c1+c2)) :performance:
     Implement [[*Generator for simplifiers][simplifier generator]] first.
 *** TODO catch duplicate filter names					:bug:
-*** TODO passing of colors, curves and gradients to filters	    :feature:
 *** TODO filter call argument checking					:bug:
 *** TODO optimization for filters which use the "current" pixel :performance:
 *** TODO Remove dead whiles					:performance:
@@ -401,6 +326,8 @@ Use some form of reference counting.
     much faster.
 
 * Links
+
+  http://aviary.com/tools/peacock
 
   http://www.sf.edu/jhlavacek/gallery.html
   http://www.mai.liu.se/~halun/complex/complex.html
@@ -702,6 +629,102 @@ defun __div (ri:2 a, ri:2 b)
     end
 end
 #+END_SRC
+* 1.3.5
+
+** GIMP Plug-In
+*** DONE The main input image can be overwritten			:bug:
+    CLOSED: [2009-08-22 Sat 13:04]
+    Copying over uservals from one filter to the next even overwrites
+    the first image userval if the names match.  This is an issue if
+    the new filter names its first input image after a non-first input
+    image of the last filter.
+** Designer
+*** DONE The Sharp-Blur filter can't be loaded into the expression db	:bug:
+    CLOSED: [2009-08-23 Sun 12:55]
+*** DONE Filters can be included twice					:bug:
+    CLOSED: [2009-08-23 Sun 12:23]
+    When a sub-designer-filter includes a filter and the main filter
+    (or probably some other sub-filter) uses them, too, they are
+    included twice.  See Blur->Sharp Blur.
+*** DONE make order of inputs in composer deterministic		    :feature:
+    CLOSED: [2009-08-22 Sat 13:58]
+** General
+*** DONE What's =userval_t->type= for? 				   :simplify:
+    CLOSED: [2009-08-15 Sat 23:09]
+    Not needed anymore.
+
+** Packaging
+*** DONE check out Robin Norwood's spec file changes (for Fedora)
+    CLOSED: [2009-08-22 Sat 12:15]
+*** DONE update homepage				      :documentation:
+    CLOSED: [2009-08-23 Sun 14:20]
+** Filters
+*** DONE Dissolve doesn't work properly					:bug:
+    CLOSED: [2009-08-22 Sat 14:15]
+    It probably shouldn't be a pixel filter, and the opacity control
+    misses the 0 and 1 marks.
+*** DONE Remove "Addition with Opacity Native"
+** Native Filters
+*** DONE Cache convolution filters as well				:bug:
+    CLOSED: [2009-08-15 Sat 23:27]
+*** DONE Implement caching of native filter results			:bug:
+    CLOSED: [2009-08-15 Sat 22:16]
+
+** Compiler
+*** DONE Make min/max builtins use min/max ops	       :performance:simplify:
+    CLOSED: [2009-08-16 Sun 16:56]
+*** DONE The compiler should complain when two filters have the same name :bug:
+    CLOSED: [2009-08-23 Sun 12:00]
+*** DONE We still have some bugs in the coordinate transformations	:bug:
+    CLOSED: [2009-08-16 Sun 23:17]
+    This does not work as expected if the aspect ratios of in1 and in2
+    are different:
+
+    #+BEGIN_SRC mathmap
+    filter bla_ident (image in)
+      in(xy)
+    end
+
+    filter bla (image in, image in2)
+      bla_ident(in2,xy)
+    end
+    #+END_SRC
+
+    It turns out the problem here is that closures get their pixel
+    size from their first image, which is wrong.  It should always be
+    the same for all closures, namely the canvas size.
+*** DONE Still still bugs in the coordinate transformations		:bug:
+    CLOSED: [2009-08-22 Sat 11:13]
+    Doesn't work if the two images have different aspect rations:
+
+    #+BEGIN_SRC mathmap
+    stretched filter util_ident (stretched image in)
+      in(xy)
+    end
+
+    filter __composer_filter__ (image comp_burn_in1, image util_ident_in)
+      util_ident(util_ident_in, xy)
+    end
+    #+END_SRC
+
+    Actually no, this isn't a bug, but a consequence of our
+    half-hearted coordinate transformation fixes.  The stretched ident
+    filter now hands coordinates straight through to its input image,
+    but the coordinate it gets are in the aspect ratio of the main
+    filters first input image.
+*** DONE Profile the compilation of Gaussian Blur->Spin Zoom->Droste :performance:
+    CLOSED: [2009-08-16 Sun 00:24]
+    Most of the time is spent in GCC compiling the C code.  Without
+    the backend we compile in 0.4s, with the GCC backend in over 3s.
+    Just compiling the C code on the command-line takes about 2.5s.
+    With LLVM we're much faster - about 0.8s including the backend.
+*** DONE Gaussian Blur->Droste still has some loop issues		:bug:
+    CLOSED: [2009-08-15 Sat 22:16]
+Will be solved by [[*caching of native filter results]].
+*** DONE Gaussian Blur->Spin Zoom->Droste crashes			:bug:
+    CLOSED: [2009-08-15 Sat 22:59]
+So does Gaussian Blur->Random Blur->Droste
+
 * Junk - file properly
 
 unload c code in openstep
