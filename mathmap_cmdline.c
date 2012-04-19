@@ -28,6 +28,7 @@
 #include <string.h>
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include <glib.h>
 
@@ -67,6 +68,8 @@ typedef struct _cache_entry_t
 static int cache_size = 16;
 static cache_entry_t *cache = 0;
 static int current_time = 0;
+
+static long num_pixels_requested = 0;
 
 static cache_entry_t*
 get_free_cache_entry (void)
@@ -129,13 +132,21 @@ bind_cache_entry_to_drawable (cache_entry_t *cache_entry, input_drawable_t *draw
 }
 
 color_t
-cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y)
+mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int frame, int x, int y)
 {
     guchar *p;
     int num_frames;
     cache_entry_t **cache_entries;
 
-    g_assert(drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE || drawable->kind == INPUT_DRAWABLE_CMDLINE_MOVIE);
+    g_assert (drawable != NULL);
+    g_assert (drawable->kind == INPUT_DRAWABLE_CMDLINE_IMAGE || drawable->kind == INPUT_DRAWABLE_CMDLINE_MOVIE);
+
+    ++num_pixels_requested;
+
+    if (x < 0 || x >= drawable->image.pixel_width)
+	return invocation->edge_color_x;
+    if (y < 0 || y >= drawable->image.pixel_height)
+	return invocation->edge_color_y;
 
     num_frames = drawable->v.cmdline.num_frames;
     cache_entries = drawable->v.cmdline.cache_entries;
@@ -181,6 +192,75 @@ cmdline_mathmap_get_pixel (mathmap_invocation_t *invocation, input_drawable_t *d
     p = cache_entries[frame]->data + 3 * (drawable->image.pixel_width * y + x);
 
     return MAKE_RGBA_COLOR(p[0], p[1], p[2], 255);
+}
+
+void
+drawable_get_pixel_inc (mathmap_invocation_t *invocation, input_drawable_t *drawable, int *inc_x, int *inc_y)
+{
+    *inc_x = *inc_y = 1;
+}
+
+gradient_t*
+get_default_gradient (void)
+{
+    /* FIXME: implement */
+    return NULL;
+}
+
+input_drawable_t*
+get_default_input_drawable (void)
+{
+    /* FIXME: implement */
+    return NULL;
+}
+
+void
+mathmap_message_dialog (const char *message)
+{
+    printf ("%s\n", message);
+}
+
+void
+save_debug_tuples (mathmap_invocation_t *invocation, int row, int col)
+{
+    /*
+    pixel_debug_info_t *info = get_pixel_debug_info(row, col);
+    int i;
+
+    info->num_debug_tuples = invocation->num_debug_tuples;
+    assert(info->num_debug_tuples <= MAX_DEBUG_TUPLES);
+
+    for (i = 0; i < info->num_debug_tuples; ++i)
+	info->debug_tuples[i] = invocation->debug_tuples[i];
+    */
+}
+
+/*
+static void
+print_tuple (tuple_t *tuple)
+{
+    const char *name = tag_name_for_number(tuple->number);
+    int i;
+
+    assert(name != 0);
+
+    printf("%s:[", name);
+    for (i = 0; i < tuple->length; ++i)
+    {
+	gchar buf[G_ASCII_DTOSTR_BUF_SIZE];
+
+	g_ascii_dtostr(buf, sizeof(buf), tuple->data[i]);
+	fputs(buf, stdout);
+	if (i + 1 < tuple->length)
+	    printf(",");
+    }
+    printf("]");
+}
+*/
+
+void
+delete_expression_marker (void)
+{
 }
 
 input_drawable_t*
@@ -461,7 +541,7 @@ usage (void)
 #define OPTION_BENCH_RENDER_COUNT		263
 
 int
-cmdline_main (int argc, char *argv[])
+main (int argc, char *argv[])
 {
     guchar *output;
     int num_frames = 1;
@@ -485,6 +565,8 @@ cmdline_main (int argc, char *argv[])
     gboolean bench_no_output = FALSE;
     gboolean bench_no_backend = FALSE;
     int compile_time_limit = DEFAULT_OPTIMIZATION_TIMEOUT;
+
+    init_gettext();
 
     for (;;)
     {
@@ -694,11 +776,14 @@ cmdline_main (int argc, char *argv[])
 	mathmap_t *mathmap;
 	mathmap_invocation_t *invocation;
 	int current_frame;
+	int i = 0;
 
-	support_paths[0] = g_strdup_printf("%s/mathmap", GIMPDATADIR);
-	support_paths[1] = g_strdup_printf("%s/.gimp-2.6/mathmap", getenv("HOME"));
-	support_paths[2] = g_strdup_printf("%s/.gimp-2.4/mathmap", getenv("HOME"));
-	support_paths[3] = NULL;
+	/*
+	support_paths[i++] = g_strdup_printf("%s/mathmap", GIMPDATADIR);
+	support_paths[i++] = g_strdup_printf("%s/.gimp-2.6/mathmap", getenv("HOME"));
+	support_paths[i++] = g_strdup_printf("%s/.gimp-2.4/mathmap", getenv("HOME"));
+	*/
+	support_paths[i] = NULL;
 
 	mathmap = compile_mathmap(script, support_paths, compile_time_limit, bench_no_backend);
 

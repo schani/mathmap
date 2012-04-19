@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <complex.h>
+
+#include <gmodule.h>
 
 #include "../compiler-internals.h"
 #include "../compiler_types.h"

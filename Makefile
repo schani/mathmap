@@ -1,15 +1,5 @@
-# If you're building on MinGW32, uncomment the following line
-#MINGW32 = YES
-
-# Uncomment this line if you want to use the LLVM backend.  This is
-# compulsory for MinGW32!
+# Uncomment this line if you want to use the LLVM backend.
 #USE_LLVM = YES
-
-# Prefix of your GIMP binaries.  Usually you can leave this line
-# commented.  If you have more than one GIMP versions installed, you
-# should give the prefix for the one which you want to build MathMap
-# for.
-#GIMP_BIN = /usr/bin/
 
 # Choose which gif library you have.
 GIFLIB = -lgif
@@ -17,10 +7,6 @@ GIFLIB = -lgif
 
 # If you are building on MacOS X, uncomment the following line
 #MACOSX = YES
-
-# If you want the final GIMP rendering to be multi-threaded then
-# uncomment the following line
-#THREADED = -DTHREADED_FINAL_RENDER
 
 # If want to have movie (Quicktime) support in the command line,
 # uncomment the following line.  Please not that this feature hasn't
@@ -35,34 +21,29 @@ PREFIX = /usr
 
 VERSION = 1.3.5
 
-CFLAGS = -O2 -Wall
-#CFLAGS = -O0 -g -Wall #-fgnu89-inline
-#DEBUG_CFLAGS := -DPRINT_FPS -DDEBUG_OUTPUT -DDONT_UNLINK_C
-
-#PROF_FLAGS := -pg
-
 ifeq ($(MACOSX),YES)
-CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -faltivec -o\""
+PKG_CONFIG=/usr/local/bin/pkg-config
+CGEN_CC=-DCGEN_CC="\"cc -O2 -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"cc -bundle -flat_namespace -undefined suppress -o\""
-MACOSX_LIBS=-lmx
-MACOSX_CFLAGS=-I/sw/include
+MACOSX_LIBS=-lmx -L/usr/X11/lib
+MACOSX_CFLAGS=-I/usr/X11/include/libpng15 -I/usr/X11/include/libpng12 -fnested-functions
 else
+PKG_CONFIG=pkg-config
 CGEN_CC=-DCGEN_CC="\"gcc -O2 -c -fPIC -o\""
 #CGEN_CC=-DCGEN_CC="\"gcc -O0 -g -c -fPIC -o\""
 CGEN_LD=-DCGEN_LD="\"gcc -shared -o\""
 endif
 
-ifeq ($(MINGW32),YES)
-MINGW_CFLAGS = -mms-bitfields -I/include
-MINGW_LDFLAGS = -lpsapi -limagehlp -mwindows
-LLVM_GCC = /local/llvm-gcc-4.2/bin/llvm-gcc
-FORMATDEFS = -DRWIMG_PNG
-FORMAT_LDFLAGS = -lpng12
-else
+#CFLAGS = -O2 -Wall
+CFLAGS = -O0 -g -Wall #-fgnu89-inline
+CFLAGS += $(MACOSX_CFLAGS) $(shell $(PKG_CONFIG) --cflags glib-2.0 gsl)
+#DEBUG_CFLAGS := -DPRINT_FPS -DDEBUG_OUTPUT -DDONT_UNLINK_C
+
+#PROF_FLAGS := -pg
+
 FORMATDEFS = -DRWIMG_JPEG -DRWIMG_PNG -DRWIMG_GIF
 FORMAT_LDFLAGS = -ljpeg -lpng $(GIFLIB)
 LLVM_GCC = llvm-gcc
-endif
 
 ifeq ($(USE_LLVM),YES)
 LLVM_CFLAGS = -DUSE_LLVM
@@ -71,9 +52,6 @@ LLVM_CXXFLAGS = `llvm-config --cxxflags`
 LLVM_OBJECTS = backends/llvm.o
 LLVM_TARGETS = llvm_template.o
 endif
-
-GTKSOURCEVIEW_CFLAGS = -DUSE_GTKSOURCEVIEW $(shell pkg-config --cflags gtksourceview-2.0)
-GTKSOURCEVIEW_LDFLAGS = $(shell pkg-config --libs gtksourceview-2.0)
 
 FFTW = fftw3
 FFTW_OBJECTS = native-filters/convolve.o
@@ -84,22 +62,13 @@ PTHREADS = -DUSE_GTHREADS
 CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 #CGEN_LDFLAGS=-Wl,--export-dynamic
 
-GIMPTOOL := $(GIMP_BIN)gimptool-2.0
-GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
-GIMPDATADIR := $(PREFIX)/share/gimp/2.0
-GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gobject-2.0 $(FFTW))
-GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gobject-2.0 $(FFTW))
-
-TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
-PIXMAP_DIR = $(GIMPDATADIR)/mathmap
+TEMPLATE_DIR = $(PREFIX)/lib/mathmap/templates
 LOCALEDIR = $(PREFIX)/share/locale
-#FIXME: does not honor PREFIX
-LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
-C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS) $(GTKSOURCEVIEW_CFLAGS)
+C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(THREADED) $(PROF_FLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS)
 MATHMAP_CFLAGS = $(C_CXX_FLAGS) -std=gnu99
 MATHMAP_CXXFLAGS = $(C_CXX_FLAGS) $(LLVM_CXXFLAGS) $(CXXFLAGS)
-MATHMAP_LDFLAGS = $(LDFLAGS) $(GIMP_LDFLAGS) $(MACOSX_LIBS) -lm -lgsl -lgslcblas libnoise/noise/lib/libnoise.a $(PROF_FLAGS) $(MINGW_LDFLAGS) $(GTKSOURCEVIEW_LDFLAGS)
+MATHMAP_LDFLAGS = $(LDFLAGS) $(MACOSX_LIBS) -lm $(PROF_FLAGS) $(shell $(PKG_CONFIG) --libs gsl glib-2.0 gmodule-2.0 gthread-2.0 fftw3)
 
 ifeq ($(MOVIES),YES)
 MATHMAP_CFLAGS += -I/usr/local/include/quicktime -DMOVIES
@@ -109,7 +78,6 @@ endif
 CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
-MATHMAP_CFLAGS += -DGIMPDATADIR=\"$(GIMPDATADIR)\"
 MATHMAP_LDFLAGS += $(FORMAT_LDFLAGS)
 
 NLS_CFLAGS = -DENABLE_NLS
@@ -122,18 +90,11 @@ CXX = g++
 
 export CFLAGS CC
 
-CURVE_OBJECTS = \
-	curve/curve_widget.o \
-	curve/gegl-curve.o
+COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o mmpools.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/cache.o compopt/dce.o compopt/resize.o compopt/licm.o compopt/simplify.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS)
 
+LIBNOISE_OBJECTS = libnoise/noise/src/noisegen.o libnoise/noise/src/module/modulebase.o libnoise/noise/src/module/perlin.o libnoise/noise/src/module/billow.o libnoise/noise/src/module/ridgedmulti.o libnoise/noise/src/module/voronoi.o
 
-COMMON_OBJECTS = mathmap_common.o builtins/builtins.o exprtree.o parser.o scanner.o vars.o tags.o tuples.o internals.o macros.o userval.o overload.o jump.o builtins/libnoise.o builtins/spec_func.o compiler.o bitvector.o expression_db.o drawable.o floatmap.o tree_vectors.o mmpools.o designer/designer.o designer/cycles.o designer/loadsave.o designer_filter.o native-filters/gauss.o native-filters/cache.o compopt/dce.o compopt/resize.o compopt/licm.o compopt/simplify.o backends/cc.o backends/lazy_creator.o $(FFTW_OBJECTS) $(LLVM_OBJECTS) $(CURVE_OBJECTS)
-#COMMON_OBJECTS += designer/widget.o
-COMMON_OBJECTS += designer/cairo_widget.o
-
-GIMP_OBJECTS = mathmap.o
-
-OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
+OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(LIBNOISE_OBJECTS)
 
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h mmpools.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
@@ -141,7 +102,7 @@ mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader 
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)
 
 librwimg :
-	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)" "CFLAGS=$(MINGW_CFLAGS)"
+	$(MAKE) -C rwimg "FORMATDEFS=$(FORMATDEFS)"
 
 liblispreader :
 	$(MAKE) -C lispreader -f Makefile.dist
@@ -152,13 +113,15 @@ libnoise :
 	cd libnoise ; patch -p1 <../libnoise-static.diff
 	cd libnoise ; patch -p1 <../libnoise-bestest.diff
 	cd libnoise ; patch -p1 <../libnoise-libtool-tags.diff
-	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(MATHMAP_LDFLAGS) -lgsl -lgslcblas
 
 %.o : %.c
 	$(CC) $(MATHMAP_CFLAGS) $(FORMATDEFS) -o $@ -c $<
+
+%.o : %.cpp
+	$(CXX) -O3 -o $@ -c $<
 
 %.mo : %.po
 	msgfmt -o $@ $<
@@ -185,7 +148,7 @@ backends/lazy_creator.o : backends/lazy_creator.cpp
 	$(CXX) $(MATHMAP_CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/lazy_creator.cpp
 
 builtins/libnoise.o : builtins/libnoise.cpp builtins/libnoise.h
-	$(CXX) $(MATHMAP_CXXFLAGS) -Ilibnoise/noise/include -o $@ -c builtins/libnoise.cpp
+	$(CXX) $(MATHMAP_CXXFLAGS) -Ilibnoise/noise/src -o $@ -c builtins/libnoise.cpp
 
 new_builtins.c opdefs.h opfuncs.h compiler_types.h llvm-ops.h compopt/simplify_func.c : builtins.lisp ops.lisp simplify.lisp
 	clisp builtins.lisp
@@ -203,15 +166,9 @@ blender.o : generators/blender/blender.c
 
 install : mathmap new_template.c $(MOS)
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -d $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins
-	install -d $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap
-	install -d $(DESTDIR)$(PREFIX)/share/gtksourceview-2.0/language-specs
 	install mathmap $(DESTDIR)$(PREFIX)/bin/mathmap
-	ln -s $(PREFIX)/bin/mathmap $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins/mathmap
 	cp new_template.c opmacros.h lispreader/pools.h $(DESTDIR)$(TEMPLATE_DIR)
 	cp pixmaps/*.png $(DESTDIR)$(PIXMAP_DIR)
-	cp mathmap.lang $(DESTDIR)$(PREFIX)/share/gtksourceview-2.0/language-specs
-	cp -r examples $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap/expressions
 	for i in $(MOS); do	\
 		lng=`echo $$i | sed "s/\.mo//"`;	\
 		install -d $(DESTDIR)$(LOCALEDIR)/$$lng/LC_MESSAGES;	\
@@ -267,22 +224,3 @@ dist : new_builtins.c parser.c new_template.c backends/lazy_creator.cpp clean
 	touch mathmap-$(VERSION)/parser.[ch] mathmap-$(VERSION)/new_builtins.c mathmap-$(VERSION)/opdefs.h mathmap-$(VERSION)/opfuncs.h mathmap-$(VERSION)/compiler_types.h
 	tar -zcvf mathmap-$(VERSION).tar.gz mathmap-$(VERSION)
 	rm -rf mathmap-$(VERSION)
-
-mingw-dist : mathmap llvm_template.o
-	rm -rf mathmap-$(VERSION)-mingw32
-	mkdir mathmap-$(VERSION)-mingw32
-	mkdir mathmap-$(VERSION)-mingw32/plug-ins
-	mkdir mathmap-$(VERSION)-mingw32/mathmap
-	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share
-	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0
-	mkdir mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/language-specs
-	cp README.windows mathmap-$(VERSION)-mingw32/README.txt
-	cp COPYING mathmap-$(VERSION)-mingw32/
-	sed "s/\$$version/$(VERSION)/g" <mathmap.iss.in >mathmap-$(VERSION)-mingw32/mathmap.iss
-	strip mathmap.exe
-	cp mathmap.exe mathmap-$(VERSION)-mingw32/plug-ins/
-	cp /bin/intl.dll /bin/libgsl.dll /bin/libgslcblas.dll /bin/libgtksourceview-2.0-0.dll /bin/libfftw3-3.dll mathmap-$(VERSION)-mingw32/plug-ins/
-	cp llvm_template.o pixmaps/*.png mathmap-$(VERSION)-mingw32/mathmap/
-	cp mathmap.lang mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/language-specs/
-	cp -a /share/gtksourceview-2.0/styles mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/
-	cp -a examples mathmap-$(VERSION)-mingw32/mathmap/expressions
