@@ -803,7 +803,7 @@ generate_plug_in (char *filter, char *output_filename,
 	return 0;
     }
 
-    compiler_generate_ir_code(mathmap->main_filter, analyze_constants, 0, -1, FALSE);
+    filter_codes = compiler_compile_filters (mathmap, -1);
 
     out = fopen(output_filename, "w");
 
@@ -821,6 +821,8 @@ generate_plug_in (char *filter, char *output_filename,
     }
 
     fclose(out);
+
+    filter_codes = NULL;
 
     compiler_free_pools(mathmap);
 
