@@ -811,7 +811,7 @@ cmdline_main (int argc, char *argv[])
 
 	    invocation->output_bpp = 4;
 
-	    output = (guchar*)malloc(invocation->output_bpp * img_width * img_height);
+	    output = (guchar*)malloc((long)invocation->output_bpp * (long)img_width * (long)img_height);
 	    assert(output != 0);
 
 #ifdef MOVIES
