@@ -84,7 +84,7 @@
 #ifdef __MINGW32__
 #define SOURCEVIEW_FONT "Courier New 10"
 #else
-#define SOURCEVIEW_FONT "Courier 10"
+#define SOURCEVIEW_FONT "DejaVu Sans Mono Book 7"
 #endif
 
 #define EXPRESSIONS_DIR         "expressions"
