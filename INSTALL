@@ -17,12 +17,14 @@ Requirements
 MathMap requires the following software packages, including
 development packages, to compile and run:
 
-  * The GIMP 2.4
+  * The GIMP 2.4 or higher
   * GSL (GNU Scientific Library), including GSL CBLAS
   * fftw3
-  * libgtksourceview
+  * libgtksourceview 2.0
   * libjpeg, libpng, libgif (preferred) or libungif
   * gettext
+  * libtool
+  * doxygen
 
 
 Configuration
