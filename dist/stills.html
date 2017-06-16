@@ -1,0 +1,206 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>MathMap Still Image Examples</title>
+  </head>
+
+  <body>
+    <h1>MathMap Examples</h1>
+
+    You can find lots of examples of MathMap generated images at
+    the very interesting and well-written
+    <a href="http://www.mai.liu.se/~halun/complex/complex.html">page
+    about visualizing complex functions</a> by Hans Lundmark.
+
+    <p>Alexander Heide has used MathMap to <a
+    href="http://www.physik.uni-halle.de/~heide/crystal/crystal.html">transform
+    x-ray images of crystals</a>.
+
+    <p>Tom Rathborne has used MathMap to generate some very <a
+    href="http://www.aceldama.com/~tomr/papers/2001/mathmap-fractals/Paper.html">unusual
+    Mandelbrot fractal images</a>.
+
+    <p>Laurent Despeyroux has a <a
+    href="http://laurent.despeyroux.free.fr/gimp/gimp.html">page with GIMP
+    tutorials</a> which make use of MathMap to create interesting effects.
+
+    <hr>
+
+    <p>The following are examples of MathMap expressions, together with
+    their effect on two images. The left one is an image of 
+    Elisa
+    Bridges (US Playmate of the Month December 1994), the right one is
+    a grid with grid size 16. All these expression are included in the
+    plug-in.
+
+    <hr>
+    The original images:
+    <br><img src="elisa_orig.jpg"><img src="grid_orig.jpg">
+
+    <hr>
+    <pre>
+origVal(xy+xy:[sin(y/6),sin(x/6)]*3)
+</pre>
+    <img src="elisa_wave.jpg"><img src="grid_wave.jpg">
+
+    <hr>
+    <pre>
+origVal(xy+xy:[5*sign(cos(y/6)),5*sign(cos(x/6))])
+</pre>
+    <img src="elisa_slice.jpg"><img src="grid_slice.jpg">
+
+    <hr>
+    <pre>
+origVal(xy*xy:[cos(pi/2/Y*y),1])
+</pre>
+    <img src="elisa_mercator.jpg"><img src="grid_mercator.jpg">
+
+    <hr> 
+    <pre>
+origVal(ra+ra:[sin(r/3)*3,0])
+</pre>
+    <img src="elisa_pond.jpg"><img src="grid_pond.jpg">
+
+    <hr> 
+    <pre>
+origVal(ra+ra:[0,-(r/R-1)*pi/5])
+</pre>
+    <img src="elisa_twirl.jpg"><img src="grid_twirl.jpg">
+
+    <hr> 
+    <pre>
+origValRA(r,a+a%0.14-0.07)
+</pre>
+    <img src="elisa_jitter.jpg"><img src="grid_jitter.jpg">
+
+    <hr> 
+    <pre>
+origValRA(r*r/R,a)
+</pre>
+    <img src="elisa_fisheye.jpg"><img src="grid_fisheye.jpg">
+
+    <hr>
+    The result of this expression depends on the gradient and on the
+    value of <tt>t</tt>.
+
+    <pre>
+gradient((gray(origVal(xy))+t)%1)
+</pre>
+    <img src="elisa_colorify.jpg">
+
+    <hr>
+    The result of this expression depends on the setting of the
+    curve.
+
+    <pre>
+p=origValXY(x,y);
+rgbaColor(curve(red(p)),curve(green(p)),curve(blue(p)),alpha(p))
+</pre>
+    <img src="elisa_gamma.jpg">
+
+    <hr>
+    As does this (there are actually two curves here and one slider).
+
+    <pre>
+alpha = user_slider("alpha",0,6.28318530);
+dir = xy:[cos(alpha),sin(alpha)];
+ndir = xy:[-dir[1],dir[0]];
+p = xy / m2x2:[dir[0],-ndir[0],
+               dir[1],-ndir[1]];
+pt = dir * p[0];\nvec = xy - pt;
+dist = -p[1] / R;
+pos = 0.5 + p[0] / R / 2;
+lower = 1 / (user_curve("lower",pos) * 4 - 2);
+upper = 1 / (user_curve("upper",pos) * 4 - 2);
+f = lower + ((dist + 1) / 2) * (upper - lower);
+origVal(pt + ndir * f * R)
+</pre>
+    <img src="elisa_curvebend.jpg"><img src="grid_curvebend.jpg">
+
+    <hr>
+    <pre>
+origVal(xy+xy:[rand(-3,3),rand(-3,3)])
+</pre>
+    <img src="elisa_scatter.jpg"><img src="grid_scatter.jpg">
+
+    <hr> 
+    <pre>
+p=origVal(xy);
+p=if inintv((a-(pi/20))%(pi/5),0,(pi/10)) then p else -p+1 end;
+if inintv(r%80,68,80) then p else -p+1 end
+</pre>
+    <img src="elisa_darts.jpg"><img src="grid_darts.jpg">
+
+    <hr>
+    <pre>
+# Thanks to Herbert Poetzl
+rd=0.9*min(X,Y);
+if r>rd then
+    rgba:[0,0,0,1]
+else
+    alpha=-(5/3)*pi; beta=(1/3)*pi; gamma=t*pi*2;
+    sa=sin(alpha);
+    sb=sin(beta);
+    ca=cos(alpha);
+    cb=cos(beta);
+    theta=a;
+    phi=acos(r/rd);
+    x0=cos(theta)*cos(phi);
+    y0=sin(theta)*cos(phi);
+    z0=sin(phi);
+    x1=ca*x0+sa*y0;
+    z1=-sa*-sb*x0+ca*-sb*y0+cb*z0;
+    if z1 >= 0 || 1 then
+        y1=cb*-sa*x0+cb*ca*y0+sb*z0
+    else
+        z1=z1-2*cb*z0;
+        y1=cb*-sa*x0+cb*ca*y0-sb*z0
+    end;
+    theta1=atan(-x1/y1)+(if y1>0 then pi/2 else 3*pi/2 end);
+    phi1=asin(z1);
+    origVal(xy:[((theta1*2+gamma)%(pi*2)-pi)/pi*X,-phi1/(pi/2)*Y])
+end
+</pre>
+    <img src="elisa_sphere.jpg"><img src="grid_sphere.jpg">
+
+    <hr>
+    This is an example of combining MathMaps alpha operation with
+    layers. The background is the image of Elisa. The second layer is
+    the grid, which has been MathMapped with the following expression:
+
+    <pre>
+origVal(xy)*rgba:[1,1,1,0]+rgba:[0,0,0,sin((r-a*6)/6+t*2*pi)*0.5+0.5]
+</pre>
+    <img src="elisa_grid_spiral.jpg">
+
+    <hr>
+    <pre>
+abs(rgba:[sin(r/4)+sin(15*a),sin(r/3.5)+sin(17*a),sin(r/3)+sin(19*a),2])*0.5
+</pre>
+    <img src="moire1.jpg">
+
+    <hr>
+    <pre>
+grayColor(sin(x*y/180*pi)*0.5+0.5)
+</pre>
+    <img src="moire2.jpg">
+
+    <hr>
+    This is a rather sick example of what is possible with
+    MathMap. This image took 7 seconds to render on my Pentium-S
+    166. The colors do of course depend on the gradient set.
+
+    <pre>
+p=ri:(xy/xy:[X,X]*1.5-xy:[0.5,0]);
+c=ri:[0,0];
+iter=0;
+while abs(c)<2 && iter<31
+do
+    c=c*c+p;
+    iter=iter+1
+end;
+gradient(iter/32)
+</pre>
+    <img src="mandelbrot.jpg">
+  </body>
+</html>

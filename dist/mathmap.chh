@@ -1,0 +1,57 @@
+#ifndef __MATHMAP_CHH__
+#define __MATHMAP_CHH__
+#include list.chh
+#include files.chh
+\
+%<mathmap=/home/schani/Work/unix/mathmap/mathmap/mathmap>\
+\
+%define(listForEach, func, lst,
+    %void(%listMap(%lambda(e, %void(%func(%&e))), %&lst))
+)\
+\
+%define(listAppend, lsts:1:,
+    %let(newlst, %list(),
+        %listForEach(%lambda(lst,
+                             %listForEach(%lambda(e, %lappend(%&newlst, %&e)), %&lst)),
+                     %&lsts)\
+        %&newlst))\
+\
+%define(invokeMathMap, script, outname, optargs, inputs,
+    %let(args, %listAppend(%list(r, %mathmap), %optargs,
+                           %listMap(%lambda(filename, -I%filename), %inputs),
+                           %list(%script, %outname)),
+         handle, %apply(%fpipe, %args),
+        %void(%frest(%&handle))\
+        %fclose(%&handle)))\
+\
+%define(convertImage, input, output,
+    %let(handle, %fpipe(r, /usr/bin/convert, -quality, 70, %input, %output),
+        %void(%frest(%&handle))\
+        %fclose(%&handle)))\
+\
+%define(filterName, script,
+    %let(regs, %list(),
+         %void(%smatch(%'filter\[ ]+([a-zA-Z0-9_]+)[ ]*[(]', %script, %&regs))%regs[1]))\
+\
+%define(createImage, script, inputs, prefixOpt:0:1,
+    %let(prefix, %if(%[%llength(%prefixOpt) == 0], %'', %prefixOpt[0]),
+         name, %filterName(%script),
+        %invokeMathMap(%script, /tmp/%<name>.png, %if(%[%llength(%inputs) == 0], %list(-o, -s256x256), %list(-i)), %inputs)\
+        %convertImage(/tmp/%<name>.png, %<prefix>%<name>.jpg)\
+    <img src="%<prefix>%<name>.jpg">))\
+\
+%define(modifyExample, script,
+    <pre>
+%script
+</pre>
+    %createImage(%script, %list(marlene_orig.jpg), marlene_)\
+    %createImage(%script, %list(grid_orig.jpg), grid_))\
+\
+%define(createExample, script,
+    %let(name, %filterName(%script),
+    <pre>
+%script
+</pre>
+    %createImage(%script, %list())))\
+\
+#endif

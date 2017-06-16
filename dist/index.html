@@ -1,0 +1,395 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>The MathMap GIMP Plug-In</title>
+  </head>
+
+  <body>
+    <center><h1>The MathMap GIMP Plug-In</h1></center>
+
+    <h2>What is it?</h2>
+
+    <blockquote>
+      MathMap is a <a href="http://www.gimp.org/">GIMP</a> plug-in
+      which allows distortion of images specified by mathematical
+      formulae. For each pixel in the generated image, an expression
+      is evaluated which should return a pixel value. The expression
+      can either refer to a pixel in the source image or can generate
+      pixels completely independent of the source.
+
+      <p>If you have any suggestions, bugs to report, expressions
+      which generate cool effects, or if you just happen to like or
+      dislike this plug-in, in other words, under any circumstances,
+      please <a href="mailto:schani@complang.tuwien.ac.at">drop me a
+      mail</a>.
+    </blockquote>
+
+    <h2><a href="screenshots.html">Screenshots</a></h2>
+
+    <h2>Examples</h2>
+
+    <blockquote>
+      <h3><a href="stills.html">Still Images</a></h3>
+
+      <h3><a href="anims.html">Animations</a></h3>
+    </blockquote>
+
+    <h2>Documentation</h2>
+
+    <blockquote>
+      <h2><a href="language.html">Language Tutorial</a></h2>
+
+      <h2><a href="reference.html">Language Reference</a></h2>
+    </blockquote>
+
+    <h2>Bugs and Deficiencies</h2>
+
+    <ul>
+      <li>The coordinate system is fixed: the origin is always at the
+	center of the image and a unit is always a pixel.
+
+      <li>Tuples are limited to a size of 9 in the interpreter.
+    </ul>
+
+<!--
+    <h2>What's to come</h2>
+
+    <ul>
+      <li>I'll try to fix all the bugs.</li>
+
+      <li>I'll let the user specify the coordinate system (origin, scale).
+
+      <li>I will make it possible for the user to modify the Examples
+	tree from within the plug-in in a user-friendly fashion.
+	
+      <li>I will add a few optimizations to the code generator.
+    </ul>
+-->
+
+    <h2>How you can contribute</h2>
+
+    <ul>
+      <li>Play around with MathMap. If you have any suggestions, mail
+        me. If you find any bugs, try to reproduce them and mail me
+	a bug report or, better yet, try to fix them yourself and mail
+	me a patch if you succeed.
+
+      <li>Write cool MathMap expressions and mail them to me.
+
+      <li>If you want a particular feature, mail me or implement it
+        yourself and send me the patch.
+    </ul>
+
+    <h2>Where to get it</h2>
+
+    <blockquote>
+      <h3>Stable Release</h3>
+
+      <blockquote>
+        The latest stable MathMap release is <a
+        href="mathmap-0.14.tar.gz">MathMap 0.14</a>.  I won't add any
+        new features to the stable branch, but will instead release
+        version 1.0.0 when I'm confident that most bugs have been
+        fixed.
+      </blockquote>
+
+      <h3>Unstable/Development Release</h3>
+
+      <blockquote>
+        The latest development release if <a
+        href="mathmap-1.1.0.tar.gz">MathMap 1.1.0</a>.  It probably
+        has lots of bugs, so use it at your own risk.
+      </blockquote>
+
+
+      <h3>Requirements</h3>
+
+      <blockquote>
+        MathMap requires the following software packages to compile:
+
+	<ul>
+	  <li><tt>bison</tt> and <tt>flex</tt>.  These are included in
+	    nearly any sane operating system distribution.
+
+	  <li><a href="http://sources.redhat.com/gsl/"><tt>GSL</tt>, the GNU Scientific Library</a>.
+
+	  <li><a href="http://www.gimp.org/">GIMP</a> 1.2 or 2.0.  The
+            last version that runs with GIMP 1.0 is <a
+            href="mathmap-0.10.tar.gz">MathMap 0.10</a>.
+        </ul>
+      </blockquote>
+    </blockquote>
+
+
+<!--
+    <h2><a name="mailinglist">Mailing List</a></h2>
+
+    <blockquote>
+      <a href="mailto:Eric Kidd <eric.kidd@pobox.com>">Eric Kidd</a> has set
+      up a mailing list for MathMap. To subscribe, send a mail to
+      <a href="mailto:majordomo@randomhacks.com">majordomo@randomhacks.com</a>
+      with the body <tt>subscribe mathmap-users</tt>.
+    </blockquote>
+-->
+
+    <h2>Legal Conditions</h2>
+
+    <blockquote>
+      The MathMap plug-in as well as this hypertext document are
+      provided under the terms of the <a href="COPYING">GNU General
+	Public Licence</a>.
+    </blockquote>
+
+    <h2>News</h2>
+
+    <blockquote>
+      <p><b>06-15-2004</b> Released version 1.1.0.
+
+      <p><b>04-19-2004</b> Released version 0.14.
+
+      <p><b>03-23-2001</b> Released version 0.13.
+
+      <p><b>09-26-2000</b> Released version 0.12.
+
+      <p><b>04-21-2000</b> Released version 0.11.
+
+      <p><b>07-13-1999</b> Released version 0.10.
+
+      <p><b>05-09-1999</b> Released version 0.9.
+
+      <p><b>04-05-1999</b> Released version 0.8.
+
+      <p><b>09-19-1998</b> Released version 0.7.
+
+      <p><b>07-13-1998</b> There is now a MathMap <a href="#mailinglist">mailing-list</a>.
+
+      <p><b>06-04-1998</b> Released version 0.6.
+
+      <p><b>03-18-1998</b> Released version 0.5.
+
+      <p><b>01-12-1998</b> Released version 0.4.
+
+      <p><b>11-21-1997</b> Released version 0.3.
+
+      <h3>Changes since 0.14</h3>
+
+      <ul>
+        <li>The compiler now does several optimizations.
+
+	<li>MathMap can now generate sequence plug-ins for <a
+          href="http://www.blender.org/">Blender</a>.
+      </ul>
+
+      <h3>Changes since 0.13</h3>
+
+      <ul>
+        <li>Compiles and runs with both GIMP 1.2 and GIMP 2.0.
+
+	<li>Comes with a Language Tutorial!
+
+	<li>Lots of new and improved examples.
+
+	<li>Features a new compiler, which doesn't yet generate better code
+	  than the old one, but offers a much better platform for future
+          improvements.
+
+	<li>MathMap now automatically uses the compiler and if that doesn't
+          work, falls back to the interpreter without user intervention.
+
+	<li>All functions now use radians instead of degrees (which is The
+          Right Thing).
+
+	<li>Compiles on MacOS X (tested with GIMP 1.2 on Fink).
+
+	<li>Bug fixes.
+      </ul>
+
+      <h3>Changes since 0.12</h3>
+
+      <ul>
+        <li>The command-line version can now read and write animations
+          in the MJPEG Quicktime format.
+
+	<li>A french translation (thanks to Laurent Despeyroux).
+
+	<li>Bug fixes.
+      </ul>
+
+      <h3>Changes since 0.11</h3>
+
+      <ul>
+        <li>Requires at least GIMP 1.1.26.
+
+	<li>MathMap now has a GIMP-independent command line version.
+
+	<li>Much improved complex arithmetic (thanks to Hans
+	  Lundmark).
+
+	<li>New/improved functions: scale, toRGBA, toHSVA, gamma,
+          sinh, cosh, tanh, asinh, acosh, atanh, arg, conj, exp (most
+          of them contributed by Hans Lundmark).
+
+	<li>Some bug fixes.
+      </ul>
+
+      <h3>Changes since 0.10</h3>
+
+      <ul>
+        <li>Requires at least GIMP 1.1.
+
+        <li>More than one input image can be specified!!!
+
+        <li>MathMap now registers all examples in the PDB.
+
+        <li>Several new/improved examples.
+
+        <li>New/improved functions: lerp, clamp, noise.
+
+        <li>Some internal changes.
+
+        <li>Fixes some bugs.
+      </ul>
+
+      <h3>Changes since 0.9</h3>
+
+      <ul>
+        <li>Expressions can now contain values which the user can
+          specify through the GUI (numbers, colors, booleans,
+          curves). This is a <b>mega-feature</b>!
+
+	<li>Pixels outside the image can now also be reflected back
+	  into the image (thanks to <a href="mailto:eric.kidd@pobox.com">Eric Kidd</a>).
+
+	<li>More matrix/vector algebra (including gaussian elimination).
+
+	<li>The positive Y-axis direction is now upwards which is clearly
+	  The Right Thing.
+
+	<li>Some minor C code generator changes which should not affect the
+	  user but easy writing of built-ins.
+
+	<li>New/improved functions: print.
+
+	<li>Some bug fixes.
+      </ul>
+
+      <h3>Changes since 0.8</h3>
+
+      <ul>
+	<li>Lots of bug fixes.
+
+	<li>Simplified build procedure.
+
+	<li>The parser is now a little more forgiving.
+
+	<li>Generalized tuple subscription.
+
+	<li>Tuple subscripts can now be assigned to (making
+	  <tt>morph</tt> obsolete).
+
+	<li>New/improved functions: <tt>det</tt>, <tt>crossp</tt>,
+	  <tt>atan</tt>, <tt>sum</tt>.
+      </ul>
+
+      <h3>Changes since 0.7</h3>
+
+      <ul>
+        <li>Now runs under both GIMP 1.0 and GIMP 1.1.
+
+        <li>Features a transparent MathMap->C compiler under
+            GIMP 1.1 boosting performance by a factor 2 to 8.
+
+        <li>Simple vector and matrix algebra.
+
+        <li>Pixels outside the image can now be either wrapped
+            or given any color (including transparency).
+      </ul>
+
+      <h3>Changes since 0.6</h3>
+
+      <ul>
+	<li>Implemented the <a href="taggedtuples.html">tagged
+	    tuples</a> type system. This is a <b>major</b> feature!
+
+	<li>Implemented better error handling by borrowing a piece of
+	  code from the current development tree of <a
+	    href="http://chakotay.ml.org/">chpp</a>.
+      </ul>
+
+      <h3>Changes since 0.5</h3>
+
+      <ul>
+	<li>Alpha channel now shows up in the preview (thanks to Andy
+	  Thomas).
+
+	<li>Added the exponentation operator (<tt>^</tt>).
+      </ul>
+
+      <h3>Changes since 0.4</h3>
+
+      <ul>
+	<li>Completely redesigned the <a href="screenshots.html">dialog</a>.
+
+	<li>Added a curve widget which allows the user to intuitively specify a
+	  function which can be accessed from the expression (<tt>curve</tt>).
+
+	<li>Added the function <tt>gradient</tt> which accesses the user-defined
+	  gradient.
+
+	<li>Made it possible to change the parameter <tt>t</tt> when
+	  not animating.
+
+	<li>Implemented a fast-preview option.
+
+	<li>Put the examples into a file which is displayed in a tree widget.
+
+	<li>Expressions are now edited in a text widget, which allows for
+	  multi-line expressions.
+
+	<li>Moved the plug-in to Filters/Generic, so as to conform to the
+	  new menu hierarchy.
+      </ul>
+
+      <h3>Changes since 0.3</h3>
+      
+      <ul>
+	<li>Added syntactic sugar for some functions (especially logical operators).
+
+	<li>Added a <tt>pow</tt> function.
+
+	<li>Support for alpha layer.
+
+	<li>Support for grayscale images.
+
+	<li>Animation capability.
+      </ul>
+
+      <h3>Changes since 0.2</h3>
+
+      <ul>
+	<li><tt>if</tt> is now a language-level construct.
+
+	<li>I have introduced <tt>while</tt> and <tt>do-while</tt> loops.
+      </ul>
+
+      <h3>Changes since 0.1</h3>
+
+      <ul>
+	<li>Fixed the bug that caused it to crash after the first preview.
+
+	<li>Added a few more functions: <tt>red</tt>, <tt>green</tt>, <tt>blue</tt> and
+	  <tt>rgbColor</tt>.
+
+	<li>Added the assignment (<tt>=</tt>) and the sequence operator (<tt>;</tt>).
+      </ul>
+    </blockquote>
+
+    <h2>The Author</h2>
+
+    <blockquote>
+      Check out <a href="/schani/">other projects</a> I'm involved
+      with!
+    </blockquote>
+
+  </body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>Tagged Tuples in MathMap</title>
+  </head>
+
+  <body>
+    <center><h1>Tagged Tuples in MathMap</h1></center>
+
+    <h2>Introduction</h2>
+
+    <blockquote>
+      I herein propose a type system for the
+      <a href="index.html">MathMap GIMP Plug-In</a>, which will solve most
+      of the shortcomings of the current system.
+
+      I sincerely ask you to <a href="mailto:schani@complang.tuwien.ac.at">mail me</a>
+      what you think about this proposal,
+      especially if you find any weaknesses in the system, so that I can
+      revise the design before I begin implementing it.
+    </blockquote>
+
+    <h2>Motivation</h2>
+
+    <blockquote>
+      MathMap has no type system: everything is treated as a double
+      precision floating point number, be it a multiplication factor, a
+      coordinate or a color. While this has the obvious advantages of
+      being easy to implement and of being reasonably efficient, it has
+      some several drawbacks:
+
+      <ul>
+	<li>It is inflexible. The GIMP is planned to have more types of samples
+	  than just 8 bit integer. It is impossible to incorporate four (RGBA) single
+	  precision floating point numbers in one double precision number without losing
+	  accuracy.
+
+	<li>It does not provide suitable levels of abstraction. If I decided to
+	  provide HSV support in MathMap, the HSV values had to be treated using
+	  different functions than the RGB values, i.e. I had to provide two functions
+	  to extract the brightness of a pixel: one for RGB pixels and one for
+	  HSV pixels. The other approach I could chose is to provide conversion
+	  functions from HSV to RGB and vice versa. Both solutions incur overhead
+	  to the user.
+
+	<li>It is sometimes awkward to use. In order to make a pixel darker, one has
+	  to write <tt>rgbColor(red(p)*f,green(b)*f,blue(p)*f)</tt>.
+	  It should ideally be possible to do the same with <tt>p*f</tt>.
+      </ul>
+    </blockquote>
+
+    <h2>The Solution</h2>
+
+    <blockquote>
+      I propose to implement a simple type system in MathMap, providing
+      tupes of floating point numbers of arbitrary length with
+      associated tags. Such tagges tuples can be composed, decomposed,
+      passed as values to functions, returned by functions and converted
+      to tuples of another type. Simple numbers are represented as tuples
+      of length 1.
+
+      Values which are represented as types are pixels (RGB, HSV),
+      coordinates (cartesian, polar), vectors for scalar operations
+      (addition, multiplication) and simple numbers.
+    </blockquote>
+
+    <h2>The Tags</h2>
+
+    <blockquote>
+      Tags are needed in order to distinguish types, like RGB and HSV
+      pixels. The special tag <tt>nil</tt> is used to denote numbers
+      or vectors which are used for scalar operations.
+    </blockquote>
+    
+    <h2>The Syntax</h2>
+
+    <blockquote>
+      Constructing a tagged tuple is as simple as writing a number:
+      <tt>0</tt> constructs a tuple of length 1 with the tag
+      <tt>nil</tt>. Tuple of other lengths can be constructed using a
+      vector notation: <tt>[1,2]</tt> constructs a tuple of length two
+      with the tag <tt>nil</tt>. In order to give a tuple a tag other
+      than <tt>nil</tt>, the casting operator <tt>:</tt> must be used:
+      the expression <tt>xy:[3,4]</tt> returns a tuple with the tag
+      <tt>xy</tt>.
+    </blockquote>
+
+    <h2>Polymorphism</h2>
+
+    <blockquote>
+      Overloaded functions and operators can be selected based on the
+      tags of their operands.
+
+      Example: In order to fetch the value of a pixel in the original
+      image, only one function, <tt>origVal</tt> would be needed, which,
+      depending on the tag of its operand would do a lookup in either
+      the cartesian or the polar coordinate system.
+
+      Likewise, arithmetic operators can be overloaded to do
+      e.g. complex arithmetic for polar coordinates. The special case of
+      at least one operand having the tag <tt>nil</tt> is resolved by
+      element-wise application of the operator if the tuples have the
+      same length, or the <tt>nil</tt>-tuple has length 1. Example: the
+      angular part of a polar coordinate can be incremented by one
+      through addition of the <tt>nil</tt>-tuple <tt>[0,1]</tt>, i.e.
+      <tt>ri:[2,3]+[0,1]</tt> yields <tt>ri:[2,4]</tt>, while
+      <tt>xy:[1,2]*2</tt> has the result <tt>xy:[2,4]</tt>.
+    </blockquote>
+
+    <h2>Tag conversion</h2>
+
+    <blockquote>
+      A second operator, namely the conversion operator (<tt>::</tt>) is
+      introduced. It converts a tuple with one tag to a tuple with
+      another tag. To convert polar to cartesian coordinates, one would
+      write <tt>xy::(ra:[1,2])</tt>.
+    </blockquote>
+
+    <h2>Efficiency</h2>
+
+    <blockquote>
+      There are two bottlenecks for the efficiency of MathMap: the GIMP
+      plug-in interface and the stack-machine interpreter. While tagged
+      tuples have no effect on the former, they do affect the
+      latter. The performance of an evaluation by the interpreter
+      depends mainly on the number of instructions the interpreter has
+      to execute. Since tagged tuples can perform operations in one
+      instruction which would now require more than one instruction,
+      performance is likely to increase.
+
+      While a performance penalty could result from resolving
+      polymorphism, I avoid this penalty by requiring that the tuple
+      tags and lengths of all expressions can be determined statically.
+      This means that expressions like <tt>if condition then [1,2] else
+	[3,4,5] end</tt> are illegal.
+    </blockquote>
+
+  </body>
+</html>

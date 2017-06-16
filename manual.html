@@ -1,0 +1,668 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>The MathMap Language Reference Manual</title>
+  </head>
+
+  <body>
+    <center><h1>The <a href="http://www.complang.tuwien.ac.at/schani/mathmap/">MathMap</a> Language Reference Manual</h1></center>
+
+    <h2>Filter Syntax</h2>
+
+    <blockquote>
+      <p><em>options</em> <tt>filter</tt> <em>name</em> <tt>(</tt><em>user values</em></tt>)</tt><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<em>expression</em><br>
+      <tt>end</tt>
+
+      <p><em>options</em> can be zero or more options for the filter.
+        They are discussed in detail <a href="#options">below</a>.
+
+      <p>The <em>name</em> of the filter can be an arbitrary
+        identifier (identifiers can contain letters, digits and the
+        underscore and must not begin with a digit).
+
+      <p>The <em>user values</em> must be separated by commas.  Any
+        number of user values can be specified.  See <a href="#userValues">below</a> for a detailed
+        discussion of user values.
+    </blockquote>
+
+    <h2><a name="userValues">User Values</a></h2>
+
+    <blockquote>
+      <dl>
+        <dt><tt>float</tt> <em>name</em><tt>:</tt> <em>min</em><tt>-</tt><em>max</em> <tt>(</tt><em>default</em><tt>)</tt>
+        <dd>A tuple of type <tt>nil:1</tt> with the value of a floating point number
+          chosen in the range from <em>min</em> to <em>max</em>.  The default
+          value is <em>default</em>.
+
+        <dt><tt>int</tt> <em>name</em><tt>:</tt> <em>min</em><tt>-</tt><em>max</em> <tt>(</tt><em>default</em><tt>)</tt>
+        <dd>A tuple of type <tt>nil:1</tt> with the value of an integer
+          chosen in the range from <em>min</em> to <em>max</em>.  The default
+          value is <em>default</em>.
+
+        <dt><tt>bool</tt> <em>name</em>
+        <dd>A tuple of type <tt>nil:1</tt> with the value <tt>0</tt> or <tt>1</tt>.
+
+	<dt><tt>color</tt> <em>name</em>
+        <dd>A tuple of type <tt>rgba:4</tt>, representing a color.
+
+        <dt><tt>curve</tt> <em>name</em>
+        <dd>A function taking a single argument between <tt>0</tt> and <tt>1</tt> and returning
+          the value of the corresponding point on the curve, also between <tt>0</tt> and <tt>1</tt>.
+
+        <dt><tt>gradient</tt> <em>name</em>
+        <dd>A function taking a single argument between <tt>0</tt> and <tt>1</tt> and returning
+          the color at that point as a tuple of type <tt>rgba:4</tt>.
+
+        <dt><em>options</em> <tt>image</tt> <em>name</em>
+        <dd>A function taking a single argument of type <tt>xy:2</tt> or <tt>ra:2</tt> and returning
+          the color of the point with those coordinates in the image as a tuple of type <tt>rgba:4</tt>.
+          <em>options</em> can be left out or it can be the <tt>square</tt> option, discussed <a href="#options">below</a>.
+      </dl>
+    </blockquote>
+
+    <h2><a name="options">Options</a></h2>
+
+    <blockquote>
+    </blockquote>
+
+    <h2>The Type System</h2>
+
+    <blockquote>
+      <p>Every value in MathMap is a tagged tuple. This means it
+	consists of one or more numbers and a symbolic tag. RGBA colors, for example are
+	represented by tuples of length 4 with the tag <tt>rgba</tt>
+	(standing for "red, green, blue, alpha"). The value
+	<tt>rgba:[1,0,0,1]</tt> for example, represents the fully
+	opaque color red.
+
+      <p>Single numbers are represented by tuples of length 1 with
+	the tag <tt>nil</tt> (which is the default tag). For 
+	simplicity's sake, single numbers need not be written in tuple
+	syntax, i.e. <tt>3.1415</tt> is equivalent to
+	<tt>nil:[3.1415]</tt>.
+
+      <p>There are several other tuple tags which are used by
+	MathMap:
+
+      <table>
+	<tr><td><b>Tag</b>    <td><b>Purpose</b></tr>
+	<tr><td><tt>nil</tt>  <td>Default tag</tr>
+	<tr><td><tt>rgba</tt> <td>RGBA Color</tr>
+	<tr><td><tt>hsva</tt> <td>HSVA Color</tr>
+	<tr><td><tt>ri</tt>   <td>Complex number</tr>
+	<tr><td><tt>xy</tt>   <td>Cartesian coordinate</tr>
+	<tr><td><tt>ra</tt>   <td>Polar coordinate</tr>
+	<tr><td><tt>v2</tt>   <td>2d vector</tr>
+	<tr><td><tt>v3</tt>   <td>3d vector</tr>
+	<tr><td><tt>m2x2</tt> <td>2x2 matrix</tr>
+	<tr><td><tt>m3x3</tt> <td>3x3 matrix</tr>
+      </table>
+
+      <p>In order for the tag system to make sense, operators and
+	functions are overloaded based on the types of their
+	arguments.  For this to work at compile time, types
+	must be statically determined.  That means that any expression
+	must have only one possible type, e.g. the expression <tt>if x
+	then abc:[1,2,3] else xyz:[4,5] end</tt> is not valid.
+	Furthermore, all assignments to the same variable must have
+	the same type.  Hence, <tt>v=[1,2];v=[1,2,3]</tt> is not
+	valid.
+
+      <p>Tuple types are expressed in this manual in the form
+	<tt>T:L</tt> where <tt>T</tt> is the tag and <tt>L</tt> is the
+	length, e.g. <tt>rgba:[1,0,0,1]</tt> has the type
+	<tt>rbga:4</tt>.
+
+      <p>Elements of tuples can be extracted by the indexing
+	operator <tt>[]</tt>. The expression <tt>p[0]</tt>, for
+	example, extracts the first element of <tt>p</tt> and is of
+	type <tt>nil:1</tt>.
+
+    </blockquote>
+
+    <h2>Constants and Internal Variables</h2>
+
+    <blockquote>
+      A few variables are set for the position of the pixel to be
+      calculated:
+
+      <dl>
+	<dt><tt>xy</tt> (<tt>xy:2</tt>)
+	<dd>The cartesian coordinates of the pixel.
+
+	<dt><tt>x</tt> (<tt>nil:1</tt>)
+	<dd>The first component of the cartesian coordinates of the pixel.
+
+	<dt><tt>y</tt> (<tt>nil:1</tt>)
+	<dd>The second component of the cartesian coordinates of the pixel.
+
+	<dt><tt>ra</tt> (<tt>ra:2</tt>)
+	<dd>The polar coordinates of the pixel.
+
+	<dt><tt>r</tt> (<tt>nil:1</tt>)
+	<dd>The first component of the polar coordinates of the pixel
+	  (<tt>0 &lt;= r &lt; 2*pi</tt>).
+
+	<dt><tt>a</tt> (<tt>nil:1</tt>)
+	<dd>The second component of the polar coordinates of the pixel
+	  (the distance from the center).
+      </dl>
+
+      To make it easier to write expressions which depend on the
+      image size, a few additional variables are set:
+
+      <dl>
+	<dt><tt>WH</tt> (<tt>xy:2</tt>)
+	<dd>The size of the image.
+
+	<dt><tt>W</tt> (<tt>nil:1</tt>)
+	<dd>The width of the image.
+
+	<dt><tt>H</tt> (<tt>nil:1</tt>)
+	<dd>The height of the image.
+
+	<dt><tt>R</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>r</tt> in the image, which
+	  it has at the four corners.
+
+	<dt><tt>XY</tt> (<tt>xy:2</tt>)
+	<dd>The biggest possible value (in both components) for
+	  <tt>xy</tt>.
+
+	<dt><tt>X</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>x</tt> for the image.
+
+	<dt><tt>Y</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>y</tt> for the image.
+      </dl>
+
+      For the purpose of animations two additional variable are set:
+
+      <dl>
+	<dt><tt>t</tt> (<tt>nil:1</tt>)
+	<dd>The time which is <tt>0 &lt;= t &lt; 1</tt>.  If animation
+	is disabled, the value of <tt>t</tt> can be chosen in the
+	Settings tab. If you want to make animations loop, set the
+	'Periodic' check-box in the Settings tab and make sure that the
+	images at <tt>t == 0</tt> and <tt>t == 1</tt> are the same.
+
+	<dt><tt>frame</tt> (<tt>nil:1</tt>)
+	<dd>The number of the current frame, beginning with <tt>0</tt>
+	for the first frame.
+      </dl>
+
+    </blockquote>
+
+    <h2>Mathematical Constants</h2>
+
+    <blockquote>
+
+      MathMap defines a few mathematical constants to make your life easier:
+
+      <dl>
+        <dt><tt>pi</tt> (<tt>nil:1</tt>)
+        <dd>3.1415926535...</dd>
+
+        <dt><tt>e</tt> (<tt>nil:1</tt>)
+        <dd>Euler's constant 2.7182818284...</dd>
+
+        <dt><tt>I</tt> (<tt>ri:2</tt>)
+        <dd>The imaginary unit <tt>ri:[0,1]</tt>
+      </dl>
+
+    </blockquote>
+
+    <h2>Conditionals and Loops</h2>
+
+    <blockquote>
+      <p>Conditions and invariants are always expected to evaluate to tuples of
+        length 1.
+
+      <blockquote>
+	<dl>
+	  <dt><tt>if</tt> <em>condition</em> <tt>then</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>consequence</em><br>
+            <tt>end</tt>
+	  <dd>Returns the value of <em>consequence</em> if the value of
+	    <em>condition</em> is not <tt>0</tt>, <tt>0</tt> otherwise.
+	</dl>
+
+	<dl>
+	  <dt><tt>if</tt> <em>condition</em> <tt>then</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>consequence</em><br>
+            <tt>else</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>alternative</em><br>
+            <tt>end</tt>
+	  <dd>Returns the value of <em>consequence</em> if the value of
+	    <em>condition</em> is not <tt>0</tt>, otherwise the value of
+	    <em>alternative</em>.
+	</dl>
+
+	<dl>
+	  <dt><tt>while</tt> <em>invariant</em> <tt>do</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>body</em><br>
+            <tt>end</tt>
+	  <dd>While <em>invariant</em> is not <tt>0</tt>, executes
+	    <em>body</em>, then returns <tt>0</tt>.
+	</dl>
+
+	<dl>
+	  <dt><tt>do</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>body</em><br>
+            <tt>while</tt> <em>invariant</em> <tt>end</tt>
+	  <dd>Executes <em>body</em> until <em>invariant</em> is not equal
+	    <tt>0</tt>, then returns <tt>0</tt>.
+	</dl>
+      </blockquote>
+    </blockquote>
+
+    <h2>Operators and Functions</h2>
+
+    <blockquote>
+      <p>Operators and functions in MathMap are overloaded based on
+        the number and tuple types of their arguments.  The reference
+        enumerates all the ways in which operators and functions are
+        overloaded by giving the argument and return types like this:
+        <tt>(v3:3, m3x3:9) -> v3:3</tt>.  This particular example
+        describes a function taking two arguments, the first of length
+        3 with the tag <tt>v3</tt> and the second of length 9 with the
+        tag <tt>m3x3</tt>, and returning a tuple of length 3 with the
+        tag <tt>v3</tt>.
+
+      <p>Most overloading specifications are parametric, though, in
+        that the length and/or tag of the tuples is not fixed, like
+        here: <tt>(?t:1, ?t:1) -> ?t:1</tt>.  The question mark
+        indicates a parametric variable (in this case <tt>?t</tt>,
+        whose value is arbitrary, but which must have the same value
+        wherever it occurs.  Here the function takes two arguments,
+        both of length 1 and both having the same, but arbitrary, tag.
+        It returns a tuple of length 1 with that very same tag.
+        Parametric variables denoted just by a question mark, without
+        any symbolic name, are arbitrary and independent of all other
+        parametric variables, i.e. two sole question marks can have
+        different values.
+
+<a name="func___add"></a><h2><tt>a + b</tt></h2>
+<blockquote><blockquote><tt>(ri:2, ri:2) -> ri:2</tt><br>
+<tt>(ri:2, ?:1) -> ri:2</tt><br>
+<tt>(?:1, ri:2) -> ri:2</tt><br>
+<tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l, ?:1) -> ?t:?l</tt><br>
+<tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Addition.  Works on real numbers, complex numbers and tuples.
+Tuples can be added element-wise or the same real number can be added
+to each element of a tuples.</blockquote>
+<a name="func___and"></a><h2><tt>a && b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>The logical conjunction of the two arguments.</blockquote>
+<a name="func___div"></a><h2><tt>a / b</tt></h2>
+<blockquote><blockquote><tt>(ri:2, ri:2) -> ri:2</tt><br>
+<tt>(?t:1, ri:2) -> ri:2</tt><br>
+<tt>(?:2, m2x2:4) -> v2:2</tt><br>
+<tt>(?:3, m3x3:9) -> v3:3</tt><br>
+<tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l, ?:1) -> ?t:?l</tt><br>
+<tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Division.  Works on real numbers, complex numbers, tuples, vectors
+and matrices.  A tuple can be divided by another element-wise or by
+the same number for each element.  Vectors can be divided by
+matrices.</blockquote>
+<a name="func___equal"></a><h2><tt>a == b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Returns 1 if the arguments are equal, otherwise 0.</blockquote>
+<a name="func___greater"></a><h2><tt>a > b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Returns 1 if <tt>a</tt> is greater than <tt>b</tt>, otherwise 0.</blockquote>
+<a name="func___greaterequal"></a><h2><tt>a >= b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>
+Returns 1 if <tt>a</tt> is greater or equal than <tt>b</tt>,
+otherwise 0.</blockquote>
+<a name="func___less"></a><h2><tt>a < b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Returns 1 if <tt>a</tt> is less than <tt>b</tt>, otherwise 0.</blockquote>
+<a name="func___lessequal"></a><h2><tt>a <= b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>
+Returns 1 if <tt>a</tt> is less or equal than <tt>b</tt>, otherwise
+0.</blockquote>
+<a name="func___mod"></a><h2><tt>a % b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l, ?:1) -> ?t:?l</tt><br>
+<tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Remainder.  Calculates the remainder of a division.  Works on real
+numbers and tuples.  The remainder can be calculated for two tuples
+element-wise or for one tuple and the same number for each element of
+the tuple.</blockquote>
+<a name="func___mul"></a><h2><tt>a * b</tt></h2>
+<blockquote><blockquote><tt>(ri:2, ri:2) -> ri:2</tt><br>
+<tt>(?:1, ri:2) -> ri:2</tt><br>
+<tt>(m2x2:4, m2x2:4) -> m2x2:4</tt><br>
+<tt>(m3x3:9, m3x3:9) -> m3x3:9</tt><br>
+<tt>(v2:2, m2x2:4) -> v2:2</tt><br>
+<tt>(v3:3, m3x3:9) -> v3:3</tt><br>
+<tt>(m2x2:4, v2:2) -> v2:2</tt><br>
+<tt>(m3x3:9, v3:3) -> v3:3</tt><br>
+<tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l, ?:1) -> ?t:?l</tt><br>
+<tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Multiplication.  Works on real numbers, complex numbers, tuples,
+vectors and matrices.  Two tuples can be multiplied element-wise or a
+tuple can be multipled by a single number for each element.  Vectors
+and matrices can be multipled in both directions and two matrices can
+be multipled as well.</blockquote>
+<a name="func___neg"></a><h2><tt>-x</tt></h2>
+<blockquote><blockquote><tt>(?t:?l) -> ?t:?l</tt><br>
+</blockquote>Negation.</blockquote>
+<a name="func___not"></a><h2><tt>!a</tt></h2>
+<blockquote><blockquote><tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>The logical negation of the argument.</blockquote>
+<a name="func___notequal"></a><h2><tt>a != b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Returns 1 if the arguments are not equal, otherwise 0.</blockquote>
+<a name="func___or"></a><h2><tt>a || b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>The logical disjunction of the two arguments.</blockquote>
+<a name="func___pow"></a><h2><tt>a ^ b</tt></h2>
+<blockquote><blockquote><tt>(ri:2, ?t:1) -> ri:2</tt><br>
+<tt>(ri:2, ri:2) -> ri:2</tt><br>
+<tt>(?t:1, ri:2) -> ri:2</tt><br>
+<tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l, ?:1) -> ?t:?l</tt><br>
+</blockquote>
+Exponentiation of real and complex numbers and tuples.  A tuple can
+be exponentiated for each element by a single number.</blockquote>
+<a name="func___sub"></a><h2><tt>a - b</tt></h2>
+<blockquote><blockquote><tt>(ri:2, ri:2) -> ri:2</tt><br>
+<tt>(ri:2, ?:1) -> ri:2</tt><br>
+<tt>(?:1, ri:2) -> ri:2</tt><br>
+<tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l, ?:1) -> ?t:?l</tt><br>
+<tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Subtraction.  Works on real numbers, complex numbers and tuples.
+One tuple can be subtracted from another element-wise or the same real
+number can be subtracted from each element of a tuple.</blockquote>
+<a name="func___xor"></a><h2><tt>a xor b</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>The logical exclusive disjunction of the two arguments.</blockquote>
+<a name="func_abs"></a><h2><tt>abs(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> nil:1</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+<tt>(?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Absolute value of real numbers, complex numbers (magnitude) and
+vectors (Euclidian norm).</blockquote>
+<a name="func_acos"></a><h2><tt>acos(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Arccosine of real and complex numbers.</blockquote>
+<a name="func_acosh"></a><h2><tt>acosh(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Hyperbolic arccosine of real and complex numbers.</blockquote>
+<a name="func_alpha"></a><h2><tt>alpha(c)</tt></h2>
+<blockquote><blockquote><tt>(rgba:4) -> nil:1</tt><br>
+</blockquote>The alpha (opacity) component of the color <tt>c</tt>.</blockquote>
+<a name="func_arg"></a><h2><tt>arg(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> nil:1</tt><br>
+</blockquote>The argument of a complex number.</blockquote>
+<a name="func_asin"></a><h2><tt>asin(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Arcsine of real and complex numbers.</blockquote>
+<a name="func_asinh"></a><h2><tt>asinh(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Hyperbolic arcsine of real and complex numbers.</blockquote>
+<a name="func_atan"></a><h2><tt>atan(y, x)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>
+Arctangent of <tt>y/x</tt>, with the signs of the arguments taken
+into account to determine the correct quadrant of the result.</blockquote>
+<a name="func_atan"></a><h2><tt>atan(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Arctangent of real and complex numbers.</blockquote>
+<a name="func_atanh"></a><h2><tt>atanh(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Hyperbolic arctangent of real and complex numbers.</blockquote>
+<a name="func_beta"></a><h2><tt>beta(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>The complete beta function for positive real arguments.</blockquote>
+<a name="func_blue"></a><h2><tt>blue(c)</tt></h2>
+<blockquote><blockquote><tt>(rgba:4) -> nil:1</tt><br>
+</blockquote>The blue component of the color <tt>c</tt>.</blockquote>
+<a name="func_ceil"></a><h2><tt>ceil(a)</tt></h2>
+<blockquote><blockquote><tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>
+The ceiling of a number, defined as the smallest integer not
+greater than that number.</blockquote>
+<a name="func_clamp"></a><h2><tt>clamp(a, l, u)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l, ?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Clamp each element of tuple <tt>a</tt> to be not less than the
+corresponding element in <tt>l</tt> and not greater than the
+corresponding element in <tt>u</tt>.</blockquote>
+<a name="func_conj"></a><h2><tt>conj(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+</blockquote>The complex conjugate.</blockquote>
+<a name="func_cos"></a><h2><tt>cos(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Cosine of real and complex numbers.</blockquote>
+<a name="func_cosh"></a><h2><tt>cosh(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Hyperbolic cosine of real and complex numbers.</blockquote>
+<a name="func_crossp"></a><h2><tt>crossp(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:3, ?t:3) -> ?t:3</tt><br>
+</blockquote>Cross product of two tuples/vectors with three elements.</blockquote>
+<a name="func_deg2rad"></a><h2><tt>deg2rad(a)</tt></h2>
+<blockquote><blockquote><tt>(?:1) -> nil:1</tt><br>
+</blockquote>Convert degrees to radians.</blockquote>
+<a name="func_det"></a><h2><tt>det(a)</tt></h2>
+<blockquote><blockquote><tt>(m2x2:4) -> nil:1</tt><br>
+<tt>(m3x3:9) -> nil:1</tt><br>
+</blockquote>Determinant of a matrix.</blockquote>
+<a name="func_dotp"></a><h2><tt>dotp(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l, ?t:?l) -> nil:1</tt><br>
+</blockquote>Dot product of two tuples/vectors.</blockquote>
+<a name="func_ell_int_D"></a><h2><tt>ell_int_D(phi, k, n)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral D in Legendre form.</blockquote>
+<a name="func_ell_int_E"></a><h2><tt>ell_int_E(phi, k)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral E in Legendre form.</blockquote>
+<a name="func_ell_int_Ecomp"></a><h2><tt>ell_int_Ecomp(k)</tt></h2>
+<blockquote><blockquote><tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Complete elliptic integral E in Legendre form.</blockquote>
+<a name="func_ell_int_F"></a><h2><tt>ell_int_F(phi, k)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral F in Legendre form.</blockquote>
+<a name="func_ell_int_Kcomp"></a><h2><tt>ell_int_Kcomp(k)</tt></h2>
+<blockquote><blockquote><tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Complete elliptic integral K in Legendre form.</blockquote>
+<a name="func_ell_int_P"></a><h2><tt>ell_int_P(phi, k, n)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral P in Legendre form.</blockquote>
+<a name="func_ell_int_RC"></a><h2><tt>ell_int_RC(x, y)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral RC in Carlson form.</blockquote>
+<a name="func_ell_int_RD"></a><h2><tt>ell_int_RD(x, y, z)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral RD in Carlson form.</blockquote>
+<a name="func_ell_int_RF"></a><h2><tt>ell_int_RF(x, y, z)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral RF in Carlson form.</blockquote>
+<a name="func_ell_int_RJ"></a><h2><tt>ell_int_RJ(x, y, z, p)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>Incomplete elliptic integral RJ in Carlson form.</blockquote>
+<a name="func_ell_jac_cn"></a><h2><tt>ell_jac_cn(u, m)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(ri:2, ?:1) -> ri:2</tt><br>
+</blockquote>Jacobian elliptic function cn for real and complex arguments.</blockquote>
+<a name="func_ell_jac_dn"></a><h2><tt>ell_jac_dn(u, m)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(ri:2, ?:1) -> ri:2</tt><br>
+</blockquote>Jacobian elliptic function dn for real and complex arguments.</blockquote>
+<a name="func_ell_jac_sn"></a><h2><tt>ell_jac_sn(u, m)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+<tt>(ri:2, ?:1) -> ri:2</tt><br>
+</blockquote>Jacobian elliptic function sn for real and complex arguments.</blockquote>
+<a name="func_exp"></a><h2><tt>exp(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>
+The natural exponential function <b>e^x</b> for real and complex
+numbers.</blockquote>
+<a name="func_floor"></a><h2><tt>floor(a)</tt></h2>
+<blockquote><blockquote><tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>
+The floor of a number, defined as the largest integer not greater
+than that number.</blockquote>
+<a name="func_gamma"></a><h2><tt>gamma(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>The gamma function for real and complex numbers.</blockquote>
+<a name="func_gray"></a><h2><tt>gray(c)</tt></h2>
+<blockquote><blockquote><tt>(rgba:4) -> nil:1</tt><br>
+</blockquote>The luminance value of the color <tt>c</tt>.</blockquote>
+<a name="func_grayColor"></a><h2><tt>grayColor(g)</tt></h2>
+<blockquote><blockquote><tt>(?t:1) -> rgba:4</tt><br>
+</blockquote>
+Returns a fully opaque gray RGBA color with luminance <tt>g</tt>,
+i.e. <tt>rgba:[g,g,g,1]</tt>.</blockquote>
+<a name="func_grayaColor"></a><h2><tt>grayaColor(g, a)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> rgba:4</tt><br>
+</blockquote>
+Returns a gray RGBA color with luminance <tt>g</tt> and alpha
+component <tt>a</tt>, i.e. <tt>rgba:[g,g,g,a]</tt>.</blockquote>
+<a name="func_green"></a><h2><tt>green(c)</tt></h2>
+<blockquote><blockquote><tt>(rgba:4) -> nil:1</tt><br>
+</blockquote>The green component of the color <tt>c</tt>.</blockquote>
+<a name="func_inintv"></a><h2><tt>inintv(a, l, u)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>
+Returns 1 if <tt>a</tt> lies in the interval defined by the lower
+bound <tt>l</tt> and the upper bound <tt>u</tt>, otherwise 0.</blockquote>
+<a name="func_lerp"></a><h2><tt>lerp(p, a, b)</tt></h2>
+<blockquote><blockquote><tt>(?:1, ?t:?l, ?t:?l) -> ?t:?l</tt><br>
+<tt>(?t:?l, ?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Linear interpolation between <tt>a</tt> and <tt>b</tt>, done
+element-wise.  The result is <tt>a</tt> if <tt>p</tt> is 0, <tt>b</tt>
+if <tt>p</tt> is 1, and linearly interpolated in between.  More
+formally, the result is <tt>a*(1-t)+b*t</tt>.</blockquote>
+<a name="func_log"></a><h2><tt>log(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>The natural logarithm for real and complex numbers.</blockquote>
+<a name="func_max"></a><h2><tt>max(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+The larger of two numbers.  For tuples, the larger number for
+each pair of elements is determined.</blockquote>
+<a name="func_min"></a><h2><tt>min(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+The smaller of two numbers.  For tuples, the smaller number for
+each pair of elements is determined.</blockquote>
+<a name="func_noise"></a><h2><tt>noise(a)</tt></h2>
+<blockquote><blockquote><tt>(?:3) -> nil:1</tt><br>
+</blockquote>
+A solid noise function defined in three-dimensional space.  Its
+values lie between -1 and 1.</blockquote>
+<a name="func_normalize"></a><h2><tt>normalize(a)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l) -> ?t:?l</tt><br>
+</blockquote>Normalize a vector to Euclidian length 1.</blockquote>
+<a name="func_pmod"></a><h2><tt>pmod(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>
+The remainder of a division, made positive if the dividend is
+negative by adding the divisor.</blockquote>
+<a name="func_print"></a><h2><tt>print(val)</tt></h2>
+<blockquote><blockquote><tt>(?:?) -> nil:1</tt><br>
+</blockquote>Print a tuple to standard output.  Useful for debugging a script.</blockquote>
+<a name="func_rad2deg"></a><h2><tt>rad2deg(a)</tt></h2>
+<blockquote><blockquote><tt>(?:1) -> deg:1</tt><br>
+</blockquote>Convert radians to degrees.</blockquote>
+<a name="func_rand"></a><h2><tt>rand(a, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1) -> ?t:1</tt><br>
+</blockquote>A random number between <tt>a</tt> and <tt>b</tt>.</blockquote>
+<a name="func_red"></a><h2><tt>red(c)</tt></h2>
+<blockquote><blockquote><tt>(rgba:4) -> nil:1</tt><br>
+</blockquote>The red component of the color <tt>c</tt>.</blockquote>
+<a name="func_rgbColor"></a><h2><tt>rgbColor(r, g, b)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1) -> rgba:4</tt><br>
+</blockquote>
+Returns a fully opaque RGBA color with red component <tt>r</tt>,
+green component <tt>g</tt> and blue component <tt>b</tt>,
+i.e. <tt>rgba:[r,g,b,1]</tt>.</blockquote>
+<a name="func_rgbaColor"></a><h2><tt>rgbaColor(r, g, b, a)</tt></h2>
+<blockquote><blockquote><tt>(?t:1, ?t:1, ?t:1, ?t:1) -> rgba:4</tt><br>
+</blockquote>
+Returns an RGBA color with red component <tt>r</tt>, green
+component <tt>g</tt>, blue component <tt>b</tt> and alpha component
+<tt>a</tt>, i.e. <tt>rgba:[r,g,b,a]</tt>.</blockquote>
+<a name="func_scale"></a><h2><tt>scale(a, fl, fu, tl, tu)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l, ?t:?l, ?t:?l, ?t:?l, ?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+Scale each element of <tt>a</tt> which is supposed to lie between
+the corresponding elements of <tt>fl</tt> and <tt>fu</tt> to lie at
+the same point between <tt>tl</tt> and <tt>tu</tt>, proportionately.
+More formally, computes <tt>((a-fl)/(fu-fl))*(tu-tl)+tl</tt>.</blockquote>
+<a name="func_sign"></a><h2><tt>sign(a)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l) -> ?t:?l</tt><br>
+</blockquote>
+The sign of a number or tuple.  The sign of a number is -1 if the
+number is negative, 1 if the number is positive and 0 if the number is
+0.  For a tuple, calculates the sign element-wise.</blockquote>
+<a name="func_sin"></a><h2><tt>sin(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Sine of real and complex numbers.</blockquote>
+<a name="func_sinh"></a><h2><tt>sinh(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Hyperbolic sine of real and complex numbers.</blockquote>
+<a name="func_sqrt"></a><h2><tt>sqrt(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>
+The square root of a complex or real number.  A real argument must
+be positive, otherwise the result will not be definied.</blockquote>
+<a name="func_sum"></a><h2><tt>sum(a)</tt></h2>
+<blockquote><blockquote><tt>(?t:?l) -> ?t:1</tt><br>
+</blockquote>The sum of all elements of a tuple.</blockquote>
+<a name="func_tan"></a><h2><tt>tan(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Tangent of real and complex numbers.</blockquote>
+<a name="func_tanh"></a><h2><tt>tanh(a)</tt></h2>
+<blockquote><blockquote><tt>(ri:2) -> ri:2</tt><br>
+<tt>(?t:1) -> ?t:1</tt><br>
+</blockquote>Hyperbolic tangent of real and complex numbers.</blockquote>
+<a name="func_toHSVA"></a><h2><tt>toHSVA(a)</tt></h2>
+<blockquote><blockquote><tt>(rgba:4) -> hsva:4</tt><br>
+</blockquote>Conversion of an RGBA color value to HSVA.</blockquote>
+<a name="func_toRA"></a><h2><tt>toRA(arg)</tt></h2>
+<blockquote><blockquote><tt>(xy:2) -> ra:2</tt><br>
+<tt>(ra:2) -> ra:2</tt><br>
+</blockquote>Conversion of rectangular coordinates to polar coordinates.</blockquote>
+<a name="func_toRGBA"></a><h2><tt>toRGBA(a)</tt></h2>
+<blockquote><blockquote><tt>(hsva:4) -> rgba:4</tt><br>
+</blockquote>Conversion of an HSVA color value to RGBA.</blockquote>
+<a name="func_toXY"></a><h2><tt>toXY(a)</tt></h2>
+<blockquote><blockquote><tt>(ra:2) -> xy:2</tt><br>
+<tt>(xy:2) -> xy:2</tt><br>
+</blockquote>Conversion of polar coordinates to rectangular coordinates.</blockquote>
+    </blockquote>
+  </body>
+</html>
