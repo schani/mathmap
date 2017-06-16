@@ -1,4 +1,0 @@
-(design (node :name "comp_mix" :type "comp_mix" :input-slots (("in0" "util_ident" "out" )("in1" "comp_burn" "out" )):aux (:x 309.000000 :y 100.000000 ))
-(node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 20.000000 :y 99.000000 ))
-(node :name "comp_burn" :type "comp_burn" :input-slots (("in1" "util_ident" "out" )):aux (:x 162.000000 :y 169.000000 ))
-:name "burn_with_opacity" :root "comp_mix" )

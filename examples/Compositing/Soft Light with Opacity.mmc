@@ -1,4 +1,0 @@
-(design (node :name "comp_soft_light" :type "comp_soft_light" :input-slots (("in1" "util_ident" "out" )):aux (:x 144.000000 :y 173.000000 ))
-(node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 24.000000 :y 102.000000 ))
-(node :name "comp_mix" :type "comp_mix" :input-slots (("in0" "util_ident" "out" )("in1" "comp_soft_light" "out" )):aux (:x 309.000000 :y 100.000000 ))
-:name "soft_light_with_opacity" :root "comp_mix" )

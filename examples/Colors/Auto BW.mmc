@@ -1,6 +1,0 @@
-(design (node :name "color_invert" :type "color_invert" :input-slots (("in" "desaturate" "out" )):aux (:x 14.000000 :y 159.000000 ))
-(node :name "gauss_blur" :type "blur_gauss" :input-slots (("in" "color_invert" "out" )):aux (:x 164.000000 :y 151.000000 ))
-(node :name "desaturate" :type "desaturate" :input-slots ():aux (:x -5.000000 :y 75.000000 ))
-(node :name "comp_mix" :type "comp_mix" :input-slots (("in1" "gauss_blur" "out" )("in0" "desaturate" "out" )):aux (:x 299.000000 :y 78.000000 ))
-(node :name "color_contrast" :type "color_contrast" :input-slots (("in" "comp_mix" "out" )):aux (:x 341.000000 :y 178.000000 ))
-:name "auto_bw" :root "color_contrast" )
