@@ -6,7 +6,7 @@ GIFLIB = -lgif
 #GIFLIB = -lungif
 
 # If you are building on MacOS X, uncomment the following line
-#MACOSX = YES
+MACOSX = YES
 
 # If want to have movie (Quicktime) support in the command line,
 # uncomment the following line.  Please not that this feature hasn't
@@ -14,7 +14,7 @@ GIFLIB = -lgif
 #MOVIES = YES
 
 # Prefix for the software installation
-PREFIX = /usr
+PREFIX = /Users/schani/Library/mathmap
 
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
@@ -75,7 +75,7 @@ MATHMAP_CFLAGS += -I/usr/local/include/quicktime -DMOVIES
 MATHMAP_LDFLAGS += -lquicktime -lpthread
 endif
 
-CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o
+CMDLINE_OBJECTS = mathmap_cmdline.o getopt.o getopt1.o generators/blender/blender.o generators/nacl/nacl.o
 CMDLINE_LIBS = rwimg/librwimg.a
 CMDLINE_TARGETS = librwimg
 MATHMAP_LDFLAGS += $(FORMAT_LDFLAGS)
@@ -98,7 +98,7 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(LIBNOISE_OBJECTS)
 
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h mmpools.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
-mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
+mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c generators/nacl/nacl_template.c $(LLVM_TARGETS)
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)
 
 librwimg :
@@ -159,10 +159,15 @@ new_template.c : make_template.pl new_template.c.in $(TEMPLATE_INPUTS)
 llvm_template.c : make_template.pl llvm_template.c.in $(TEMPLATE_INPUTS)
 	perl -- make_template.pl $(TEMPLATE_INPUTS) llvm_template.c.in >llvm_template.c
 
+generators/nacl/nacl_template.c : make_template.pl generators/nacl/nacl_template.c.in $(TEMPLATE_INPUTS)
+	perl -- make_template.pl $(TEMPLATE_INPUTS) generators/nacl/nacl_template.c.in >generators/nacl/nacl_template.c
+
 llvm_template.o : llvm_template.c opmacros.h
 	$(LLVM_GCC) -emit-llvm -Wall -O3 -c llvm_template.c
 
 blender.o : generators/blender/blender.c
+
+nacl.o : generators/nacl/nacl.c
 
 install : mathmap new_template.c $(MOS)
 	install -d $(DESTDIR)$(PREFIX)/bin
@@ -176,7 +181,7 @@ install : mathmap new_template.c $(MOS)
 	done
 
 clean :
-	rm -f *.o builtins/*.o designer/*.o native-filters/*.o compopt/*.o backends/*.o generators/blender/*.o mathmap compiler parser.output core
+	rm -f *.o builtins/*.o designer/*.o native-filters/*.o compopt/*.o backends/*.o generators/blender/*.o generators/nacl/*.o mathmap compiler parser.output core
 	find . -name '*~' -exec rm {} ';'
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean

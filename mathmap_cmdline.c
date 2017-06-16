@@ -49,6 +49,7 @@
 #include "rwimg/writeimage.h"
 
 #include "generators/blender/blender.h"
+#include "generators/nacl/nacl.h"
 
 typedef struct _define_t
 {
@@ -962,13 +963,11 @@ main (int argc, char *argv[])
 	    if (!blender_generate_plug_in(script, output_filename))
 		return 1;
 	}
-	/*
-	else if (strcmp(generator, "pixeltree") == 0)
+	else if (strcmp (generator, "nacl") == 0)
 	{
-	    if (!pixeltree_generate_plug_in(argv[optind], argv[optind + 1]))
+	    if (!nacl_generate_plug_in (script, output_filename))
 		return 1;
 	}
-	*/
 	else
 	{
 	    fprintf(stderr, _("Unknown generator `%s'\n"), generator);
