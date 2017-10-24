@@ -137,7 +137,7 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h mmpools.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
-mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
+mathmap : libnoise/noise/lib/libnoise.a compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)
 
 librwimg :
@@ -152,7 +152,9 @@ libnoise :
 	cd libnoise ; patch -p1 <../libnoise-static.diff
 	cd libnoise ; patch -p1 <../libnoise-bestest.diff
 	cd libnoise ; patch -p1 <../libnoise-libtool-tags.diff
-	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3
+
+libnoise/noise/lib/libnoise.a : libnoise
+	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3 src include lib
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(MATHMAP_LDFLAGS) -lgsl -lgslcblas
