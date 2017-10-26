@@ -20,7 +20,7 @@ GIFLIB = -lgif
 
 # If you want the final GIMP rendering to be multi-threaded then
 # uncomment the following line
-#THREADED = -DTHREADED_FINAL_RENDER
+THREADED = -DTHREADED_FINAL_RENDER
 
 # If want to have movie (Quicktime) support in the command line,
 # uncomment the following line.  Please not that this feature hasn't
