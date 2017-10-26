@@ -1,4 +1,4 @@
-MathMap 1.3.4
+MathMap 1.3.5
 =============
 
 MathMap is a plug-in for The GIMP and a standalone command-line
@@ -6,7 +6,7 @@ utility for image and animation manipulation.
 
 The newest version is always available from the MathMap home-page:
 
-    http://www.complang.tuwien.ac.at/schani/mathmap/
+    http://schani.github.io/mathmap/
 
 There is a Google discussion group for MathMap here:
 
@@ -27,7 +27,7 @@ language reference.  NOTE: The new language features in the 1.3 branch
 are not documented in the reference, yet.  Please consult
 README.filters or go here:
 
-    http://www.complang.tuwien.ac.at/schani/mathmap/README.filters
+    https://github.com/schani/mathmap/blob/master/README.filters
 
 Note also: The command line version of MathMap is not very thoroughly
 tested and probably has lots of bugs.  The QuickTime Movie support in
@@ -35,4 +35,4 @@ the command line version is ancient and has not been tested at all for
 this release, so it will probably not work.
 
 -- 
-Mark Probst <schani@complang.tuwien.ac.at>
+Karl Stevens <uniquecomp@bigpond.com>
