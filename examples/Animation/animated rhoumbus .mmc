@@ -1,0 +1,3 @@
+(design (node :name "Sphere" :type "Sphere" :input-slots ():aux (:x 70.000000 :y 70.000000 ))
+(node :name "rel2ellv3" :type "rel2ellv3" :input-slots (("in" "Sphere" "out" )):aux (:x 196.000000 :y 110.000000 ))
+:name "animated_rhoumbus_" :root "rel2ellv3" )
