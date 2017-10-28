@@ -8,7 +8,7 @@ versions for Windows and MacOS X.  Is is recommended that you use
 these rather than compiling MathMap yourself, if possible.  They are
 available on the MathMap homepage:
 
-    http://www.complang.tuwien.ac.at/schani/mathmap/
+    http://schani.github.io/mathmap/
 
 
 Requirements
@@ -24,7 +24,6 @@ development packages, to compile and run:
   * libjpeg, libpng, libgif (preferred) or libungif
   * gettext
   * libtool
-  * doxygen
 
 
 Configuration
@@ -34,10 +33,10 @@ Edit the Makefile if necessary.  The reasons you might want to do this
 are:
 
   * You have libungif instead of libgif installed
-  * You don't want to build the command-line interface
   * You're building on MacOS X
   * You have more than one version of GIMP installed
-
+  * You want to install on a single processor 
+  * You want to install in your homedir
 
 Compiling
 ---------
@@ -45,6 +44,7 @@ Compiling
 After you are finished with the Makefile, just type
 
 	make
+or      make -j4 (to use 4 threads)
 
 If it does not work, the most probable cause is that you don't have
 all the required packages (see above) installed.  Consult the
@@ -67,4 +67,4 @@ or, if you don't have sudo, become root and type
 If you have any problems with this process, feel free to contact me.
 
 -- 
-Mark Probst <schani@complang.tuwien.ac.at>
+Karl Stevens <uniquecomp@bigpond.com>
