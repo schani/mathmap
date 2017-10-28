@@ -27,8 +27,16 @@ THREADED = -DTHREADED_FINAL_RENDER
 # been maintained for quite some time and probably doesn't work.
 #MOVIES = YES
 
+# If you want to install in your home directory instead of globally,
+# uncomment the following line.
+#INSTALL_LOCAL = YES
+
 # Prefix for the software installation
+ifeq ($(INSTALL_LOCAL),YES)
+PREFIX = ~/.local
+else
 PREFIX = /usr
+endif
 
 # You should not need to change anything beyond this line.
 # -------------------------------------------------------
@@ -86,15 +94,21 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
+ifeq ($(INSTALL_LOCAL),YES)
+GIMPDATADIR := ~/.gimp-2.8
+PLUGIN_DIR = $(GIMPDATADIR)/plug-ins
+else
 GIMPDATADIR := $(PREFIX)/share/gimp/2.0
+#FIXME: does not honor PREFIX
+PLUGIN_DIR = $(shell $(GIMPTOOL) --libdir)/gimp/2.0/plug-ins
+#PLUGIN_DIR = $(PREFIX)/lib/gimp/2.0/plug-ins
+endif
 GIMP_CFLAGS := $(shell $(GIMPTOOL) --cflags) $(shell pkg-config --cflags gmodule-2.0 gthread-2.0 gobject-2.0 $(FFTW))
 GIMP_LDFLAGS := $(shell $(GIMPTOOL) --libs) $(shell pkg-config --libs gmodule-2.0 gthread-2.0 gobject-2.0 $(FFTW))
 
 TEMPLATE_DIR = $(GIMPDATADIR)/mathmap
 PIXMAP_DIR = $(GIMPDATADIR)/mathmap
 LOCALEDIR = $(PREFIX)/share/locale
-#FIXME: does not honor PREFIX
-LIBDIR := $(shell $(GIMPTOOL) --libdir)
 
 C_CXX_FLAGS = -I. -I/usr/local/include -D_GNU_SOURCE $(CFLAGS) $(CGEN_CFLAGS) $(GIMP_CFLAGS) -DLOCALEDIR=\"$(LOCALEDIR)\" -DTEMPLATE_DIR=\"$(TEMPLATE_DIR)\" -DPIXMAP_DIR=\"$(PIXMAP_DIR)\" $(NLS_CFLAGS) $(MACOSX_CFLAGS) $(THREADED) $(PROF_FLAGS) $(MINGW_CFLAGS) $(LLVM_CFLAGS) $(FFTW_CFLAGS) $(PTHREADS) $(DEBUG_CFLAGS) $(GTKSOURCEVIEW_CFLAGS)
 MATHMAP_CFLAGS = $(C_CXX_FLAGS) -std=gnu99
@@ -137,7 +151,7 @@ OBJECTS = $(COMMON_OBJECTS) $(CMDLINE_OBJECTS) $(GIMP_OBJECTS)
 
 TEMPLATE_INPUTS = tuples.h mathmap.h userval.h drawable.h compiler.h mmpools.h builtins/builtins.h builtins/libnoise.h tree_vectors.h native-filters/native-filters.h
 
-mathmap : libnoise compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
+mathmap : libnoise/noise/lib/libnoise.a compiler_types.h $(OBJECTS) $(CMDLINE_TARGETS) liblispreader new_template.c $(LLVM_TARGETS)
 	$(CXX) $(CGEN_LDFLAGS) -o mathmap $(OBJECTS) $(CMDLINE_LIBS) $(LLVM_LDFLAGS) lispreader/liblispreader.a $(MATHMAP_LDFLAGS)
 
 librwimg :
@@ -152,7 +166,9 @@ libnoise :
 	cd libnoise ; patch -p1 <../libnoise-static.diff
 	cd libnoise ; patch -p1 <../libnoise-bestest.diff
 	cd libnoise ; patch -p1 <../libnoise-libtool-tags.diff
-	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3
+
+libnoise/noise/lib/libnoise.a : libnoise
+	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3 src include lib
 
 #compiler_test : $(COMMON_OBJECTS) compiler_test.o
 #	$(CC) $(CGEN_LDFLAGS) -o compiler_test $(COMMON_OBJECTS) compiler_test.o $(MATHMAP_LDFLAGS) -lgsl -lgslcblas
@@ -203,15 +219,16 @@ blender.o : generators/blender/blender.c
 
 install : mathmap new_template.c $(MOS)
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -d $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins
-	install -d $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap
+	install -d $(DESTDIR)$(PLUGIN_DIR)
+	install -d $(DESTDIR)$(TEMPLATE_DIR)
+	install -d $(DESTDIR)$(PIXMAP_DIR)
 	install -d $(DESTDIR)$(PREFIX)/share/gtksourceview-2.0/language-specs
 	install mathmap $(DESTDIR)$(PREFIX)/bin/mathmap
-	ln -s $(PREFIX)/bin/mathmap $(DESTDIR)$(LIBDIR)/gimp/2.0/plug-ins/mathmap
+	ln -s -f $(PREFIX)/bin/mathmap $(DESTDIR)$(PLUGIN_DIR)
 	cp new_template.c opmacros.h lispreader/pools.h $(DESTDIR)$(TEMPLATE_DIR)
 	cp pixmaps/*.png $(DESTDIR)$(PIXMAP_DIR)
 	cp mathmap.lang $(DESTDIR)$(PREFIX)/share/gtksourceview-2.0/language-specs
-	cp -r examples $(DESTDIR)$(PREFIX)/share/gimp/2.0/mathmap/expressions
+	cp -Tr examples $(DESTDIR)$(TEMPLATE_DIR)/expressions
 	for i in $(MOS); do	\
 		lng=`echo $$i | sed "s/\.mo//"`;	\
 		install -d $(DESTDIR)$(LOCALEDIR)/$$lng/LC_MESSAGES;	\

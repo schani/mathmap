@@ -24,8 +24,9 @@ development packages, to compile and run:
   * libjpeg, libpng, libgif (preferred) or libungif
   * gettext
   * libtool
-  * doxygen
 
+On Debian/Ubuntu these are the following packages:
+libgimp2.0-dev libgsl-dev libfftw3-dev libgtksourceview2.0-dev libjpeg-dev libpng-dev libgif-dev gettext libtool-bin
 
 Configuration
 -------------
@@ -34,10 +35,9 @@ Edit the Makefile if necessary.  The reasons you might want to do this
 are:
 
   * You have libungif instead of libgif installed
-  * You don't want to build the command-line interface
   * You're building on MacOS X
   * You have more than one version of GIMP installed
-
+  * You want to install in your homedir
 
 Compiling
 ---------
