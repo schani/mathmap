@@ -302,4 +302,4 @@ mingw-dist : mathmap llvm_template.o
 	cp llvm_template.o pixmaps/*.png mathmap-$(VERSION)-mingw32/mathmap/
 	cp mathmap.lang mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/language-specs/
 	cp -a /share/gtksourceview-2.0/styles mathmap-$(VERSION)-mingw32/plug-ins/share/gtksourceview-2.0/
-cp -a examples mathmap-$(VERSION)-mingw32/mathmap/expressions
+	cp -a examples mathmap-$(VERSION)-mingw32/mathmap/expressions
