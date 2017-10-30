@@ -771,7 +771,7 @@ run (const gchar *name, gint nparams, const GimpParam *param, gint *nreturn_vals
 		sprintf(layer_name, _("Frame %d"), frame + 1);
 		gimp_drawable_set_name(layer, layer_name);
 		output_drawable = gimp_drawable_get(layer);
-		gimp_image_insert_layer(image_id, layer, 0);
+		gimp_image_add_layer(image_id, layer, 0);
 		do_mathmap(frame, t);
 	    }
 	    gimp_image_undo_group_end(image_id);
