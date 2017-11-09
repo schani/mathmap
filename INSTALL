@@ -63,6 +63,8 @@ To install MathMap for all users on your machine, type
 or, if you don't have sudo, become root and type
 
 	make install
+______________________________________________________________
+MathMap currently builds on Ubuntu 17.04 Zesty with Gimp 2.9.7
 
 If you have any problems with this process, feel free to contact me.
 
