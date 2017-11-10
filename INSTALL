@@ -24,6 +24,7 @@ development packages, to compile and run:
   * libjpeg, libpng, libgif (preferred) or libungif
   * gettext
   * libtool
+  * clisp
 
 
 Configuration
