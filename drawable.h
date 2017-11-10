@@ -129,8 +129,6 @@ typedef struct _image_t
 typedef struct _input_drawable_t {
     gboolean used;
 
-    image_t image;
-
     int kind;
 
     float scale_x;
@@ -171,6 +169,8 @@ typedef struct _input_drawable_t {
 #endif
 	} cmdline;
     } v;
+
+    image_t image;
 } input_drawable_t;
 
 /* TEMPLATE image_new_id */
