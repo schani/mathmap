@@ -1,6 +1,4 @@
 [submodule "rwimg"]
 	path = rwimg
 	url = git://github.com/schani/rwimg.git
-[submodule "lisp-utils"]
-	path = lisp-utils
-	url = git://github.com/schani/lisp-utils.git
+
