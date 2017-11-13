@@ -29,6 +29,7 @@ development packages, to compile and run:
 
 Configuration
 -------------
+git clone https://github.com/schani/mathmap.git
 
 Edit the Makefile if necessary.  The reasons you might want to do this
 are:
@@ -44,9 +45,10 @@ Compiling
 
 After you are finished with the Makefile, just type
 
+        make libnoise
 	make
 or      make -j4 (to use 4 threads)
-
+or      sudo checkinstall --install=no  (this makes a deb package you can install, make sure Mathmap is not already installed)
 If it does not work, the most probable cause is that you don't have
 all the required packages (see above) installed.  Consult the
 documentation of your Linux distribution or whatever you have on how
