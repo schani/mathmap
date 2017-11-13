@@ -1,0 +1,44 @@
+lispreader 0.5
+==============
+
+lispreader is a small library for reading expressions in Lisp
+syntax. It has originally been written to facilitate simple exchange
+of structured data between processes but its main purpose is now to
+provide a framework for reading configuration files. To simplify
+interpretation of the read data, lispreader also provides functions
+for simple matching of expressions against patterns.
+
+lispreader is also used in at least one application to read and write
+data files. Lisp syntax is very suitable for doing this, especially if
+the data is organized hierachically.
+
+
+Documentation
+-------------
+
+A reference manual for lispreader is included in the distribution in
+texinfo, info and html formats.
+
+
+Platforms
+---------
+
+lispreader has been tested on GNU/Linux i386 and MacOS X PPC systems,
+but should work on any system with an ANSI C compliant
+compiler/library pair.
+
+
+Licence and Availability
+------------------------
+
+lispreader is distributed under the terms of the GNU General Public
+Licence.
+
+The source of lispreader is available at the lispreader homepage at
+
+  http://www.complang.tuwien.ac.at/schani/lispreader/
+
+
+---
+Mark Probst
+schani@complang.tuwien.ac.at

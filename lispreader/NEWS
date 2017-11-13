@@ -1,0 +1,45 @@
+News
+****
+
+0.5
+===
+
+   * #?(number) pattern
+
+   * lisp_free can handly arbitrarily nested lists without
+     recursion.
+
+   * Memory allocation can now be controlled with the allocator
+     interface.
+
+   * An allocator is included which is very fast and low-overhead,
+     but only allows freeing all data at once.
+
+   * A new memory mapping Lisp stream type is implemented, which
+     about doubles parsing speed.
+
+0.4
+===
+
+   * Functions for making expressions (contributed by Masatake Yamato)
+
+   * Type predicates (contributed by Masatake Yamato)
+
+   * lisp_cxr
+
+0.3
+===
+
+   * Lisp style comments are ignored (strings starting with
+     the semicolon, ended by newline, contributed by Masatake Yamato)
+
+   * Used-defined streams (contributed by Masatake Yamato)
+
+0.2
+===
+
+   * Added code for handling real numbers (contributed by Masatake
+     Yamato)
+
+   * The string arguments to lisp_read_from_string and
+     lisp_match_string are now const
