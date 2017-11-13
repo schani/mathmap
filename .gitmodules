@@ -1,4 +1,0 @@
-[submodule "rwimg"]
-	path = rwimg
-	url = git://github.com/schani/rwimg.git
-
