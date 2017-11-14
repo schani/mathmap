@@ -48,8 +48,6 @@ After you are finished with the Makefile, just type
         make libnoise
 	make
 or      make -j4 (use 4 threads)
-        sudo make install
-or      sudo checkinstall --install=no  (creates a deb package you can install, make sure Mathmap is not already installed)
 
 If it does not work, the most probable cause is that you don't have
 all the required packages (see above) installed.  Consult the
@@ -68,6 +66,8 @@ To install MathMap for all users on your machine, type
 or, if you don't have sudo, become root and type
 
 	make install
+        
+or      sudo checkinstall --install=no  (creates a deb package you can install, make sure Mathmap is not already installed)
 ______________________________________________________________
 MathMap currently builds on Ubuntu 17.04 Zesty with Gimp 2.9.7
 
