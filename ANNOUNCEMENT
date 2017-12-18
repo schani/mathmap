@@ -20,7 +20,7 @@ MathMap allows the generation of still images and of animations.
 
 The MathMap homepage is
 
-    http://www.complang.tuwien.ac.at/schani/mathmap/
+    http://schani.github.io/mathmap/
 
 It provides links for downloading MathMap binaries for several Linux
 distributions and for Windows, as well as the source tarball.  It also
@@ -32,4 +32,4 @@ from questions to bug reports to feature requests, and so on:
     http://groups.google.com/group/mathmap
 
 --- 
-Mark Probst <mark.probst@gmail.com>
+Karl Stevens <uniquecomp@bigpond.com>
