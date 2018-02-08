@@ -3,7 +3,7 @@ filter kaleidoscope1 (image in, int ng: 2-20, float rot: 0-6.28319, float sx:
 intang=2*pi/ng;
 na=a+pi/2;
 ang=intang/2-na%intang;
-ang=rot+(intang/2-sqrt(ang^2));
+ang=(rot*t)+(intang/2-sqrt(ang^2));
 xr=r*rad;
 foo=min(X,Y);
 bar=foo*rad;
