@@ -1,0 +1,79 @@
+%define _plugindir %{_libdir}/gimp/2.0/plug-ins
+%define _mathmapdir %{_datadir}/gimp/2.0/mathmap
+%define _langdir %{_datadir}/gtksourceview-2.0/language-specs
+
+%define name mathmap
+%define version 1.3.5
+%define release 4 
+
+Name:	mathmap
+Version:	1.3.5
+Release:	4
+License:	GPLv2+
+BuildRoot:	%{_tmppath}/%{name}-%{version}-root-%(%{__id_u} -n)
+Group:	Applications/Multimedia
+Summary:	MathMap GIMP Plug-In and Command-Line Tool
+URL:	http://schani.github.io/mathmap/
+Source0:	%{name}-%{version}-%{release}.tar.gz
+ExclusiveArch:	x86_64
+Requires: gcc
+Requires: gimp
+Requires: giflib
+Requires: gsl
+Requires: gsl-devel
+Requires: gtksourceview2
+Requires: fftw-libs-double
+BuildRequires: gcc
+BuildRequires: gcc-c++
+BuildRequires: libpng-devel
+BuildRequires: libjpeg-devel
+BuildRequires: giflib
+BuildRequires: giflib-devel
+BuildRequires: gsl
+BuildRequires: gsl-devel
+BuildRequires: gimp-devel
+BuildRequires: gimp
+BuildRequires: make
+BuildRequires: fftw3-devel
+BuildRequires: gettext
+BuildRequires: unzip
+BuildRequires: doxygen
+BuildRequires: gtksourceview2
+
+
+%description
+MathMap is a GIMP plug-in which allows distortion of images specified
+by mathematical formulae.  For each pixel in the generated image, an
+expression is evaluated which should return a pixel value.  The
+expression can either refer to a pixel in the source image or can
+generate pixels completely independent of the source.
+
+%global debug_package %{nil}
+
+%prep
+%setup  
+
+%build
+%{__make} CFLAGS="%{optflags}" LOCALEDIR="%{_datadir}/locale"
+
+%install
+make DESTDIR=$RPM_BUILD_ROOT LOCALEDIR="%{_datadir}/locale" install
+
+%clean
+rm -rf "$RPM_BUILD_ROOT"
+
+%files
+%defattr(-,root,root)
+%doc ANNOUNCEMENT COPYING README README.filters README.git
+%{_bindir}/mathmap
+%{_plugindir}/mathmap
+%{_langdir}/mathmap.lang
+%{_mathmapdir}
+%{_datadir}/locale/*/LC_MESSAGES/mathmap.mo
+
+%changelog
+* Sat May 26 2018 Karl Stevens <uniquecomp@bigpond.com> 1.3.5
+- Update for Fedora 28 and Gimp 2.10
+
+* Sat Aug 22 2009 Mark Probst <schani@complang.tuwien.ac.at> 1.3.4
+- Updated with changes from the Fedora 11 spec file
