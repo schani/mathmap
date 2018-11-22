@@ -16,5 +16,4 @@ llvm_template.c
 backends/lazy_creator.cpp
 compopt/simplify_func.c
 examples/Test
-libnoise
 
