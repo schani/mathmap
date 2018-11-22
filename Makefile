@@ -160,13 +160,6 @@ librwimg :
 liblispreader :
 	$(MAKE) -C lispreader -f Makefile.dist
 
-libnoise :
-	mkdir libnoise
-	cd libnoise ; unzip ../libnoisesrc-1.0.0.zip
-	cd libnoise ; patch -p1 <../libnoise-static.diff
-	cd libnoise ; patch -p1 <../libnoise-bestest.diff
-	cd libnoise ; patch -p1 <../libnoise-libtool-tags.diff
-
 libnoise/noise/lib/libnoise.a : libnoise
 	cd libnoise/noise ; make CFLAGS=-O3 CXXFLAGS=-O3 src include lib
 
