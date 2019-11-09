@@ -1096,7 +1096,7 @@ commit_assign (statement_t *stmt)
 		    }
 		    else
 		    {
-			assert(phi_assign->v.assign.rhs2->kind = RHS_PRIMARY
+			assert(phi_assign->v.assign.rhs2->kind == RHS_PRIMARY
 			       && phi_assign->v.assign.rhs2->v.primary.kind == PRIMARY_VALUE);
 			remove_use(phi_assign->v.assign.rhs2->v.primary.v.value, phi_assign);
 
