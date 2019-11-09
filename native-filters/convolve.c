@@ -277,7 +277,7 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
     double *fftw_in;
     fftw_complex *image_out;
     fftw_plan in_plan;
-    int i, n, nhalf, cn, cw, channel, num_channels;
+    int i, n, cn, cw, channel, num_channels;
     double sqrtn;
 
     cache_entry = invocation_lookup_native_filter_invocation(invocation, args, &native_filter_visualize_fft);
@@ -291,7 +291,6 @@ native_filter_visualize_fft (mathmap_invocation_t *invocation, userval_t *args, 
     out_image = floatmap_alloc(in_image->pixel_width, in_image->pixel_height, &invocation->pools);
 
     n = in_image->pixel_height * in_image->pixel_width;
-    nhalf = in_image->pixel_width * (in_image->pixel_height / 2) + in_image->pixel_width / 2;
     sqrtn = sqrt(n);
     cw = in_image->pixel_width / 2 + 1;
     cn = in_image->pixel_height * cw;

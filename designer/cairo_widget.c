@@ -80,12 +80,9 @@ static const double round_s[4] = { 10, 10, 10, 10 };
 static const double upper_s[4] = { 10, 10, 0, 0 };
 static const double lower_s[4] = { 0, 0, 10, 10 };
 
-static const double rnd12_s[4] = { 14, 14, 14, 14 };
 static const double rnd13_s[4] = { 15, 15, 15, 15 };
-static const double rnd14_s[4] = { 16, 16, 16, 16 };
 
 static const double circ4_d[2] = { 10 * M_PI / 12.0, 6 * M_PI / 12.0 };
-static const double round_d[2] = { 1.0, 1.0 };
 
 
 static void
@@ -946,28 +943,6 @@ recalc_area(cairo_t *cr, widget_data_t *data)
     return _inset(area, _size(-40, -20));
 }
 
-static void
-show_axis(cairo_t *cr, _point_t p, float r, float g, float b, float w, float h)
-{
-    _point_t ap[4];
-
-    ap[0] = _move(p, _size(-w, 0));
-    ap[1] = _move(p, _size( w, 0));
-    ap[2] = _move(p, _size( 0, h));
-    ap[3] = _move(p, _size( 0,-h));
-
-    cairo_set_source_rgba(cr, r, g, b, 0.6);
-    cairo_set_line_width(cr, 1.0);
-
-    _move_to(cr, ap[0]);
-    _line_to(cr, ap[1]);
-    cairo_stroke(cr);
-
-    _move_to(cr, ap[2]);
-    _line_to(cr, ap[3]);
-    cairo_stroke(cr);
-}
-
 
 
 static gboolean
@@ -1126,13 +1101,6 @@ get_scroll_origin (widget_data_t *data)
     return _point(
 	gtk_adjustment_get_value(data->hadjustment),
 	gtk_adjustment_get_value(data->vadjustment));
-}
-
-static void
-set_scroll_origin (widget_data_t *data, _point_t o)
-{
-    gtk_adjustment_set_value(data->hadjustment, o.x);
-    gtk_adjustment_set_value(data->vadjustment, o.y);
 }
 
 
@@ -1609,9 +1577,8 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
 void
 designer_widget_get_node_position (GtkWidget *widget, designer_node_t *node, double *x, double *y)
 {
-    widget_data_t *data = get_widget_data(widget);
-
 #ifdef DEBUG_OUTPUT
+    widget_data_t *data = get_widget_data(widget);
     g_print("widget %p retrieves position of node %s\n", data, node->name);
 #endif
 
@@ -1640,9 +1607,9 @@ void
 designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data)
 {
     GtkWidget *widget = GTK_WIDGET(user_data);
-    widget_data_t *data = get_widget_data(widget);
 
 #ifdef DEBUG_OUTPUT
+    widget_data_t *data = get_widget_data(widget);
     g_print("design loaded for widget %p\n", data);
 #endif
 

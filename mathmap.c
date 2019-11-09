@@ -1268,7 +1268,6 @@ get_pixel (mathmap_invocation_t *invocation, input_drawable_t *drawable, int fra
 static void
 build_fast_image_source (input_drawable_t *drawable)
 {
-    color_t *p;
     int width, height;
     int x, y;
     int img_width, img_height;
@@ -1279,7 +1278,7 @@ build_fast_image_source (input_drawable_t *drawable)
     width = drawable->v.gimp.fast_image_source_width;
     height = drawable->v.gimp.fast_image_source_height;
 
-    p = drawable->v.gimp.fast_image_source = g_malloc(width * height * sizeof(color_t));
+    drawable->v.gimp.fast_image_source = g_malloc(width * height * sizeof(color_t));
 
     img_width = drawable->image.pixel_width;
     img_height = drawable->image.pixel_height;
