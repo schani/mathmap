@@ -943,28 +943,6 @@ recalc_area(cairo_t *cr, widget_data_t *data)
     return _inset(area, _size(-40, -20));
 }
 
-static void
-show_axis(cairo_t *cr, _point_t p, float r, float g, float b, float w, float h)
-{
-    _point_t ap[4];
-
-    ap[0] = _move(p, _size(-w, 0));
-    ap[1] = _move(p, _size( w, 0));
-    ap[2] = _move(p, _size( 0, h));
-    ap[3] = _move(p, _size( 0,-h));
-
-    cairo_set_source_rgba(cr, r, g, b, 0.6);
-    cairo_set_line_width(cr, 1.0);
-
-    _move_to(cr, ap[0]);
-    _line_to(cr, ap[1]);
-    cairo_stroke(cr);
-
-    _move_to(cr, ap[2]);
-    _line_to(cr, ap[3]);
-    cairo_stroke(cr);
-}
-
 
 
 static gboolean
@@ -1123,13 +1101,6 @@ get_scroll_origin (widget_data_t *data)
     return _point(
 	gtk_adjustment_get_value(data->hadjustment),
 	gtk_adjustment_get_value(data->vadjustment));
-}
-
-static void
-set_scroll_origin (widget_data_t *data, _point_t o)
-{
-    gtk_adjustment_set_value(data->hadjustment, o.x);
-    gtk_adjustment_set_value(data->vadjustment, o.y);
 }
 
 

@@ -4347,54 +4347,6 @@ check_rhs_defined (rhs_t *rhs, value_set_t *defined_set)
     compiler_for_each_value_in_rhs(rhs, &_check_value, closure);
 }
 
-static value_t*
-last_assignment_to_compvar (statement_t *stmts, compvar_t *compvar)
-{
-    value_t *last = 0;
-
-    while (stmts != 0)
-    {
-	switch (stmts->kind)
-	{
-	    case STMT_NIL :
-		break;
-
-	    case STMT_ASSIGN :
-	    case STMT_PHI_ASSIGN :
-		if (stmts->v.assign.lhs->compvar == compvar)
-		    last = stmts->v.assign.lhs;
-		break;
-
-	    case STMT_IF_COND :
-	    {
-		value_t *new_last = last_assignment_to_compvar(stmts->v.if_cond.exit, compvar);
-
-		if (new_last != 0)
-		    last = new_last;
-
-		break;
-	    }
-
-	    case STMT_WHILE_LOOP :
-	    {
-		value_t *new_last = last_assignment_to_compvar(stmts->v.while_loop.entry, compvar);
-
-		if (new_last != 0)
-		    last = new_last;
-
-		break;
-	    }
-
-	    default :
-		g_assert_not_reached();
-	}
-
-	stmts = stmts->next;
-    }
-
-    return last;
-}
-
 static void
 set_value_defined_and_current_for_checking (value_t *value, GHashTable *current_value_hash, value_set_t *defined_set)
 {
