@@ -1077,14 +1077,9 @@ make_function (scanner_ident_t *name_ident, exprtree *args)
     {
 	if (entry->type == OVERLOAD_BUILTIN)
 	{
-	    int is_constant = 1;
-
 	    for (arg = args; arg != 0; arg = arg->next)
 		if (arg->type != EXPR_TUPLE_CONST)
-		{
-		    is_constant = 0;
 		    break;
-		}
 
 	    tree = alloc_exprtree();
 

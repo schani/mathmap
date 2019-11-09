@@ -80,12 +80,9 @@ static const double round_s[4] = { 10, 10, 10, 10 };
 static const double upper_s[4] = { 10, 10, 0, 0 };
 static const double lower_s[4] = { 0, 0, 10, 10 };
 
-static const double rnd12_s[4] = { 14, 14, 14, 14 };
 static const double rnd13_s[4] = { 15, 15, 15, 15 };
-static const double rnd14_s[4] = { 16, 16, 16, 16 };
 
 static const double circ4_d[2] = { 10 * M_PI / 12.0, 6 * M_PI / 12.0 };
-static const double round_d[2] = { 1.0, 1.0 };
 
 
 static void
@@ -1609,9 +1606,8 @@ designer_widget_set_design (GtkWidget *widget, designer_design_t *design)
 void
 designer_widget_get_node_position (GtkWidget *widget, designer_node_t *node, double *x, double *y)
 {
-    widget_data_t *data = get_widget_data(widget);
-
 #ifdef DEBUG_OUTPUT
+    widget_data_t *data = get_widget_data(widget);
     g_print("widget %p retrieves position of node %s\n", data, node->name);
 #endif
 
@@ -1640,9 +1636,9 @@ void
 designer_widget_design_loaded_callback (designer_design_t *design, gpointer user_data)
 {
     GtkWidget *widget = GTK_WIDGET(user_data);
-    widget_data_t *data = get_widget_data(widget);
 
 #ifdef DEBUG_OUTPUT
+    widget_data_t *data = get_widget_data(widget);
     g_print("design loaded for widget %p\n", data);
 #endif
 

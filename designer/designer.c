@@ -210,7 +210,6 @@ designer_node_t*
 designer_add_node (designer_design_t *design, const char *name, const char *node_type_name)
 {
     designer_node_type_t *node_type = lookup_node_type(design->type, node_type_name);
-    int num_input_slots;
     designer_node_t *node;
 
     if (node_type == NULL)
@@ -218,8 +217,6 @@ designer_add_node (designer_design_t *design, const char *name, const char *node
 
     if (designer_get_node_by_name(design, name) != NULL)
 	return NULL;
-
-    num_input_slots = g_slist_length(node_type->input_slot_specs);
 
     node = g_new0(designer_node_t, 1);
 
