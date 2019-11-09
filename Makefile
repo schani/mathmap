@@ -43,8 +43,7 @@ endif
 
 VERSION = 1.3.5
 
-CFLAGS = -O2 -Wall
-CFLAGS = -O0 -g -Wall #-fgnu89-inline
+CFLAGS = -O2 -g -Wall #-fgnu89-inline
 #DEBUG_CFLAGS := -DPRINT_FPS -DDEBUG_OUTPUT -DDONT_UNLINK_C
 
 #PROF_FLAGS := -pg
