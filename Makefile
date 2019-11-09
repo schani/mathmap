@@ -181,7 +181,7 @@ compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 
 compopt/simplify.o : compopt/simplify_func.c
 
-backends/cc.o : compiler_types.h
+cocoa.o drawable.o expression_db.o exprtree.o macros.o mathmap.o mathmap_cmdline.o mathmap_common.o parser.o scanner.o userval.o builtins/builtins.o builtins/libnoise.o backends/cc.o compopt/dce.o compopt/licm.o compopt/resize.o compopt/simplify.o designer/cairo_widget.o generators/blender/blender.o mathmap_common.o native-filters/cache.o native-filters/convolve.o native-filters/gauss.o : compiler_types.h
 
 backends/llvm.o : backends/llvm.cpp compiler_types.h
 	$(CXX) $(MATHMAP_CXXFLAGS) $(FORMATDEFS) -o $@ -c backends/llvm.cpp
