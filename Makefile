@@ -228,14 +228,14 @@ install : mathmap new_template.c $(MOS)
 	done
 
 clean :
-	rm -f *.o builtins/*.o designer/*.o native-filters/*.o compopt/*.o backends/*.o generators/blender/*.o mathmap compiler parser.output core
+	rm -f *.o builtins/*.o designer/*.o native-filters/*.o compopt/*.o backends/*.o generators/blender/*.o curve/*.o mathmap compiler parser.output core
 	find . -name '*~' -exec rm {} ';'
 	$(MAKE) -C rwimg clean
 	$(MAKE) -C lispreader clean
 	rm -rf debian/mathmap debian/mathmap.substvars
 
 realclean : clean
-	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c backends/lazy_creator.cpp compiler_types.h parser.[ch] .nfs* mathmap-*.tar.gz
+	rm -f new_builtins.c opdefs.h opfuncs.h llvm-ops.h new_template.c llvm_template.c backends/lazy_creator.cpp compopt/simplify_func.c compiler_types.h parser.[ch] builtins_doc.html .nfs* mathmap-*.tar.gz
 
 TAGS :
 	etags `find . -name '*.c' -o -name '*.h' -o -name '*.lisp' -o -name '*.cpp'`
