@@ -1129,7 +1129,7 @@ do_mathmap (int frame_num, float current_t)
 {
     GimpPixelRgn dest_rgn;
     gpointer pr;
-    gint progress, max_progress;
+    guint64 progress, max_progress;
     gchar progress_info[30];
 
     assert(invocation != 0);
@@ -1148,7 +1148,7 @@ do_mathmap (int frame_num, float current_t)
 			    TRUE, TRUE);
 
 	progress = 0;
-	max_progress = sel_width * sel_height;
+	max_progress = ((guint64) sel_width) * ((guint64) sel_height);
 
 	if (frame_num >= 0)
 	    sprintf(progress_info, _("Mathmapping frame %d..."), frame_num + 1);
@@ -1174,8 +1174,8 @@ do_mathmap (int frame_num, float current_t)
 					      dest_rgn.data, NUM_FINAL_RENDER_CPUS);
 
 	    /* Update progress */
-	    progress += region_width * region_height;
-	    gimp_progress_update((double) progress / max_progress);
+	    progress += ((guint64) region_width) * ((guint64) region_height);
+	    gimp_progress_update(((double) progress) / ((double)max_progress));
 	}
 
 	invocation_free_frame(frame);
