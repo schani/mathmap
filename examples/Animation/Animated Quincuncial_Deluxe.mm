@@ -41,7 +41,7 @@
 
 filter animated_quincuncial_deluxe (
         image in,
-	int imageH: 1 - 10000 (500),
+	int imageH: 1 - 10000 (2),
 	int tiles: 1 - 5 (3),
 	float rotateSphere: -180 - 180 (0),
 #	bool flipSphere,
