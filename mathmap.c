@@ -497,7 +497,7 @@ register_expression_db (expression_db_t *edb, char *symbol_prefix, char *menu_pr
 	    static GimpParamDef *return_vals  = NULL;
 	    static int nargs = sizeof(args) / sizeof(args[0]);
 	    static int nreturn_vals = 0;
-
+gimp_plugin_menu_register (mathmap, "<Image>/Filters/Generic/");
 #ifdef DEBUG_OUTPUT
 	    fprintf(stderr, "registering %s (%s)\n", symbol, menu);
 #endif
