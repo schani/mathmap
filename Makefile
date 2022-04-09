@@ -43,7 +43,7 @@ endif
 
 VERSION = 1.3.5
 
-CFLAGS = -O1 -g -Wall #-fgnu89-inline
+CFLAGS = -O0 -g -Wall #-fgnu89-inline
 #DEBUG_CFLAGS := -DPRINT_FPS -DDEBUG_OUTPUT -DDONT_UNLINK_C
 
 #PROF_FLAGS := -pg
@@ -94,7 +94,7 @@ CGEN_CFLAGS=$(CGEN_CC) $(CGEN_LD)
 GIMPTOOL := $(GIMP_BIN)gimptool-2.0
 GIMPDIR := .gimp-$(basename $(shell $(GIMPTOOL) --version))
 ifeq ($(INSTALL_LOCAL),YES)
-GIMPDATADIR := ~/.gimp-2.8
+GIMPDATADIR := ~/.gimp-2.10
 PLUGIN_DIR = $(GIMPDATADIR)/plug-ins
 else
 GIMPDATADIR := $(PREFIX)/share/gimp/2.0
@@ -171,10 +171,10 @@ libnoise/noise/lib/libnoise.a : libnoise
 %.mo : %.po
 	msgfmt -o $@ $<
 
-parser.c parser.h : parser.y
-	bison -d parser.y
-	mv parser.tab.c parser.c
-	mv parser.tab.h parser.h
+#parser.c parser.h : parser.y
+#	bison -d parser.y
+#	mv parser.tab.c parser.c
+#	mv parser.tab.h parser.h
 
 compiler.o : compiler.c new_builtins.c opdefs.h opfuncs.h compiler_types.h
 	$(CC) $(MATHMAP_CFLAGS) $(FORMATDEFS) -o $@ -c compiler.c
