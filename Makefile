@@ -171,6 +171,7 @@ libnoise/noise/lib/libnoise.a : libnoise
 %.mo : %.po
 	msgfmt -o $@ $<
 
+#bison parser no longer working
 #parser.c parser.h : parser.y
 #	bison -d parser.y
 #	mv parser.tab.c parser.c
