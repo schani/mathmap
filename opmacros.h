@@ -25,7 +25,8 @@
 #ifndef __OPMACROS_H__
 #define __OPMACROS_H__
 
-#include <gsl/gsl_version.h>
+/* gsl now libgslcblas 
+ * #include <gsl/gsl_version.h> */
 
 #define NOP()                 (0.0)
 
