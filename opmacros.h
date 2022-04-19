@@ -106,11 +106,7 @@
 #define ELL_INT_F(phi,k)      gsl_sf_ellint_F((phi), (k), GSL_PREC_SINGLE)
 #define ELL_INT_E(phi,k)      gsl_sf_ellint_E((phi), (k), GSL_PREC_SINGLE)
 #define ELL_INT_P(phi,k,n)    gsl_sf_ellint_P((phi), (k), (n), GSL_PREC_SINGLE)
-#if GSL_MAJOR_VERSION >= 2
 #define ELL_INT_D(phi,k,n)    gsl_sf_ellint_D((phi), (k), GSL_PREC_SINGLE)
-#else
-#define ELL_INT_D(phi,k,n)    gsl_sf_ellint_D((phi), (k), (n), GSL_PREC_SINGLE)
-#endif
 
 #define ELL_INT_RC(x,y)       gsl_sf_ellint_RC((x), (y), GSL_PREC_SINGLE)
 #define ELL_INT_RD(x,y,z)     gsl_sf_ellint_RD((x), (y), (z), GSL_PREC_SINGLE)
