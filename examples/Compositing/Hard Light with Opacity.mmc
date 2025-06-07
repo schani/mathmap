@@ -1,4 +1,0 @@
-(design (node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 20.000000 :y 99.000000 ))
-(node :name "comp_hard_light" :type "comp_hard_light" :input-slots (("in1" "util_ident" "out" )):aux (:x 147.000000 :y 174.000000 ))
-(node :name "comp_mix" :type "comp_mix" :input-slots (("in0" "util_ident" "out" )("in1" "comp_hard_light" "out" )):aux (:x 309.000000 :y 100.000000 ))
-:name "hard_light_with_opacity" :root "comp_mix" )

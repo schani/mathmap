@@ -1,4 +1,0 @@
-(design (node :name "ident" :type "util_ident" :input-slots ():aux (:x 18.000000 :y 99.000000 ))
-(node :name "blur_gauss" :type "blur_gauss" :input-slots (("in" "ident" "out" )):aux (:x 104.000000 :y 177.000000 ))
-(node :name "comp_difference" :type "comp_difference" :input-slots (("in2" "blur_gauss" "out" )("in1" "ident" "out" )):aux (:x 180.000000 :y 61.000000 ))
-:name "gauss_blur_edge_detect" :root "comp_difference" )

@@ -77,22 +77,6 @@ free_input_drawable (input_drawable_t *drawable)
 
     switch (drawable->kind)
     {
-#ifndef OPENSTEP
-	case INPUT_DRAWABLE_GIMP :
-	    if (drawable->v.gimp.tile != 0)
-	    {
-		gimp_tile_unref(drawable->v.gimp.tile, FALSE);
-		drawable->v.gimp.tile = 0;
-	    }
-	    if (drawable->v.gimp.fast_image_source != 0)
-	    {
-		g_free(drawable->v.gimp.fast_image_source);
-		drawable->v.gimp.fast_image_source = 0;
-	    }
-	    drawable->v.gimp.drawable = 0;
-	    break;
-#endif
-
         case INPUT_DRAWABLE_OPENSTEP:
 	    break;
 
@@ -125,11 +109,7 @@ copy_input_drawable (input_drawable_t *drawable)
 
     switch (drawable->kind)
     {
-#ifndef OPENSTEP
-	case INPUT_DRAWABLE_GIMP :
-	    copy = alloc_gimp_input_drawable(drawable->v.gimp.drawable, drawable->v.gimp.has_selection);
-	    break;
-#else
+#ifdef OPENSTEP
         case INPUT_DRAWABLE_OPENSTEP:
 	    copy = alloc_input_drawable(INPUT_DRAWABLE_OPENSTEP,
 					drawable->image.pixel_width, drawable->image.pixel_height);
@@ -159,25 +139,6 @@ copy_input_drawable (input_drawable_t *drawable)
 
     return copy;
 }
-
-#ifndef OPENSTEP
-input_drawable_t*
-get_default_input_drawable (void)
-{
-    int i;
-
-    for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
-	if (input_drawables[i].used
-	    && input_drawables[i].kind == INPUT_DRAWABLE_GIMP)
-	    return &input_drawables[i];
-    /* No GIMP drawable with selection found, which means we're
-       probably not in GIMP.  Just return the first used drawable. */
-    for (i = 0; i < MAX_INPUT_DRAWABLES; ++i)
-	if (input_drawables[i].used)
-	    return &input_drawables[i];
-    return 0;
-}
-#endif
 
 int
 get_num_input_drawables (void)

@@ -1,8 +1,0 @@
-(design (node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 15.000000 :y 41.000000 ))
-(node :name "gauss_blur_edge_detect" :type "gauss_blur_edge_detect" :input-slots (("ident_in" "util_ident" "out" )):aux (:x 178.000000 :y 40.000000 ))
-(node :name "desaturate" :type "desaturate" :input-slots (("in" "gauss_blur_edge_detect" "out" )):aux (:x 217.000000 :y 122.000000 ))
-(node :name "color_brightness" :type "color_brightness" :input-slots (("in" "desaturate" "out" )):aux (:x 220.000000 :y 183.000000 ))
-(node :name "color_set_alpha" :type "color_set_alpha" :input-slots (("in" "util_ident" "out" )("mask" "color_brightness" "out" )):aux (:x 197.000000 :y 250.000000 ))
-(node :name "blur_gauss" :type "blur_gauss" :input-slots (("in" "util_ident" "out" )):aux (:x 48.000000 :y 316.000000 ))
-(node :name "comp_over" :type "comp_over" :input-slots (("top" "color_set_alpha" "out" )("bottom" "blur_gauss" "out" )):aux (:x 229.000000 :y 334.000000 ))
-:name "sharp_blur" :root "comp_over" )

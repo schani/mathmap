@@ -1,4 +1,0 @@
-(design (node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 24.000000 :y 102.000000 ))
-(node :name "comp_subtraction" :type "comp_subtraction" :input-slots (("in1" "util_ident" "out" )):aux (:x 134.000000 :y 177.000000 ))
-(node :name "comp_mix" :type "comp_mix" :input-slots (("in0" "util_ident" "out" )("in1" "comp_subtraction" "out" )):aux (:x 309.000000 :y 100.000000 ))
-:name "subtraction_with_opacity" :root "comp_mix" )

@@ -26,9 +26,6 @@
 #define __DRAWABLE_H__
 
 #include <glib.h>
-#ifndef OPENSTEP
-#include <libgimp/gimp.h>
-#endif
 #ifdef MOVIES
 #include <quicktime.h>
 #endif
@@ -37,7 +34,6 @@
 #include "userval.h"
 #include "mmpools.h"
 
-#define INPUT_DRAWABLE_GIMP			1
 #define INPUT_DRAWABLE_CMDLINE_IMAGE		2
 #define INPUT_DRAWABLE_CMDLINE_MOVIE		3
 #define INPUT_DRAWABLE_OPENSTEP			4
@@ -144,20 +140,6 @@ typedef struct _input_drawable_t {
 	    int row_stride;
 	    unsigned char *data;
 	} openstep;
-#else
-	struct
-	{
-	    GimpDrawable *drawable;
-	    gboolean has_selection; /* only used for copying the drawable */
-	    gint x0, y0;	    /* is honored whatever the value of has_selection */
-	    gint bpp;
-	    gint row;
-	    gint col;
-	    GimpTile *tile;
-	    int fast_image_source_width;
-	    int fast_image_source_height;
-	    color_t *fast_image_source;
-	} gimp;
 #endif
 	struct
 	{
@@ -188,12 +170,7 @@ void for_each_input_drawable (void (*) (input_drawable_t *drawable));
 int get_num_input_drawables (void);
 input_drawable_t* get_nth_input_drawable (int n);
 
-#ifndef OPENSTEP
-input_drawable_t* alloc_gimp_input_drawable (GimpDrawable *drawable, gboolean honor_selection);
-GimpDrawable* get_gimp_input_drawable (input_drawable_t *drawable);
-
 input_drawable_t* get_default_input_drawable (void);
-#endif
 
 input_drawable_t* alloc_cmdline_image_input_drawable (const char *filename);
 #ifdef MOVIES

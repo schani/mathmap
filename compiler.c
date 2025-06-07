@@ -108,6 +108,7 @@ static type_t primary_type (primary_t *primary);
 #include "opfuncs.h"
 
 static pools_t compiler_pools;
+static int pools_alloced = 0;
 
 static operation_t ops[NUM_OPS];
 
@@ -4624,6 +4625,27 @@ optimization_time_out (struct timeval *start, int timeout)
     return FALSE;
 }
 
+static void
+compiler_alloc_pools_if_necessary ()
+{
+    if (pools_alloced)
+	return;
+
+    init_pools(&compiler_pools);
+    vector_variables = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    pools_alloced = 1;
+}
+
+void
+compiler_free_pools (mathmap_t *mathmap)
+{
+    g_hash_table_unref(vector_variables);
+    free_pools(&compiler_pools);
+
+    pools_alloced = 0;
+}
+
 filter_code_t*
 compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_types, int timeout, gboolean debug_output)
 {
@@ -4633,6 +4655,8 @@ compiler_generate_ir_code (filter_t *filter, int constant_analysis, int convert_
     struct timeval tv;
 
     g_assert(filter->kind == FILTER_MATHMAP);
+
+    compiler_alloc_pools_if_necessary ();
 
     gettimeofday(&tv, NULL);
 
@@ -4758,8 +4782,7 @@ compiler_compile_filters (mathmap_t *mathmap, int timeout)
     gboolean debug_output = FALSE;
 #endif
 
-    init_pools(&compiler_pools);
-    vector_variables = g_hash_table_new(g_direct_hash, g_direct_equal);
+    compiler_alloc_pools_if_necessary ();
 
     num_filters = 0;
     for (filter = mathmap->filters; filter != 0; filter = filter->next)
@@ -4781,13 +4804,6 @@ compiler_compile_filters (mathmap_t *mathmap, int timeout)
     }
 
     return filter_codes;
-}
-
-void
-compiler_free_pools (mathmap_t *mathmap)
-{
-    g_hash_table_unref(vector_variables);
-    free_pools(&compiler_pools);
 }
 
 /*** inits ***/

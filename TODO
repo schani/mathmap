@@ -1,6 +1,10 @@
 -*- org -*-
 #+FILETAGS: :mathmap:
 
+* NaCl
+** Editor
+*** CodeMirror
+http://codemirror.net/
 * 1.3.6
 ** GIMP Plug-In
 *** TODO Register example filters with proper plug-in arguments in GIMP :feature:

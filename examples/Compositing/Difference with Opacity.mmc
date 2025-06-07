@@ -1,4 +1,0 @@
-(design (node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 20.000000 :y 99.000000 ))
-(node :name "comp_difference" :type "comp_difference" :input-slots (("in1" "util_ident" "out" )):aux (:x 131.000000 :y 207.000000 ))
-(node :name "comp_mix" :type "comp_mix" :input-slots (("in0" "util_ident" "out" )("in1" "comp_difference" "out" )):aux (:x 309.000000 :y 100.000000 ))
-:name "difference_with_opacity" :root "comp_mix" )

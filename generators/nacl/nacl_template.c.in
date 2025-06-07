@@ -1,0 +1,121 @@
+/*
+ * nacl_template.c
+ *
+ * MathMap
+ *
+ * Copyright (C) 2012 Mark Probst
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
+
+#include <stdlib.h>
+#include <math.h>
+
+#include "nacl_opmacros.h"
+#include "pools.h"
+
+$def_mmpools
+
+$filter_begin
+typedef struct
+{
+    $xy_decls
+} xy_const_vars_t;
+
+typedef struct
+{
+    $y_decls
+} y_const_vars_t;
+
+void
+mathmap_render_frame (int size_x, int size_y, unsigned char *image_data)
+{
+    int row, col;
+    unsigned char *p;
+
+    float X = size_x / 2.0, Y = size_y / 2.0;
+    float W = size_x, H = size_y;
+    float R = hypot (X, Y);
+    float t = 0.0;
+    mathmap_pools_t global_pools, pixel_pools;
+    mathmap_pools_t *pools;
+
+    xy_const_vars_t _xy_vars, *xy_vars = &_xy_vars;
+    y_const_vars_t *y_vars_array;
+
+    if (image_data == NULL)
+	return;
+
+    mathmap_pools_init_global (&global_pools);
+    mathmap_pools_init_local (&pixel_pools);
+
+    pools = &global_pools;
+
+    {
+	$xy_code
+    }
+
+    y_vars_array = (y_const_vars_t*)malloc (sizeof (y_const_vars_t) * size_x);
+
+    for (col = 0; col < size_x; ++col)
+    {
+	y_const_vars_t *y_vars = &y_vars_array [col];
+	float x = col - X;
+
+	{
+	    $y_code
+	}
+
+    }
+
+    p = (unsigned char*)image_data;
+    for (row = 0; row < size_y; ++row)
+    {
+	float y = Y - row;
+
+	pools = &global_pools;
+
+	$x_decls
+
+	$x_code
+
+	pools = &pixel_pools;
+
+	for (col = 0; col < size_x; ++col)
+	{
+	    y_const_vars_t *y_vars = &y_vars_array [col];
+	    float x = col - X;
+	    float *return_tuple = NULL;
+
+	    mathmap_pools_reset(pools);
+
+	    {
+		$m
+	    }
+
+	    p [0] = TUPLE_RED (return_tuple) * 255.0;
+	    p [1] = TUPLE_GREEN (return_tuple) * 255.0;
+	    p [2] = TUPLE_BLUE (return_tuple) * 255.0;
+	    p [3] = TUPLE_ALPHA (return_tuple) * 255.0;
+
+	    p += 4;
+	}
+    }
+
+    free (y_vars_array);
+    mathmap_pools_free (&pixel_pools);
+    mathmap_pools_free (&global_pools);
+}
+$filter_end

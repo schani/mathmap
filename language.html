@@ -1,0 +1,795 @@
+<HTML>
+<HEAD>
+<title>The MathMap Language Tutorial</title>
+</HEAD>
+<BODY>
+
+<center><h1>The MathMap Language Tutorial</h1></center>
+
+<p>MathMap is a language for transforming existing images and
+producing entirely new ones.  Think of it as the ultimate image and
+animation filter.  This flexibility, however, comes at a price: Using
+MathMap to create a new transformation isn't as simple as using some
+pre-built image manipulation filter.  Instead, you have to precisely
+describe what MathMap should do.  This usually requires a bit of math
+knowledge (for most tasks, high-school math is more than sufficient)
+and it is necessary to know the MathMap language.
+
+<p>This document is a gentle introduction to the
+MathMap language.  Very little mathematical knowledge is assumed, and
+almost no programming skills are needed--although they would certainly
+come in handy.
+
+<p>Please take the time to read through this introduction.  Try out
+the examples we give and play around with them.  Change them a little
+and see what happens.  That way, you will quickly gain a feeling for
+what you can achieve with MathMap and in which ways.  If you do this,
+we are confident that you will soon create your own image filters and
+maybe even get hooked on MathMap.
+
+<p>This tutorial deals with the following topics:
+
+<dt>
+<li><a href="#basics">Basic Principles</a>
+<li><a href="#cartesian">The Cartesian Coordinate System</a>
+<li><a href="#inputImages">Input Images</a>
+<li><a href="#polar">The Polar Coordinate System</a>
+<li><a href="#conditionals">Conditionals</a>
+<li><a href="#variables">Variables</a>
+<li><a href="#userValues">User Values</a>
+<li><a href="#animations">Animations</a>
+</dt>
+
+<h2><a name="basics"></a>Basic Principles</h2>
+
+<blockquote>
+<p>The basic operating principle of MathMap is very simple.  To create
+an image of a given size, MathMap simply goes through all the
+elements (pixels) of the image to be created and "asks" your filter
+how the pixel in question should look like, i.e. what color it should
+have.
+
+<p>Let's make a filter that produces a white image:
+
+<blockquote>
+<pre>
+filter white ()
+    grayColor(1)
+end
+</pre>
+</blockquote>
+
+<p>As you can see, MathMap filters always start with the word
+<tt>filter</tt> and end with the word <tt>end</tt>.  The word
+<tt>white</tt> after <tt>filter</tt> is simply the name of the filter
+and you are free to choose your own names as you like.  The
+parentheses <tt>()</tt> serve a purpose which we'll come to later.
+
+<p><tt><a href="reference.html#func_grayColor">grayColor</a></tt> is a function producing a gray level color.
+What it needs to know is the gray level you want to produce.  In this
+case, the gray level we want is <tt>1</tt>, which stands for white.
+<tt>0</tt> is black, and <tt>0.5</tt> is halfway in between.  If you
+provide a value greater than <tt>1</tt>, MathMap will use <tt>1</tt>
+instead (there is no color whiter than white!).  Similarly, <tt>0</tt>
+will be used if a value less than <tt>0</tt> is passed to the
+function.
+
+<p>Such values given to functions are called <em>arguments</em>.  As
+we have just seen, <tt><a href="reference.html#func_grayColor">grayColor</a></tt> takes exactly one
+argument.  Arguments are always given to a function after its name,
+enclosed in parentheses.  As we will shortly see, if a function takes
+more than one argument, those arguments are separated by commas.
+
+<p>Producing gray levels is fun, but we'd like to play around with
+"real" colors, too.  So, let's produce a red image:
+
+<blockquote>
+<pre>
+filter red ()
+    rgbColor(1, 0, 0)
+end
+</pre>
+</blockquote>
+
+<p>As you can see, <tt><a href="reference.html#func_rgbColor">rgbColor</a></tt> takes three arguments and
+produces a color.  Its first argument is the amount of red in the
+color.  The second argument is the color's green component, and the
+third argument specifies the blue component.  Again, useful values
+range from <tt>0</tt> to <tt>1</tt>.  Values too large
+or too small are clipped to <tt>1</tt> or <tt>0</tt>, respectively.
+Try to change the values and see how it affects the output color.
+</blockquote>
+
+<h2><a name="cartesian"></a>The Cartesian Coordinate System</h2>
+
+<blockquote>
+<p>So far, the pixels in our images have always had the same color.  When
+we produce images with multiple colors, we usually want to determine
+the color based on the position of the pixel in question.
+
+<p>MathMap allows access to the coordinates of the pixel being
+calculated.  It supports two coordinate systems.  The first one, which
+you are certainly familiar with, is the cartesian coordinate system.
+Each pixel has two coordinates, called <tt>x</tt> and
+<tt>y</tt>.  The following figure illustrates the cartesian coordinate
+system:
+
+<p><img src="cartesian.png">
+
+<p>The point labeled "O" is the <em>origin</em> of the coordinate
+system.  Both its coordinates (<tt>x</tt> and <tt>y</tt>) are zero.
+The origin is always in the center of the image.  The point "p" in the
+illustration has a value of <tt>0.5</tt> for the coordinate <tt>x</tt>
+and <tt>0.2</tt> for <tt>y</tt>.  That's because it's halfway from the
+origin to the right edge of the image and one fifth to the top edge.
+As you can see, the <tt>x</tt> coordinate is <tt>1</tt> at the right
+edge of the image and <tt>-1</tt> at the left edge.  The same holds
+for the <tt>y</tt> coordinate and the top and bottom edges,
+respectively.
+
+<p>Let's use this knowledge to produce an image which is black on the
+left, white on the right and has gray levels in between.  We want to
+produce this image:
+
+<p><img src="gray_gradient.jpg">
+
+<p>We know that we can use <tt><a href="reference.html#func_grayColor">grayColor</a></tt> to produce a gray level.
+However, we need a number between <tt>0</tt> and <tt>1</tt> to get
+colors between black and white.  Let's look at what we have.  At the
+right edge of the image the value of <tt>x</tt> is <tt>1</tt> and at
+the left edge it's <tt>-1</tt>.  In order to get <tt>0</tt> at the
+left edge, we can simply add <tt>1</tt> to <tt>x</tt>,
+i.e. use <tt>x+1</tt>.  At the right edge, however, we now
+get <tt>2</tt> instead of <tt>1</tt>, which we can rectify by dividing
+by <tt>2</tt>, which gives us <tt>(x+1)/2</tt>.  Now we have what we
+want, and we can give this expression as an argument to
+<tt><a href="reference.html#func_grayColor">grayColor</a></tt>:
+
+<blockquote>
+<pre>
+filter gray_gradient ()
+    grayColor((x + 1) / 2)
+end
+</pre>
+</blockquote>
+
+<p>Try to do the same for the <tt>y</tt> coordinate, i.e. make a
+gradient from bottom to top instead of from left to right.  You could
+also try to combine both coordinates to produce a gradient which goes
+from the bottom left corner to the top right corner.
+</blockquote>
+
+<h2><a name="inputImages"></a>Input Images</h2>
+
+<blockquote>
+<p>While it's fun to produce completely new images, it is often nice
+or necessary to modify existing ones.  We will use this as our input
+image:
+
+<p><a href="http://www.flickr.com/photos/schani/30729426/in/set-487122/"><img src="finn.jpg"></a>
+
+<p>What we have to do is tell MathMap that we want to give it an input
+image, and we have to give it a name, because there might be more than
+one.  That's where the parentheses after the name of the filter come
+in.  Between them, we give all the inputs our filter gets:
+
+<blockquote>
+<pre>
+filter ident (image in)
+    in(xy)
+end
+</pre>
+</blockquote>
+
+<p>A few things are new here.  Notice the declaration of the input
+image, which we call <tt>in</tt>.  The reason why we have to specify
+with the word <tt>image</tt> that it's an image is that there are
+input types other than images, which we'll come to later.
+
+<p>What's new as well is the way we use the input image.  It looks
+exactly like using a function with one argument, in this case
+<tt>xy</tt>, which we haven't explained yet, either.  <tt>xy</tt> is a
+variable that combines <tt>x</tt> and <tt>y</tt> in one value, with
+the additional information that it's cartesian coordinates.  That
+information is necessary because, as we'll see later, MathMap supports
+another coordinate system, as well.
+
+<p>So, you can use an input image just like you use a function.  It
+takes one argument, namely the coordinates of the pixel that you
+request.  In the script above, we are simply passing along the
+coordinates that our filter is given, so we just copy the input image,
+which is not very exciting.
+
+<p>A very simple effect is to flip the image horizontally.  This can
+be achieved by changing the sign of the <tt>x</tt> coordinate,
+i.e. making negative coordinates positive and vice versa:
+
+<blockquote>
+<pre>
+filter flip (image in)
+    in(xy:[-x, y])
+end
+</pre>
+</blockquote>
+
+<p>There's two other new pieces of syntax here.  First of all we're
+using square brackets to combine the x and y coordinates into one
+value, called a "tuple".  You can build tuples with as many numbers as
+you like.  Tuples can only contain numbers, though, and not other
+tuples.  The variable <tt>xy</tt> that we've seen in the filter
+<tt>ident</tt> above is a tuple, as well.
+
+<p>In addition, we're using the colon to give the tuple a so-called
+"tag", namely <tt>xy</tt>, which actually has no direct relation to
+the variable <tt>xy</tt> seen above.  This specific tag says that the
+tuple is a pair of cartesian coordinates.  Without that tag, MathMap
+wouldn't know which coordinate system you're using to request a pixel
+from the input image.
+
+<p>Try out the script for yourself.  Also, try to predict what would
+happen if you changed the sign of the <tt>y</tt> coordinate instead,
+then try it out and see if you were right.
+
+<p>Now, let's shake the waves with our image.  The function
+<tt><a href="reference.html#func_sin">sin</a></tt> will come in handy for our purposes.  This is what its
+graph looks like (by the way, this graph was produced by MathMap,
+using an expression by Hans Lundmark):
+
+<p><img src="sinegraph.png">
+
+<p>As you can see, the value of <tt><a href="reference.html#func_sin">sin</a></tt> oscillates
+between <tt>-1</tt> and <tt>1</tt>.  The length of its oscillation
+period (the distance it needs to make a whole "cycle") is
+<tt>2*pi</tt>.  The value of <tt>pi</tt>, as is well known, is about
+<tt>3.14159</tt>.
+
+<p>We will now try to shift whole pixel columns up and down, depending
+on their <tt>x</tt> coordinates.  The shift pattern will resemble the
+graph of the <tt><a href="reference.html#func_sin">sin</a></tt> function, only that we will use a period
+length of half the width of the image, i.e. <tt>1</tt>, and we will
+shift them up or down by at most <tt>0.1</tt>:
+
+
+<blockquote>
+<pre>
+filter sine_finn (image in)
+    in(xy:[x, y + 0.1 * sin(x * (2*pi))])
+end
+</pre>
+</blockquote>
+
+<p>The resulting image looks like this:
+
+<p><img src="sine_finn.jpg"></blockquote>
+
+<h2><a name="polar"></a>The Polar Coordinate System</h2>
+
+<blockquote>
+<p>In addition to the familiar cartesian coordinate system, MathMap
+also supports the polar coordinate system.  Each pixel has two polar
+coordinates, namely <tt>r</tt> and <tt>a</tt>.  The
+following illustration helps in understanding the polar coordinate
+system:
+
+<p><img src="polar.png">
+
+<p>The value of <tt>r</tt> is simply the distance from the origin
+(i.e. the center of the image) to that pixel.
+
+<p>The value of <tt>a</tt> is the angle between the positive x-axis
+and the line from the origin to the pixel in question.
+
+<p>However, the angle is not measured in degrees
+(<tt>0</tt>-<tt>360</tt>), but in radians, which range from <tt>0</tt>
+to <tt>2*pi</tt>.  This may seem a bit awkward, but it is more
+convenient mathematically.  MathMap provides two functions to
+convert between radians and degrees, namely <tt><a href="reference.html#func_rad2deg">rad2deg</a></tt> and
+<tt><a href="reference.html#func_deg2rad">deg2rad</a></tt>.
+
+<p>Polar coordinates make it very easy to generate pond-like effects.
+When we try the wavy script from above and use polar instead of
+cartesian coordinates, leaving the <tt>a</tt> coordinate unchanged and
+shifting the <tt>r</tt> coordinate, we get the following expression:
+
+
+<blockquote>
+<pre>
+filter finn_pond (image in)
+    in(ra:[r + 0.1 * sin(r * (2*pi)), a])
+end
+</pre>
+</blockquote>
+
+<p>which generates this image:
+
+<p><img src="finn_pond.jpg">
+
+<p>Notice how this script uses the tag <tt>ra</tt>, instead of
+<tt>xy</tt>, to let MathMap know that the coordinates given to the
+input image are polar and not cartesian.
+</blockquote>
+
+<h2><a name="conditionals"></a>Conditionals</h2>
+
+<blockquote>
+<p>Let's create an image which looks like a shooting target:
+
+<p><img src="target.jpg">
+
+<p>Obviously, whether a pixel is red or white depends solely on its
+distance from the center, which we know is available as <tt>r</tt>.  I
+have chosen the width of each ring as <tt>0.2</tt>, i.e. the distance
+between the radii of the inner circles of two neighboring red (or
+white) rings is <tt>0.4</tt>.  Hence, the expression we
+are looking for is periodic with a period of <tt>0.4</tt>.
+
+<p>To solve this problem, we will use the modulo operator, which is
+available as <tt><a href="reference.html#func___mod">%</a></tt>.  Its value is the remainder of the division
+of its left operand by its right operand.  As an example, <tt>7%3</tt>
+is <tt>1</tt> because the remainder of the division of
+<tt>7</tt> by <tt>3</tt> is <tt>1</tt>.
+This operation is periodic.  Its period is the value of its right
+operand (the divisor).  Furthermore, the result of the operation is
+never greater than the right operand.  So, for example, <tt>r%0.4</tt>
+is periodic with a period of <tt>0.4</tt> and is always
+between <tt>0</tt> (inclusive) and <tt>0.4</tt> (exclusive).  Let's see
+what this looks like:
+
+<blockquote>
+<pre>
+filter rmod ()
+    grayColor((r%0.4)/0.4)
+end
+</pre>
+</blockquote>
+
+<p>In order to be nice to <tt><a href="reference.html#func_grayColor">grayColor</a></tt>, the value
+is scaled to be in the range from <tt>0</tt> to <tt>1</tt> (instead of
+<tt>0.4</tt>).  The resulting image looks like this:
+
+<p><img src="rmod.jpg">
+
+<p>You can see that the value starts out as <tt>0</tt> at the center
+of the image, climbs to <tt>1</tt> at a distance of <tt>0.4</tt> from
+the center and then immediately drops to <tt>0</tt> again, repeating
+this cycle forever (well, in our case, to the boundaries of the
+image).
+
+<p>You may want to try to leave out the rescaling "<tt>/0.4</tt>" to
+see the difference.
+
+<p>All we have to do now is to check whether we are in the first half
+of a period (in which case <tt>r%0.4</tt> is less than <tt>0.2</tt>), or
+in the second.  If we are in the first, the color for the pixel is
+red, otherwise it is white.  MathMap provides a construct for such
+decisions:
+
+<blockquote>
+<pre>
+filter target ()
+    if r%0.4 < 0.2 then
+        rgbColor(1,0,0)
+    else
+        rgbColor(1,1,1)
+    end
+end
+</pre>
+</blockquote>
+
+<p>The indentation is used merely to make the expression easier to
+read. You can indent your code any way you like (or not at all).
+
+<p>The expression should be easy enough to understand.  If the
+condition is fulfilled, the result is the color red, otherwise it is
+the color white.
+</blockquote>
+
+<h2><a name="variables"></a>Variables</h2>
+
+<blockquote>
+<p>Sometimes you want to use one value in multiple places in your
+expression.  It's not necessary to write that value twice.  Instead
+you give it a name by which you can refer to it later.  Let's say we
+want to produce an image like this:
+
+<p><img src="finn_vignette.jpg">
+
+<p>As you can see, the pixels from the original image fade to black
+with the distance from the center.  They reach the black color at the
+corners of the image.
+
+<p>The variable <tt>r</tt>, which holds the distance from the center
+of the image, is measured in the same distance units as the cartesian
+coordinates, and its maximum value, which it reaches in the four
+corners of the image, is provided by the constant
+<tt>R</tt> (which is the square root of <tt>2</tt> in square images,
+in case you must know).  If we scale this down to <tt>1</tt>, it's
+much easier to work with, so we'll use <tt>r/R</tt>.  This
+expression's value is <tt>0</tt> at the center of the image and
+increases with the distance from the center.  It reaches <tt>1</tt> in
+the corners, exactly where we want the color to be solid black.
+
+<p>Given the color of a pixel in the original image and its
+transformed (as above) distance from the center, we can now figure out
+what to do.  If the transformed distance is <tt>0</tt>
+(in the center) we want the original color unchanged.  If it's
+<tt>1</tt>, we want the color black.  We can reach that effect by
+multiplying the three color components of the pixel by <tt>1</tt>
+minus the transformed distance, i.e. by <tt>1-r/R</tt>.
+
+<p>We can use the functions <tt><a href="reference.html#func_red">red</a></tt>, <tt><a href="reference.html#func_green">green</a></tt>, and <tt><a href="reference.html#func_blue">blue</a></tt>
+to access the components of a color.  Now we could write the red
+component of our output image as <tt>red(in(xy))*(1-r/R)</tt>.  We'd
+have to use equivalent expressions for the green and blue components
+and then use them as arguments to <tt><a href="reference.html#func_rgbColor">rgbColor</a></tt>.  By assigning the
+values <tt>in(xy)</tt> and <tt>1-r/R</tt> to variables, which we'll
+call <tt>p</tt> and <tt>d</tt> (you can choose any name you like, as
+long as it's not the name of a built-in constant or variable or a
+keyword; consult the <a href="reference.html">MathMap reference</a>
+for the names of all of those), we can write the resulting expression
+much shorter as <tt>rgbColor(red(p)*d, green(p)*d, blue(p)*d)</tt>.
+The complete filter is:
+
+<blockquote>
+<pre>
+filter finn_vignette (image in)
+    p=in(xy);
+    d=1-r/R;
+    rgbColor(red(p)*d, green(p)*d, blue(p)*d)
+end
+</pre>
+</blockquote>
+
+<p>As you can see, assigning values to variables is very
+straightforward.  You must separate variable assignments and other
+expressions with semicolons.
+
+<p>By the way: Using more advanced features of MathMap you can write
+an expression equivalent to the above as
+
+<blockquote>
+<pre>
+filter finn_vignette (image in)
+    lerp(r/R, in(xy), grayColor(0))
+end
+</pre>
+</blockquote>
+
+<p>So, please go on reading, there's more to come.
+</blockquote>
+
+<h2><a name="userValues"></a>User Values</h2>
+
+<blockquote>
+<p>Sometimes you need to put some values into your script which
+are more or less arbitrary.  Often you want to try out several
+different values, and it's tedious to change the script every time
+by hand.  That's where user values come in.  Let's reiterate our wave
+example:
+
+<blockquote>
+<pre>
+filter sine_finn (image in)
+    in(xy:[x, y + 0.1 * sin(x * (2*pi))])
+end
+</pre>
+</blockquote>
+
+<p>There are two parameters here which we have chosen more or less
+arbitrarily, namely the amplitude of the wave (in this case
+<tt>0.1</tt>) and the wave length (in this case implicitly given
+as <tt>1</tt>).  Wouldn't it be nice if we could change these values
+with sliders instead of having to edit the expression?
+
+<p>That's where inputs come in again.  We've seen above that we can
+give images as inputs to filters.  Now we'll learn how to supply
+numbers as well:
+
+<blockquote>
+<pre>
+filter sine_finn (image in, float amplitude: 0-2, float wavelength: 0-10)
+    in(xy:[x, y + amplitude * sin(x * (2*pi) / wavelength)])
+end
+</pre>
+</blockquote>
+
+<p>The type <tt>float</tt> denotes a so-called <a
+href="http://en.wikipedia.org/wiki/Floating_point">floating point</a>
+number, which represents a real number and can have a fractional
+component, in contrast to integers, which you can specify with the
+word <tt>int</tt>.  After the name of the argument you can also give a
+range of allowed values, in the case of the argument
+<tt>amplitude</tt> above from <tt>0</tt> to <tt>2</tt>.
+
+<p>There are not only argument types for images and numbers, but also
+for colors, color gradients and curves.  Check out the <a
+href="reference.html">Reference Manual</a> for details.
+</blockquote>
+
+<h2><a name="tuples"></a>Tuples and Tags</h2>
+
+<blockquote>
+<p>Now it's time to look at a more technical subject, namely MathMap's
+type system.  We've already talked about it a little when we examined
+coordinates, and now we'll go into a bit more detail.
+
+<p>The type system of MathMap is designed to be as invisible as
+possible, but in order to unleash MathMap's full potential, you will
+need to know one or two things about it.  Don't worry, it's not very
+complicated.
+
+<p>Sometimes it's convenient to treat two or more numbers as a single
+value.  One such example is colors.  A single color is actually four
+distinct numbers.  We have already come across three of them, namely
+the red, green, and blue components.  The fourth is the color's
+transparency value, called <em>alpha</em>.  A color with an alpha of
+<tt>1</tt> is completely opaque, like all the colors we have seen so
+far.  An alpha component of <tt>0</tt> means full transparency,
+<tt>0.5</tt> means half transparent, and so on.
+
+<p>So far, we have always treated colors as single values.  We have
+constructed colors using functions such as <tt><a href="reference.html#func_rgbColor">rgbColor</a></tt> and
+retrieved their components with functions like <tt><a href="reference.html#func_red">red</a></tt>.  We can,
+however, do these things without using those functions.  This, for
+example, is the half-transparent color green:
+
+<blockquote>
+<pre>
+rgba:[0, 1, 0, 0.5]
+</pre>
+</blockquote>
+
+<p>One or more numbers within square brackets, separated by commas,
+constitute a <em>tuple</em>.  So, tuples are just ordered collections
+of numbers.  They are ordered because MathMap remembers in which order
+you have written their components.  For example, the tuple
+<tt>[1,2,3]</tt> is not the same as <tt>[3,2,1]</tt>.
+
+<p>The name <tt>rgba</tt> is a <em>tag</em>.  The tag <tt>rgba</tt>
+tells MathMap that that tuple is not just four numbers, but a color
+with red, green, blue and alpha components.  This begs the question
+whether there are other kinds of colors.  Actually, there are.
+MathMap also supports colors in the so-called <a
+href="http://en.wikipedia.org/wiki/HSV_color_space">HSV color
+space</a>.  Those colors are given the tag <em>hsva</em>.  MathMap
+uses the tags to determine how to interpret the numbers in the tuples.
+
+<p>Many operators and functions work on tuples as well as on single
+numbers.  The functions <tt><a href="reference.html#func_min">min</a></tt> and <tt><a href="reference.html#func_max">max</a></tt> for example,
+calculate the minimum and maximum values for each pair of tuple
+elements.  To set the red component of an image to <tt>0</tt>, for
+example, you can use the following script:
+
+<blockquote>
+<pre>
+filter remove_red (image in)
+    min(in(xy), rgba:[0, 1, 1, 1])
+end
+</pre>
+</blockquote>
+</blockquote>
+
+<h2><a name="animations"></a>Animations</h2>
+
+<blockquote>
+<p>MathMap provides the functionality to create animations.  To that
+end, the language provides a variable called <tt>t</tt>.  For each
+single picture in the animation (such pictures are called
+<em>frames</em>) <tt>t</tt> has a different value, depending on the
+position of the frame within the whole animation.  The first picture
+in the image always has <tt>t</tt> set to <tt>0</tt>,
+while for the last picture it is set to <tt>1</tt>.  Actually, the
+latter statement isn't always true, as we will discover shortly, but
+for the time being, simply assume that it is.
+
+<p>The following script produces an animation which fades from black
+to white:
+
+<blockquote>
+<pre>
+filter black_to_white ()
+    grayColor(t)
+end
+</pre>
+</blockquote>
+
+<p>You will often want to produce animations which loop seemlessly,
+i.e. which look like one endless animation when looped.  For such
+animations, make sure that the image with a <tt>t</tt>
+value of <tt>1</tt> looks exactly like the one with a value of
+<tt>0</tt>, like in the following script:
+
+<blockquote>
+<pre>
+filter black_white_loop ()
+    grayColor((sin(t * 2*pi) + 1) / 2)
+end
+</pre>
+</blockquote>
+
+<p>The problem here is that if MathMap would render the first image in
+the animation with <tt>t</tt> as <tt>0</tt> and the
+last image with <tt>t</tt> as <tt>1</tt>, you would
+have the same frame twice when looping.  Therefore, MathMap lets you
+choose (in the user interface) whether you would like to create a
+periodic (looping) animation or not.  If you do, <tt>t</tt> never
+reaches <tt>1</tt> at the end of the animation but stops shortly
+before, depending on how many frames you want your animation to have.
+For example, for a periodic animation with 10
+frames, <tt>t</tt> takes on the values <tt>0</tt>, <tt>0.1</tt>,
+<tt>0.2</tt>, ... <tt>0.9</tt>.
+
+<p>Hint: One way to make periodic animations is to use periodic
+functions like <tt><a href="reference.html#func_sin">sin</a></tt>, <tt><a href="reference.html#func_cos">cos</a></tt> or the modulo operator
+<tt><a href="reference.html#func___mod">%</a></tt>.
+</blockquote>
+
+<h2><a name="functions"></a>Some Useful Functions</h2>
+
+<blockquote>
+<p>Here is an overview of some MathMap functions which are very useful
+in many situations.  This is not a complete function reference.  If
+you are looking for one, you'll find it in the <a
+href="reference.html">Reference Manual</a>.
+
+<h3><tt><a href="reference.html#func_scale">scale</a></tt></h3>
+
+<blockquote>
+<p>Quite often you find that you have a value which varies within a
+given range, but you want the range to be different.  Take, for
+example the gray gradient:
+
+<p><img src="gray_gradient.jpg">
+
+<p>The variable <tt>x</tt> varies from <tt>-1</tt> to <tt>1</tt>
+but you want it to be between <tt>0</tt> and <tt>1</tt>.  In such
+cases you can use the <tt><a href="reference.html#func_scale">scale</a></tt> function.  The
+expression <tt>scale(x, -1, 1, 0, 1)</tt> is <tt>0</tt>
+when <tt>x</tt> is <tt>-1</tt> and <tt>1</tt> when
+<tt>x</tt> is <tt>1</tt>.  Hence, you can create the
+above image with the script
+
+<blockquote>
+<pre>
+filter gray_gradient ()
+    grayColor(scale(x, -1, 1, 0, 1))
+end
+</pre>
+</blockquote>
+</blockquote>
+
+<h3><tt><a href="reference.html#func_lerp">lerp</a></tt></h3>
+
+<blockquote>
+<p>Suppose we want to produce a gradient from red to green:
+
+<p><img src="redgreengradient.jpg">
+
+<p>We know from above that we can use <tt>scale(x, -1, 1, 0, 1)</tt>
+for a value which is <tt>0</tt> at the left image edge
+and <tt>1</tt> at the right edge.  <tt><a href="reference.html#func_lerp">lerp</a></tt> does
+the rest: it takes two tuples and produces a value which is "in
+between" these two values by the same amount as its first argument is
+in between <tt>0</tt> and <tt>1</tt>.  Hence, the gradient above can
+be produced by this expression:
+
+<blockquote>
+<pre>
+filter redgreengradient ()
+    lerp(scale(x, -1, 1, 0, 1), rgbColor(1,0,0), rgbColor(0,1,0))
+end
+</pre>
+</blockquote>
+</blockquote>
+
+<h3><tt><a href="reference.html#func_inintv">inintv</a></tt></h3>
+
+<blockquote>
+<p>The function <tt><a href="reference.html#func_inintv">inintv</a></tt> makes it easy to check whether a value
+lies within a given range.  <tt><a href="reference.html#func_inintv">inintv</a></tt> has a value
+of <tt>1</tt> if the condition is fulfilled, and of <tt>0</tt>
+otherwise.  You can use this as a condition in an <tt>if</tt>
+expression, or as a value in its own right.  For example, this
+script draws a white ring with an inner radius of <tt>0.4</tt> and
+an outer radius of <tt>0.6</tt>:
+
+<blockquote>
+<pre>
+filter ring ()
+    grayColor(inintv(r, 0.4, 0.6))
+end
+</pre>
+</blockquote>
+</blockquote>
+
+<h3><tt><a href="reference.html#func_clamp">clamp</a></tt></h3>
+
+<blockquote>
+<p>Sometimes you have values which you want to lie within a given
+range.  In case they don't, you simply want them to take on the
+largest value within the range, if they are too large, or the smallest
+if they are too small.
+
+<p>MathMap often does such operations automatically, for example if
+you produce colors with components larger than <tt>1</tt> or smaller
+than <tt>0</tt>.
+
+<p>If you have to do it yourself, <tt><a href="reference.html#func_clamp">clamp</a></tt> can help you.  For
+example, <tt>clamp(v, [0,0,0], [1,1,1])</tt> restricts every element of
+<tt>v</tt> to be in the range from <tt>0</tt> to <tt>1</tt>.
+</blockquote>
+
+<h3><tt><a href="reference.html#func_rand">rand</a></tt></h3>
+
+<blockquote>
+<p>The function <tt><a href="reference.html#func_rand">rand</a></tt> generates a random number.  It takes two
+arguments: The minimum and the maximum value of the number to be
+generated.  This filter, for examples, randomly scatters the
+pixels of the input image (but not more than a distance of 0.05 away from their
+original location in both directions):
+
+<blockquote>
+<pre>
+filter scatter (image in)
+    in(xy:[x + rand(-0.05,0.05), y + rand(-0.05,0.05)])
+end
+</pre>
+</blockquote>
+</blockquote>
+
+<h3><tt><a href="reference.html#func_noise">noise</a></tt></h3>
+
+<blockquote>
+<p>In image manipulation, one often needs a function which is random
+but doesn't change as abruptly as <tt><a href="reference.html#func_rand">rand</a></tt> does.  <tt><a href="reference.html#func_noise">noise</a></tt>
+is a so-called <em>solid noise</em> function.  It takes a tuple of
+three numbers and returns a value between <tt>-1</tt> and <tt>1</tt>.
+If the input arguments change only by a little, so does the resulting
+value.  The overall "look" of the function is random, though.  It's
+hard to describe, so it's best you see for yourself:
+
+<blockquote>
+<pre>
+filter noise_demo ()
+    grayColor(scale(noise([x*5, y*5, t*2]), -1, 1, 0, 1))
+end
+</pre>
+</blockquote>
+
+<p>As you can see, the third input value depends on <tt>t</tt>, so try
+out changing <tt>t</tt>.  For <tt>t</tt> being <tt>0</tt>, the
+resulting image looks like this:
+
+<p><img src="noise_demo.jpg">
+</blockquote>
+</blockquote>
+
+<h2><a name="furtherInformation"></a>Further Information</h2>
+
+<blockquote>
+<p>This tutorial has, despite its length, not covered all features and
+details of MathMap.  For example, we didn't even mention loops (a
+programming language feature having nothing to do with animations).
+
+<p>To get more detailed information about the MathMap language, see
+the <a href="reference.html">MathMap Reference Manual</a>.
+
+<p>A very good way to learn how to do things with MathMap is to look
+at the examples supplied with it.  Pick the examples you find
+interesting, look at the filter sources, and try to figure out how
+they work.
+
+<p>You might also want to look at
+the <a href="http://www.complang.tuwien.ac.at/schani/mathmap/">MathMap
+Homepage</a> for announcements, new documentation or interesting
+links.  The best way to get involved in the MathMap community is by
+joining the <a href="http://groups.google.com/group/mathmap">MathMap Google Group</a>.
+
+<p>If you like MathMap, or if you have suggestions or questions
+regarding the MathMap language or user interface, feel free to <a
+href="mailto:mark.probst@gmail.com">contact the author</a>.  I
+am looking forward to your feedback.
+</blockquote>
+
+</BODY>
+</HTML>

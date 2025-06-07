@@ -1,4 +1,0 @@
-(design (node :name "comp_mix" :type "comp_mix" :input-slots (("in1" "comp_addition" "out" )("in0" "util_ident" "out" )):aux (:x 310.000000 :y 100.000000 ))
-(node :name "util_ident" :type "util_ident" :input-slots ():aux (:x 20.000000 :y 99.000000 ))
-(node :name "comp_addition" :type "comp_addition" :input-slots (("in1" "util_ident" "out" )):aux (:x 147.000000 :y 169.000000 ))
-:name "addition_with_opacity" :root "comp_mix" )

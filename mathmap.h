@@ -36,13 +36,8 @@
 #include "vars.h"
 #include "compiler.h"
 #include "color.h"
-#include "designer/designer.h"
 #include "expression_db.h"
 #include "mmpools.h"
-
-#ifndef OPENSTEP
-#include <libgimp/gimp.h>
-#endif
 
 #define MATHMAP_DATE		"August 2009"
 

@@ -22,7 +22,10 @@
 
 #include <noise.h>
 
+extern "C"
+{
 #include "../mathmap.h"
+}
 
 #include "libnoise.h"
 

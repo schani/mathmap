@@ -1,6 +1,0 @@
-(design (node :name "render_gray" :type "render_gray" :input-slots ():aux (:x 25.000000 :y 263.000000 ))
-(node :name "comp_addition" :type "comp_addition" :input-slots (("in2" "render_gray" "out" )("in1" "color_invert" "out" )):aux (:x 166.000000 :y 207.000000 ))
-(node :name "kernel_gauss" :type "kernel_gauss" :input-slots ():aux (:x 20.000000 :y 65.000000 ))
-(node :name "color_invert" :type "color_invert" :input-slots (("in" "kernel_gauss" "out" )):aux (:x 33.000000 :y 160.000000 ))
-(node :name "combine_half_convolve" :type "combine_half_convolve" :input-slots (("mask" "comp_addition" "out" )):aux (:x 248.000000 :y 97.000000 ))
-:name "local_contrast" :root "combine_half_convolve" )

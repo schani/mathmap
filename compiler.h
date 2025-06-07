@@ -23,9 +23,6 @@
 #ifndef __COMPILER_H__
 #define __COMPILER_H__
 
-#include <complex.h>
-#include <gsl/gsl_matrix.h>
-
 #include "glib.h"
 
 #include "tuples.h"
