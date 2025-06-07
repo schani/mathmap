@@ -1,0 +1,762 @@
+\input texinfo     @c -*- texinfo -*-
+
+@include version.texi
+@c %**start of header
+@setfilename lispreader.info
+@settitle  Reference Manual
+@c %**end of header
+
+@iftex
+@afourpaper
+@end iftex
+
+@ifinfo
+This file documents the @code{lispreader} library.
+
+Copyright (C) 1998-2005, Mark Probst
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies. 
+@end ifinfo
+
+@ifinfo
+@direntry
+* lispreader::                          A library for reading Lisp expressions.
+@end direntry
+@end ifinfo
+
+@titlepage
+@title @code{lispreader}
+@subtitle Reference manual
+@subtitle last updated @value{UPDATED} for version @value{VERSION}
+@author Mark Probst (schani@@complang.tuwien.ac.at)
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1998-2005 Mark Probst
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+@end titlepage
+
+@node  Top, Introduction, (dir), (dir)
+@comment  node-name,  next,  previous,  up@node Top, , (dir), (dir)
+
+@menu
+* Introduction::                
+* Using lispreader::            
+* Syntax::                      
+* Pools::                       
+* Allocators::                  
+* Reference::                   
+* Example::                     
+* Function Index::              
+@end menu
+
+@node Introduction, Using lispreader, Top, Top
+@comment  node-name,  next,  previous,  up
+@chapter Introduction
+
+@menu
+* What lispreader is::          
+* What lispreader is not::      
+* Licence::                     
+* Obtaining lispreader::        
+@end menu
+
+@node What lispreader is, What lispreader is not, Introduction, Introduction
+@comment  node-name,  next,  previous,  up
+@section What is @code{lispreader}?
+
+@code{lispreader} is a small library for reading expressions in Lisp
+syntax. It has originally been written to facilitate simple exchange of
+structured data between processes but its main purpose is now to provide
+a framework for reading configuration files. To simplify interpretation
+of the data read, @code{lispreader} also provides functions for simple
+matching of expressions against patterns.
+
+@code{lispreader} is also used in several application to read and
+write data files. Lisp syntax is very suitable for doing this,
+especially if the data is organized hierachically.
+
+@node What lispreader is not, Licence, What lispreader is, Introduction
+@comment  node-name,  next,  previous,  up
+@section What is @code{lispreader} not?
+
+@code{lispreader} is not a Lisp system in that it cannot, by itself,
+interpret Lisp expressions. It only provides a subset of the features of
+libraries like Guile of librep (namely the reading of expressions) and
+does thus not compete directly with those. If all you need is a simple
+way to read Lisp expressions without interpreting them with Lisp
+semantics, you will probably be satisfied with @code{lispreader}.
+
+@node Licence, Obtaining lispreader, What lispreader is not, Introduction
+@comment  node-name,  next,  previous,  up
+@section Licence and Warranty
+
+@code{lispreader} is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published
+by the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+
+@code{lispreader} is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with @code{chpp}; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+@node Obtaining lispreader,  , Licence, Introduction
+@comment  node-name,  next,  previous,  up
+@section Obtaining @code{lispreader}
+
+@code{lispreader} is available for free download on the world-wide-web
+at the URL @url{http://www.complang.tuwien.ac.at/schani/lispreader/}.
+
+@node Using lispreader, Syntax, Introduction, Top
+@comment  node-name,  next,  previous,  up
+@chapter Using @code{lispreader} in your programs
+
+@code{lispreader} consists of only a few C files, namely
+@file{lispreader.c}, @file{lispreader.h}, @file{lispscan.h},
+@file{allocator.c}, @file{allocator.h}, @file{pools.c}, and
+@file{pools.h}.  To incorporate @code{lispreader} in your own
+programs, just add these files to your own program's files.
+
+@node Syntax, Pools, Using lispreader, Top
+@comment  node-name,  next,  previous,  up
+@chapter Syntax
+
+@code{lispreader} can read lists consisting of other lists, symbols,
+strings, integers, real numbers and booleans. It also provides a syntax
+for specifying patterns.
+
+@menu
+* Comments::                    
+* Lists::                       
+* Symbols::                     
+* Integers::                    
+* Reals::                       
+* Strings::                     
+* Booleans::                    
+* Patterns::                    
+@end menu
+
+@node Comments, Lists, Syntax, Syntax
+@comment  node-name,  next,  previous,  up
+@section Comments
+
+Comments are started by the semicolon (@code{;}) and reach until the end
+of the line:
+
+@example
+; this line is completely ignored
+@end example
+
+@node Lists, Symbols, Comments, Syntax
+@comment  node-name,  next,  previous,  up
+@section Lists
+
+Lists consist of so-called cons-pairs, or conses. A cons is constituted
+by its car and cdr. A list is defined as either being the empty list,
+which is no cons at all, or as being a cons, the cdr of which is a
+list. The cars of these conses are the actual elements of the list.
+
+An example: The list @code{(a b c)} consists of three conses, the cars
+of which are the symbols @code{a}, @code{b} and @code{c}. The structure
+can be depicted using a box diagram:
+
+@example
+ _ _     _ _     _ _
+|_|_|-->|_|_|-->|_|_|-->nil
+ |       |       |
+ v       v       v
+ a       b       c
+@end example
+
+Each box denotes a cons, with the left half being its car and the right
+half being its cdr. @code{nil} denotes the empty list.
+
+It is also possible to explicitly set the cdr of the last cons using the
+dot-notation: @code{(a b . c)} can be illustrated thus:
+
+@example
+ _ _     _ _
+|_|_|-->|_|_|-->c
+ |       |
+ v       v
+ a       b
+@end example
+
+Note that this is technically not a list. Since the empty list can be
+written as @code{()}, the list @code{(a b c)} can be written using the
+dot-notation as @code{(a . (b . (c . ())))}.
+
+@node Symbols, Integers, Lists, Syntax
+@comment  node-name,  next,  previous,  up
+@section Symbols
+
+Symbols are pretty much everything that cannot be interpreted as
+anything else. They can have arbitrary length.
+
+@node Integers, Reals, Symbols, Syntax
+@comment  node-name,  next,  previous,  up
+@section Integers
+
+As integers are internally represented by @code{int} values, their range
+is restricted to the range of the @code{int} data type. Bignums are not
+supported.
+
+@node Reals, Strings, Integers, Syntax
+@comment  node-name,  next,  previous,  up
+@section Reals
+
+Reals are internally represented by values of the @code{float}
+datatype. @code{lispreader} cannot yet interpret exponential notation or
+reals without digits before the dot.
+
+@node Strings, Booleans, Reals, Syntax
+@comment  node-name,  next,  previous,  up
+@section Strings
+
+Strings are delimited on both sides by double quotes (@samp{"}). The
+backslash (@samp{\}) is used as escape character. The sequence @samp{\n}
+is interpreted as newline, @samp{\t} as tab. All other escape sequences
+evaluate to the char after the backslash, e.g. @samp{\\} denotes the
+backslash itself and @samp{\"} denotes the double quote.
+
+@node Booleans, Patterns, Strings, Syntax
+@comment  node-name,  next,  previous,  up
+@section Booleans
+
+The boolean values true and false are represented by @code{#t} and
+@code{#f}, respectively.
+
+@node Patterns,  , Booleans, Syntax
+@comment  node-name,  next,  previous,  up
+@section Patterns
+
+Patterns are used to represent classes of expressions. They contain no
+other value than the types of expressions they match against.
+
+Patterns are written using a special list syntax where the opening
+parenthesis is replaced by @samp{#?(}. There are patterns for matching
+all types of simple expressions:
+
+@table @code
+@item #?(symbol)
+Any symbol.
+@item #?(string)
+Any string.
+@item #?(integer)
+Any integer.
+@item #?(real)
+Any real.
+@item #?(boolean)
+@code{#t} of @code{#f}.
+@end table
+
+Two other patterns have a wider scope:
+
+@table @code
+@item #?(list)
+Any list.
+@item #?(number)
+Any number, i.e., any integer or real.
+@item #?(any)
+Any expression (including lists).
+@end table
+
+It is also possible to construct a pattern matching at least one out of
+a given set of expressions, which themselves can contain patterns, using
+the @code{or} pattern. For example, the pattern @code{#?(or (a . #?(list)) (b #?(integer)))}
+matches the list @code{(a #t 43)} as well as the list @code{(b 1)}, but
+not the list @code{(b #f)}. As another example, @code{#?(boolean)} is
+equivalent to @code{#?(or #t #f)}.
+
+@node Pools, Allocators, Syntax, Top
+@chapter Pools
+
+@menu
+* Pools Introduction::          
+* Pools Reference::             
+@end menu
+
+@node Pools Introduction, Pools Reference, Pools, Pools
+@section Introduction
+
+Most applications of @code{lispreader} use it to quickly read bits of
+data from a file, process it, and then read the next bit, until the
+end of the file.  If the file is big, it is an advantage if reading is
+fast.  Part of the reading process is allocating memory for the data
+read, so fast memory allocation results in better reading performance.
+
+@code{lispreader} comes with a memory allocator optimized for this
+application pattern, called the ``pools'' allocator.  It is very fast,
+can allocate lots of small chunks of memory with virtually no overhead
+apart from the alignment padding, and can free all allocated memory at
+once.  The downside is that freeing all allocated memory is the only
+way of freeing.
+
+Using pools is not mandatory for using @code{lispreader}, but it
+increases performance significantly (by about a factor of 2) compared
+to the standard malloc allocator.  If you never read files larger than
+a few tens of kilobytes, you will probably never notice, though.
+
+@node Pools Reference,  , Pools Introduction, Pools
+@section Reference
+
+@deftypefun int init_pools (pools_t* @var{pools})
+Initializes the pools data structure pointed to by @var{pools}.  After
+calling this function, the pools can be used to allocate memory via
+@code{pools_alloc}.  Returns non-zero upon success, zero upon failure.
+@end deftypefun
+
+@deftypefun void reset_pools (pools_t* @var{pools})
+Resets the pools pointed to by @var{pools}.  This does not actually
+free the memory allocated from this pools, but reuses it for further
+allocations, i.e., the data previously allocated from it will be
+overwritten.
+@end deftypefun
+
+@deftypefun void free_pools (pools_t* @var{pools})
+Frees all the memory allocated by @var{pools}.
+@end deftypefun
+
+@deftypefun void* pools_alloc (pools_t* @var{pools}, size_t @var{size})
+Allocates a region of memory @var{size} bytes long from the pools
+pointed to by @var{pools}.  Returns a null pointer if the allocation
+failed.
+@end deftypefun
+
+@node Allocators, Reference, Pools, Top
+@chapter Allocators
+
+@menu
+* Allocators Introduction::     
+* Allocators Reference::        
+@end menu
+
+@node Allocators Introduction, Allocators Reference, Allocators, Allocators
+@section Introduction
+
+The @code{allocator_t} data structure is @code{lispreader}'s interface
+to your memory allocator of choice:
+
+@example
+typedef struct
+@{
+    void* (*alloc) (void *allocator_data, size_t size);
+    void (*free) (void *allocator_data, void *chunk);
+    void *allocator_data;
+@} allocator_t;
+@end example
+
+An allocator must provide two functions:
+
+@itemize @bullet
+@item
+@var{alloc} allocates an aligned chunk of memory at least @var{size}
+bytes long.
+
+@item
+@var{free} frees the memory pointed to by @var{chunk}.
+@end itemize
+
+Both functions are always passed the value of @var{allocator_data} as
+their first argument.
+
+All @code{lispreader} functions which allocate or free (non-temporary)
+memory come in two versions: The ``normal'' version uses the standard
+@code{malloc}/@code{free} memory allocation mechanism.  The
+@code{*_with_allocator} version takes a pointer to an
+@code{allocator_t} as its first argument and allocates and frees
+memory via that allocator.
+
+@node Allocators Reference,  , Allocators Introduction, Allocators
+@section Reference
+
+@deftypevr {Global Variable} allocator_t malloc_allocator
+This is an allocator which uses the standard @code{malloc} and
+@code{free} memory allocation functions.
+@end deftypevr
+
+@deftypefun void init_pools_allocator (allocator_t* @var{allocator}, pools_t* @var{pools})
+Initializes the data structure pointed to by @var{allocator} to use
+the pools allocator pointed to by @var{pools}.  Note that the
+@var{free} function for the pools allocator does not free memory, so
+you'll have to free the pools yourself.
+@end deftypefun
+
+@node Reference, Example, Allocators, Top
+@comment  node-name,  next,  previous,  up
+@chapter @code{lispreader} Reference
+
+@menu
+* Reading::                     
+* Writing::                     
+* Examining::                   
+* Creating::                    
+* Matching::                    
+* Freeing::                     
+@end menu
+
+@node Reading, Writing, Reference, Reference
+@comment  node-name,  next,  previous,  up
+@section Reading expressions
+
+@deftypefun lisp_stream_t* lisp_stream_init_path (lisp_stream_t* @var{stream}, const char* @var{path})
+Initializes @var{stream} to be a file stream reading from the file
+with path @var{path}.  Returns a null pointer if the file cannot be
+opened.  The caller is supposed to use the function
+@code{lisp_stream_free_path} to close the file.
+
+This function should be preferred over @code{lisp_stream_init_file}
+because it uses memory mapping if possible, resulting in better
+parsing performance.
+@end deftypefun
+
+@deftypefun void lisp_stream_free_path  (lisp_stream_t* @var{stream})
+Closes the file associated with the file stream @var{stream}.
+@end deftypefun
+
+@deftypefun lisp_stream_t* lisp_stream_init_file (lisp_stream_t* @var{stream}, FILE* @var{file})
+Initializes @var{stream} to be a file stream reading from
+@var{file}. The caller is still responsible to close @var{file} when it
+is not needed any more.
+@end deftypefun
+
+@deftypefun lisp_stream_t* lisp_stream_init_string (lisp_stream_t* @var{stream}, char* @var{buf})
+Initializes @var{stream} to be a string stream reading from
+@var{buf}. @var{buf} is not copied by this function, hence the effects
+of reading from the stream after modifying @var{buf} are undefined.
+@end deftypefun
+
+@deftypefun lisp_stream_t* lisp_stream_init_any (lisp_stream_t* @var{stream}, void* @var{data}, int (*@var{next_char}) (void *data), void (*@var{unget_char}) (char c, void *data))
+Initializes @var{stream} to be a user-defined stream. The function
+@var{next_char} is used to read individual characters from the
+stream. It must return @code{EOF} upon end-of-file and on all
+invocations succeeding the invocation that first returned
+@code{EOF}. @var{unget_char} is called to push back a character for
+reading it again. The character pushed back is always the character
+returned by the last call to @var{next_char}. The next call to
+@var{next_char} must return that character. @var{unget_char} is never
+called twice without at least a call to @var{next_char} in
+between. @var{data} is always passed to @var{next_char} and
+@var{unget_char}. No other action whatsoever is performed on @var{data},
+i.e. should it point to a dynamically allocated memory region, the
+application is responsible for freeing it after the stream has been
+closed.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_read (lisp_stream_t* @var{in})
+@deftypefunx lisp_object_t* lisp_read_with_allocator (allocator_t* @var{allocator}, lisp_stream_t* @var{in})
+Reads a Lisp expression from the stream @var{in} and returns it. The
+caller is responsible for deallocating its memory using
+@code{lisp_free}/@code{lisp_free_with_allocator}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_read_from_string (char* @var{buf})
+@deftypefunx lisp_object_t* lisp_read_from_string_with_allocator (allocator_t* @var{allocator}, const char* @var{buf})
+Reads a Lisp expression from the string @var{buf} and returns it. The
+caller is responsible for deallocating its memory using
+@code{lisp_free}/@code{lisp_free_with_allocator}. Although @var{buf} may contain more than one
+expression, only the first is read. If you need to read more than one
+expression from a string, use @code{lisp_read}/@code{lisp_read_with_allocator} on a string stream
+created by @code{lisp_stream_init_string}.
+@end deftypefun
+
+@node Writing, Examining, Reading, Reference
+@comment  node-name,  next,  previous,  up
+@section Writing expressions
+
+@deftypefun int lisp_dump (lisp_object_t* @var{obj}, FILE* @var{out})
+Writes the external representation of @var{obj}, which can be read again
+by @code{lisp_read}, to @var{out}.
+@end deftypefun
+
+@node Examining, Creating, Writing, Reference
+@comment  node-name,  next,  previous,  up
+@section Examining expressions
+
+@deftypefun int lisp_type (lisp_object_t* @var{obj})
+Returns the type of the lisp object @code{obj}.
+@end deftypefun
+
+The returned type can be one of
+
+@table @code
+@item LISP_TYPE_NIL
+The empty list.
+@item LISP_TYPE_SYMBOL
+A symbol.
+@item LISP_TYPE_INTEGER
+An integer.
+@item LISP_TYPE_REAL
+A real.
+@item LISP_TYPE_STRING
+A string.
+@item LISP_TYPE_CONS
+A cons-pair.
+@item LISP_TYPE_BOOLEAN
+A boolean.
+@item LISP_TYPE_PATTERN_CONS
+A cons-pair of a pattern. The interpretation of these should be left to
+the function @code{lisp_compile_pattern}.
+@item LISP_TYPE_EOF
+Indicates that end-of-file occured during reading the expression.
+@item LISP_TYPE_PARSE_ERROR
+Indicates a malformed expression.
+@end table
+
+@deftypefun int lisp_nil_p (lisp_object_t* @var{obj})
+If @var{obj} is the empty list, returns a non-zero value, otherwise
+zero.
+@end deftypefun
+
+@deftypefun int lisp_integer_p (lisp_object_t* @var{obj})
+If @var{obj} is an integer object, returns a non-zero value, otherwise
+zero.
+@end deftypefun
+
+@deftypefun int lisp_integer (lisp_object_t* @var{obj})
+Returns the integer value for @var{obj}. This function must not be
+called when the type of @var{obj} is not @code{LISP_TYPE_INTEGER}.
+@end deftypefun
+
+@deftypefun int lisp_real_p (lisp_object_t* @var{obj})
+If @var{obj} is a real object, returns a non-zero value, otherwise zero.
+@end deftypefun
+
+@deftypefun float lisp_real (lisp_object_t* @var{obj})
+Returns the real value for @var{obj}. This function must not be called
+when the type of @var{obj} is not either @code{LISP_TYPE_REAL} or
+@code{LISP_TYPE_INTEGER}.
+@end deftypefun
+
+@deftypefun int lisp_symbol_p (lisp_object_t* @var{obj})
+If @var{obj} is a symbol, returns a non-zero value, otherwise zero.
+@end deftypefun
+
+@deftypefun char* lisp_symbol (lisp_object_t* @var{obj})
+Returns the string for the symbol stored in @var{obj}. This function
+must not be called when the type of @var{obj} is not
+@code{LISP_TYPE_SYMBOL}.
+@end deftypefun
+
+@deftypefun int lisp_string_p (lisp_object_t* @var{obj})
+If @var{obj} is a string object, returns a non-zero value, otherwise
+zero.
+@end deftypefun
+
+@deftypefun char* lisp_string (lisp_object_t* @var{obj})
+Returns the string value for @var{obj}. This function must not be called
+when the type of @var{obj} is not @code{LISP_TYPE_STRING}.
+@end deftypefun
+
+@deftypefun int lisp_boolean_p (lisp_object_t* @var{obj})
+If @var{obj} is a boolean object, returns a non-zero value, otherwise
+zero.
+@end deftypefun
+
+@deftypefun int lisp_boolean (lisp_object_t* @var{obj})
+Returns the boolean value for @var{obj}. If @var{obj} represents false,
+the result is @code{0}, otherwise some integer not equal to
+@code{0}. This function must not be called when the type of @var{obj} is
+not @code{LISP_TYPE_BOOLEAN}.
+@end deftypefun
+
+@deftypefun int lisp_cons_p (lisp_object_t* @var{obj})
+If @var{obj} is a cons, returns a non-zero value, otherwise zero.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_car (lisp_object_t* @var{obj})
+Returns the car of the cons stored in @var{obj}. This function must not
+be called when type type of @var{obj} is not @code{LISP_TYPE_CONS}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_cdr (lisp_object_t* @var{obj})
+Returns the cdr of the cons stored in @var{obj}. This function must not
+be called when type type of @var{obj} is not @code{LISP_TYPE_CONS}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_cxr (lisp_object_t* @var{obj}, const char* @var{x})
+@var{x} must be a string consisting of the chars @code{a} and
+@var{d}. Returns the object resulting from applying @code{lisp_car} and
+@code{lisp_cdr} according to @var{x} with @code{a} corresponding to the
+former and @code{d} to the latter starting with @var{obj} in reverse
+order. As an example, @code{lisp_cxr(o,"ad")} is equivalent to
+@code{lisp_car(lisp_cdr(o))}.
+@end deftypefun
+
+@deftypefun int lisp_list_length (lisp_object_t* @var{obj})
+Returns the length of the list stored in @var{obj}. A list is defined as
+the empty list, which is represented by a null pointer, or a cons, the
+cdr of which is a list.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_list_nth_cdr (lisp_object_t* @var{obj}, int @var{n})
+Returns the result of iterating @code{lisp_cdr} @var{n} times on
+@var{obj}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_list_nth (lisp_object_t* @var{obj}, int @var{n})
+Returns the car of the result of applying @code{lisp_list_nth_cdr} on
+@var{obj} with @var{n}.
+@end deftypefun
+
+@node Creating, Matching, Examining, Reference
+@comment  node-name,  next,  previous,  up
+@section Creating expressions
+
+@deftypefun lisp_object_t* lisp_nil ()
+Returns the empty list.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_make_integer (int @var{value})
+@deftypefunx lisp_object_t* lisp_make_integer_with_allocator (allocator_t* @var{allocator}, int @var{value})
+Returns an integer object with the value @var{value}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_make_real (float @var{value})
+@deftypefunx lisp_object_t* lisp_make_real_with_allocator (allocator_t* @var{allocator}, float @var{value})
+Returns a real object with the value @var{value}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_make_symbol (const char* @var{value})
+@deftypefunx lisp_object_t* lisp_make_symbol_with_allocator (allocator_t* @var{allocator}, const char* @var{value})
+Returns a symbol object with the name @var{value}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_make_string (const char* @var{value})
+@deftypefunx lisp_object_t* lisp_make_string_with_allocator (allocator_t* @var{allocator}, const char* @var{value})
+Returns a string object with the value @var{value}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_make_cons (lisp_object_t* @var{car}, lisp_object_t* @var{cdr})
+@deftypefunx lisp_object_t* lisp_make_cons_with_allocator (allocator_t* @var{allocator}, lisp_object_t* @var{car}, lisp_object_t* @var{cdr})
+Returns a cons object with car @var{car} and cdr @var{cdr}.
+@end deftypefun
+
+@deftypefun lisp_object_t* lisp_make_boolean (int @var{value})
+@deftypefunx lisp_object_t* lisp_make_boolean_with_allocator (allocator_t* @var{allocator}, int @var{value})
+Returns a boolean. Its value is false if @var{value} is @code{0}, true otherwise.
+@end deftypefun
+
+@node Matching, Freeing, Creating, Reference
+@comment  node-name,  next,  previous,  up
+@section Matching expressions against patterns
+
+@deftypefun int lisp_compile_pattern (lisp_object_t** @var{obj}, int* @var{num_subs})
+Prepares the expression @code{*}@var{obj} for use as a pattern in the
+@code{lisp_match_pattern} function. The expression is modified in the
+process. If @var{num_subs} is non-null, the number of pattern
+expressions (including all sub-expressions) will be written to
+@code{*}@var{num_subs}.
+
+Returns @code{0} if an error occurred, non-zero on success. Note that
+the expression could have been modified even if the function returned
+@code{0}.
+@end deftypefun
+
+@deftypefun int lisp_match_pattern (lisp_object_t* @var{pattern}, lisp_object_t* @var{obj}, lisp_object_t** @var{vars}, int @var{num_subs})
+Matches the pattern @var{pattern} (which must have previously been
+compiled using @code{lisp_compile_pattern}) against @var{obj}, storing
+the resulting subexpressions in @var{vars}, if it is
+non-null. @var{num_subs} should be the number of sub-patterns in
+@var{pattern}, if @var{vars} is non-null. Otherwise, it is ignored.
+
+Patterns are counted by their special opening parenthesis (@samp{#?(})
+from left to right, beginning with 0. For example, in the pattern
+expression @code{(a #?(or #?(integer) #?(string)) #?(symbol))}, the
+@code{or}-pattern has index 0, the @code{integer} index 1, the
+@code{string} index 2 and the @code{symbol} index 3. This means than
+upon matching this pattern against @code{(a 1 b)}, the integer @code{1}
+is stored in @var{vars}@code{[0]} and @var{vars}@code{[1]} and the
+symbol @code{b} is stored in @var{vars}@code{[3]}. The values for
+unmatched parts, like @var{vars}@code{[2]}, are set to an expression of
+type @code{LISP_TYPE_PARSE_ERROR}.
+
+Returns @code{0} if the match was unsuccessful, non-zero on success.
+@end deftypefun
+
+@deftypefun int lisp_match_string (char* @var{pattern_string}, lisp_object_t* @var{obj}, lisp_object_t** @var{vars})
+Reads an expression from @var{pattern_string}, compiles it using
+@code{lisp_compile_pattern} and matches @var{obj} against it using
+@code{lisp_match_pattern}, storing the resulting subexpressions in
+@var{vars}, if it is non-zero.
+
+Returns non-zero if reading and matching were successful, @code{0}
+otherwise.
+@end deftypefun
+
+@node Freeing,  , Matching, Reference
+@comment  node-name,  next,  previous,  up
+@section Freeing expressions
+
+@deftypefun void lisp_free (lisp_object_t* @var{obj})
+@deftypefunx void lisp_free_with_allocator (allocator_t* @var{allocator}, lisp_object_t* @var{obj})
+Frees all memory occupied by @var{obj}, including all its
+subexpressions.
+@end deftypefun
+
+@node Example, Function Index, Reference, Top
+@comment  node-name,  next,  previous,  up
+@chapter An Example
+
+The following program reads expressions from standard input, prints the
+string @samp{parse error} when a parse error occurs, exits on
+end-of-file and, if an entered expression is of the form
+@code{(+ }@var{number1}@code{ }@var{number2}@code{)}, prints the sum of
+@var{number1} and @var{number2}.
+
+@example
+#include <lispreader.h>
+
+int
+main (void)
+@{
+    lisp_object_t *obj;
+    lisp_stream_t stream;
+
+    lisp_stream_init_file(&stream, stdin);
+
+    while (1)
+    @{
+        int type;
+
+        obj = lisp_read(&stream);
+        type = lisp_type(obj);
+        if (type != LISP_TYPE_EOF && type != LISP_TYPE_PARSE_ERROR)
+        @{
+            lisp_object_t *vars[2];
+
+            if (lisp_match_string("(+ #?(number) #?(number))",
+                                  obj, vars))
+                printf("%f\n", lisp_real(vars[0])
+                               + lisp_real(vars[1]));
+
+        @}
+        else if (type == LISP_TYPE_PARSE_ERROR)
+            printf("parse error\n");
+        lisp_free(obj);
+
+        if (type == LISP_TYPE_EOF)
+            break;
+    @}
+
+    return 0;
+@}
+@end example
+
+@node Function Index,  , Example, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Function Index
+
+@printindex fn
+
+@contents
+@bye

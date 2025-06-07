@@ -1,68 +1,75 @@
 Installing MathMap
 ==================
 
-This version of MathMap has only been tested on Linux (FC6 and
-Ubuntu), and will probably not work on other operating systems without
-some adjustments.
+This version of MathMap has only been tested on Linux and will
+probably not work on other operating systems without some adjustments.
+We provide packages for several Linux distributions as well as
+versions for Windows and MacOS X.  Is is recommended that you use
+these rather than compiling MathMap yourself, if possible.  They are
+available on the MathMap homepage:
+
+    http://schani.github.io/mathmap/
+
 
 Requirements
 ------------
 
 MathMap requires the following software packages, including
-development packages, to compile and to run:
+development packages, to compile and run:
 
-  * The GIMP 2.2 or 2.3
+  * The GIMP 2.4 or higher
   * GSL (GNU Scientific Library), including GSL CBLAS
+  * fftw3
+  * libgtksourceview 2.0
+  * libjpeg, libpng, libgif (preferred) or libungif
+  * gettext
+  * libtool
+  * clisp
 
-If you want MathMap to have a command-line interface as well (which is
-optional), you'll also need the following libraries:
-
-  * libjpeg, libpng, giflib
 
 Configuration
 -------------
+git clone https://github.com/schani/mathmap.git
 
-Edit the Makefile if necessary.  Usually you shouldn't have to do
-this, unless you have more than one version of GIMP installed or want
-to build the command-line interface as well.
+Edit the Makefile if necessary.  The reasons you might want to do this
+are:
+
+  * You have libungif instead of libgif installed
+  * You're building on MacOS X
+  * You have more than one version of GIMP installed
+  * You want to install on a single processor 
+  * You want to install in your homedir
 
 Compiling
 ---------
 
 After you are finished with the Makefile, just type
 
-	make
+   	make       (or make -j4 to use 4 threads)
 
 If it does not work, the most probable cause is that you don't have
 all the required packages (see above) installed.  Consult the
 documentation of your Linux distribution or whatever you have on how
 to install packages.  The packages you're looking for are probably
-called something like "gimp-devel" and "gsl-devel" or just "gsl".
+called something like "gimp-devel" or "libgimp-dev", or just "gimp".
+
 
 Installation
 ------------
 
-If you want to install mathmap for all users on your machine
-(recommended), become root and type:
+To install MathMap for all users on your machine, type
+
+	sudo make install
+
+or, if you don't have sudo, become root and type
 
 	make install
-
-If instead you want to install mathmap only on your account, type
-(without becoming root or using a tool like "checkinstall"):
-
-	make install-local
-
-Note: The command-line interface will not work if you install MathMap
-only for your account!
-
-If you have compiled the plug-in version and want to install the
-national language translations (this is not tested for this
-development release), become root and type
-
-	make install-mos
+        
+or      sudo checkinstall --install=no  (creates a deb package you can install, make sure Mathmap is not already installed)
+______________________________________________________________
+MathMap currently builds on Ubuntu 18.04 Zesty with Gimp 2.10
 
 If you have any problems with this process, feel free to contact me.
 
----
-Mark Probst
-schani@complang.tuwien.ac.at
+-- 
+Karl Stevens <uniquecomp@bigpond.com>

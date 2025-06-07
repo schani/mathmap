@@ -1,0 +1,3 @@
+(design (node :name "erect_erect" :type "erect_erect" :input-slots ():aux (:x 70.000000 :y 70.000000 ))
+(node :name "erect_genpanini" :type "erect_genpanini" :input-slots (("in" "erect_erect" "out" )):aux (:x 73.000000 :y 133.000000 ))
+:name "erect_genpanini" :root "erect_genpanini" )

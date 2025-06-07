@@ -1,0 +1,3 @@
+(design (node :name "bilin_int" :type "bilin_int" :input-slots ():aux (:x 70.000000 :y 70.000000 ))
+(node :name "eqr_pan_ts" :type "eqr_pan_ts" :input-slots (("in" "bilin_int" "out" )):aux (:x 166.000000 :y 115.000000 ))
+:name "absolute_twister" :root "eqr_pan_ts" )

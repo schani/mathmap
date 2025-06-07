@@ -1,0 +1,289 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+  <head>
+    <title>The MathMap Language Reference Manual</title>
+  </head>
+
+  <body>
+    <center><h1>The <a href="http://www.complang.tuwien.ac.at/schani/mathmap/">MathMap</a> Language Reference Manual</h1></center>
+
+    <h2>Filter Syntax</h2>
+
+    <blockquote>
+      <p><em>options</em> <tt>filter</tt> <em>name</em> <tt>(</tt><em>user values</em></tt>)</tt><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<em>expression</em><br>
+      <tt>end</tt>
+
+      <p><em>options</em> can be zero or more options for the filter.
+        They are discussed in detail <a href="#options">below</a>.
+
+      <p>The <em>name</em> of the filter can be an arbitrary
+        identifier (identifiers can contain letters, digits and the
+        underscore and must not begin with a digit).
+
+      <p>The <em>user values</em> must be separated by commas.  Any
+        number of user values can be specified.  See <a href="#userValues">below</a> for a detailed
+        discussion of user values.
+    </blockquote>
+
+    <h2><a name="userValues">User Values</a></h2>
+
+    <blockquote>
+      <dl>
+        <dt><tt>float</tt> <em>name</em><tt>:</tt> <em>min</em><tt>-</tt><em>max</em> <tt>(</tt><em>default</em><tt>)</tt>
+        <dd>A tuple of type <tt>nil:1</tt> with the value of a floating point number
+          chosen in the range from <em>min</em> to <em>max</em>.  The default
+          value is <em>default</em>.
+
+        <dt><tt>int</tt> <em>name</em><tt>:</tt> <em>min</em><tt>-</tt><em>max</em> <tt>(</tt><em>default</em><tt>)</tt>
+        <dd>A tuple of type <tt>nil:1</tt> with the value of an integer
+          chosen in the range from <em>min</em> to <em>max</em>.  The default
+          value is <em>default</em>.
+
+        <dt><tt>bool</tt> <em>name</em>
+        <dd>A tuple of type <tt>nil:1</tt> with the value <tt>0</tt> or <tt>1</tt>.
+
+	<dt><tt>color</tt> <em>name</em>
+        <dd>A tuple of type <tt>rgba:4</tt>, representing a color.
+
+        <dt><tt>curve</tt> <em>name</em>
+        <dd>A function taking a single argument between <tt>0</tt> and <tt>1</tt> and returning
+          the value of the corresponding point on the curve, also between <tt>0</tt> and <tt>1</tt>.
+
+        <dt><tt>gradient</tt> <em>name</em>
+        <dd>A function taking a single argument between <tt>0</tt> and <tt>1</tt> and returning
+          the color at that point as a tuple of type <tt>rgba:4</tt>.
+
+        <dt><em>options</em> <tt>image</tt> <em>name</em>
+        <dd>A function taking a single argument of type <tt>xy:2</tt> or <tt>ra:2</tt> and returning
+          the color of the point with those coordinates in the image as a tuple of type <tt>rgba:4</tt>.
+          <em>options</em> can be left out or it can be the <tt>square</tt> option, discussed <a href="#options">below</a>.
+      </dl>
+    </blockquote>
+
+    <h2><a name="options">Options</a></h2>
+
+    <blockquote>
+    </blockquote>
+
+    <h2>The Type System</h2>
+
+    <blockquote>
+      <p>Every value in MathMap is a tagged tuple. This means it
+	consists of one or more numbers and a symbolic tag. RGBA colors, for example are
+	represented by tuples of length 4 with the tag <tt>rgba</tt>
+	(standing for "red, green, blue, alpha"). The value
+	<tt>rgba:[1,0,0,1]</tt> for example, represents the fully
+	opaque color red.
+
+      <p>Single numbers are represented by tuples of length 1 with
+	the tag <tt>nil</tt> (which is the default tag). For 
+	simplicity's sake, single numbers need not be written in tuple
+	syntax, i.e. <tt>3.1415</tt> is equivalent to
+	<tt>nil:[3.1415]</tt>.
+
+      <p>There are several other tuple tags which are used by
+	MathMap:
+
+      <table>
+	<tr><td><b>Tag</b>    <td><b>Purpose</b></tr>
+	<tr><td><tt>nil</tt>  <td>Default tag</tr>
+	<tr><td><tt>rgba</tt> <td>RGBA Color</tr>
+	<tr><td><tt>hsva</tt> <td>HSVA Color</tr>
+	<tr><td><tt>ri</tt>   <td>Complex number</tr>
+	<tr><td><tt>xy</tt>   <td>Cartesian coordinate</tr>
+	<tr><td><tt>ra</tt>   <td>Polar coordinate</tr>
+	<tr><td><tt>v2</tt>   <td>2d vector</tr>
+	<tr><td><tt>v3</tt>   <td>3d vector</tr>
+	<tr><td><tt>m2x2</tt> <td>2x2 matrix</tr>
+	<tr><td><tt>m3x3</tt> <td>3x3 matrix</tr>
+      </table>
+
+      <p>In order for the tag system to make sense, operators and
+	functions are overloaded based on the types of their
+	arguments.  For this to work at compile time, types
+	must be statically determined.  That means that any expression
+	must have only one possible type, e.g. the expression <tt>if x
+	then abc:[1,2,3] else xyz:[4,5] end</tt> is not valid.
+	Furthermore, all assignments to the same variable must have
+	the same type.  Hence, <tt>v=[1,2];v=[1,2,3]</tt> is not
+	valid.
+
+      <p>Tuple types are expressed in this manual in the form
+	<tt>T:L</tt> where <tt>T</tt> is the tag and <tt>L</tt> is the
+	length, e.g. <tt>rgba:[1,0,0,1]</tt> has the type
+	<tt>rbga:4</tt>.
+
+      <p>Elements of tuples can be extracted by the indexing
+	operator <tt>[]</tt>. The expression <tt>p[0]</tt>, for
+	example, extracts the first element of <tt>p</tt> and is of
+	type <tt>nil:1</tt>.
+
+    </blockquote>
+
+    <h2>Constants and Internal Variables</h2>
+
+    <blockquote>
+      A few variables are set for the position of the pixel to be
+      calculated:
+
+      <dl>
+	<dt><tt>xy</tt> (<tt>xy:2</tt>)
+	<dd>The cartesian coordinates of the pixel.
+
+	<dt><tt>x</tt> (<tt>nil:1</tt>)
+	<dd>The first component of the cartesian coordinates of the pixel.
+
+	<dt><tt>y</tt> (<tt>nil:1</tt>)
+	<dd>The second component of the cartesian coordinates of the pixel.
+
+	<dt><tt>ra</tt> (<tt>ra:2</tt>)
+	<dd>The polar coordinates of the pixel.
+
+	<dt><tt>r</tt> (<tt>nil:1</tt>)
+	<dd>The first component of the polar coordinates of the pixel
+	  (<tt>0 &lt;= r &lt; 2*pi</tt>).
+
+	<dt><tt>a</tt> (<tt>nil:1</tt>)
+	<dd>The second component of the polar coordinates of the pixel
+	  (the distance from the center).
+      </dl>
+
+      To make it easier to write expressions which depend on the
+      image size, a few additional variables are set:
+
+      <dl>
+	<dt><tt>WH</tt> (<tt>xy:2</tt>)
+	<dd>The size of the image.
+
+	<dt><tt>W</tt> (<tt>nil:1</tt>)
+	<dd>The width of the image.
+
+	<dt><tt>H</tt> (<tt>nil:1</tt>)
+	<dd>The height of the image.
+
+	<dt><tt>R</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>r</tt> in the image, which
+	  it has at the four corners.
+
+	<dt><tt>XY</tt> (<tt>xy:2</tt>)
+	<dd>The biggest possible value (in both components) for
+	  <tt>xy</tt>.
+
+	<dt><tt>X</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>x</tt> for the image.
+
+	<dt><tt>Y</tt> (<tt>nil:1</tt>)
+	<dd>The biggest possible value for <tt>y</tt> for the image.
+      </dl>
+
+      For the purpose of animations two additional variable are set:
+
+      <dl>
+	<dt><tt>t</tt> (<tt>nil:1</tt>)
+	<dd>The time which is <tt>0 &lt;= t &lt; 1</tt>.  If animation
+	is disabled, the value of <tt>t</tt> can be chosen in the
+	Settings tab. If you want to make animations loop, set the
+	'Periodic' check-box in the Settings tab and make sure that the
+	images at <tt>t == 0</tt> and <tt>t == 1</tt> are the same.
+
+	<dt><tt>frame</tt> (<tt>nil:1</tt>)
+	<dd>The number of the current frame, beginning with <tt>0</tt>
+	for the first frame.
+      </dl>
+
+    </blockquote>
+
+    <h2>Mathematical Constants</h2>
+
+    <blockquote>
+
+      MathMap defines a few mathematical constants to make your life easier:
+
+      <dl>
+        <dt><tt>pi</tt> (<tt>nil:1</tt>)
+        <dd>3.1415926535...</dd>
+
+        <dt><tt>e</tt> (<tt>nil:1</tt>)
+        <dd>Euler's constant 2.7182818284...</dd>
+
+        <dt><tt>I</tt> (<tt>ri:2</tt>)
+        <dd>The imaginary unit <tt>ri:[0,1]</tt>
+      </dl>
+
+    </blockquote>
+
+    <h2>Conditionals and Loops</h2>
+
+    <blockquote>
+      <p>Conditions and invariants are always expected to evaluate to tuples of
+        length 1.
+
+      <blockquote>
+	<dl>
+	  <dt><tt>if</tt> <em>condition</em> <tt>then</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>consequence</em><br>
+            <tt>end</tt>
+	  <dd>Returns the value of <em>consequence</em> if the value of
+	    <em>condition</em> is not <tt>0</tt>, <tt>0</tt> otherwise.
+	</dl>
+
+	<dl>
+	  <dt><tt>if</tt> <em>condition</em> <tt>then</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>consequence</em><br>
+            <tt>else</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>alternative</em><br>
+            <tt>end</tt>
+	  <dd>Returns the value of <em>consequence</em> if the value of
+	    <em>condition</em> is not <tt>0</tt>, otherwise the value of
+	    <em>alternative</em>.
+	</dl>
+
+	<dl>
+	  <dt><tt>while</tt> <em>invariant</em> <tt>do</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>body</em><br>
+            <tt>end</tt>
+	  <dd>While <em>invariant</em> is not <tt>0</tt>, executes
+	    <em>body</em>, then returns <tt>0</tt>.
+	</dl>
+
+	<dl>
+	  <dt><tt>do</tt><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<em>body</em><br>
+            <tt>while</tt> <em>invariant</em> <tt>end</tt>
+	  <dd>Executes <em>body</em> until <em>invariant</em> is not equal
+	    <tt>0</tt>, then returns <tt>0</tt>.
+	</dl>
+      </blockquote>
+    </blockquote>
+
+    <h2>Operators and Functions</h2>
+
+    <blockquote>
+      <p>Operators and functions in MathMap are overloaded based on
+        the number and tuple types of their arguments.  The reference
+        enumerates all the ways in which operators and functions are
+        overloaded by giving the argument and return types like this:
+        <tt>(v3:3, m3x3:9) -> v3:3</tt>.  This particular example
+        describes a function taking two arguments, the first of length
+        3 with the tag <tt>v3</tt> and the second of length 9 with the
+        tag <tt>m3x3</tt>, and returning a tuple of length 3 with the
+        tag <tt>v3</tt>.
+
+      <p>Most overloading specifications are parametric, though, in
+        that the length and/or tag of the tuples is not fixed, like
+        here: <tt>(?t:1, ?t:1) -> ?t:1</tt>.  The question mark
+        indicates a parametric variable (in this case <tt>?t</tt>,
+        whose value is arbitrary, but which must have the same value
+        wherever it occurs.  Here the function takes two arguments,
+        both of length 1 and both having the same, but arbitrary, tag.
+        It returns a tuple of length 1 with that very same tag.
+        Parametric variables denoted just by a question mark, without
+        any symbolic name, are arbitrary and independent of all other
+        parametric variables, i.e. two sole question marks can have
+        different values.
+
+#include ../builtins_doc.html
+    </blockquote>
+  </body>
+</html>

@@ -5,7 +5,7 @@
  *
  * MathMap
  *
- * Copyright (C) 2007 Mark Probst
+ * Copyright (C) 2007-2008 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,31 +26,111 @@
 #define __DRAWABLE_H__
 
 #include <glib.h>
-#ifndef OPENSTEP
-#include <libgimp/gimp.h>
-#endif
 #ifdef MOVIES
 #include <quicktime.h>
 #endif
 
 #include "color.h"
+#include "userval.h"
+#include "mmpools.h"
 
-#define INPUT_DRAWABLE_GIMP			1
 #define INPUT_DRAWABLE_CMDLINE_IMAGE		2
 #define INPUT_DRAWABLE_CMDLINE_MOVIE		3
 #define INPUT_DRAWABLE_OPENSTEP			4
 
-#ifdef MATHMAP_CMDLINE
 struct _cache_entry_t;
-#endif
 
-typedef struct {
+/* TEMPLATE image_types */
+#define IMAGE_DRAWABLE		1
+#define IMAGE_CLOSURE		2
+#define IMAGE_FLOATMAP		3
+#define IMAGE_RESIZE		4
+/* END */
+
+struct _mathmap_frame_t;
+struct _mathmap_slice_t;
+
+/* TEMPLATE filter_funcs */
+typedef void (*init_frame_func_t) (struct _mathmap_frame_t*, struct _image_t*);
+typedef void (*init_slice_func_t) (struct _mathmap_slice_t*, struct _image_t*);
+typedef void (*calc_lines_func_t) (struct _mathmap_slice_t*, struct _image_t*, int, int, void*, int);
+
+typedef float* (*filter_func_t) (struct _mathmap_invocation_t*,
+				 struct _image_t*,
+				 float, float, float,
+				 mathmap_pools_t*);
+
+/* FIXME: just for LLVM - remove eventually */
+typedef void* (*llvm_init_frame_func_t) (struct _mathmap_invocation_t*,
+					 struct _image_t*,
+					 float,
+					 mathmap_pools_t*);
+typedef float* (*llvm_filter_func_t) (struct _mathmap_slice_t*,
+				      struct _image_t*,
+				      void*, void*,
+				      float, float, float,
+				      mathmap_pools_t*);
+typedef void* (*init_x_or_y_func_t) (struct _mathmap_slice_t*,
+				     struct _image_t*,
+				     float, float);
+/* END */
+
+struct _input_drawable_t;
+
+/* TEMPLATE num_floatmap_channels */
+#define NUM_FLOATMAP_CHANNELS	4
+/* END */
+
+struct _mathfuncs_t;
+
+/* TEMPLATE image */
+typedef struct _image_t
+{
+    int type;
+    int id;			/* globally unique */
+    int pixel_width;
+    int pixel_height;
+    union
+    {
+	struct _input_drawable_t *drawable;
+	struct {
+	    /* for rendering */
+	    struct _mathfuncs_t *funcs;
+	    /* for getting single pixels - never called for the root closure */
+	    filter_func_t func;
+	    mathmap_pools_t *pools;
+	    void *xy_vars;
+	    int num_args;
+	    userval_t args[];
+	} closure;
+	struct {
+	    float ax;
+	    float bx;
+	    float ay;
+	    float by;
+	    float *data;
+	} floatmap;
+	struct {
+	    struct _image_t *original;
+	    float x_factor;
+	    float y_factor;
+	} resize;
+    } v;
+} image_t;
+/* END */
+
+#define FLOATMAP_VALUE_I(img,i,c)          ((img)->v.floatmap.data[(i)*NUM_FLOATMAP_CHANNELS + (c)])
+#define FLOATMAP_VALUE_XY(img,x,y,c)	   FLOATMAP_VALUE_I((img), ((y)*(img)->pixel_width + (x)), (c))
+
+typedef struct _input_drawable_t {
     gboolean used;
 
     int kind;
 
-    int width;
-    int height;
+    float scale_x;
+    float scale_y;
+    float middle_x;
+    float middle_y;
 
     union
     {
@@ -60,21 +140,7 @@ typedef struct {
 	    int row_stride;
 	    unsigned char *data;
 	} openstep;
-#else
-	struct
-	{
-	    GimpDrawable *drawable;
-	    gint bpp;
-	    gint row;
-	    gint col;
-	    GimpTile *tile;
-	    gboolean has_selection;
-	    int fast_image_source_width;
-	    int fast_image_source_height;
-	    color_t *fast_image_source;
-	} gimp;
 #endif
-#ifdef MATHMAP_CMDLINE
 	struct
 	{
 	    int num_frames;
@@ -84,9 +150,14 @@ typedef struct {
 	    quicktime_t *movie;
 #endif
 	} cmdline;
-#endif
     } v;
+
+    image_t image;
 } input_drawable_t;
+
+/* TEMPLATE image_new_id */
+int image_new_id (void);
+/* END */
 
 input_drawable_t* alloc_input_drawable (int kind, int width, int height);
 
@@ -99,18 +170,36 @@ void for_each_input_drawable (void (*) (input_drawable_t *drawable));
 int get_num_input_drawables (void);
 input_drawable_t* get_nth_input_drawable (int n);
 
-#ifndef OPENSTEP
-input_drawable_t* alloc_gimp_input_drawable (GimpDrawable *drawable);
-GimpDrawable* get_gimp_input_drawable (input_drawable_t *drawable);
-
 input_drawable_t* get_default_input_drawable (void);
-#endif
 
-#ifdef MATHMAP_CMDLINE
 input_drawable_t* alloc_cmdline_image_input_drawable (const char *filename);
 #ifdef MOVIES
 input_drawable_t* alloc_cmdline_movie_input_drawable (const char *filename);
 #endif
-#endif
+
+image_t* floatmap_alloc (int width, int height, mathmap_pools_t *pools);
+image_t* floatmap_copy (image_t *floatmap, mathmap_pools_t *pools);
+
+/* TEMPLATE make_resize_image */
+image_t* make_resize_image (image_t *image, float x_factor, float y_factor, mathmap_pools_t *pools);
+/* END */
+
+void floatmap_get_channel_column (float *dst, image_t *img, int col, int channel);
+void floatmap_get_channel_row (float *dst, image_t *img, int row, int channel);
+void floatmap_set_channel_column (image_t *img, int col, int channel, float *src);
+void floatmap_set_channel_row (image_t *img, int row, int channel, float *src);
+
+void floatmap_get_column (float *dst, image_t *img, int col);
+void floatmap_get_row (float *dst, image_t *img, int row);
+void floatmap_set_column (image_t *img, int col, float *src);
+void floatmap_set_row (image_t *img, int row, float *src);
+
+void floatmap_write (image_t *img, const char *filename);
+
+/* FIXME: remove filter func */
+image_t* closure_image_alloc (struct _mathfuncs_t *mathfuncs, filter_func_t filter_func,
+			      int num_uservals, userval_t *uservals,
+			      int pixel_width, int pixel_height);
+void closure_image_free (image_t *closure);
 
 #endif

@@ -1,0 +1,3 @@
+(design (node :name "map_sphere" :type "map_sphere" :input-slots ():aux (:x 70.000000 :y 70.000000 ))
+(node :name "rel2ellv3" :type "rel2ellv3" :input-slots (("in" "map_sphere" "out" )):aux (:x 196.000000 :y 148.000000 ))
+:name "rounded_rhombus" :root "rel2ellv3" )

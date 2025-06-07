@@ -1,0 +1,28 @@
+# -*- makefile -*-
+# $Id: Makefile.dist 933 2007-03-18 14:22:54Z schani $
+
+CC=gcc
+CFLAGS=-Wall -O2
+ALL_CFLAGS=$(CFLAGS) -I.
+
+LISPREADER_OBJS = lispreader.o allocator.o pools.o
+
+all : liblispreader.a
+
+liblispreader.a : $(LISPREADER_OBJS)
+	ar rcu liblispreader.a $(LISPREADER_OBJS)
+
+docexample : docexample.o $(LISPREADER_OBJS)
+	$(CC) -Wall -g -o docexample $(LISPREADER_OBJS) docexample.o `pkg-config --libs glib-2.0`
+
+lispcat : lispcat.o $(LISPREADER_OBJS)
+	$(CC) -Wall -g -o lispcat $(LISPREADER_OBJS) lispcat.o `pkg-config --libs glib-2.0`
+
+#comment-test: comment-test.o $(LISPREADER_OBJS)
+#	$(CC) -Wall -g -o comment-test $(LISPREADER_OBJS) comment-test.o
+
+%.o : %.c
+	$(CC) $(ALL_CFLAGS) `pkg-config --cflags glib-2.0` -c $<
+
+clean :
+	rm -f liblispreader.a docexample *.o *~

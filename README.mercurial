@@ -1,0 +1,37 @@
+Getting and building MathMap from Mercurial
+===========================================
+
+Mercurial is a distributed version control system (similar to git, not
+quite as powerful, but easier to use) available as Free Software:
+
+    http://www.selenic.com/mercurial/wiki/
+
+We use Mercurial to maintain the MathMap sources and have set up a
+public repository here:
+
+    http://hg.13thfloor.at/hg/
+
+To get a buildable MathMap tree from the public Mercurial repository,
+in addition to cloning the "mathmap" repository you will also need to
+clone three other repositories as subdirectories of the "mathmap"
+directory.  Here's how to set up the whole thing:
+
+    hg clone http://hg.13thfloor.at/hg/mathmap
+    cd mathmap
+    hg clone http://hg.13thfloor.at/hg/lispreader
+    hg clone http://hg.13thfloor.at/hg/rwimg
+    hg clone http://hg.13thfloor.at/hg/lisp-utils
+
+Now you're ready to go.
+
+Note that to build MathMap yourself from Mercurial (as opposed to from
+the official source releases) you'll also need to have CLISP, bison
+and flex installed.
+
+You might also want to change the OPT_CFLAGS variable in the Makefile
+if you want to use MathMap, rather than hacking on it, because it's
+set to produce lots of debugging output and doesn't turn on C compiler
+optimizations.
+
+-- 
+Mark Probst <schani@complang.tuwien.ac.at>

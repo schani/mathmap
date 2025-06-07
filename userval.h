@@ -3,7 +3,7 @@
  *
  * MathMap
  *
- * Copyright (C) 1997-2007 Mark Probst
+ * Copyright (C) 1997-2010 Mark Probst
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,18 +25,14 @@
 
 #include "glib.h"
 
-#ifndef OPENSTEP
-#include <gtk/gtk.h>
-#include <libgimp/gimp.h>
-#endif
-
 #include "tuples.h"
 #include "exprtree.h"
 #include "color.h"
-#include "drawable.h"
 
+/* TEMPLATE userval_points */
 #define USER_CURVE_POINTS       1024
 #define USER_GRADIENT_POINTS    1024
+/* END */
 
 #define USERVAL_INT_CONST   1
 #define USERVAL_FLOAT_CONST 2
@@ -44,7 +40,9 @@
 #define USERVAL_COLOR       4
 #define USERVAL_CURVE       5
 #define USERVAL_GRADIENT    6
-#define USERVAL_IMAGE       7	/* used in new_template.c */
+/* TEMPLATE userval_image */
+#define USERVAL_IMAGE       7
+/* END */
 
 typedef struct _userval_info_t
 {
@@ -79,48 +77,38 @@ typedef struct _userval_info_t
     struct _userval_info_t *next;
 } userval_info_t;
 
+struct _image_t;
+struct _input_drawable_t;
+
+/* TEMPLATE userval */
+typedef struct
+{
+    int num_control_points;
+    double *control_xs;
+    double *control_ys;
+
+    float *values;		/* calculated from the control points */
+} curve_t;
+
+typedef struct
+{
+    color_t *values;
+} gradient_t;
+
 typedef struct _userval_t
 {
-    int type;
-
     union
     {
 	int int_const;
 	float float_const;
-	float bool_const;
-
-	struct
-	{
-#ifndef OPENSTEP
-	    GimpRGB button_value;
-#endif
-	    color_t value;
-	} color;
-
-	struct
-	{
-	    float *values;
-	} curve;
-
-	struct
-	{
-	    color_t *values;
-	} gradient;
-
-	struct
-	{
-	    input_drawable_t *drawable;
-	    float scale_x;
-	    float scale_y;
-	    float middle_x;
-	    float middle_y;
-	} image;
+	int bool_const;
+	struct _image_t *image;
+	curve_t *curve;
+	gradient_t *gradient;
+	color_t color;
     } v;
-
-#ifndef OPENSTEP
-    GtkWidget *widget;
-#endif
 } userval_t;
+/* END */
 
 userval_info_t* lookup_userval (userval_info_t *infos, const char *name);
 userval_info_t* lookup_matching_userval (userval_info_t *infos, userval_info_t *test_info);
@@ -142,11 +130,12 @@ void set_userval_to_default (userval_t *val, userval_info_t *info, struct _mathm
 
 void copy_userval (userval_t *dst, userval_t *src, int type);
 
-void assign_image_userval_drawable (userval_info_t *info, userval_t *val, input_drawable_t *drawable);
+void assign_image_userval_drawable (userval_info_t *info, userval_t *val, struct _input_drawable_t *drawable);
 
-#ifndef OPENSTEP
-GtkWidget* make_userval_table (userval_info_t *infos, userval_t *uservals);
-#endif
 void update_uservals (userval_info_t *infos, userval_t *uservals);
+
+const char* userval_type_name (int type);
+
+gradient_t* get_default_gradient (void);
 
 #endif

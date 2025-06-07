@@ -1,0 +1,2 @@
+locale-neutral float conversion via GLib (g_ascii_strtod/dtostr).
+change float to double in real.
